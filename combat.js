@@ -178,9 +178,9 @@
   }
 
   // ----- Triple Attack (main hand only; offhand does not triple) -----
-  // Triple happens on 10% of rounds that already had a successful double attack.
+  // Triple happens on 13.5% of rounds that already had a successful double attack.
   // Only warrior and monk at level 60+ can triple attack.
-  const TRIPLE_ATTACK_CHANCE_ON_DOUBLE = 0.1;
+  const TRIPLE_ATTACK_CHANCE_ON_DOUBLE = 0.135;
 
   function canTripleAttack(level, classId) {
     return (classId === 'warrior' || classId === 'monk') && (level != null ? level : 0) >= 60;
