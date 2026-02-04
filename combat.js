@@ -314,7 +314,7 @@
    * @param {number} [options.dex=255] - dexterity for proc
    * @param {boolean} [options.fromBehind] - if true, skip block/parry/dodge/riposte only
    * @param {boolean} [options.specialAttacks] - if true, fire class special on cooldown
-   * @param {number} [options.backstabModPercent] - rogue only: increase backstab damage by this % (e.g. 20 for 20%)
+   * @param {number} [options.backstabModPercent] - rogue only: increase effective backstab skill by this % (e.g. 20 for 20%), capped at 255
    * @param {number} [options.backstabSkill] - rogue only: backstab skill for base damage (skill*0.02+2)*weapon_damage; also enforces minHit by level
    * @param {number} [options.seed] - optional RNG seed for reproducibility
    * @param {number} [options.critChanceMult] - AA Critical Hit Chance bonus (percent)
@@ -416,12 +416,10 @@
           report.special.count++;
           let baseDmg;
           if (isRogueBackstab) {
+            const backstabSkill = options.backstabSkill != null ? options.backstabSkill : 225;
             const backstabModPct = options.backstabModPercent || 0;
-            const modifiedWeaponDamage = backstabModPct !== 0
-              ? Math.floor(w1.damage * (100 + backstabModPct) / 100)
-              : w1.damage;
-            const backstabSkill = Math.min(255, options.backstabSkill != null ? options.backstabSkill : 225);
-            const backstabBase = Math.floor(((backstabSkill * 0.02) + 2.0) * modifiedWeaponDamage);
+            const effectiveSkill = Math.min(255, Math.floor(backstabSkill * (100 + backstabModPct) / 100));
+            const backstabBase = Math.floor(((effectiveSkill * 0.02) + 2.0) * w1.damage);
             baseDmg = calcMeleeDamage(backstabBase, offenseForDamage, mitigation, rng, 0);
             baseDmg = Math.max(1, Math.floor(baseDmg * specialConfig.damageMultiplier));
           } else {
@@ -451,12 +449,10 @@
               report.special.doubleBackstabs++;
               report.special.hits++;
               report.special.count++;
+              const backstabSkill2 = options.backstabSkill != null ? options.backstabSkill : 225;
               const backstabModPct2 = options.backstabModPercent || 0;
-              const modifiedWeaponDamage2 = backstabModPct2 !== 0
-                ? Math.floor(w1.damage * (100 + backstabModPct2) / 100)
-                : w1.damage;
-              const backstabSkill2 = Math.min(255, options.backstabSkill != null ? options.backstabSkill : 225);
-              const backstabBase2 = Math.floor(((backstabSkill2 * 0.02) + 2.0) * modifiedWeaponDamage2);
+              const effectiveSkill2 = Math.min(255, Math.floor(backstabSkill2 * (100 + backstabModPct2) / 100));
+              const backstabBase2 = Math.floor(((effectiveSkill2 * 0.02) + 2.0) * w1.damage);
               let baseDmg2 = calcMeleeDamage(backstabBase2, offenseForDamage, mitigation, rng, 0);
               baseDmg2 = Math.max(1, Math.floor(baseDmg2 * specialConfig.damageMultiplier));
               const mult2 = rollDamageMultiplier(offenseForDamage, baseDmg2, level, options.classId, false, rng);
@@ -784,10 +780,8 @@
         const modPct = report.special.backstabModPercent != null ? report.special.backstabModPercent : 0;
         if (modPct !== 0 && report.special.backstabSkill != null) {
           const skill = report.special.backstabSkill;
-          const baseMult = (skill * 0.02) + 2.0;
-          const effectiveMult = baseMult * (100 + modPct) / 100;
-          const effectiveSkill = Math.min(255, Math.round((effectiveMult - 2) / 0.02));
-          lines.push(`  Effective backstab skill: ${effectiveSkill} (used in damage calculation with ${modPct}% mod)`);
+          const effectiveSkill = Math.min(255, Math.floor(skill * (100 + modPct) / 100));
+          lines.push(`  Effective backstab skill: ${effectiveSkill} (skill + ${modPct}% mod, cap 255)`);
         }
       }
     }
