@@ -250,28 +250,37 @@
       const versionEl = $('app-version');
       if (versionEl) versionEl.textContent = 'v' + VERSION;
 
-      // Weapon presets from PQDI (damage, delay decisec, proc spell name, name for sorting)
+      // Weapon presets from PQDI (damage, delay decisec, proc spell name, name for sorting; type: 1hb/2hb/1hp/1hs)
       const WEAPON_PRESETS = {
         'unequipped': { damage: 0, delay: 0, proc: '', procDamage: 0, name: 'Unequipped' },
-        '27315': { damage: 17, delay: 19, proc: 'Claw of Khati Sha', procDamage: 150, name: 'Fangs of Vyzh`dra' },
-        '26809': { damage: 17, delay: 20, proc: 'Claw of Khati Sha', procDamage: 150, name: 'Glowing Mithril Ulak' },
-        '31241': { damage: 16, delay: 19, proc: 'Strike of the Chosen', procDamage: 80, name: 'Gharn\'s Rock of Smashing' },
-        '26599': { damage: 43, delay: 30, proc: 'Serpent\'s Bite', procDamage: 100, name: 'Caen\'s Bo Staff of Fury', is2H: true },
-        '31242': { damage: 40, delay: 30, proc: '', procDamage: 0, name: 'Abashi\'s Rod of Disempowerment', is2H: true },
-        '26849': { damage: 16, delay: 19, proc: 'Claw of Khati Sha', procDamage: 150, name: 'Fist of Acrylia' },
-        '26860': { damage: 15, delay: 19, proc: 'Claw of Khati Sha', procDamage: 150, name: 'Fist of Glowing Acrylia' },
-        '5776': { damage: 15, delay: 18, proc: 'Engulfing Roots', procDamage: 160, name: 'Fist of Nature' },
-        '1154': { damage: 12, delay: 18, proc: 'Anarchy', procDamage: 288, name: 'Sceptre of Destruction' },
-        '27324': { damage: 45, delay: 44, proc: 'Avatar', procDamage: 0, name: 'Primal Velium Brawl Stick' },
-        '27320': { damage: 15, delay: 20, proc: 'Avatar', procDamage: 0, name: 'Primal Velium Fist Wraps' },
-        '28923': { damage: 1, delay: 18, proc: '', procDamage: 0, name: 'Great Mace of Slaughter' },
-        '28831': { damage: 16, delay: 22, proc: 'Terrifying Darkness', procDamage: 0, name: 'Blackout' },
-        '6631': { damage: 44, delay: 40, proc: 'One Hundred Blows', procDamage: 0, name: 'Ton Po\'s Bo Stick of Understanding', is2H: true },
-        '6639': { damage: 29, delay: 30, proc: 'One Hundred Blows', procDamage: 0, name: 'Tranquil Staff', is2H: true },
-        '6646': { damage: 28, delay: 30, proc: '', procDamage: 0, name: 'Peacebringer' },
-        '6612': { damage: 9, delay: 18, proc: '', procDamage: 0, name: 'Jade Mace' },
-        '32333': { damage: 12, delay: 23, proc: '', procDamage: 0, name: 'Goranga Spiked Club' },
-        '6610': { damage: 17, delay: 28, proc: 'Major Shielding', procDamage: 0, name: 'Stave of Shielding' },
+        '27315': { damage: 17, delay: 19, proc: 'Claw of Khati Sha', procDamage: 150, name: 'Fangs of Vyzh`dra', type: '1hp' },
+        '26809': { damage: 17, delay: 20, proc: 'Claw of Khati Sha', procDamage: 150, name: 'Glowing Mithril Ulak', type: '1hb' },
+        '31241': { damage: 16, delay: 19, proc: 'Strike of the Chosen', procDamage: 80, name: 'Gharn\'s Rock of Smashing', type: '1hb' },
+        '26599': { damage: 43, delay: 30, proc: 'Serpent\'s Bite', procDamage: 100, name: 'Caen\'s Bo Staff of Fury', is2H: true, type: '2hb' },
+        '31242': { damage: 40, delay: 30, proc: '', procDamage: 0, name: 'Abashi\'s Rod of Disempowerment', is2H: true, type: '2hb' },
+        '26849': { damage: 16, delay: 19, proc: 'Claw of Khati Sha', procDamage: 150, name: 'Fist of Acrylia', type: '1hb' },
+        '26860': { damage: 15, delay: 19, proc: 'Claw of Khati Sha', procDamage: 150, name: 'Fist of Glowing Acrylia', type: '1hb' },
+        '5776': { damage: 15, delay: 18, proc: 'Engulfing Roots', procDamage: 160, name: 'Fist of Nature', type: '1hb' },
+        '1154': { damage: 12, delay: 18, proc: 'Anarchy', procDamage: 288, name: 'Sceptre of Destruction', type: '1hb' },
+        '27324': { damage: 45, delay: 44, proc: 'Avatar', procDamage: 0, name: 'Primal Velium Brawl Stick', type: '2hb' },
+        '27320': { damage: 15, delay: 20, proc: 'Avatar', procDamage: 0, name: 'Primal Velium Fist Wraps', type: '1hb' },
+        '28923': { damage: 1, delay: 18, proc: '', procDamage: 0, name: 'Great Mace of Slaughter', type: '1hb' },
+        '28831': { damage: 16, delay: 22, proc: 'Terrifying Darkness', procDamage: 0, name: 'Blackout', type: '1hp' },
+        '6631': { damage: 44, delay: 40, proc: 'One Hundred Blows', procDamage: 0, name: 'Ton Po\'s Bo Stick of Understanding', is2H: true, type: '2hb' },
+        '6639': { damage: 29, delay: 30, proc: 'One Hundred Blows', procDamage: 0, name: 'Tranquil Staff', is2H: true, type: '2hb' },
+        '6646': { damage: 28, delay: 30, proc: '', procDamage: 0, name: 'Peacebringer', type: '1hs' },
+        '6612': { damage: 9, delay: 18, proc: '', procDamage: 0, name: 'Jade Mace', type: '1hb' },
+        '32333': { damage: 12, delay: 23, proc: '', procDamage: 0, name: 'Goranga Spiked Club', type: '1hb' },
+        '6610': { damage: 17, delay: 28, proc: 'Major Shielding', procDamage: 0, name: 'Stave of Shielding', type: '2hb' },
+        '31224': { damage: 15, delay: 19, proc: 'Feast of Blood', procDamage: 0, name: 'Mrylokar\'s Dagger of Vengeance', type: '1hp' },
+        '2509': { damage: 15, delay: 20, proc: 'Combust', procDamage: 0, name: 'Massive Heartwood Thorn', type: '1hp' },
+        '31379': { damage: 14, delay: 18, proc: '', procDamage: 0, name: 'Claw of Lightning', type: '1hs' },
+        '31301': { damage: 13, delay: 17, proc: '', procDamage: 0, name: 'Vyemm\'s Fang', type: '1hp' },
+        '1158': { damage: 13, delay: 18, proc: 'Thunder Strike', procDamage: 0, name: 'Salindrite Dagger', type: '1hp' },
+        '11057': { damage: 15, delay: 25, proc: '', procDamage: 0, name: 'Ragebringer', type: '1hp' },
+        '28806': { damage: 16, delay: 20, proc: 'Khalshazar\'s Deceit', procDamage: 0, name: 'Khalshazar', type: '1hp' },
+        '28805': { damage: 16, delay: 21, proc: '', procDamage: 0, name: 'Bloodbath', type: '1hp' },
+        '26585': { damage: 16, delay: 19, proc: 'Serpent\'s Bite', procDamage: 0, name: 'Acrylia Handled Broadsword', type: '1hs' },
       };
 
       const WEAPON_PRESET_IDS = Object.keys(WEAPON_PRESETS).filter(function (id) { return id !== 'unequipped'; }).sort(function (a, b) {
@@ -282,7 +291,8 @@
         const p = WEAPON_PRESETS[id];
         if (!p) return '';
         const stats = p.damage + '/' + p.delay;
-        return p.name + ' (' + stats + (p.proc ? ', ' + p.proc : '') + ')';
+        const desc = p.name + ' (' + stats + (p.proc ? ', ' + p.proc : '') + ')';
+        return (p.type ? p.type + ' ' : '') + desc;
       }
 
       function applyWeaponPreset(prefix, id) {
