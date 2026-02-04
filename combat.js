@@ -276,8 +276,9 @@
   }
 
   // ----- Special attacks (Flying Kick, Backstab, etc.) -----
+  // Flying Kick uses skill/level-based base only (EQMacEmu: GetSkillBaseDamage + min level*4/5), not primary weapon.
   const SPECIAL_ATTACKS = {
-    monk: { name: 'Flying Kick', cooldownDecisec: 80, damageMultiplier: 2 },
+    monk: { name: 'Flying Kick', cooldownDecisec: 80, useWeaponDamage: false },
     rogue: { name: 'Backstab', cooldownDecisec: 120, damageMultiplier: 3, fromBehindOnly: true },
   };
 
@@ -301,6 +302,7 @@
    * @param {number} options.hastePercent - total haste (e.g. 40 for 40%)
    * @param {number} [options.wornAttack=0] - worn ATK (items)
    * @param {number} [options.spellAttack=0] - spell ATK (buffs)
+   * @param {number} [options.offenseSkill=252] - offense skill for to-hit and damage (7 + offense + weapon skill; weapon skill 252)
    * @param {number} [options.toHitBonus=0] - e.g. class bonus (Warrior +24)
    * @param {number} [options.str=255] - STR stat (affects offense for damage roll when STR >= 75)
    * @param {number} options.doubleAttackSkill - double attack skill value
@@ -340,17 +342,16 @@
     const wornAttack = options.wornAttack != null ? options.wornAttack : 0;
     const spellAttack = options.spellAttack != null ? options.spellAttack : 0;
     const toHitBonus = options.toHitBonus != null ? options.toHitBonus : 0;
-    // To Hit: offense skill always 252, weapon skill 252 → 7 + 252 + 252 = 511. Base offense = weapon skill + STR.
-    const OFFENSE_SKILL_FOR_TOHIT = 252;
+    // To Hit: 7 + offense skill + weapon skill (252). Offense for damage = offense skill + STR bonus + worn/spell attack.
+    const OFFENSE_SKILL = options.offenseSkill != null ? Math.min(255, Math.max(0, options.offenseSkill)) : 252;
     const WEAPON_SKILL_FOR_TOHIT = 252;
-    const BASE_TO_HIT = 7 + OFFENSE_SKILL_FOR_TOHIT + WEAPON_SKILL_FOR_TOHIT;
-    const BASE_OFFENSE_SKILL = 252;
+    const BASE_TO_HIT = 7 + OFFENSE_SKILL + WEAPON_SKILL_FOR_TOHIT;
     const toHit = (options.attackRating != null && options.wornAttack == null && options.spellAttack == null)
       ? options.attackRating + toHitBonus
       : BASE_TO_HIT + toHitBonus;
     const offenseForDamage = (options.attackRating != null && options.wornAttack == null && options.spellAttack == null)
       ? options.attackRating + strBonus
-      : (BASE_OFFENSE_SKILL + strBonus + wornAttack + spellAttack);
+      : (OFFENSE_SKILL + strBonus + wornAttack + spellAttack);
     const dualWieldEffective = getDualWieldEffective(level, options.dualWieldSkill, options.ambidexterity ?? 0);
     const dualWieldPct = (dualWieldEffective / 375) * 100;
     const doubleAttackEffective = getDoubleAttackEffective(level, options.doubleAttackSkill || 0);
@@ -422,13 +423,20 @@
             const backstabBase = Math.floor(((effectiveSkill * 0.02) + 2.0) * w1.damage);
             baseDmg = calcMeleeDamage(backstabBase, offenseForDamage, mitigation, rng, 0);
             baseDmg = Math.max(1, Math.floor(baseDmg * specialConfig.damageMultiplier));
+          } else if (specialConfig.useWeaponDamage === false) {
+            // Flying Kick: level-based base only (EQMacEmu min_dmg = level*4/5)
+            const fkBase = level * 2;
+            baseDmg = calcMeleeDamage(fkBase, offenseForDamage, mitigation, rng, 0);
+            const fkMin = Math.floor(level * 4 / 5);
+            baseDmg = Math.max(1, Math.max(baseDmg, fkMin));
           } else {
             baseDmg = calcMeleeDamage(w1.damage, offenseForDamage, mitigation, rng);
-            baseDmg = Math.max(1, Math.floor(baseDmg * specialConfig.damageMultiplier));
+            baseDmg = Math.max(1, specialConfig.damageMultiplier ? Math.floor(baseDmg * specialConfig.damageMultiplier) : baseDmg);
           }
           const mult = rollDamageMultiplier(offenseForDamage, baseDmg, level, options.classId, false, rng);
           let dmg = mult.damage;
           const beforeCrit = dmg;
+          // Crit is only rolled after a successful hit (we are inside specialHits here).
           const critResult = rollMeleeCrit(dmg, 0, level, options.classId, options.dex, options.critChanceMult, false, false, 0, rng);
           dmg = critResult.damage;
           if (critResult.isCrit) { report.critHits++; report.critDamageGain += (dmg - beforeCrit); }
@@ -482,6 +490,7 @@
         nextSwing1 = t + delay1;
         let attacksThisRound = 1;
 
+        // Crit is only rolled after a successful hit (we are inside the rollHit success block).
         if (rollHit(toHit, avoidance, rng, fromBehind)) {
           let dmg = calcMeleeDamage(w1.damage, offenseForDamage, mitigation, rng, 0);
           const mult = rollDamageMultiplier(offenseForDamage, dmg, level, options.classId, false, rng);

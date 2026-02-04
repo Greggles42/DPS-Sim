@@ -170,6 +170,8 @@
       <p class="hint" id="class-hint">Monk: to-hit +0, DA 250, DW 252. You can still edit values.</p>
       <label for="haste">Total haste (%) (Worn Haste + Spell Haste + v3 Haste) <span class="info-icon" title="Worn attack: Cloak of Flames 36%&#10;Spell Haste: Visions of Grandeur 58%&#10;v3 Haste: Warsong of the Vah Shir 25%">&#8505;</span></label>
       <input type="number" id="haste" min="0" value="99" placeholder="e.g. 99">
+      <label for="offense-skill">Offense skill</label>
+      <input type="number" id="offense-skill" min="0" max="255" value="252" placeholder="252" title="Used for to-hit (7 + offense + weapon skill) and damage roll offense. Weapon skill assumed 252.">
       <label for="worn-attack">Worn attack <span class="info-icon" title="Avatar of Battle and Vengeance effects stack with each other up to 250. Procced avatar counts as 100 worn attack.">&#8505;</span></label>
       <input type="number" id="worn-attack" min="0" value="0" placeholder="e.g. 0">
       <label for="spell-attack">Spell attack</label>
@@ -287,22 +289,22 @@
         '27324': { damage: 45, delay: 44, proc: 'Avatar', procDamage: 0, name: 'Primal Velium Brawl Stick', is2H: true, type: '2hb' },
         '27320': { damage: 15, delay: 20, proc: 'Avatar', procDamage: 0, name: 'Primal Velium Fist Wraps', type: 'h2h' },
         '28923': { damage: 1, delay: 18, proc: '', procDamage: 0, name: 'Great Mace of Slaughter', type: '1hb' },
-        '28831': { damage: 16, delay: 22, proc: 'Terrifying Darkness', procDamage: 0, name: 'Blackout', type: '1hp' },
-        '6631': { damage: 44, delay: 40, proc: 'One Hundred Blows', procDamage: 0, name: 'Ton Po\'s Bo Stick of Understanding', is2H: true, type: '2hb' },
-        '6639': { damage: 29, delay: 30, proc: 'One Hundred Blows', procDamage: 0, name: 'Tranquil Staff', is2H: true, type: '2hb' },
+        '28831': { damage: 16, delay: 22, proc: 'Terrifying Darkness', procDamage: 100, name: 'Blackout', type: '1hp' },
+        '6631': { damage: 44, delay: 40, proc: 'One Hundred Blows', procDamage: 120, name: 'Ton Po\'s Bo Stick of Understanding', is2H: true, type: '2hb' },
+        '6639': { damage: 29, delay: 30, proc: 'One Hundred Blows', procDamage: 120, name: 'Tranquil Staff', is2H: true, type: '2hb' },
         '6646': { damage: 28, delay: 30, proc: '', procDamage: 0, name: 'Peacebringer', is2H: true, type: '2hb' },
         '6612': { damage: 9, delay: 18, proc: '', procDamage: 0, name: 'Jade Mace', type: '1hb' },
         '32333': { damage: 12, delay: 23, proc: '', procDamage: 0, name: 'Goranga Spiked Club', type: '1hb' },
         '6610': { damage: 17, delay: 28, proc: 'Major Shielding', procDamage: 0, name: 'Stave of Shielding', is2H: true, type: '2hb' },
-        '31224': { damage: 15, delay: 19, proc: 'Feast of Blood', procDamage: 0, name: 'Mrylokar\'s Dagger of Vengeance', type: '1hp' },
-        '2509': { damage: 15, delay: 20, proc: 'Combust', procDamage: 0, name: 'Massive Heartwood Thorn', type: '1hp' },
+        '31224': { damage: 15, delay: 19, proc: 'Feast of Blood', procDamage: 90, name: 'Mrylokar\'s Dagger of Vengeance', type: '1hp' },
+        '2509': { damage: 15, delay: 20, proc: 'Combust', procDamage: 182, name: 'Massive Heartwood Thorn', type: '1hp' },
         '31379': { damage: 14, delay: 18, proc: '', procDamage: 0, name: 'Claw of Lightning', type: '1hs' },
         '31301': { damage: 13, delay: 17, proc: '', procDamage: 0, name: 'Vyemm\'s Fang', type: '1hp' },
-        '1158': { damage: 13, delay: 18, proc: 'Thunder Strike', procDamage: 0, name: 'Salindrite Dagger', type: '1hp' },
+        '1158': { damage: 13, delay: 18, proc: 'Thunder Strike', procDamage: 263, name: 'Salindrite Dagger', type: '1hp' },
         '11057': { damage: 15, delay: 25, proc: '', procDamage: 0, name: 'Ragebringer', type: '1hp' },
         '28806': { damage: 16, delay: 20, proc: 'Khalshazar\'s Deceit', procDamage: 0, name: 'Khalshazar', type: '1hp' },
         '28805': { damage: 16, delay: 21, proc: '', procDamage: 0, name: 'Bloodbath', type: '1hp' },
-        '26585': { damage: 16, delay: 19, proc: 'Serpent\'s Bite', procDamage: 0, name: 'Acrylia Handled Broadsword', type: '1hs' },
+        '26585': { damage: 16, delay: 19, proc: 'Serpent\'s Bite', procDamage: 100, name: 'Acrylia Handled Broadsword', type: '1hs' },
       };
 
       const WEAPON_PRESET_IDS = Object.keys(WEAPON_PRESETS).filter(function (id) { return id !== 'unequipped'; }).sort(function (a, b) {
@@ -337,6 +339,10 @@
           const procDmgEl = $(prefix + '-proc-damage');
           if (procDmgEl) procDmgEl.value = (p.procDamage != null ? p.procDamage : 0) || '';
           if (prefix === 'w1') {
+            if (p.is2H || p.type === '2hb') {
+              $('w2-preset').value = 'unequipped';
+              applyWeaponPreset('w2', 'unequipped');
+            }
             updateWeapon2Disabled();
             updateFistweavingVisibility();
           }
@@ -348,13 +354,20 @@
         if (!sel) return;
         const current = sel.value;
         sel.innerHTML = '<option value="unequipped">Unequipped</option><option value="">Custom</option>';
-        WEAPON_PRESET_IDS.forEach(function (id) {
+        const ids = selId === 'w2-preset'
+          ? WEAPON_PRESET_IDS.filter(function (id) {
+              const p = WEAPON_PRESETS[id];
+              return p && !(p.is2H || p.type === '2hb');
+            })
+          : WEAPON_PRESET_IDS;
+        ids.forEach(function (id) {
           const opt = document.createElement('option');
           opt.value = id;
           opt.textContent = weaponOptionLabel(id);
           sel.appendChild(opt);
         });
-        if (current === 'unequipped' || WEAPON_PRESETS[current]) sel.value = current;
+        if (current === 'unequipped' || (WEAPON_PRESETS[current] && ids.indexOf(current) !== -1)) sel.value = current;
+        else if (ids.indexOf(current) === -1) sel.value = 'unequipped';
       }
 
       // Class-specific defaults and modifiers (EQMacEmu / attack.cpp style)
@@ -412,10 +425,12 @@
 
         const useWeapon2 = weapon2.damage > 0 && weapon2.delay > 0 && dualWieldSkill > 0;
 
+        const offenseSkill = Math.min(255, Math.max(0, parseInt($('offense-skill').value, 10) || 252));
         const options = {
           weapon1: { damage: weapon1.damage, delay: weapon1.delay, procSpell: weapon1.procSpell, procSpellDamage: weapon1.procSpellDamage, is2H: weapon1.is2H },
           weapon2: useWeapon2 ? { damage: weapon2.damage, delay: weapon2.delay, procSpell: weapon2.procSpell, procSpellDamage: weapon2.procSpellDamage } : undefined,
           hastePercent,
+          offenseSkill,
           wornAttack,
           spellAttack,
           toHitBonus,
