@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EverQuest DPS Simulator</title>
+  <style>
+    :root {
+      --bg: #1a1d23;
+      --panel: #252830;
+      --border: #3d4452;
+      --text: #e6e8ec;
+      --muted: #8b909a;
+      --accent: #7eb8da;
+      --input-bg: #1e2128;
+    }
+    * { box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      margin: 0;
+      padding: 1.5rem;
+      line-height: 1.5;
+    }
+    h1 {
+      font-size: 1.5rem;
+      font-weight: 600;
+      margin: 0 0 1rem;
+      color: var(--accent);
+    }
+    .grid {
+      display: grid;
+      gap: 1rem;
+      max-width: 900px;
+    }
+    @media (min-width: 700px) {
+      .grid { grid-template-columns: 1fr 1fr; }
+    }
+    section {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1rem 1.25rem;
+    }
+    section h2 {
+      font-size: 0.9rem;
+      font-weight: 600;
+      margin: 0 0 0.75rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    label {
+      display: block;
+      font-size: 0.85rem;
+      margin-bottom: 0.25rem;
+      color: var(--muted);
+    }
+    input, select {
+      width: 100%;
+      padding: 0.5rem 0.6rem;
+      background: var(--input-bg);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      color: var(--text);
+      font-size: 0.95rem;
+      margin-bottom: 0.75rem;
+    }
+    input:focus, select:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+    .row {
+      display: flex;
+      gap: 0.75rem;
+      margin-bottom: 0.75rem;
+    }
+    .row > * { flex: 1; }
+    button {
+      background: var(--accent);
+      color: var(--bg);
+      border: none;
+      padding: 0.6rem 1.2rem;
+      border-radius: 4px;
+      font-weight: 600;
+      font-size: 0.95rem;
+      cursor: pointer;
+      margin-top: 0.5rem;
+    }
+    button:hover { filter: brightness(1.1); }
+    button:active { filter: brightness(0.95); }
+    #report {
+      white-space: pre-wrap;
+      font-family: ui-monospace, 'Cascadia Code', monospace;
+      font-size: 0.85rem;
+      background: var(--input-bg);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 1rem;
+      margin-top: 1rem;
+      min-height: 120px;
+    }
+    .hint { font-size: 0.75rem; color: var(--muted); margin-top: -0.5rem; margin-bottom: 0.75rem; }
+    .radio-group { display: flex; gap: 1rem; align-items: center; margin-bottom: 0.75rem; }
+    .radio-group label { display: flex; align-items: center; gap: 0.35rem; margin-bottom: 0; cursor: pointer; }
+    .radio-group input[type="radio"] { width: auto; margin: 0; }
+    .checkbox-label { display: flex; align-items: center; gap: 0.35rem; cursor: pointer; margin-bottom: 0.25rem; }
+    .checkbox-label input[type="checkbox"] { width: auto; margin: 0; }
+    #histogram-container { max-width: 900px; }
+    .histogram-section { margin-bottom: 1.5rem; }
+    .histogram-section h3 { font-size: 0.9rem; color: var(--muted); margin: 0 0 0.5rem; }
+    .histogram-chart { display: flex; align-items: flex-end; gap: 2px; height: 120px; min-height: 120px; padding: 0.5rem 0; }
+    .histogram-bar { background: var(--accent); border-radius: 2px 2px 0 0; min-width: 4px; min-height: 2px; }
+    .histogram-bar:hover { filter: brightness(1.2); }
+    .histogram-legend { font-size: 0.75rem; color: var(--muted); margin-top: 0.25rem; }
+  </style>
+</head>
+<body>
+  <h1>EverQuest DPS Simulator <span id="app-version" style="font-weight: 400; color: var(--muted); font-size: 0.85rem;">v0.3</span></h1>
+  <p class="muted" style="margin:0 0 1rem; color: var(--muted); font-size: 0.9rem;">
+    Formulas based on <a href="https://github.com/SecretsOTheP/EQMacEmu/blob/main/zone/attack.cpp" target="_blank" rel="noopener" style="color: var(--accent);">EQMacEmu attack.cpp</a>.
+  </p>
+
+  <div class="grid">
+    <section>
+      <h2>Weapon 1 (Main Hand)</h2>
+      <label for="w1-preset">Quick select</label>
+      <select id="w1-preset"></select>
+      <label for="w1-damage">Damage</label>
+      <input type="number" id="w1-damage" min="1" value="12" placeholder="e.g. 12">
+      <label for="w1-delay">Delay (deciseconds)</label>
+      <input type="number" id="w1-delay" min="10" value="40" placeholder="40 = 4.0 sec">
+      <p class="hint">Delay in tenths of a second (40 = 4.0s, 25 = 2.5s)</p>
+      <label for="w1-proc">Proc spell (name or leave blank)</label>
+      <input type="text" id="w1-proc" placeholder="e.g. Flaming Sword">
+      <label for="w1-proc-damage">Proc spell damage (on proc)</label>
+      <input type="number" id="w1-proc-damage" min="0" value="0" placeholder="0">
+      <label class="checkbox-label" style="margin-top: 0.5rem;"><input type="checkbox" id="w1-is2h"> Main hand is 2H weapon</label>
+    </section>
+
+    <section>
+      <h2>Weapon 2 (Offhand, optional)</h2>
+      <label for="w2-preset">Quick select</label>
+      <select id="w2-preset"></select>
+      <label for="w2-damage">Damage</label>
+      <input type="number" id="w2-damage" min="0" value="0" placeholder="0 = no offhand">
+      <label for="w2-delay">Delay (deciseconds)</label>
+      <input type="number" id="w2-delay" min="0" value="0" placeholder="0">
+      <label for="w2-proc">Proc spell (name or leave blank)</label>
+      <input type="text" id="w2-proc" placeholder="e.g. Poison">
+      <label for="w2-proc-damage">Proc spell damage (on proc)</label>
+      <input type="number" id="w2-proc-damage" min="0" value="0" placeholder="0">
+    </section>
+
+    <section>
+      <h2>Character & Haste</h2>
+      <label>Class (applies defaults and to-hit)</label>
+      <select id="class">
+        <option value="">None (manual)</option>
+        <option value="warrior">Warrior</option>
+        <option value="paladin">Paladin</option>
+        <option value="ranger">Ranger</option>
+        <option value="shadowknight">Shadowknight</option>
+        <option value="monk" selected>Monk</option>
+        <option value="rogue">Rogue</option>
+        <option value="bard">Bard</option>
+        <option value="cleric">Cleric</option>
+        <option value="druid">Druid</option>
+        <option value="shaman">Shaman</option>
+        <option value="necromancer">Necromancer</option>
+        <option value="wizard">Wizard</option>
+        <option value="magician">Magician</option>
+        <option value="enchanter">Enchanter</option>
+        <option value="beastlord">Beastlord</option>
+      </select>
+      <p class="hint" id="class-hint">Monk: to-hit +0, DA 250, DW 252. You can still edit values.</p>
+      <label for="haste">Total haste (%) (Worn Haste + Spell Haste + v3 Haste)</label>
+      <input type="number" id="haste" min="0" value="99" placeholder="e.g. 99">
+      <label for="worn-attack">Worn attack</label>
+      <input type="number" id="worn-attack" min="0" value="0" placeholder="e.g. 0">
+      <label for="spell-attack">Spell attack</label>
+      <input type="number" id="spell-attack" min="0" value="0" placeholder="e.g. 0">
+      <label for="double-attack">Double attack skill</label>
+      <input type="number" id="double-attack" min="0" value="250" placeholder="e.g. 250">
+      <label for="dual-wield">Dual wield skill</label>
+      <input type="number" id="dual-wield" min="0" value="252" placeholder="0 = no dual wield">
+      <label class="checkbox-label"><input type="checkbox" id="ambidexterity-aa"> Ambidexterity AA (+32 effective dual wield)</label>
+      <label class="checkbox-label"><input type="checkbox" id="special-attacks"> Special attacks (Flying Kick / Backstab on cooldown)</label>
+      <p class="hint" id="special-hint">Monk: Flying Kick every 8s. Rogue: Backstab every 12s (from behind only).</p>
+      <div id="rogue-backstab-mod-row" style="display: none;">
+        <label for="backstab-mod">Backstab mod %</label>
+        <input type="number" id="backstab-mod" min="0" value="0" placeholder="e.g. 0" title="Increases backstab damage by this % when rogue.">
+      </div>
+      <label for="level">Level</label>
+      <input type="number" id="level" min="1" max="65" value="60" title="Used for double attack, dual wield, and main hand damage bonus (warrior classes, 28+).">
+      <label for="str">STR (affects offense for damage)</label>
+      <input type="number" id="str" min="1" value="255" placeholder="255">
+      <label for="dex">DEX (proc rate, crit chance)</label>
+      <input type="number" id="dex" min="1" value="255" placeholder="255">
+      <label for="crit-chance-aa">Crit Chance AA % (Combat Fury, etc.)</label>
+      <input type="number" id="crit-chance-aa" min="0" value="6" placeholder="0">
+    </section>
+
+    <section>
+      <h2>Target & Fight</h2>
+      <label>Attacking from</label>
+      <div class="radio-group">
+        <label><input type="radio" name="from-behind" value="0"> Front (use avoidance)</label>
+        <label><input type="radio" name="from-behind" value="1" checked> Behind (no dodge/parry/riposte/block)</label>
+      </div>
+      <p class="hint">Behind: misses still occur from to-hit vs avoidance; only block/parry/dodge/riposte are skipped.</p>
+      <label for="target-ac">Target AC (mitigation for damage roll)</label>
+      <input type="number" id="target-ac" min="1" value="300" placeholder="e.g. 300" title="Used only for damage roll: when level-based mitigation would be 200 and mob AC &gt; 200, use this value. Does not affect hit chance.">
+      <label for="mob-level">Mob level</label>
+      <input type="number" id="mob-level" min="1" max="70" value="60" title="Used for getMitigation (damage roll) and getAvoidanceNPC (hit chance). Avoidance = level*9+5, cap 400/460.">
+      <label for="duration">Fight duration (seconds)</label>
+      <input type="number" id="duration" min="1" value="6000" placeholder="e.g. 6000">
+      <label for="runs">Number of runs (average report)</label>
+      <input type="number" id="runs" min="1" value="20" placeholder="20">
+      <button type="button" id="btn-run">Run simulation</button>
+    </section>
+  </div>
+
+  <section style="margin-top: 1rem;">
+    <h2>Report</h2>
+    <div id="report">Run a simulation to see the report.</div>
+    <div id="histogram-container" style="margin-top: 1rem;"></div>
+  </section>
+
+  <section style="margin-top: 1rem;">
+    <h2>Version log</h2>
+    <ul style="font-size: 0.9rem; color: var(--muted); margin: 0; padding-left: 1.25rem;">
+      <li><strong>0.3</strong> — Unequipped quick select; Behind default; duration 6000s, runs 20; Ambidexterity AA checkbox; main weapon default Unequipped.</li>
+      <li><strong>0.2</strong> — Worn/spell attack inputs; toHit excludes worn/spell; offense skill 252 for toHit; removed Offense override; default duration 2400s; histogram always shown; displayed attack &amp; stat contribution in report.</li>
+      <li><strong>0.1</strong> — Initial release. Melee combat sim with DA/DW, damage bonus, crits, procs, histogram.</li>
+    </ul>
+  </section>
+
+  <p class="muted" style="margin-top: 1.5rem; font-size: 0.85rem;">Made by Gabbiz</p>
+
+  <script src="combat.js"></script>
+  <script>
+    (function () {
+      const $ = (id) => document.getElementById(id);
+
+      // When releasing: 1) Bump VERSION below. 2) Add a new <li> at the top of the Version log section above.
+      const VERSION = '0.3';
+      const versionEl = $('app-version');
+      if (versionEl) versionEl.textContent = 'v' + VERSION;
+
+      // Weapon presets from PQDI (damage, delay decisec, proc spell name, name for sorting)
+      const WEAPON_PRESETS = {
+        'unequipped': { damage: 0, delay: 0, proc: '', procDamage: 0, name: 'Unequipped' },
+        '27315': { damage: 17, delay: 19, proc: 'Claw of Khati Sha', procDamage: 150, name: 'Fangs of Vyzh`dra' },
+        '26809': { damage: 17, delay: 20, proc: 'Claw of Khati Sha', procDamage: 150, name: 'Glowing Mithril Ulak' },
+        '31241': { damage: 16, delay: 19, proc: 'Strike of the Chosen', procDamage: 80, name: 'Gharn\'s Rock of Smashing' },
+        '26599': { damage: 43, delay: 30, proc: 'Serpent\'s Bite', procDamage: 100, name: 'Caen\'s Bo Staff of Fury', is2H: true },
+        '31242': { damage: 40, delay: 30, proc: '', procDamage: 0, name: 'Abashi\'s Rod of Disempowerment', is2H: true },
+        '26849': { damage: 16, delay: 19, proc: 'Claw of Khati Sha', procDamage: 150, name: 'Fist of Acrylia' },
+        '26860': { damage: 15, delay: 19, proc: 'Claw of Khati Sha', procDamage: 150, name: 'Fist of Glowing Acrylia' },
+        '5776': { damage: 15, delay: 18, proc: 'Engulfing Roots', procDamage: 160, name: 'Fist of Nature' },
+        '1154': { damage: 12, delay: 18, proc: 'Anarchy', procDamage: 288, name: 'Sceptre of Destruction' },
+        '27324': { damage: 45, delay: 44, proc: 'Avatar', procDamage: 0, name: 'Primal Velium Brawl Stick' },
+        '27320': { damage: 15, delay: 20, proc: 'Avatar', procDamage: 0, name: 'Primal Velium Fist Wraps' },
+        '28923': { damage: 1, delay: 18, proc: '', procDamage: 0, name: 'Great Mace of Slaughter' },
+        '28831': { damage: 16, delay: 22, proc: 'Terrifying Darkness', procDamage: 0, name: 'Blackout' },
+        '6631': { damage: 44, delay: 40, proc: 'One Hundred Blows', procDamage: 0, name: 'Ton Po\'s Bo Stick of Understanding', is2H: true },
+        '6639': { damage: 29, delay: 30, proc: 'One Hundred Blows', procDamage: 0, name: 'Tranquil Staff', is2H: true },
+        '6646': { damage: 28, delay: 30, proc: '', procDamage: 0, name: 'Peacebringer' },
+        '6612': { damage: 9, delay: 18, proc: '', procDamage: 0, name: 'Jade Mace' },
+        '32333': { damage: 12, delay: 23, proc: '', procDamage: 0, name: 'Goranga Spiked Club' },
+        '6610': { damage: 17, delay: 28, proc: 'Major Shielding', procDamage: 0, name: 'Stave of Shielding' },
+      };
+
+      const WEAPON_PRESET_IDS = Object.keys(WEAPON_PRESETS).filter(function (id) { return id !== 'unequipped'; }).sort(function (a, b) {
+        return (WEAPON_PRESETS[a].name || '').localeCompare(WEAPON_PRESETS[b].name || '');
+      });
+
+      function weaponOptionLabel(id) {
+        const p = WEAPON_PRESETS[id];
+        if (!p) return '';
+        const stats = p.damage + '/' + p.delay;
+        return p.name + ' (' + stats + (p.proc ? ', ' + p.proc : '') + ')';
+      }
+
+      function applyWeaponPreset(prefix, id) {
+        const p = id ? WEAPON_PRESETS[id] : null;
+        if (p) {
+          $(prefix + '-damage').value = p.damage;
+          $(prefix + '-delay').value = p.delay;
+          $(prefix + '-proc').value = p.proc || '';
+          const procDmgEl = $(prefix + '-proc-damage');
+          if (procDmgEl) procDmgEl.value = (p.procDamage != null ? p.procDamage : 0) || '';
+          if (prefix === 'w1' && $('w1-is2h')) $('w1-is2h').checked = !!p.is2H;
+        }
+      }
+
+      function fillWeaponPresetSelect(selId) {
+        const sel = document.getElementById(selId);
+        if (!sel) return;
+        const current = sel.value;
+        sel.innerHTML = '<option value="unequipped">Unequipped</option><option value="">Custom</option>';
+        WEAPON_PRESET_IDS.forEach(function (id) {
+          const opt = document.createElement('option');
+          opt.value = id;
+          opt.textContent = weaponOptionLabel(id);
+          sel.appendChild(opt);
+        });
+        if (current === 'unequipped' || WEAPON_PRESETS[current]) sel.value = current;
+      }
+
+      // Class-specific defaults and modifiers (EQMacEmu / attack.cpp style)
+      const CLASSES = {
+        warrior:   { toHitBonus: 24, doubleAttack: 250, dualWield: 0,   name: 'Warrior' },
+        paladin:   { toHitBonus: 0,  doubleAttack: 200, dualWield: 0,   name: 'Paladin' },
+        ranger:    { toHitBonus: 0,  doubleAttack: 200, dualWield: 252, name: 'Ranger' },
+        shadowknight: { toHitBonus: 0, doubleAttack: 200, dualWield: 0, name: 'Shadowknight' },
+        monk:      { toHitBonus: 0,  doubleAttack: 250, dualWield: 252, name: 'Monk' },
+        rogue:     { toHitBonus: 0,  doubleAttack: 252, dualWield: 252, name: 'Rogue' },
+        bard:      { toHitBonus: 0,  doubleAttack: 200, dualWield: 252, name: 'Bard' },
+        cleric:    { toHitBonus: 0,  doubleAttack: 0,   dualWield: 0,   name: 'Cleric' },
+        druid:     { toHitBonus: 0,  doubleAttack: 0,   dualWield: 0,   name: 'Druid' },
+        shaman:    { toHitBonus: 0,  doubleAttack: 0,   dualWield: 0,   name: 'Shaman' },
+        necromancer: { toHitBonus: 0, doubleAttack: 0, dualWield: 0, name: 'Necromancer' },
+        wizard:    { toHitBonus: 0,  doubleAttack: 0,   dualWield: 0,   name: 'Wizard' },
+        magician:  { toHitBonus: 0,  doubleAttack: 0,   dualWield: 0,   name: 'Magician' },
+        enchanter: { toHitBonus: 0,  doubleAttack: 0,   dualWield: 0,   name: 'Enchanter' },
+        beastlord: { toHitBonus: 0,  doubleAttack: 200, dualWield: 0,   name: 'Beastlord' },
+      };
+
+      function getWeapon(prefix) {
+        const damage = parseInt($(prefix + '-damage').value, 10) || 0;
+        const delay = parseInt($(prefix + '-delay').value, 10) || 0;
+        const proc = $(prefix + '-proc').value.trim() || null;
+        const procDamageEl = $(prefix + '-proc-damage');
+        const procSpellDamage = procDamageEl && procDamageEl.value !== '' ? parseInt(procDamageEl.value, 10) : 0;
+        const minDmgRaw = $(prefix + '-min');
+        const maxDmgRaw = $(prefix + '-max');
+        const minDmg = minDmgRaw && minDmgRaw.value !== '' ? parseInt(minDmgRaw.value, 10) : null;
+        const maxDmg = maxDmgRaw && maxDmgRaw.value !== '' ? parseInt(maxDmgRaw.value, 10) : null;
+        const is2H = prefix === 'w1' && $('w1-is2h') && $('w1-is2h').checked;
+        return { damage, delay, procSpell: proc, procSpellDamage: procSpellDamage || 0, minDmg, maxDmg, is2H };
+      }
+
+      function run() {
+        const weapon1 = getWeapon('w1');
+        const weapon2 = getWeapon('w2');
+        if (weapon1.damage < 1 || weapon1.delay < 10) {
+          $('report').textContent = 'Weapon 1: set Damage >= 1 and Delay >= 10 (e.g. 40 for 4.0s).';
+          return;
+        }
+
+        const hastePercent = parseFloat($('haste').value) || 0;
+        const wornAttack = parseInt($('worn-attack').value, 10) || 0;
+        const spellAttack = parseInt($('spell-attack').value, 10) || 0;
+        let doubleAttackSkill = parseInt($('double-attack').value, 10) || 0;
+        let dualWieldSkill = parseInt($('dual-wield').value, 10) || 0;
+        const level = parseInt($('level').value, 10) || 60;
+        const targetAC = parseInt($('target-ac').value, 10) || 200;
+        const mobLevel = parseInt($('mob-level').value, 10) || 60;
+        const durationSec = parseInt($('duration').value, 10) || 6000;
+        const str = parseInt($('str').value, 10) || 255;
+        const runs = Math.max(1, Math.min(1000, parseInt($('runs').value, 10) || 20));
+        const dex = parseInt($('dex').value, 10) || 255;
+        const fromBehind = document.querySelector('input[name="from-behind"]:checked').value === '1';
+        const critChanceMult = parseInt($('crit-chance-aa').value, 10) || 0;
+        const classId = ($('class').value || '').toLowerCase();
+        const classConfig = classId ? CLASSES[classId] : null;
+        const toHitBonus = (classConfig && classConfig.toHitBonus) ? classConfig.toHitBonus : 0;
+        const specialAttacks = $('special-attacks').checked;
+
+        const useWeapon2 = weapon2.damage > 0 && weapon2.delay > 0 && dualWieldSkill > 0;
+
+        const options = {
+          weapon1: { damage: weapon1.damage, delay: weapon1.delay, procSpell: weapon1.procSpell, procSpellDamage: weapon1.procSpellDamage, is2H: weapon1.is2H },
+          weapon2: useWeapon2 ? { damage: weapon2.damage, delay: weapon2.delay, procSpell: weapon2.procSpell, procSpellDamage: weapon2.procSpellDamage } : undefined,
+          hastePercent,
+          wornAttack,
+          spellAttack,
+          toHitBonus,
+          ambidexterity: $('ambidexterity-aa').checked ? 32 : 0,
+          doubleAttackSkill,
+          dualWieldSkill: useWeapon2 ? dualWieldSkill : 0,
+          level,
+          targetAC,
+          mobLevel,
+          fightDurationSec: durationSec,
+          dex,
+          str,
+          fromBehind,
+          specialAttacks,
+          classId: classId || undefined,
+          backstabModPercent: classId === 'rogue' ? (parseInt($('backstab-mod').value, 10) || 0) : undefined,
+          critChanceMult: critChanceMult || undefined,
+        };
+
+        const reports = [];
+        for (let i = 0; i < runs; i++) {
+          options.seed = runs === 1 ? undefined : (Date.now() + i);
+          reports.push(EQCombat.runFight(options));
+        }
+
+        let report;
+        if (runs === 1) {
+          report = reports[0];
+        } else {
+          const w1Hits = reports.reduce((s, r) => s + r.weapon1.hits, 0);
+          const w2Hits = reports.reduce((s, r) => s + r.weapon2.hits, 0);
+          const w1Mins = reports.map(r => r.weapon1.minDamage).filter(m => m != null && m !== Infinity);
+          const w2Mins = reports.map(r => r.weapon2.minDamage).filter(m => m != null && m !== Infinity);
+          const w1HitStats = reports.map(r => r.weapon1.hitStats).filter(Boolean);
+          const w2HitStats = reports.map(r => r.weapon2.hitStats).filter(Boolean);
+          report = {
+            weapon1: {
+              rounds: Math.round(reports.reduce((s, r) => s + (r.weapon1.rounds != null ? r.weapon1.rounds : r.weapon1.swings), 0) / runs),
+              single: Math.round(reports.reduce((s, r) => s + (r.weapon1.single || 0), 0) / runs),
+              double: Math.round(reports.reduce((s, r) => s + (r.weapon1.double || 0), 0) / runs),
+              triple: Math.round(reports.reduce((s, r) => s + (r.weapon1.triple || 0), 0) / runs),
+              swings: Math.round(reports.reduce((s, r) => s + r.weapon1.swings, 0) / runs),
+              hits: Math.round(reports.reduce((s, r) => s + r.weapon1.hits, 0) / runs),
+              totalDamage: Math.round(reports.reduce((s, r) => s + r.weapon1.totalDamage, 0) / runs),
+              maxDamage: Math.round(reports.reduce((s, r) => s + r.weapon1.maxDamage, 0) / runs),
+              minDamage: w1Mins.length ? Math.min(...w1Mins) : null,
+              procs: Math.round(reports.reduce((s, r) => s + (r.weapon1.procs || 0), 0) / runs),
+              procDamageTotal: Math.round(reports.reduce((s, r) => s + (r.weapon1.procDamageTotal || 0), 0) / runs),
+              hitStats: w1HitStats.length ? {
+                min: w1Mins.length ? Math.min(...w1Mins) : null,
+                max: Math.max(...reports.map(r => r.weapon1.maxDamage)),
+                mean: w1Hits ? reports.reduce((s, r) => s + r.weapon1.totalDamage, 0) / w1Hits : null,
+                median: w1HitStats.reduce((s, h) => s + (h.median != null ? h.median : 0), 0) / w1HitStats.length,
+                mode: w1HitStats.reduce((s, h) => s + (h.mode != null ? h.mode : 0), 0) / w1HitStats.length,
+              } : {},
+            },
+            weapon2: {
+              rounds: Math.round(reports.reduce((s, r) => s + (r.weapon2.rounds != null ? r.weapon2.rounds : r.weapon2.swings), 0) / runs),
+              single: Math.round(reports.reduce((s, r) => s + (r.weapon2.single || 0), 0) / runs),
+              double: Math.round(reports.reduce((s, r) => s + (r.weapon2.double || 0), 0) / runs),
+              triple: 0,
+              swings: Math.round(reports.reduce((s, r) => s + r.weapon2.swings, 0) / runs),
+              hits: Math.round(reports.reduce((s, r) => s + r.weapon2.hits, 0) / runs),
+              totalDamage: Math.round(reports.reduce((s, r) => s + r.weapon2.totalDamage, 0) / runs),
+              maxDamage: Math.round(reports.reduce((s, r) => s + r.weapon2.maxDamage, 0) / runs),
+              minDamage: w2Mins.length ? Math.min(...w2Mins) : null,
+              procs: Math.round(reports.reduce((s, r) => s + (r.weapon2.procs || 0), 0) / runs),
+              procDamageTotal: Math.round(reports.reduce((s, r) => s + (r.weapon2.procDamageTotal || 0), 0) / runs),
+              hitStats: w2HitStats.length ? {
+                min: w2Mins.length ? Math.min(...w2Mins) : null,
+                max: reports.some(r => r.weapon2.hits > 0) ? Math.max(...reports.map(r => r.weapon2.maxDamage)) : null,
+                mean: w2Hits ? reports.reduce((s, r) => s + r.weapon2.totalDamage, 0) / w2Hits : null,
+                median: w2HitStats.reduce((s, h) => s + (h.median != null ? h.median : 0), 0) / w2HitStats.length,
+                mode: w2HitStats.reduce((s, h) => s + (h.mode != null ? h.mode : 0), 0) / w2HitStats.length,
+              } : {},
+            },
+            durationSec,
+            totalDamage: Math.round(reports.reduce((s, r) => s + r.totalDamage, 0) / runs),
+            damageBonus: reports[0].damageBonus != null ? reports[0].damageBonus : 0,
+            damageBonusTotal: Math.round(reports.reduce((s, r) => s + (r.damageBonusTotal || 0), 0) / runs),
+            calculatedToHit: reports[0].calculatedToHit,
+            calculatedOffense: reports[0].calculatedOffense,
+            offenseStatContribution: reports[0].offenseStatContribution,
+            displayedAttack: reports[0].displayedAttack,
+            critHits: reports.reduce((s, r) => s + (r.critHits || 0), 0),
+            critDamageGain: Math.round(reports.reduce((s, r) => s + (r.critDamageGain || 0), 0)),
+            special: reports[0].special
+              ? {
+                  name: reports[0].special.name,
+                  count: Math.round(reports.reduce((s, r) => s + (r.special ? r.special.count : 0), 0) / runs),
+                  attempts: reports[0].special.attempts != null ? Math.round(reports.reduce((s, r) => s + (r.special && r.special.attempts != null ? r.special.attempts : 0), 0) / runs) : undefined,
+                  hits: reports[0].special.hits != null ? Math.round(reports.reduce((s, r) => s + (r.special && r.special.hits != null ? r.special.hits : 0), 0) / runs) : undefined,
+                  totalDamage: Math.round(reports.reduce((s, r) => s + (r.special ? r.special.totalDamage : 0), 0) / runs),
+                  maxDamage: Math.round(reports.reduce((s, r) => s + (r.special ? r.special.maxDamage : 0), 0) / runs),
+                  doubleBackstabs: reports[0].special.doubleBackstabs !== undefined ? Math.round(reports.reduce((s, r) => s + (r.special && r.special.doubleBackstabs != null ? r.special.doubleBackstabs : 0), 0) / runs) : undefined,
+                }
+              : null,
+          };
+        }
+
+        const w1Label = `Weapon 1 (${weapon1.damage}d / ${weapon1.delay} delay${weapon1.procSpell ? ' / ' + weapon1.procSpell : ''})`;
+        const w2Label = useWeapon2
+          ? `Weapon 2 (${weapon2.damage}d / ${weapon2.delay} delay${weapon2.procSpell ? ' / ' + weapon2.procSpell : ''})`
+          : 'Weapon 2';
+        $('report').textContent = EQCombat.formatReport(report, w1Label, w2Label) +
+          (runs > 1 ? '\n(Averaged over ' + runs + ' runs)' : '');
+
+        const histContainer = $('histogram-container');
+        if (reports.length > 0) {
+          renderHistogram(histContainer, reports[0], w1Label, w2Label);
+        } else {
+          histContainer.innerHTML = '';
+        }
+      }
+
+      function buildHistogramBuckets(hitList, maxBins) {
+        if (!hitList || hitList.length === 0) return { buckets: [], maxCount: 0 };
+        const min = Math.min.apply(null, hitList);
+        const max = Math.max.apply(null, hitList);
+        const range = max - min + 1;
+        const binWidth = Math.max(1, Math.ceil(range / (maxBins || 40)));
+        const numBins = Math.ceil(range / binWidth);
+        const counts = new Array(numBins).fill(0);
+        for (let i = 0; i < hitList.length; i++) {
+          const bin = Math.min(numBins - 1, Math.floor((hitList[i] - min) / binWidth));
+          counts[bin]++;
+        }
+        const buckets = counts.map(function (c, i) {
+          return { low: min + i * binWidth, high: min + (i + 1) * binWidth - 1, count: c };
+        });
+        const maxCount = Math.max.apply(null, counts);
+        return { buckets, maxCount };
+      }
+
+      function renderHistogram(container, report, w1Label, w2Label) {
+        container.innerHTML = '';
+        if (!report || !report.weapon1) return;
+        const maxBins = 40;
+        [ { list: report.weapon1.hitList, label: w1Label || 'Weapon 1 (Main Hand)' },
+          { list: report.weapon2 && report.weapon2.hitList, label: w2Label || 'Weapon 2 (Offhand)' }
+        ].forEach(function (hand) {
+          if (!hand.list || hand.list.length === 0) return;
+          const section = document.createElement('div');
+          section.className = 'histogram-section';
+          const h3 = document.createElement('h3');
+          h3.textContent = hand.label + ' — damage per swing';
+          section.appendChild(h3);
+          const data = buildHistogramBuckets(hand.list, maxBins);
+          const chart = document.createElement('div');
+          chart.className = 'histogram-chart';
+          const maxCount = data.maxCount || 1;
+          data.buckets.forEach(function (b) {
+            const bar = document.createElement('div');
+            bar.className = 'histogram-bar';
+            bar.style.flex = '1 1 auto';
+            const pct = maxCount > 0 ? (b.count / maxCount) * 100 : 0;
+            bar.style.height = Math.max(0, pct) + '%';
+            bar.title = (b.low === b.high ? b.low : b.low + '–' + b.high) + ' dmg: ' + b.count + ' hits';
+            chart.appendChild(bar);
+          });
+          section.appendChild(chart);
+          const legend = document.createElement('div');
+          legend.className = 'histogram-legend';
+          legend.textContent = hand.list.length + ' hits, damage range ' + Math.min.apply(null, hand.list) + '–' + Math.max.apply(null, hand.list);
+          section.appendChild(legend);
+          container.appendChild(section);
+        });
+      }
+
+      $('btn-run').addEventListener('click', run);
+
+      $('class').addEventListener('change', function () {
+        const classId = (this.value || '').toLowerCase();
+        const c = classId ? CLASSES[classId] : null;
+        if (c) {
+          $('double-attack').value = c.doubleAttack;
+          $('dual-wield').value = c.dualWield;
+          $('class-hint').textContent = c.name + ': to-hit +' + (c.toHitBonus || 0) + ', DA ' + c.doubleAttack + ', DW ' + c.dualWield + '. You can still edit values.';
+        } else {
+          $('class-hint').textContent = 'Pick a class to auto-fill DA/DW and apply to-hit modifiers.';
+        }
+        const hasSpecial = classId === 'monk' || classId === 'rogue';
+        $('special-attacks').disabled = !hasSpecial;
+        if (!hasSpecial) $('special-attacks').checked = false;
+        const rogueRow = $('rogue-backstab-mod-row');
+        if (rogueRow) rogueRow.style.display = classId === 'rogue' ? '' : 'none';
+      });
+      $('class').dispatchEvent(new Event('change'));
+
+      fillWeaponPresetSelect('w1-preset');
+      fillWeaponPresetSelect('w2-preset');
+      $('w1-preset').value = 'unequipped';
+      applyWeaponPreset('w1', 'unequipped');
+      $('w1-preset').addEventListener('change', function () { applyWeaponPreset('w1', this.value); });
+      $('w2-preset').addEventListener('change', function () { applyWeaponPreset('w2', this.value); });
+    })();
+  </script>
+</body>
+</html>
