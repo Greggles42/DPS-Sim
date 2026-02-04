@@ -190,7 +190,7 @@
       <p class="hint" id="special-hint">Monk: Flying Kick every 8s. Rogue: Backstab every 12s (from behind only).</p>
       <div id="rogue-backstab-mod-row" style="display: none;">
         <label for="backstab-skill">Backstab skill</label>
-        <input type="number" id="backstab-skill" min="0" value="252" placeholder="e.g. 252" title="Used for backstab base damage: (skill*0.02+2)*weapon_damage.">
+        <input type="number" id="backstab-skill" min="0" value="225" placeholder="e.g. 225" title="Used for backstab base damage: (skill*0.02+2)*weapon_damage.">
         <label for="backstab-mod">Backstab mod %</label>
         <input type="number" id="backstab-mod" min="0" value="0" placeholder="e.g. 0" title="Increases backstab damage by this % when rogue.">
       </div>
@@ -479,6 +479,8 @@
                   totalDamage: Math.round(reports.reduce((s, r) => s + (r.special ? r.special.totalDamage : 0), 0) / runs),
                   maxDamage: Math.round(reports.reduce((s, r) => s + (r.special ? r.special.maxDamage : 0), 0) / runs),
                   doubleBackstabs: reports[0].special.doubleBackstabs !== undefined ? Math.round(reports.reduce((s, r) => s + (r.special && r.special.doubleBackstabs != null ? r.special.doubleBackstabs : 0), 0) / runs) : undefined,
+                  backstabSkill: reports[0].special.backstabSkill,
+                  backstabModPercent: reports[0].special.backstabModPercent,
                 }
               : null,
             fistweaving: reports[0].fistweaving

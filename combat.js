@@ -390,6 +390,8 @@
         totalDamage: 0,
         maxDamage: 0,
         doubleBackstabs: options.classId === 'rogue' ? 0 : undefined,
+        backstabSkill: options.classId === 'rogue' ? (options.backstabSkill != null ? options.backstabSkill : 225) : undefined,
+        backstabModPercent: options.classId === 'rogue' ? (options.backstabModPercent || 0) : undefined,
       } : null,
       fistweaving: (options.classId === 'monk' && w1.is2H && options.fistweaving) ? { rounds: 0, swings: 0, hits: 0, totalDamage: 0, maxDamage: 0, single: 0, double: 0 } : null,
     };
@@ -413,7 +415,7 @@
           report.special.count++;
           let baseDmg;
           if (isRogueBackstab) {
-            const backstabSkill = options.backstabSkill != null ? options.backstabSkill : 252;
+            const backstabSkill = options.backstabSkill != null ? options.backstabSkill : 225;
             const backstabBase = Math.floor(((backstabSkill * 0.02) + 2.0) * w1.damage);
             baseDmg = calcMeleeDamage(backstabBase, offenseForDamage, mitigation, rng, 0);
             baseDmg = Math.max(1, Math.floor(baseDmg * specialConfig.damageMultiplier));
@@ -747,6 +749,14 @@
         const a = report.special.attempts;
         const h = report.special.hits;
         lines.push(`  Total backstab attempts: ${a}`, `  Backstab hits: ${h}`, `  Backstab damage: ${report.special.totalDamage}`, `  Backstab accuracy: ${a > 0 ? (h / a * 100).toFixed(1) : 0}%`, `  Backstab max hit: ${report.special.maxDamage}`, `  Double backstabs: ${report.special.doubleBackstabs}`);
+        const modPct = report.special.backstabModPercent != null ? report.special.backstabModPercent : 0;
+        if (modPct !== 0 && report.special.backstabSkill != null) {
+          const skill = report.special.backstabSkill;
+          const baseMult = (skill * 0.02) + 2.0;
+          const effectiveMult = baseMult * (100 + modPct) / 100;
+          const effectiveSkill = Math.round((effectiveMult - 2) / 0.02);
+          lines.push(`  Effective backstab skill: ${effectiveSkill} (used in damage calculation with ${modPct}% mod)`);
+        }
       }
     }
     if (report.fistweaving && report.fistweaving.rounds > 0) {
