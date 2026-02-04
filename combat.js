@@ -389,6 +389,7 @@
         maxDamage: 0,
         doubleBackstabs: options.classId === 'rogue' ? 0 : undefined,
       } : null,
+      fistweaving: (options.classId === 'monk' && w1.is2H && options.fistweaving) ? { rounds: 0, swings: 0, hits: 0, totalDamage: 0, maxDamage: 0, single: 0, double: 0 } : null,
     };
 
     const durationDecisec = Math.floor(options.fightDurationSec * 10);
@@ -532,6 +533,50 @@
         if (attacksThisRound === 1) report.weapon1.single++;
         else if (attacksThisRound === 2) report.weapon1.double++;
         else report.weapon1.triple++;
+
+        // Fistweaving (monk 2H): after each primary hand round, one offhand round with 9 damage; can double attack, no proc
+        if (report.fistweaving) {
+          report.fistweaving.rounds++;
+          let fwAttacks = 1;
+          const FIST_DAMAGE = 9;
+          if (rollHit(toHit, avoidance, rng, fromBehind)) {
+            let dmg = calcMeleeDamage(FIST_DAMAGE, offenseForDamage, mitigation, rng, 0);
+            const mult = rollDamageMultiplier(offenseForDamage, dmg, level, options.classId, false, rng);
+            dmg = mult.damage;
+            const beforeCrit = dmg;
+            const critResult = rollMeleeCrit(dmg, 0, level, options.classId, options.dex, options.critChanceMult, false, false, 0, rng);
+            dmg = critResult.damage;
+            if (critResult.isCrit) { report.critHits++; report.critDamageGain += (dmg - beforeCrit); }
+            report.fistweaving.swings++;
+            report.fistweaving.hits++;
+            report.fistweaving.totalDamage += dmg;
+            report.fistweaving.maxDamage = Math.max(report.fistweaving.maxDamage, dmg);
+            report.totalDamage += dmg;
+          } else {
+            report.fistweaving.swings++;
+          }
+          if (checkDoubleAttack(doubleAttackEffective, rng)) {
+            fwAttacks = 2;
+            if (rollHit(toHit, avoidance, rng, fromBehind)) {
+              let dmg = calcMeleeDamage(FIST_DAMAGE, offenseForDamage, mitigation, rng, 0);
+              const mult = rollDamageMultiplier(offenseForDamage, dmg, level, options.classId, false, rng);
+              dmg = mult.damage;
+              const beforeCrit = dmg;
+              const critResult = rollMeleeCrit(dmg, 0, level, options.classId, options.dex, options.critChanceMult, false, false, 0, rng);
+              dmg = critResult.damage;
+              if (critResult.isCrit) { report.critHits++; report.critDamageGain += (dmg - beforeCrit); }
+              report.fistweaving.swings++;
+              report.fistweaving.hits++;
+              report.fistweaving.totalDamage += dmg;
+              report.fistweaving.maxDamage = Math.max(report.fistweaving.maxDamage, dmg);
+              report.totalDamage += dmg;
+            } else {
+              report.fistweaving.swings++;
+            }
+          }
+          if (fwAttacks === 1) report.fistweaving.single++;
+          else report.fistweaving.double++;
+        }
       }
 
       // Offhand: one round per timer; 1 or 2 attacks (no triple)
@@ -689,6 +734,11 @@
         const h = report.special.hits;
         lines.push(`  Total backstab attempts: ${a}`, `  Backstab hits: ${h}`, `  Backstab damage: ${report.special.totalDamage}`, `  Backstab accuracy: ${a > 0 ? (h / a * 100).toFixed(1) : 0}%`, `  Backstab max hit: ${report.special.maxDamage}`, `  Double backstabs: ${report.special.doubleBackstabs}`);
       }
+    }
+    if (report.fistweaving && report.fistweaving.rounds > 0) {
+      const fw = report.fistweaving;
+      const fwAcc = fw.swings > 0 ? (fw.hits / fw.swings * 100).toFixed(1) : '0';
+      lines.push('', 'Fistweaving (9 dmg, no proc)', `  Rounds: ${fw.rounds}`, `  Single / Double: ${fw.single ?? '—'} / ${fw.double ?? '—'}`, `  Swings: ${fw.swings}`, `  Hits: ${fw.hits}`, `  Accuracy: ${fwAcc}%`, `  Total damage: ${fw.totalDamage}`, `  Max hit: ${fw.maxDamage}`, `  DPS: ${(fw.totalDamage / report.durationSec).toFixed(2)}`);
     }
     lines.push('', `Total damage: ${report.totalDamage}`, `DPS: ${(report.totalDamage / report.durationSec).toFixed(2)}`);
     return lines.join('\n');

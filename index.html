@@ -192,6 +192,10 @@
         <label for="backstab-mod">Backstab mod %</label>
         <input type="number" id="backstab-mod" min="0" value="0" placeholder="e.g. 0" title="Increases backstab damage by this % when rogue.">
       </div>
+      <div id="fistweaving-row" style="display: none;">
+        <label class="checkbox-label"><input type="checkbox" id="fistweaving"> Include Fistweaving</label>
+        <p class="hint">After each main-hand round, one offhand round with 9 damage (can double attack, no proc). Monk + 2H only.</p>
+      </div>
       <label for="level">Level</label>
       <input type="number" id="level" min="1" max="65" value="60" title="Used for double attack, dual wield, and main hand damage bonus (warrior classes, 28+).">
       <label for="str">STR (affects offense for damage)</label>
@@ -392,6 +396,7 @@
           specialAttacks,
           classId: classId || undefined,
           backstabModPercent: classId === 'rogue' ? (parseInt($('backstab-mod').value, 10) || 0) : undefined,
+          fistweaving: classId === 'monk' && weapon1.is2H && $('fistweaving').checked,
           critChanceMult: critChanceMult || undefined,
         };
 
@@ -471,6 +476,17 @@
                   totalDamage: Math.round(reports.reduce((s, r) => s + (r.special ? r.special.totalDamage : 0), 0) / runs),
                   maxDamage: Math.round(reports.reduce((s, r) => s + (r.special ? r.special.maxDamage : 0), 0) / runs),
                   doubleBackstabs: reports[0].special.doubleBackstabs !== undefined ? Math.round(reports.reduce((s, r) => s + (r.special && r.special.doubleBackstabs != null ? r.special.doubleBackstabs : 0), 0) / runs) : undefined,
+                }
+              : null,
+            fistweaving: reports[0].fistweaving
+              ? {
+                  rounds: Math.round(reports.reduce((s, r) => s + (r.fistweaving ? r.fistweaving.rounds : 0), 0) / runs),
+                  swings: Math.round(reports.reduce((s, r) => s + (r.fistweaving ? r.fistweaving.swings : 0), 0) / runs),
+                  hits: Math.round(reports.reduce((s, r) => s + (r.fistweaving ? r.fistweaving.hits : 0), 0) / runs),
+                  totalDamage: Math.round(reports.reduce((s, r) => s + (r.fistweaving ? r.fistweaving.totalDamage : 0), 0) / runs),
+                  maxDamage: Math.round(reports.reduce((s, r) => s + (r.fistweaving ? r.fistweaving.maxDamage : 0), 0) / runs),
+                  single: Math.round(reports.reduce((s, r) => s + (r.fistweaving ? (r.fistweaving.single || 0) : 0), 0) / runs),
+                  double: Math.round(reports.reduce((s, r) => s + (r.fistweaving ? (r.fistweaving.double || 0) : 0), 0) / runs),
                 }
               : null,
           };
@@ -562,7 +578,15 @@
         if (!hasSpecial) $('special-attacks').checked = false;
         const rogueRow = $('rogue-backstab-mod-row');
         if (rogueRow) rogueRow.style.display = classId === 'rogue' ? '' : 'none';
+        updateFistweavingVisibility();
       });
+      function updateFistweavingVisibility() {
+        const classId = ($('class').value || '').toLowerCase();
+        const is2H = $('w1-is2h') && $('w1-is2h').checked;
+        const row = $('fistweaving-row');
+        if (row) row.style.display = classId === 'monk' && is2H ? '' : 'none';
+      }
+      if ($('w1-is2h')) $('w1-is2h').addEventListener('change', updateFistweavingVisibility);
       $('class').dispatchEvent(new Event('change'));
 
       fillWeaponPresetSelect('w1-preset');
