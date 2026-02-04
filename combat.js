@@ -400,11 +400,9 @@
     let nextSwing1 = 0;
     let nextSwing2 = dualWielding ? Math.floor(rng() * delay2) : Infinity;
     let nextSpecialAt = 0;
-    let backstabHitThisTick = false;
 
     // Each swing: (1) AvoidanceCheck: rollHit(toHit, avoidance) → hit or miss. (2) If hit: CalcMeleeDamage uses RollD20(offense, mitigation) → damage. Avoidance and mitigation are checked every time.
     for (let t = 0; t < durationDecisec; t++) {
-      backstabHitThisTick = false;
       // Special attack (Flying Kick / Backstab) on cooldown
       if (canFireSpecial && report.special && t >= nextSpecialAt) {
         report.special.attempts++;
@@ -440,7 +438,38 @@
           report.special.maxDamage = Math.max(report.special.maxDamage, dmg);
           report.weapon1.totalDamage += dmg;
           report.totalDamage += dmg;
-          if (isRogueBackstab) backstabHitThisTick = true;
+
+          // Rogues 55+ can double backstab: same double attack skill chance for a second backstab
+          if (isRogueBackstab && level > 54 && report.special.doubleBackstabs !== undefined && checkDoubleAttack(doubleAttackEffective, rng)) {
+            const secondHit = rollHit(toHit, avoidance, rng, fromBehind);
+            if (secondHit) {
+              report.special.doubleBackstabs++;
+              report.special.hits++;
+              report.special.count++;
+              let baseDmg2;
+              const backstabSkill = Math.min(255, options.backstabSkill != null ? options.backstabSkill : 225);
+              const backstabBase = Math.floor(((backstabSkill * 0.02) + 2.0) * w1.damage);
+              baseDmg2 = calcMeleeDamage(backstabBase, offenseForDamage, mitigation, rng, 0);
+              baseDmg2 = Math.max(1, Math.floor(baseDmg2 * specialConfig.damageMultiplier));
+              const mult2 = rollDamageMultiplier(offenseForDamage, baseDmg2, level, options.classId, false, rng);
+              let dmg2 = mult2.damage;
+              if ((options.backstabModPercent || 0) > 0) {
+                dmg2 = Math.floor(dmg2 * (100 + (options.backstabModPercent || 0)) / 100);
+              }
+              const beforeCrit2 = dmg2;
+              const critResult2 = rollMeleeCrit(dmg2, 0, level, options.classId, options.dex, options.critChanceMult, false, false, 0, rng);
+              dmg2 = critResult2.damage;
+              if (critResult2.isCrit) { report.critHits++; report.critDamageGain += (dmg2 - beforeCrit2); }
+              if (level != null) {
+                const minHit = level >= 60 ? level * 2 : level > 50 ? Math.floor(level * 3 / 2) : level;
+                dmg2 = Math.max(dmg2, minHit);
+              }
+              report.special.totalDamage += dmg2;
+              report.special.maxDamage = Math.max(report.special.maxDamage, dmg2);
+              report.weapon1.totalDamage += dmg2;
+              report.totalDamage += dmg2;
+            }
+          }
         }
         nextSpecialAt = t + specialConfig.cooldownDecisec;
       }
@@ -543,9 +572,6 @@
           }
         }
 
-        if (report.special && report.special.doubleBackstabs !== undefined && backstabHitThisTick && attacksThisRound >= 2) {
-          report.special.doubleBackstabs++;
-        }
         if (attacksThisRound === 1) report.weapon1.single++;
         else if (attacksThisRound === 2) report.weapon1.double++;
         else report.weapon1.triple++;
