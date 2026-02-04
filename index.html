@@ -118,7 +118,7 @@
   </style>
 </head>
 <body>
-  <h1>EverQuest DPS Simulator <span id="app-version" style="font-weight: 400; color: var(--muted); font-size: 0.85rem;">v0.4</span></h1>
+  <h1>EverQuest DPS Simulator <span id="app-version" style="font-weight: 400; color: var(--muted); font-size: 0.85rem;">v0.5</span></h1>
   <p class="muted" style="margin:0 0 1rem; color: var(--muted); font-size: 0.9rem;">
     Formulas based on <a href="https://github.com/SecretsOTheP/EQMacEmu/blob/main/zone/attack.cpp" target="_blank" rel="noopener" style="color: var(--accent);">EQMacEmu attack.cpp</a>.
   </p>
@@ -230,6 +230,7 @@
   <section style="margin-top: 1rem;">
     <h2>Version log</h2>
     <ul style="font-size: 0.9rem; color: var(--muted); margin: 0; padding-left: 1.25rem;">
+      <li><strong>0.5</strong> — Optional background usage log: set USAGE_LOG_URL in code to send anonymous run metrics (run count, unique users, weapon combos, class, etc.) to your endpoint; no UI. Includes usage-log-server.js and usage-log-summary.js for collection and summaries. See USAGE-LOG.md.</li>
       <li><strong>0.4</strong> — Fistweaving (Monk + 2H): optional offhand 9-dmg rounds, can double attack, no proc; DPS in report. Proc rate: PPM-based formula (~2 PPM at 255 DEX), uses effective delay. Rogue backstab: Backstab skill field (default 225, cap 255), client formula (skill×0.02+2)×weapon damage, level-based minHit; Backstab mod %; effective backstab skill in report when mod used. Removed classes: Necromancer, Enchanter, Shaman, Druid, Cleric, Magician, Wizard.</li>
       <li><strong>0.3</strong> — Unequipped quick select; Behind default; duration 6000s, runs 20; Ambidexterity AA checkbox; main weapon default Unequipped.</li>
       <li><strong>0.2</strong> — Worn/spell attack inputs; toHit excludes worn/spell; offense skill 252 for toHit; removed Offense override; default duration 2400s; histogram always shown; displayed attack &amp; stat contribution in report.</li>
@@ -244,8 +245,30 @@
     (function () {
       const $ = (id) => document.getElementById(id);
 
+      // ----- Background usage log (no UI). Set USAGE_LOG_URL to your endpoint to enable.
+      const USAGE_LOG_URL = '';
+      const USAGE_LOG_STORAGE_KEY = 'dps_sim_uid';
+      function getOrCreateAnonymousUserId() {
+        try {
+          let uid = localStorage.getItem(USAGE_LOG_STORAGE_KEY);
+          if (!uid) {
+            uid = 'u_' + Math.random().toString(36).slice(2, 11) + '_' + Date.now().toString(36);
+            localStorage.setItem(USAGE_LOG_STORAGE_KEY, uid);
+          }
+          return uid;
+        } catch (e) { return 'anon'; }
+      }
+      function logUsage(payload) {
+        if (!USAGE_LOG_URL || typeof fetch === 'undefined') return;
+        try {
+          const body = JSON.stringify(payload);
+          if (navigator.sendBeacon && navigator.sendBeacon(USAGE_LOG_URL, new Blob([body], { type: 'application/json' }))) return;
+          fetch(USAGE_LOG_URL, { method: 'POST', body, headers: { 'Content-Type': 'application/json' }, keepalive: true }).catch(function () {});
+        } catch (e) {}
+      }
+
       // When releasing: 1) Bump VERSION below. 2) Add a new <li> at the top of the Version log section above.
-      const VERSION = '0.4';
+      const VERSION = '0.5';
       const versionEl = $('app-version');
       if (versionEl) versionEl.textContent = 'v' + VERSION;
 
@@ -521,6 +544,23 @@
           renderHistogram(histContainer, reports[0], w1Label, w2Label);
         } else {
           histContainer.innerHTML = '';
+        }
+
+        if (USAGE_LOG_URL) {
+          logUsage({
+            event: 'sim_run',
+            v: VERSION,
+            uid: getOrCreateAnonymousUserId(),
+            ts: Date.now(),
+            w1: { preset: ($('w1-preset') && $('w1-preset').value) || '', damage: weapon1.damage, delay: weapon1.delay, is2H: !!weapon1.is2H },
+            w2: useWeapon2 ? { preset: ($('w2-preset') && $('w2-preset').value) || '', damage: weapon2.damage, delay: weapon2.delay } : null,
+            classId: classId || '',
+            durationSec,
+            runs,
+            totalDamage: report.totalDamage,
+            specialAttacks: !!specialAttacks,
+            fistweaving: !!(classId === 'monk' && weapon1.is2H && $('fistweaving').checked),
+          });
         }
       }
 
