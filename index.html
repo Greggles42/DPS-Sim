@@ -102,6 +102,7 @@
       min-height: 120px;
     }
     .hint { font-size: 0.75rem; color: var(--muted); margin-top: -0.5rem; margin-bottom: 0.75rem; }
+    .info-icon { display: inline-flex; align-items: center; justify-content: center; width: 1em; height: 1em; margin-left: 0.25rem; font-size: 0.85em; color: var(--accent); cursor: help; border: 1px solid var(--border); border-radius: 50%; }
     .radio-group { display: flex; gap: 1rem; align-items: center; margin-bottom: 0.75rem; }
     .radio-group label { display: flex; align-items: center; gap: 0.35rem; margin-bottom: 0; cursor: pointer; }
     .radio-group input[type="radio"] { width: auto; margin: 0; }
@@ -168,9 +169,9 @@
         <option value="beastlord">Beastlord</option>
       </select>
       <p class="hint" id="class-hint">Monk: to-hit +0, DA 250, DW 252. You can still edit values.</p>
-      <label for="haste">Total haste (%) (Worn Haste + Spell Haste + v3 Haste)</label>
+      <label for="haste">Total haste (%) (Worn Haste + Spell Haste + v3 Haste) <span class="info-icon" title="Worn attack: Cloak of Flames 36%&#10;Spell Haste: Visions of Grandeur 58%&#10;v3 Haste: Warsong of the Vah Shir 25%">&#8505;</span></label>
       <input type="number" id="haste" min="0" value="99" placeholder="e.g. 99">
-      <label for="worn-attack">Worn attack</label>
+      <label for="worn-attack">Worn attack <span class="info-icon" title="Avatar of Battle and Vengeance effects stack with each other up to 250. Procced avatar counts as 100 worn attack.">&#8505;</span></label>
       <input type="number" id="worn-attack" min="0" value="0" placeholder="e.g. 0">
       <label for="spell-attack">Spell attack</label>
       <input type="number" id="spell-attack" min="0" value="0" placeholder="e.g. 0">
