@@ -230,7 +230,7 @@
   <section style="margin-top: 1rem;">
     <h2>Version log</h2>
     <ul style="font-size: 0.9rem; color: var(--muted); margin: 0; padding-left: 1.25rem;">
-      <li><strong>0.5</strong> — Optional background usage log: set USAGE_LOG_URL in code to send anonymous run metrics (run count, unique users, weapon combos, class, etc.) to your endpoint; no UI. Includes usage-log-server.js and usage-log-summary.js for collection and summaries. See USAGE-LOG.md.</li>
+      <li><strong>0.5</strong> — Added logging to simulation operations.</li>
       <li><strong>0.4</strong> — Fistweaving (Monk + 2H): optional offhand 9-dmg rounds, can double attack, no proc; DPS in report. Proc rate: PPM-based formula (~2 PPM at 255 DEX), uses effective delay. Rogue backstab: Backstab skill field (default 225, cap 255), client formula (skill×0.02+2)×weapon damage, level-based minHit; Backstab mod %; effective backstab skill in report when mod used. Removed classes: Necromancer, Enchanter, Shaman, Druid, Cleric, Magician, Wizard.</li>
       <li><strong>0.3</strong> — Unequipped quick select; Behind default; duration 6000s, runs 20; Ambidexterity AA checkbox; main weapon default Unequipped.</li>
       <li><strong>0.2</strong> — Worn/spell attack inputs; toHit excludes worn/spell; offense skill 252 for toHit; removed Offense override; default duration 2400s; histogram always shown; displayed attack &amp; stat contribution in report.</li>
