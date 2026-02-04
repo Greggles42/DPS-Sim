@@ -319,6 +319,7 @@
   function runFight(options) {
     const fromBehind = !!options.fromBehind;
     const rng = createRng(options.seed);
+    const procRng = createRng(options.seed != null ? options.seed + 12345 : undefined);
     const specialConfig = (options.specialAttacks && options.classId && SPECIAL_ATTACKS[options.classId])
       ? SPECIAL_ATTACKS[options.classId]
       : null;
@@ -452,7 +453,7 @@
           report.weapon1.hitList.push(dmg);
           report.totalDamage += dmg;
           report.damageBonusTotal += mainHandDamageBonus;
-          if (checkProc(procChance1, rng)) {
+          if (checkProc(procChance1, procRng)) {
             report.weapon1.procs++;
             const procDmg = (w1.procSpellDamage != null ? w1.procSpellDamage : 0) | 0;
             report.weapon1.procDamageTotal += procDmg;
@@ -483,7 +484,7 @@
             report.weapon1.hitList.push(dmg);
             report.totalDamage += dmg;
             report.damageBonusTotal += mainHandDamageBonus;
-            if (checkProc(procChance1, rng)) {
+            if (checkProc(procChance1, procRng)) {
               report.weapon1.procs++;
               const procDmg = (w1.procSpellDamage != null ? w1.procSpellDamage : 0) | 0;
               report.weapon1.procDamageTotal += procDmg;
@@ -513,7 +514,7 @@
               report.weapon1.hitList.push(dmg);
               report.totalDamage += dmg;
               report.damageBonusTotal += mainHandDamageBonus;
-              if (checkProc(procChance1, rng)) {
+              if (checkProc(procChance1, procRng)) {
                 report.weapon1.procs++;
                 const procDmg = (w1.procSpellDamage != null ? w1.procSpellDamage : 0) | 0;
                 report.weapon1.procDamageTotal += procDmg;
@@ -554,7 +555,7 @@
             report.weapon2.minDamage = Math.min(report.weapon2.minDamage, dmg);
             report.weapon2.hitList.push(dmg);
             report.totalDamage += dmg;
-            if (checkProc(procChance2, rng)) {
+            if (checkProc(procChance2, procRng)) {
               report.weapon2.procs++;
               const procDmg = (w2.procSpellDamage != null ? w2.procSpellDamage : 0) | 0;
               report.weapon2.procDamageTotal += procDmg;
@@ -580,7 +581,7 @@
               report.weapon2.minDamage = Math.min(report.weapon2.minDamage, dmg);
               report.weapon2.hitList.push(dmg);
               report.totalDamage += dmg;
-              if (checkProc(procChance2, rng)) {
+              if (checkProc(procChance2, procRng)) {
                 report.weapon2.procs++;
                 const procDmg = (w2.procSpellDamage != null ? w2.procSpellDamage : 0) | 0;
                 report.weapon2.procDamageTotal += procDmg;
