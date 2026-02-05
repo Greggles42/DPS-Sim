@@ -1,0 +1,9 @@
+{
+  "name": "dps-sim",
+  "version": "0.6.0",
+  "private": true,
+  "description": "EverQuest DPS Simulator with optional usage logging",
+  "dependencies": {
+    "@vercel/blob": "^0.25.0"
+  }
+}

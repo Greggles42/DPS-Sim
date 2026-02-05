@@ -1,34 +1,62 @@
 /**
  * Vercel serverless function: usage-log collector for DPS-Sim.
- * Deploy with your app; then set USAGE_LOG_URL in index.html to:
- *   https://dps-sim.vercel.app/api/log
- * (or your custom Vercel domain).
+ * Persists each run to Vercel Blob (dps-sim/usage-log.jsonl).
+ * Set USAGE_LOG_URL in index.html to https://dps-sim.vercel.app/api/log
  *
- * Accepts POST with JSON body, returns 200. No persistent storage by default
- * (Vercel serverless has no writable filesystem). For persistence, add
- * Vercel Blob or another store and append the payload there.
+ * Requires: Blob store in Vercel project + BLOB_READ_WRITE_TOKEN (auto when store is in same project).
  */
-export default function handler(req, res) {
+import { list, put } from '@vercel/blob';
+
+const BLOB_PATH = 'dps-sim/usage-log.jsonl';
+
+function setCors(res) {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Access-Control-Max-Age', '86400');
+}
+
+export default async function handler(req, res) {
   if (req.method === 'OPTIONS') {
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-    res.setHeader('Access-Control-Max-Age', '86400');
+    setCors(res);
     return res.status(204).end();
   }
 
-  if (req.method === 'POST') {
-    try {
-      const payload = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
-      // Optional: persist payload (e.g. Vercel Blob, KV, or external API)
-      // console.log(JSON.stringify(payload));
-    } catch (e) {
-      // ignore
-    }
-    res.setHeader('Access-Control-Allow-Origin', '*');
+  if (req.method !== 'POST') {
+    return res.status(404).end();
+  }
+
+  let payload;
+  try {
+    payload = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
+    if (!payload || typeof payload !== 'object') return;
+  } catch (e) {
+    setCors(res);
     res.setHeader('Content-Type', 'application/json');
     return res.status(200).json({});
   }
 
-  return res.status(404).end();
+  const line = JSON.stringify(payload) + '\n';
+
+  try {
+    const { blobs } = await list({ prefix: 'dps-sim/' });
+    const existing = blobs.find((b) => b.pathname === BLOB_PATH);
+    let body = line;
+    if (existing && existing.url) {
+      const r = await fetch(existing.url);
+      const text = await r.text();
+      body = text + line;
+    }
+    await put(BLOB_PATH, body, {
+      access: 'public',
+      addRandomSuffix: false,
+      allowOverwrite: true,
+    });
+  } catch (e) {
+    // Blob store not configured or write failed; still return 200
+  }
+
+  setCors(res);
+  res.setHeader('Content-Type', 'application/json');
+  return res.status(200).json({});
 }

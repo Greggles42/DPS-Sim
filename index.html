@@ -118,7 +118,7 @@
   </style>
 </head>
 <body>
-  <h1>EverQuest DPS Simulator <span id="app-version" style="font-weight: 400; color: var(--muted); font-size: 0.85rem;">v0.5</span></h1>
+  <h1>EverQuest DPS Simulator <span id="app-version" style="font-weight: 400; color: var(--muted); font-size: 0.85rem;">v0.6</span></h1>
   <p class="muted" style="margin:0 0 1rem; color: var(--muted); font-size: 0.9rem;">
     Formulas based on <a href="https://github.com/SecretsOTheP/EQMacEmu/blob/main/zone/attack.cpp" target="_blank" rel="noopener" style="color: var(--accent);">EQMacEmu attack.cpp</a>.
   </p>
@@ -170,12 +170,13 @@
       <p class="hint" id="class-hint">Monk: to-hit +0, DA 250, DW 252. You can still edit values.</p>
       <label for="haste">Total haste (%) (Worn Haste + Spell Haste + v3 Haste) <span class="info-icon" title="Worn attack: Cloak of Flames 36%&#10;Spell Haste: Visions of Grandeur 58%&#10;v3 Haste: Warsong of the Vah Shir 25%">&#8505;</span></label>
       <input type="number" id="haste" min="0" value="99" placeholder="e.g. 99">
-      <label for="offense-skill">Offense skill</label>
-      <input type="number" id="offense-skill" min="0" max="255" value="252" placeholder="252" title="Used for to-hit (7 + offense + weapon skill) and damage roll offense. Weapon skill assumed 252.">
-      <label for="worn-attack">Worn attack <span class="info-icon" title="Avatar of Battle and Vengeance effects stack with each other up to 250. Procced avatar counts as 100 worn attack.">&#8505;</span></label>
+      <label for="offense-skill">Offense skill (0–255)</label>
+      <input type="number" id="offense-skill" min="0" max="255" value="252" placeholder="252" title="Skill value used for to-hit only (7 + offense skill + weapon skill). Damage uses offense RATING = offense skill + STR + worn + spell.">
+      <label for="worn-attack">Worn attack (adds to offense rating) <span class="info-icon" title="Adds to offense rating (the portion of attack that affects damage). Avatar of Battle and Vengeance stack up to 250; procced avatar ≈ 100 worn attack.">&#8505;</span></label>
       <input type="number" id="worn-attack" min="0" value="0" placeholder="e.g. 0">
-      <label for="spell-attack">Spell attack</label>
-      <input type="number" id="spell-attack" min="0" value="0" placeholder="e.g. 0">
+      <label for="spell-attack">Spell attack (adds to offense rating)</label>
+      <input type="number" id="spell-attack" min="0" value="0" placeholder="e.g. 0" title="Adds to offense rating (the portion of attack that affects damage).">
+      <p class="hint">Offense skill = 0–255 value (to-hit only). Offense rating = skill + STR + worn + spell (used for damage).</p>
       <label for="double-attack">Double attack skill</label>
       <input type="number" id="double-attack" min="0" value="250" placeholder="e.g. 250">
       <label for="dual-wield">Dual wield skill</label>
@@ -195,7 +196,7 @@
       </div>
       <label for="level">Level</label>
       <input type="number" id="level" min="1" max="65" value="60" title="Used for double attack, dual wield, and main hand damage bonus (warrior classes, 28+).">
-      <label for="str">STR (affects offense for damage)</label>
+      <label for="str">STR (adds to offense rating when ≥75; offense rating affects damage)</label>
       <input type="number" id="str" min="1" value="255" placeholder="255">
       <label for="dex">DEX (proc rate, crit chance)</label>
       <input type="number" id="dex" min="1" value="255" placeholder="255">
@@ -232,6 +233,7 @@
   <section style="margin-top: 1rem;">
     <h2>Version log</h2>
     <ul style="font-size: 0.9rem; color: var(--muted); margin: 0; padding-left: 1.25rem;">
+      <li><strong>0.6</strong> — Multi-run report: all values (including crit hits and crit damage gain) are averages per run, not cumulative. Clear distinction between offense skill (0–255, to-hit only) and offense rating (skill + STR + worn + spell, used for damage): UI labels, report lines, and hint; report shows Offense skill, Offense rating (for damage), and Offense rating from stats (STR).</li>
       <li><strong>0.5</strong> — Added logging to simulation operations.</li>
       <li><strong>0.4</strong> — Fistweaving (Monk + 2H): optional offhand 9-dmg rounds, can double attack, no proc; DPS in report. Proc rate: PPM-based formula (~2 PPM at 255 DEX), uses effective delay. Rogue backstab: Backstab skill field (default 225, cap 255), client formula (skill×0.02+2)×weapon damage, level-based minHit; Backstab mod %; effective backstab skill in report when mod used. Removed classes: Necromancer, Enchanter, Shaman, Druid, Cleric, Magician, Wizard.</li>
       <li><strong>0.3</strong> — Unequipped quick select; Behind default; duration 6000s, runs 20; Ambidexterity AA checkbox; main weapon default Unequipped.</li>
@@ -249,7 +251,8 @@
 
       // ----- Background usage log (no UI). Set USAGE_LOG_URL to your endpoint to enable.
       // e.g. local: 'http://localhost:8765/log'  or Vercel: 'https://dps-sim.vercel.app/api/log'
-      const USAGE_LOG_URL = '';
+      // Summary (total runs, unique users, run log): https://dps-sim.vercel.app/api/summary
+      const USAGE_LOG_URL = 'https://dps-sim.vercel.app/api/log';
       const USAGE_LOG_STORAGE_KEY = 'dps_sim_uid';
       function getOrCreateAnonymousUserId() {
         try {
@@ -271,7 +274,7 @@
       }
 
       // When releasing: 1) Bump VERSION below. 2) Add a new <li> at the top of the Version log section above.
-      const VERSION = '0.5';
+      const VERSION = '0.6';
       const versionEl = $('app-version');
       if (versionEl) versionEl.textContent = 'v' + VERSION;
 
@@ -515,11 +518,12 @@
             damageBonus: reports[0].damageBonus != null ? reports[0].damageBonus : 0,
             damageBonusTotal: Math.round(reports.reduce((s, r) => s + (r.damageBonusTotal || 0), 0) / runs),
             calculatedToHit: reports[0].calculatedToHit,
-            calculatedOffense: reports[0].calculatedOffense,
-            offenseStatContribution: reports[0].offenseStatContribution,
+            offenseSkill: reports[0].offenseSkill,
+            offenseRating: reports[0].offenseRating,
+            offenseRatingFromStr: reports[0].offenseRatingFromStr,
             displayedAttack: reports[0].displayedAttack,
-            critHits: reports.reduce((s, r) => s + (r.critHits || 0), 0),
-            critDamageGain: Math.round(reports.reduce((s, r) => s + (r.critDamageGain || 0), 0)),
+            critHits: Math.round(reports.reduce((s, r) => s + (r.critHits || 0), 0) / runs),
+            critDamageGain: Math.round(reports.reduce((s, r) => s + (r.critDamageGain || 0), 0) / runs),
             special: reports[0].special
               ? {
                   name: reports[0].special.name,

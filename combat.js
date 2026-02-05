@@ -11,7 +11,7 @@
   'use strict';
 
   // ----- Hit chance (AvoidanceCheck) -----
-  // Server: toHit = GetToHit(skill) = 7 + Offense + Weapon skill + accuracy (typically 400–550).
+  // Server: toHit = GetToHit(skill) = 7 + Offense SKILL + Weapon skill + accuracy (typically 400–550). Offense skill is the 0–255 value; offense RATING is what affects damage (skill + STR + worn/spell).
   // toHit += 10, avoidance += 10
   // if (toHit * 1.21 > avoidance) hitChance = 1.0 - avoidance / (toHit * 1.21 * 2.0)
   // else hitChance = toHit * 1.21 / (avoidance * 2.0)
@@ -71,14 +71,13 @@
   }
 
   // ----- Damage roll (RollD20 + CalcMeleeDamage) – matches server CalcMeleeDamage -----
-  // roll = RollD20(offense, defender->GetMitigation()); damage = (roll * baseDamage + 5) / 10, min 1
-  // RollD20: atkRoll = Roll0(offense+5), defRoll = Roll0(mitigation+5)
-  // avg = (offense+mitigation+10)/2, index = max(0, (atkRoll-defRoll)+avg/2), index = (index*20)/avg, clamp 0..19, return index+1
-  // Mitigation lowers the effective roll (1–20), so higher AC = more low/mid rolls, fewer max hits.
-  function rollD20(offense, mitigation, rng) {
-    const atkRoll = Math.floor(rng() * (offense + 5));
+  // roll = RollD20(offenseRating, defender->GetMitigation()); damage = (roll * baseDamage + 5) / 10, min 1
+  // RollD20: atkRoll = Roll0(offenseRating+5), defRoll = Roll0(mitigation+5)
+  // Here "offense" is offense RATING (skill + STR + worn/spell), not the offense skill value alone.
+  function rollD20(offenseRating, mitigation, rng) {
+    const atkRoll = Math.floor(rng() * (offenseRating + 5));
     const defRoll = Math.floor(rng() * (mitigation + 5));
-    const avg = Math.floor((offense + mitigation + 10) / 2);
+    const avg = Math.floor((offenseRating + mitigation + 10) / 2);
     if (avg <= 0) return 1;
     let index = Math.max(0, (atkRoll - defRoll) + Math.floor(avg / 2));
     index = Math.floor((index * 20) / avg);
@@ -86,8 +85,8 @@
     return index + 1;
   }
 
-  function calcMeleeDamage(baseDamage, offense, mitigation, rng, damageBonus) {
-    const roll = rollD20(offense, mitigation, rng);
+  function calcMeleeDamage(baseDamage, offenseRating, mitigation, rng, damageBonus) {
+    const roll = rollD20(offenseRating, mitigation, rng);
     let damage = Math.floor((roll * baseDamage + 5) / 10);
     if (damage < 1) damage = 1;
     if (damageBonus) damage += damageBonus;
@@ -106,9 +105,9 @@
     return { rollChance: 51, maxExtra: 210, minusFactor: 105 };
   }
 
-  function rollDamageMultiplier(offense, damage, level, classId, isArchery, rng) {
+  function rollDamageMultiplier(offenseRating, damage, level, classId, isArchery, rng) {
     const params = getRollDamageMultiplierParams(level || 60, classId || '');
-    let baseBonus = Math.floor((offense - params.minusFactor) / 2);
+    let baseBonus = Math.floor((offenseRating - params.minusFactor) / 2);
     if (baseBonus < 10) baseBonus = 10;
 
     if (rng() * 100 < params.rollChance) {
@@ -302,13 +301,13 @@
    * @param {number} options.hastePercent - total haste (e.g. 40 for 40%)
    * @param {number} [options.wornAttack=0] - worn ATK (items)
    * @param {number} [options.spellAttack=0] - spell ATK (buffs)
-   * @param {number} [options.offenseSkill=252] - offense skill for to-hit and damage (7 + offense + weapon skill; weapon skill 252)
+   * @param {number} [options.offenseSkill=252] - offense SKILL (0–255); used in to-hit. Offense RATING (for damage) = offense skill + STR bonus + worn attack + spell attack.
    * @param {number} [options.toHitBonus=0] - e.g. class bonus (Warrior +24)
-   * @param {number} [options.str=255] - STR stat (affects offense for damage roll when STR >= 75)
+   * @param {number} [options.str=255] - STR stat; when STR >= 75 adds to offense RATING (the value used in the damage roll)
    * @param {number} options.doubleAttackSkill - double attack skill value
    * @param {number} options.dualWieldSkill - dual wield skill value
    * @param {number} [options.level=60] - level for DA/DW effective
-   * Every swing: (1) AvoidanceCheck using toHit vs avoidance → hit/miss. (2) If hit, CalcMeleeDamage using RollD20(offense, mitigation) → damage. Avoidance and mitigation are applied every time.
+   * Every swing: (1) AvoidanceCheck using toHit vs avoidance → hit/miss. (2) If hit, CalcMeleeDamage using RollD20(offense RATING, mitigation) → damage. Avoidance and mitigation are applied every time.
    * @param {number} options.targetAC - defender AC for mitigation (damage roll). When level-based mit would be 200 and AC>200, use this. Higher = more mitigated damage, fewer max hits.
    * @param {number} [options.avoidance] - defender avoidance for HIT CHANCE. If omitted, uses getAvoidanceNPC(mobLevel) = level*9+5 capped 400/460
    * @param {number} [options.mobLevel=60] - mob level for getMitigation() and default avoidance
@@ -342,14 +341,14 @@
     const wornAttack = options.wornAttack != null ? options.wornAttack : 0;
     const spellAttack = options.spellAttack != null ? options.spellAttack : 0;
     const toHitBonus = options.toHitBonus != null ? options.toHitBonus : 0;
-    // To Hit: 7 + offense skill + weapon skill (252). Offense for damage = offense skill + STR bonus + worn/spell attack.
+    // To Hit: 7 + offense SKILL + weapon skill (252). Offense RATING (for damage roll) = offense skill + STR bonus + worn attack + spell attack.
     const OFFENSE_SKILL = options.offenseSkill != null ? Math.min(255, Math.max(0, options.offenseSkill)) : 252;
     const WEAPON_SKILL_FOR_TOHIT = 252;
     const BASE_TO_HIT = 7 + OFFENSE_SKILL + WEAPON_SKILL_FOR_TOHIT;
     const toHit = (options.attackRating != null && options.wornAttack == null && options.spellAttack == null)
       ? options.attackRating + toHitBonus
       : BASE_TO_HIT + toHitBonus;
-    const offenseForDamage = (options.attackRating != null && options.wornAttack == null && options.spellAttack == null)
+    const offenseRating = (options.attackRating != null && options.wornAttack == null && options.spellAttack == null)
       ? options.attackRating + strBonus
       : (OFFENSE_SKILL + strBonus + wornAttack + spellAttack);
     const dualWieldEffective = getDualWieldEffective(level, options.dualWieldSkill, options.ambidexterity ?? 0);
@@ -380,9 +379,10 @@
       damageBonus: mainHandDamageBonus,
       damageBonusTotal: 0,
       calculatedToHit: toHit,
-      calculatedOffense: offenseForDamage,
-      offenseStatContribution: strBonus,
-      displayedAttack: Math.floor((offenseForDamage + toHit) * 1000 / 744),
+      offenseSkill: OFFENSE_SKILL,
+      offenseRating: offenseRating,
+      offenseRatingFromStr: strBonus,
+      displayedAttack: Math.floor((offenseRating + toHit) * 1000 / 744),
       critHits: 0,
       critDamageGain: 0,
       special: canFireSpecial ? {
@@ -421,19 +421,19 @@
             const backstabModPct = options.backstabModPercent || 0;
             const effectiveSkill = Math.min(255, Math.floor(backstabSkill * (100 + backstabModPct) / 100));
             const backstabBase = Math.floor(((effectiveSkill * 0.02) + 2.0) * w1.damage);
-            baseDmg = calcMeleeDamage(backstabBase, offenseForDamage, mitigation, rng, 0);
+            baseDmg = calcMeleeDamage(backstabBase, offenseRating, mitigation, rng, 0);
             baseDmg = Math.max(1, Math.floor(baseDmg * specialConfig.damageMultiplier));
           } else if (specialConfig.useWeaponDamage === false) {
             // Flying Kick: level-based base only (EQMacEmu min_dmg = level*4/5)
             const fkBase = level * 2;
-            baseDmg = calcMeleeDamage(fkBase, offenseForDamage, mitigation, rng, 0);
+            baseDmg = calcMeleeDamage(fkBase, offenseRating, mitigation, rng, 0);
             const fkMin = Math.floor(level * 4 / 5);
             baseDmg = Math.max(1, Math.max(baseDmg, fkMin));
           } else {
-            baseDmg = calcMeleeDamage(w1.damage, offenseForDamage, mitigation, rng);
+            baseDmg = calcMeleeDamage(w1.damage, offenseRating, mitigation, rng);
             baseDmg = Math.max(1, specialConfig.damageMultiplier ? Math.floor(baseDmg * specialConfig.damageMultiplier) : baseDmg);
           }
-          const mult = rollDamageMultiplier(offenseForDamage, baseDmg, level, options.classId, false, rng);
+          const mult = rollDamageMultiplier(offenseRating, baseDmg, level, options.classId, false, rng);
           let dmg = mult.damage;
           const beforeCrit = dmg;
           // Crit is only rolled after a successful hit (we are inside specialHits here).
@@ -461,9 +461,9 @@
               const backstabModPct2 = options.backstabModPercent || 0;
               const effectiveSkill2 = Math.min(255, Math.floor(backstabSkill2 * (100 + backstabModPct2) / 100));
               const backstabBase2 = Math.floor(((effectiveSkill2 * 0.02) + 2.0) * w1.damage);
-              let baseDmg2 = calcMeleeDamage(backstabBase2, offenseForDamage, mitigation, rng, 0);
+              let baseDmg2 = calcMeleeDamage(backstabBase2, offenseRating, mitigation, rng, 0);
               baseDmg2 = Math.max(1, Math.floor(baseDmg2 * specialConfig.damageMultiplier));
-              const mult2 = rollDamageMultiplier(offenseForDamage, baseDmg2, level, options.classId, false, rng);
+              const mult2 = rollDamageMultiplier(offenseRating, baseDmg2, level, options.classId, false, rng);
               let dmg2 = mult2.damage;
               const beforeCrit2 = dmg2;
               const critResult2 = rollMeleeCrit(dmg2, 0, level, options.classId, options.dex, options.critChanceMult, false, false, 0, rng);
@@ -492,8 +492,8 @@
 
         // Crit is only rolled after a successful hit (we are inside the rollHit success block).
         if (rollHit(toHit, avoidance, rng, fromBehind)) {
-          let dmg = calcMeleeDamage(w1.damage, offenseForDamage, mitigation, rng, 0);
-          const mult = rollDamageMultiplier(offenseForDamage, dmg, level, options.classId, false, rng);
+          let dmg = calcMeleeDamage(w1.damage, offenseRating, mitigation, rng, 0);
+          const mult = rollDamageMultiplier(offenseRating, dmg, level, options.classId, false, rng);
           dmg = mult.damage;
           dmg += mainHandDamageBonus;
           dmg = Math.max(dmg, 1 + mainHandDamageBonus);
@@ -523,8 +523,8 @@
         if (checkDoubleAttack(doubleAttackEffective, rng, options.classId)) {
           attacksThisRound = 2;
           if (rollHit(toHit, avoidance, rng, fromBehind)) {
-            let dmg = calcMeleeDamage(w1.damage, offenseForDamage, mitigation, rng, 0);
-            const mult = rollDamageMultiplier(offenseForDamage, dmg, level, options.classId, false, rng);
+            let dmg = calcMeleeDamage(w1.damage, offenseRating, mitigation, rng, 0);
+            const mult = rollDamageMultiplier(offenseRating, dmg, level, options.classId, false, rng);
             dmg = mult.damage;
             dmg += mainHandDamageBonus;
             dmg = Math.max(dmg, 1 + mainHandDamageBonus);
@@ -553,8 +553,8 @@
           if (checkTripleAttack(rng, level, options.classId)) {
             attacksThisRound = 3;
             if (rollHit(toHit, avoidance, rng, fromBehind)) {
-              let dmg = calcMeleeDamage(w1.damage, offenseForDamage, mitigation, rng, 0);
-              const mult = rollDamageMultiplier(offenseForDamage, dmg, level, options.classId, false, rng);
+              let dmg = calcMeleeDamage(w1.damage, offenseRating, mitigation, rng, 0);
+              const mult = rollDamageMultiplier(offenseRating, dmg, level, options.classId, false, rng);
               dmg = mult.damage;
               dmg += mainHandDamageBonus;
               dmg = Math.max(dmg, 1 + mainHandDamageBonus);
@@ -593,8 +593,8 @@
           let fwAttacks = 1;
           const FIST_DAMAGE = 9;
           if (rollHit(toHit, avoidance, rng, fromBehind)) {
-            let dmg = calcMeleeDamage(FIST_DAMAGE, offenseForDamage, mitigation, rng, 0);
-            const mult = rollDamageMultiplier(offenseForDamage, dmg, level, options.classId, false, rng);
+            let dmg = calcMeleeDamage(FIST_DAMAGE, offenseRating, mitigation, rng, 0);
+            const mult = rollDamageMultiplier(offenseRating, dmg, level, options.classId, false, rng);
             dmg = mult.damage;
             const beforeCrit = dmg;
             const critResult = rollMeleeCrit(dmg, 0, level, options.classId, options.dex, options.critChanceMult, false, false, 0, rng);
@@ -611,8 +611,8 @@
           if (checkDoubleAttack(doubleAttackEffective, rng, options.classId)) {
             fwAttacks = 2;
             if (rollHit(toHit, avoidance, rng, fromBehind)) {
-              let dmg = calcMeleeDamage(FIST_DAMAGE, offenseForDamage, mitigation, rng, 0);
-              const mult = rollDamageMultiplier(offenseForDamage, dmg, level, options.classId, false, rng);
+              let dmg = calcMeleeDamage(FIST_DAMAGE, offenseRating, mitigation, rng, 0);
+              const mult = rollDamageMultiplier(offenseRating, dmg, level, options.classId, false, rng);
               dmg = mult.damage;
               const beforeCrit = dmg;
               const critResult = rollMeleeCrit(dmg, 0, level, options.classId, options.dex, options.critChanceMult, false, false, 0, rng);
@@ -639,8 +639,8 @@
           report.weapon2.rounds++;
           let attacksThisRound = 1;
           if (rollHit(toHit, avoidance, rng, fromBehind)) {
-            let dmg = calcMeleeDamage(w2.damage, offenseForDamage, mitigation, rng, 0);
-            const mult = rollDamageMultiplier(offenseForDamage, dmg, level, options.classId, false, rng);
+            let dmg = calcMeleeDamage(w2.damage, offenseRating, mitigation, rng, 0);
+            const mult = rollDamageMultiplier(offenseRating, dmg, level, options.classId, false, rng);
             dmg = mult.damage;
             const beforeCrit = dmg;
             const critResult = rollMeleeCrit(dmg, 0, level, options.classId, options.dex, options.critChanceMult, false, false, 0, rng);
@@ -665,8 +665,8 @@
           if (checkDoubleAttack(doubleAttackEffective, rng, options.classId)) {
             attacksThisRound = 2;
             if (rollHit(toHit, avoidance, rng, fromBehind)) {
-              let dmg = calcMeleeDamage(w2.damage, offenseForDamage, mitigation, rng, 0);
-              const mult = rollDamageMultiplier(offenseForDamage, dmg, level, options.classId, false, rng);
+              let dmg = calcMeleeDamage(w2.damage, offenseRating, mitigation, rng, 0);
+              const mult = rollDamageMultiplier(offenseRating, dmg, level, options.classId, false, rng);
               dmg = mult.damage;
               const beforeCrit = dmg;
               const critResult = rollMeleeCrit(dmg, 0, level, options.classId, options.dex, options.critChanceMult, false, false, 0, rng);
@@ -735,9 +735,10 @@
       '--- Combat Report ---',
       `Duration: ${report.durationSec} seconds`,
       report.calculatedToHit != null ? `Calculated To Hit: ${report.calculatedToHit}` : '',
-      report.calculatedOffense != null ? `Calculated Offense: ${report.calculatedOffense}` : '',
-      report.offenseStatContribution != null ? `Offense contribution from stats (STR): ${report.offenseStatContribution}` : '',
-      report.displayedAttack != null ? `Displayed Attack: ${report.displayedAttack}  ( (offense + toHit) * 1000 / 744 )` : '',
+      report.offenseSkill != null ? `Offense skill (0–255, used in to-hit): ${report.offenseSkill}` : '',
+      report.offenseRating != null ? `Offense rating (for damage): ${report.offenseRating}  (skill + STR + worn + spell)` : '',
+      report.offenseRatingFromStr != null ? `Offense rating from stats (STR): ${report.offenseRatingFromStr}` : '',
+      report.displayedAttack != null ? `Displayed Attack: ${report.displayedAttack}  ( (offense rating + toHit) * 1000 / 744 )` : '',
       report.damageBonus != null ? `Main hand damage bonus: ${report.damageBonus}` : '',
       report.damageBonusTotal != null && report.damageBonusTotal > 0 ? `Damage from bonus: ${report.damageBonusTotal}` : '',
       (report.critHits != null && report.critHits >= 0) ? `Critical hits: ${report.critHits}` : '',

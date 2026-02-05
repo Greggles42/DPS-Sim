@@ -14,14 +14,17 @@ Optional, off-by-default. No UI; the main tool does not show any tracking.
 
 ## Hosting on Vercel (dps-sim.vercel.app)
 
-1. Deploy this repo to Vercel (e.g. connect the GitHub repo in the Vercel dashboard).
-2. The `api/log.js` serverless function is invoked at `https://<your-project>.vercel.app/api/log`.  
-   If your project is named `dps-sim`, the URL is `https://dps-sim.vercel.app/api/log`.
-3. In `index.html`, set:
+1. **Create a Blob store** in the Vercel project: Project → Storage → Create → Blob. This sets `BLOB_READ_WRITE_TOKEN` for the project.
+2. Deploy this repo to Vercel (e.g. connect the GitHub repo). Ensure `package.json` is present so `@vercel/blob` is installed.
+3. **Log endpoint:** `https://dps-sim.vercel.app/api/log` — each simulation run POSTs here; the payload is appended to Vercel Blob (`dps-sim/usage-log.jsonl`).
+4. In `index.html`, set:
    ```js
    const USAGE_LOG_URL = 'https://dps-sim.vercel.app/api/log';
    ```
-4. The Vercel function accepts POST with a JSON body and returns 200 (CORS allowed). It does not persist logs by default (serverless has no writable filesystem). To store logs, add [Vercel Blob](https://vercel.com/docs/storage/vercel-blob) or another store inside `api/log.js`.
+5. **Summary page:** open **https://dps-sim.vercel.app/api/summary** in a browser to see:
+   - Total simulations run
+   - Number of unique users (by anonymous uid)
+   - A log of recent runs with timestamp and parameters (class, w1/w2, duration, runs, total damage, special/fistweaving)
 
 ## Collector (local, optional)
 
