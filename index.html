@@ -248,6 +248,7 @@
       const $ = (id) => document.getElementById(id);
 
       // ----- Background usage log (no UI). Set USAGE_LOG_URL to your endpoint to enable.
+      // e.g. local: 'http://localhost:8765/log'  or Vercel: 'https://dps-sim.vercel.app/api/log'
       const USAGE_LOG_URL = '';
       const USAGE_LOG_STORAGE_KEY = 'dps_sim_uid';
       function getOrCreateAnonymousUserId() {

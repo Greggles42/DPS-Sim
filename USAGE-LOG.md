@@ -5,12 +5,25 @@ Optional, off-by-default. No UI; the main tool does not show any tracking.
 ## Enable logging
 
 1. In `index.html`, set `USAGE_LOG_URL` to your collector endpoint, e.g.:
+   - **Local:** `http://localhost:8765/log`
+   - **Vercel:** `https://dps-sim.vercel.app/api/log` (or your Vercel project URL)
    ```js
-   const USAGE_LOG_URL = 'http://localhost:8765/log';
+   const USAGE_LOG_URL = 'https://dps-sim.vercel.app/api/log';
    ```
-2. Run the collector (see below), or use your own endpoint that accepts POST with JSON body.
+2. Run the collector (see below), or deploy to Vercel so the `/api/log` route is live.
 
-## Collector (included)
+## Hosting on Vercel (dps-sim.vercel.app)
+
+1. Deploy this repo to Vercel (e.g. connect the GitHub repo in the Vercel dashboard).
+2. The `api/log.js` serverless function is invoked at `https://<your-project>.vercel.app/api/log`.  
+   If your project is named `dps-sim`, the URL is `https://dps-sim.vercel.app/api/log`.
+3. In `index.html`, set:
+   ```js
+   const USAGE_LOG_URL = 'https://dps-sim.vercel.app/api/log';
+   ```
+4. The Vercel function accepts POST with a JSON body and returns 200 (CORS allowed). It does not persist logs by default (serverless has no writable filesystem). To store logs, add [Vercel Blob](https://vercel.com/docs/storage/vercel-blob) or another store inside `api/log.js`.
+
+## Collector (local, optional)
 
 - **Start server:** `node usage-log-server.js`  
   Listens on port 8765, appends each POST to `usage-log.jsonl`.
