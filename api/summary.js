@@ -115,13 +115,13 @@ export default async function handler(req, res) {
             .map(
               (e) => `<tr>
         <td class="mono">${escapeHtml(formatTs(e.ts))}</td>
-        <td>${escapeHtml(e.classId || '—')}</td>
+        <td>${escapeHtml(e.ranged ? 'Ranged' : (e.classId || '—'))}</td>
         <td class="mono">${e.w1 ? escapeHtml(e.w1.name || [e.w1.preset || e.w1.damage, e.w1.delay].filter(Boolean).join(' / ')) : '—'}</td>
         <td class="mono">${e.w2 ? escapeHtml(e.w2.name || [e.w2.preset || e.w2.damage, e.w2.delay].filter(Boolean).join(' / ')) : '—'}</td>
         <td>${escapeHtml(e.durationSec ?? '—')}</td>
         <td>${escapeHtml(e.runs ?? '—')}</td>
         <td>${escapeHtml(e.totalDamage ?? '—')}</td>
-        <td>${e.specialAttacks ? 'Special ' : ''}${e.fistweaving ? 'FW' : ''}${!e.specialAttacks && !e.fistweaving ? '—' : ''}</td>
+        <td>${e.ranged ? '—' : ((e.specialAttacks ? 'Special ' : '') + (e.fistweaving ? 'FW' : '') || '—')}</td>
       </tr>`
             )
             .join('')}

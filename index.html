@@ -847,6 +847,26 @@
         } else {
           histContainer.innerHTML = '';
         }
+
+        if (USAGE_LOG_URL) {
+          const rangedPresetId = ($('ranged-preset') && $('ranged-preset').value) || '';
+          const arrowPresetId = ($('arrow-preset') && $('arrow-preset').value) || '';
+          const rangedWeaponName = rangedPresetId && RANGED_WEAPON_PRESETS[rangedPresetId] ? RANGED_WEAPON_PRESETS[rangedPresetId].name : (damage + 'd/' + delay);
+          const arrowName = arrowPresetId && ARROW_PRESETS[arrowPresetId] ? ARROW_PRESETS[arrowPresetId].name : (arrowDamage + ' dmg');
+          logUsage({
+            event: 'sim_run',
+            ranged: true,
+            v: VERSION,
+            uid: getOrCreateAnonymousUserId(),
+            ts: Date.now(),
+            w1: { name: rangedWeaponName, damage: damage, delay: delay },
+            w2: { name: arrowName, damage: arrowDamage },
+            classId: 'ranged',
+            durationSec: options.fightDurationSec,
+            runs,
+            totalDamage: report.totalDamage,
+          });
+        }
       }
       $('btn-run-ranged').addEventListener('click', runRanged);
 
