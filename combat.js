@@ -362,6 +362,7 @@
       calculatedToHit: toHit,
       offenseSkill: OFFENSE_SKILL,
       offenseRating: offenseRating,
+      displayedAttack: Math.floor((offenseRating + toHit) * 1000 / 744),
     };
 
     const durationDecisec = Math.floor(options.fightDurationSec * 10);
@@ -419,9 +420,10 @@
       `Duration: ${report.durationSec} seconds`,
       report.calculatedToHit != null ? `Calculated To Hit: ${report.calculatedToHit}` : '',
       report.offenseRating != null ? `Offense rating (for damage): ${report.offenseRating}` : '',
+      report.displayedAttack != null ? `Displayed Attack: ${report.displayedAttack}  ( (offense rating + toHit) * 1000 / 744 )` : '',
       '',
       'Ranged',
-      `  Swings: ${r.swings}`,
+      `  Shots: ${r.swings}`,
       `  Hits: ${r.hits}`,
       r.swings > 0 ? `  Accuracy: ${(r.hits / r.swings * 100).toFixed(1)}%` : '',
       `  Total damage: ${r.totalDamage}`,
