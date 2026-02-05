@@ -115,14 +115,37 @@
     .histogram-bar { background: var(--accent); border-radius: 2px 2px 0 0; min-width: 4px; min-height: 2px; }
     .histogram-bar:hover { filter: brightness(1.2); }
     .histogram-legend { font-size: 0.75rem; color: var(--muted); margin-top: 0.25rem; }
+    .tab-bar { display: flex; gap: 0; margin-bottom: 0; border-bottom: 1px solid var(--border); }
+    .tab-btn {
+      padding: 0.6rem 1.25rem;
+      background: transparent;
+      color: var(--muted);
+      border: none;
+      border-bottom: 2px solid transparent;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      margin: 0;
+      border-radius: 0;
+    }
+    .tab-btn:hover { color: var(--text); }
+    .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+    .tab-panel { display: block; }
+    .tab-panel.hidden { display: none; }
   </style>
 </head>
 <body>
-  <h1>EverQuest DPS Simulator <span id="app-version" style="font-weight: 400; color: var(--muted); font-size: 0.85rem;">v0.6</span></h1>
+  <h1>EverQuest DPS Simulator <span id="app-version" style="font-weight: 400; color: var(--muted); font-size: 0.85rem;">v0.7</span></h1>
   <p class="muted" style="margin:0 0 1rem; color: var(--muted); font-size: 0.9rem;">
     Formulas based on <a href="https://github.com/SecretsOTheP/EQMacEmu/blob/main/zone/attack.cpp" target="_blank" rel="noopener" style="color: var(--accent);">EQMacEmu attack.cpp</a>.
   </p>
 
+  <div class="tab-bar">
+    <button type="button" class="tab-btn active" id="tab-melee" aria-selected="true">Melee</button>
+    <button type="button" class="tab-btn" id="tab-ranged" aria-selected="false">Ranged</button>
+  </div>
+
+  <div id="melee-tab" class="tab-panel">
   <div class="grid">
     <section>
       <h2>Weapon 1 (Main Hand)</h2>
@@ -223,6 +246,70 @@
       <button type="button" id="btn-run">Run simulation</button>
     </section>
   </div>
+  </div>
+
+  <div id="ranged-tab" class="tab-panel hidden">
+  <div class="grid">
+    <section>
+      <h2>Ranged weapon</h2>
+      <label for="ranged-preset">Quick select</label>
+      <select id="ranged-preset"></select>
+      <label for="ranged-damage">Damage</label>
+      <input type="number" id="ranged-damage" min="1" value="12" placeholder="e.g. 12">
+      <label for="ranged-delay">Delay (deciseconds)</label>
+      <input type="number" id="ranged-delay" min="10" value="40" placeholder="40 = 4.0 sec">
+      <p class="hint">Delay in tenths of a second (40 = 4.0s, 25 = 2.5s)</p>
+      <label for="ranged-proc">Proc spell (name or leave blank)</label>
+      <input type="text" id="ranged-proc" placeholder="e.g. Flaming Arrows">
+      <label for="ranged-proc-damage">Proc spell damage (on proc)</label>
+      <input type="number" id="ranged-proc-damage" min="0" value="0" placeholder="0">
+    </section>
+
+    <section>
+      <h2>Arrow type</h2>
+      <label for="arrow-preset">Quick select</label>
+      <select id="arrow-preset"></select>
+      <label for="arrow-damage">Damage</label>
+      <input type="number" id="arrow-damage" min="0" value="5" placeholder="e.g. 5">
+    </section>
+
+    <section>
+      <h2>Character (ranged)</h2>
+      <label for="ranged-level">Level</label>
+      <input type="number" id="ranged-level" min="1" max="65" value="60" placeholder="60">
+      <label for="ranged-haste">Total haste (%)</label>
+      <input type="number" id="ranged-haste" min="0" value="99" placeholder="e.g. 99">
+      <label for="ranged-worn-attack">Worn attack (adds to offense rating)</label>
+      <input type="number" id="ranged-worn-attack" min="0" value="0" placeholder="e.g. 0">
+      <label for="ranged-spell-attack">Spell attack (adds to offense rating)</label>
+      <input type="number" id="ranged-spell-attack" min="0" value="0" placeholder="e.g. 0">
+      <label>Archery Mastery</label>
+      <div class="radio-group">
+        <label><input type="radio" name="archery-mastery" value="1"> 1</label>
+        <label><input type="radio" name="archery-mastery" value="2" checked> 2</label>
+        <label><input type="radio" name="archery-mastery" value="3"> 3</label>
+      </div>
+      <p class="hint">AA Archery Mastery rank (1, 2, or 3).</p>
+      <label class="checkbox-label"><input type="checkbox" id="mob-stationary"> Mob stationary</label>
+      <p class="hint">When checked, target is not moving (affects hit/damage if sim uses it).</p>
+      <label class="checkbox-label"><input type="checkbox" id="use-walled-mob-penalty"> Use Walled Mob Penalty</label>
+      <p class="hint">When checked, the report tracks damage lost due to wall penalty vs a standard hit.</p>
+    </section>
+
+    <section>
+      <h2>Target & Fight (ranged)</h2>
+      <label for="ranged-target-ac">Target AC (mitigation for damage roll)</label>
+      <input type="number" id="ranged-target-ac" min="1" value="300" placeholder="e.g. 300">
+      <label for="ranged-mob-level">Mob level</label>
+      <input type="number" id="ranged-mob-level" min="1" max="70" value="60" placeholder="60">
+      <label for="ranged-duration">Fight duration (seconds)</label>
+      <input type="number" id="ranged-duration" min="1" value="6000" placeholder="e.g. 6000">
+      <label for="ranged-runs">Number of runs (average report)</label>
+      <input type="number" id="ranged-runs" min="1" value="20" placeholder="20">
+      <button type="button" id="btn-run-ranged">Run simulation</button>
+    </section>
+  </div>
+  </div>
 
   <section style="margin-top: 1rem;">
     <h2>Report</h2>
@@ -233,6 +320,7 @@
   <section style="margin-top: 1rem;">
     <h2>Version log</h2>
     <ul style="font-size: 0.9rem; color: var(--muted); margin: 0; padding-left: 1.25rem;">
+      <li><strong>0.7</strong> — Added Ranged Combat simulations.</li>
       <li><strong>0.6</strong> — Multi-run report: all values (including crit hits and crit damage gain) are averages per run, not cumulative. Clear distinction between offense skill (0–255, to-hit only) and offense rating (skill + STR + worn + spell, used for damage): UI labels, report lines, and hint; report shows Offense skill, Offense rating (for damage), and Offense rating from stats (STR).</li>
       <li><strong>0.5</strong> — Added logging to simulation operations.</li>
       <li><strong>0.4</strong> — Fistweaving (Monk + 2H): optional offhand 9-dmg rounds, can double attack, no proc; DPS in report. Proc rate: PPM-based formula (~2 PPM at 255 DEX), uses effective delay. Rogue backstab: Backstab skill field (default 225, cap 255), client formula (skill×0.02+2)×weapon damage, level-based minHit; Backstab mod %; effective backstab skill in report when mod used. Removed classes: Necromancer, Enchanter, Shaman, Druid, Cleric, Magician, Wizard.</li>
@@ -274,7 +362,7 @@
       }
 
       // When releasing: 1) Bump VERSION below. 2) Add a new <li> at the top of the Version log section above.
-      const VERSION = '0.6';
+      const VERSION = '0.7';
       const versionEl = $('app-version');
       if (versionEl) versionEl.textContent = 'v' + VERSION;
 
@@ -310,6 +398,29 @@
         '28805': { damage: 16, delay: 21, proc: '', procDamage: 0, name: 'Bloodbath', type: '1hp' },
         '26585': { damage: 16, delay: 19, proc: 'Serpent\'s Bite', procDamage: 100, name: 'Acrylia Handled Broadsword', type: '1hs' },
       };
+
+      // Ranged weapon presets (PQDI: https://www.pqdi.cc/item/...)
+      const RANGED_WEAPON_PRESETS = {
+        '25208': { damage: 43, delay: 45, proc: 'Torment', procDamage: 0, name: 'War Bow of Rallos Zek' },
+        '27317': { damage: 39, delay: 45, proc: '', procDamage: 0, name: 'Ssraeshzian Longbow' },
+        '28989': { damage: 33, delay: 35, proc: 'Spirit Curse', procDamage: 0, name: 'Bow of Shadows' },
+        '27326': { damage: 33, delay: 35, proc: 'Avatar', procDamage: 0, name: 'Primal Velium Reinforced Bow' },
+      };
+      const RANGED_WEAPON_PRESET_IDS = Object.keys(RANGED_WEAPON_PRESETS).sort(function (a, b) {
+        return (RANGED_WEAPON_PRESETS[b].damage - RANGED_WEAPON_PRESETS[a].damage) || (RANGED_WEAPON_PRESETS[a].name || '').localeCompare(RANGED_WEAPON_PRESETS[b].name || '');
+      });
+
+      // Arrow presets (PQDI) – base damage only; delay removed per UI
+      const ARROW_PRESETS = {
+        '24493': { damage: 11, name: 'Blessed Champion Arrows' },
+        '24488': { damage: 11, name: 'Mithril Champion Arrows' },
+        '10762': { damage: 10, name: 'Ice Tipped Acrylia Arrow' },
+        '10761': { damage: 10, name: 'Shadow Tipped Acrylia Arrow' },
+        '10760': { damage: 10, name: 'Flame Tipped Acrylia Arrow' },
+      };
+      const ARROW_PRESET_IDS = Object.keys(ARROW_PRESETS).sort(function (a, b) {
+        return (ARROW_PRESETS[b].damage - ARROW_PRESETS[a].damage) || (ARROW_PRESETS[a].name || '').localeCompare(ARROW_PRESETS[b].name || '');
+      });
 
       const WEAPON_PRESET_IDS = Object.keys(WEAPON_PRESETS).filter(function (id) { return id !== 'unequipped'; }).sort(function (a, b) {
         const typeOrder = { '2hb': 0, '1hb': 1, '1hp': 2, '1hs': 3, 'h2h': 4 };
@@ -567,13 +678,17 @@
         }
 
         if (USAGE_LOG_URL) {
+          const w1PresetId = ($('w1-preset') && $('w1-preset').value) || '';
+          const w2PresetId = useWeapon2 ? (($('w2-preset') && $('w2-preset').value) || '') : '';
+          const w1Name = w1PresetId && WEAPON_PRESETS[w1PresetId] ? WEAPON_PRESETS[w1PresetId].name : (weapon1.damage + 'd/' + weapon1.delay);
+          const w2Name = useWeapon2 && w2PresetId && WEAPON_PRESETS[w2PresetId] ? WEAPON_PRESETS[w2PresetId].name : (useWeapon2 ? (weapon2.damage + 'd/' + weapon2.delay) : null);
           logUsage({
             event: 'sim_run',
             v: VERSION,
             uid: getOrCreateAnonymousUserId(),
             ts: Date.now(),
-            w1: { preset: ($('w1-preset') && $('w1-preset').value) || '', damage: weapon1.damage, delay: weapon1.delay, is2H: !!weapon1.is2H },
-            w2: useWeapon2 ? { preset: ($('w2-preset') && $('w2-preset').value) || '', damage: weapon2.damage, delay: weapon2.delay } : null,
+            w1: { preset: w1PresetId, name: w1Name, damage: weapon1.damage, delay: weapon1.delay, is2H: !!weapon1.is2H },
+            w2: useWeapon2 ? { preset: w2PresetId, name: w2Name, damage: weapon2.damage, delay: weapon2.delay } : null,
             classId: classId || '',
             durationSec,
             runs,
@@ -641,6 +756,99 @@
 
       $('btn-run').addEventListener('click', run);
 
+      function showTab(tabId) {
+        const isMelee = tabId === 'melee';
+        $('melee-tab').classList.toggle('hidden', !isMelee);
+        $('ranged-tab').classList.toggle('hidden', isMelee);
+        $('tab-melee').classList.toggle('active', isMelee);
+        $('tab-melee').setAttribute('aria-selected', isMelee ? 'true' : 'false');
+        $('tab-ranged').classList.toggle('active', !isMelee);
+        $('tab-ranged').setAttribute('aria-selected', !isMelee ? 'true' : 'false');
+      }
+      $('tab-melee').addEventListener('click', function () { showTab('melee'); });
+      $('tab-ranged').addEventListener('click', function () { showTab('ranged'); });
+
+      function runRanged() {
+        const damage = parseInt($('ranged-damage').value, 10) || 12;
+        const delay = parseInt($('ranged-delay').value, 10) || 40;
+        if (damage < 1 || delay < 10) {
+          $('report').textContent = 'Ranged weapon: set Damage >= 1 and Delay >= 10 (e.g. 40 for 4.0s).';
+          return;
+        }
+        const arrowDamage = parseInt($('arrow-damage').value, 10) || 0;
+        const runs = Math.max(1, Math.min(1000, parseInt($('ranged-runs').value, 10) || 20));
+        const rangedWeapon = {
+          damage: damage,
+          delay: delay,
+          procSpell: ($('ranged-proc').value || '').trim() || undefined,
+          procSpellDamage: parseInt($('ranged-proc-damage').value, 10) || 0,
+        };
+        const arrow = { damage: arrowDamage };
+        const options = {
+          rangedWeapon,
+          arrow,
+          hastePercent: parseFloat($('ranged-haste').value, 10) || 0,
+          level: parseInt($('ranged-level').value, 10) || 60,
+          targetAC: parseInt($('ranged-target-ac').value, 10) || 300,
+          mobLevel: parseInt($('ranged-mob-level').value, 10) || 60,
+          fightDurationSec: parseInt($('ranged-duration').value, 10) || 6000,
+          offenseSkill: 252,
+          wornAttack: parseInt($('ranged-worn-attack').value, 10) || 0,
+          spellAttack: parseInt($('ranged-spell-attack').value, 10) || 0,
+          str: 255,
+          dex: 255,
+          critChanceMult: 0,
+          archeryMastery: parseInt(document.querySelector('input[name="archery-mastery"]:checked').value, 10) || 2,
+          mobStationary: $('mob-stationary').checked,
+          useWalledMobPenalty: $('use-walled-mob-penalty').checked,
+        };
+        const reports = [];
+        for (let i = 0; i < runs; i++) {
+          options.seed = runs === 1 ? undefined : (Date.now() + i + 10000);
+          const r = EQCombat.runRangedFight(options);
+          if (r.error) {
+            $('report').textContent = r.error;
+            $('histogram-container').innerHTML = '';
+            return;
+          }
+          reports.push(r);
+        }
+        let report;
+        if (runs === 1) {
+          report = reports[0];
+        } else {
+          const r0 = reports[0];
+          report = {
+            ranged: {
+              swings: Math.round(reports.reduce((s, r) => s + r.ranged.swings, 0) / runs),
+              hits: Math.round(reports.reduce((s, r) => s + r.ranged.hits, 0) / runs),
+              totalDamage: Math.round(reports.reduce((s, r) => s + r.ranged.totalDamage, 0) / runs),
+              maxDamage: Math.round(reports.reduce((s, r) => s + r.ranged.maxDamage, 0) / runs),
+              minDamage: r0.ranged.minDamage != null ? Math.round(reports.reduce((s, r) => s + (r.ranged.minDamage != null ? r.ranged.minDamage : 0), 0) / runs) : null,
+              hitList: reports[0].ranged.hitList,
+              procs: Math.round(reports.reduce((s, r) => s + (r.ranged.procs || 0), 0) / runs),
+              procDamageTotal: Math.round(reports.reduce((s, r) => s + (r.ranged.procDamageTotal || 0), 0) / runs),
+            },
+            durationSec: r0.durationSec,
+            totalDamage: Math.round(reports.reduce((s, r) => s + r.totalDamage, 0) / runs),
+            critHits: Math.round(reports.reduce((s, r) => s + (r.critHits || 0), 0) / runs),
+            critDamageGain: Math.round(reports.reduce((s, r) => s + (r.critDamageGain || 0), 0) / runs),
+            wallPenaltyDamageLost: r0.wallPenaltyDamageLost != null ? Math.round(reports.reduce((s, r) => s + (r.wallPenaltyDamageLost || 0), 0) / runs) : undefined,
+            calculatedToHit: r0.calculatedToHit,
+            offenseSkill: r0.offenseSkill,
+            offenseRating: r0.offenseRating,
+          };
+        }
+        $('report').textContent = EQCombat.formatRangedReport(report) + (runs > 1 ? '\n(Averaged over ' + runs + ' runs)' : '');
+        const histContainer = $('histogram-container');
+        if (reports.length > 0 && reports[0].ranged && reports[0].ranged.hitList && reports[0].ranged.hitList.length > 0) {
+          renderHistogram(histContainer, { weapon1: reports[0].ranged }, 'Ranged', null);
+        } else {
+          histContainer.innerHTML = '';
+        }
+      }
+      $('btn-run-ranged').addEventListener('click', runRanged);
+
       $('class').addEventListener('change', function () {
         const classId = (this.value || '').toLowerCase();
         const c = classId ? CLASSES[classId] : null;
@@ -684,6 +892,51 @@
         updateWeapon2Disabled();
       });
       $('w2-preset').addEventListener('change', function () { applyWeaponPreset('w2', this.value); });
+
+      function fillRangedPresetSelect(selectId) {
+        const sel = $(selectId);
+        if (!sel) return;
+        sel.innerHTML = '<option value="">Manual</option>';
+        RANGED_WEAPON_PRESET_IDS.forEach(function (id) {
+          const p = RANGED_WEAPON_PRESETS[id];
+          const opt = document.createElement('option');
+          opt.value = id;
+          opt.textContent = (p.name || id) + ' (' + p.damage + ' / ' + p.delay + (p.proc ? ', ' + p.proc : '') + ')';
+          sel.appendChild(opt);
+        });
+      }
+      function applyRangedWeaponPreset(id) {
+        const p = id ? RANGED_WEAPON_PRESETS[id] : null;
+        if (p) {
+          $('ranged-damage').value = p.damage;
+          $('ranged-delay').value = p.delay;
+          $('ranged-proc').value = p.proc || '';
+          $('ranged-proc-damage').value = (p.procDamage != null ? p.procDamage : 0) || '';
+        }
+      }
+      function fillArrowPresetSelect(selectId) {
+        const sel = $(selectId);
+        if (!sel) return;
+        sel.innerHTML = '<option value="">Manual</option>';
+        ARROW_PRESET_IDS.forEach(function (id) {
+          const p = ARROW_PRESETS[id];
+          const opt = document.createElement('option');
+          opt.value = id;
+          opt.textContent = (p.name || id) + ' (' + p.damage + ')';
+          sel.appendChild(opt);
+        });
+      }
+      function applyArrowPreset(id) {
+        const p = id ? ARROW_PRESETS[id] : null;
+        if (p) {
+          $('arrow-damage').value = p.damage;
+        }
+      }
+
+      fillRangedPresetSelect('ranged-preset');
+      fillArrowPresetSelect('arrow-preset');
+      $('ranged-preset').addEventListener('change', function () { applyRangedWeaponPreset(this.value); });
+      $('arrow-preset').addEventListener('change', function () { applyArrowPreset(this.value); });
     })();
   </script>
 </body>

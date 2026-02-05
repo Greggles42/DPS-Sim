@@ -281,6 +281,170 @@
     rogue: { name: 'Backstab', cooldownDecisec: 120, fromBehindOnly: true },
   };
 
+  // ----- Ranged (archery) combat -----
+  // Simulates Client::RangedAttack flow: one shot per ranged_timer (weapon delay + haste).
+  // Requires ranged weapon (bow) and ammo (arrow). Damage = RollD20(baseDamage, mitigation) + multiplier + crit; proc on hit.
+  /**
+   * Run a single ranged (archery) fight simulation.
+   * @param {Object} options
+   * @param {Object} options.rangedWeapon - { damage, delay, procSpell?, procSpellDamage? }
+   * @param {Object} options.arrow - { damage }
+   * @param {number} options.hastePercent - total haste (%)
+   * @param {number} [options.level=60]
+   * @param {number} options.targetAC - mob AC for mitigation
+   * @param {number} [options.mobLevel=60]
+   * @param {number} options.fightDurationSec
+   * @param {number} [options.offenseSkill=252] - archery to-hit
+   * @param {number} [options.wornAttack=0]
+   * @param {number} [options.spellAttack=0]
+   * @param {number} [options.str=255] - for offense rating
+   * @param {number} [options.dex=255] - proc rate, crit
+   * @param {number} [options.critChanceMult=0] - AA crit %
+   * @param {number} [options.archeryMastery=2] - 1, 2, or 3 (AA)
+   * @param {boolean} [options.mobStationary=false]
+   * @param {boolean} [options.useWalledMobPenalty=false] - track damage lost to wall penalty
+   * @param {number} [options.seed]
+   */
+  function runRangedFight(options) {
+    const rng = createRng(options.seed);
+    const procRng = createRng(options.seed != null ? options.seed + 9999 : undefined);
+    const level = options.level != null ? options.level : 60;
+    const targetAC = options.targetAC != null ? options.targetAC : 300;
+    const mobLevel = options.mobLevel != null ? options.mobLevel : 60;
+    const avoidance = options.avoidance != null ? options.avoidance : getAvoidanceNPC(mobLevel);
+    const mitigation = getMitigation(mobLevel, targetAC, 0, 0);
+    const str = options.str != null ? options.str : 255;
+    const strBonus = str >= 75 ? Math.floor((2 * str - 150) / 3) : 0;
+    const wornAttack = options.wornAttack != null ? options.wornAttack : 0;
+    const spellAttack = options.spellAttack != null ? options.spellAttack : 0;
+    const OFFENSE_SKILL = options.offenseSkill != null ? Math.min(255, Math.max(0, options.offenseSkill)) : 252;
+    const ARCHERY_SKILL = 252;
+    const toHit = 7 + OFFENSE_SKILL + ARCHERY_SKILL;
+    const offenseRating = OFFENSE_SKILL + strBonus + wornAttack + spellAttack;
+
+    const bow = options.rangedWeapon;
+    const arrow = options.arrow;
+    if (!bow || bow.damage == null || bow.delay == null || !arrow || arrow.damage == null) {
+      return { error: 'Missing rangedWeapon (damage, delay) or arrow (damage)' };
+    }
+    const mastery = options.archeryMastery != null ? Math.max(1, Math.min(3, Math.floor(options.archeryMastery))) : 2;
+    const masteryMult = mastery === 1 ? 1.30 : mastery === 2 ? 1.60 : 2.00;
+    let baseDamagePerShot = ((bow.damage || 0) + (arrow.damage || 0)) * masteryMult;
+    if (baseDamagePerShot < 1) {
+      return { error: 'Ranged weapon + arrow damage must be at least 1' };
+    }
+    const mobStationary = !!options.mobStationary;
+
+    const delayDecisec = effectiveDelayDecisec(bow.delay, options.hastePercent);
+    const procChance = (bow.procSpell != null && bow.procSpell !== '')
+      ? getProcChancePerSwing(delayDecisec, false, 0, options.dex || 150)
+      : 0;
+    const useWalledMobPenalty = !!options.useWalledMobPenalty;
+    const WALL_PENALTY_CHANCE = 0.35;
+    const WALL_PENALTY_FACTOR = 0.5;
+
+    const report = {
+      ranged: {
+        swings: 0,
+        hits: 0,
+        totalDamage: 0,
+        maxDamage: 0,
+        minDamage: Infinity,
+        hitList: [],
+        procs: 0,
+        procDamageTotal: 0,
+      },
+      durationSec: options.fightDurationSec,
+      totalDamage: 0,
+      critHits: 0,
+      critDamageGain: 0,
+      wallPenaltyDamageLost: useWalledMobPenalty ? 0 : undefined,
+      calculatedToHit: toHit,
+      offenseSkill: OFFENSE_SKILL,
+      offenseRating: offenseRating,
+    };
+
+    const durationDecisec = Math.floor(options.fightDurationSec * 10);
+    let nextRangedAt = 0;
+
+    while (nextRangedAt < durationDecisec) {
+      report.ranged.swings++;
+      const hit = rollHit(toHit, avoidance, rng, true);
+      if (!hit) {
+        nextRangedAt += delayDecisec;
+        continue;
+      }
+      report.ranged.hits++;
+      let baseDmg = calcMeleeDamage(baseDamagePerShot, offenseRating, mitigation, rng, 0);
+      baseDmg = Math.max(1, baseDmg);
+      const mult = rollDamageMultiplier(offenseRating, baseDmg, level, 'ranger', true, rng);
+      let dmg = mult.damage;
+      const beforeCrit = dmg;
+      const critResult = rollMeleeCrit(dmg, 0, level, 'ranger', options.dex, options.critChanceMult || 0, true, false, 0, rng);
+      dmg = critResult.damage;
+      if (critResult.isCrit) {
+        report.critHits++;
+        report.critDamageGain += (dmg - beforeCrit);
+      }
+      if (mobStationary) dmg = Math.floor(dmg * 2);
+      let standardDamage = dmg;
+      if (useWalledMobPenalty && rng() < WALL_PENALTY_CHANCE) {
+        const actualDamage = Math.max(1, Math.floor(dmg * WALL_PENALTY_FACTOR));
+        report.wallPenaltyDamageLost += (dmg - actualDamage);
+        dmg = actualDamage;
+      }
+      if (procChance > 0 && checkProc(procChance, procRng)) {
+        report.ranged.procs++;
+        const procDmg = (bow.procSpellDamage != null ? bow.procSpellDamage : 0) || 0;
+        report.ranged.procDamageTotal += procDmg;
+        dmg += procDmg;
+      }
+      report.ranged.totalDamage += dmg;
+      report.totalDamage += dmg;
+      report.ranged.maxDamage = Math.max(report.ranged.maxDamage, dmg);
+      if (dmg < report.ranged.minDamage) report.ranged.minDamage = dmg;
+      report.ranged.hitList.push(dmg);
+      nextRangedAt += delayDecisec;
+    }
+
+    if (report.ranged.minDamage === Infinity) report.ranged.minDamage = null;
+    return report;
+  }
+
+  function formatRangedReport(report) {
+    if (report.error) return report.error;
+    const r = report.ranged;
+    const lines = [
+      '--- Ranged Combat Report ---',
+      `Duration: ${report.durationSec} seconds`,
+      report.calculatedToHit != null ? `Calculated To Hit: ${report.calculatedToHit}` : '',
+      report.offenseRating != null ? `Offense rating (for damage): ${report.offenseRating}` : '',
+      '',
+      'Ranged',
+      `  Swings: ${r.swings}`,
+      `  Hits: ${r.hits}`,
+      r.swings > 0 ? `  Accuracy: ${(r.hits / r.swings * 100).toFixed(1)}%` : '',
+      `  Total damage: ${r.totalDamage}`,
+      `  Max hit: ${r.maxDamage != null ? r.maxDamage : '—'}`,
+      `  Min hit: ${r.minDamage != null ? r.minDamage : '—'}`,
+      r.procs != null ? `  Procs: ${r.procs}` : '',
+      (r.procDamageTotal != null && r.procDamageTotal > 0) ? `  Proc spell damage: ${r.procDamageTotal}` : '',
+      '',
+      `Total damage: ${report.totalDamage}`,
+      `DPS: ${(report.totalDamage / report.durationSec).toFixed(2)}`,
+    ];
+    if (report.critHits != null && report.critHits >= 0) {
+      lines.splice(lines.length - 2, 0, `Critical hits: ${report.critHits}`);
+      if (report.critDamageGain != null) {
+        lines.splice(lines.length - 2, 0, `Net DPS from criticals: ${(report.critDamageGain / report.durationSec).toFixed(2)}`);
+      }
+    }
+    if (report.wallPenaltyDamageLost != null && report.wallPenaltyDamageLost >= 0) {
+      lines.splice(lines.length - 2, 0, `Damage lost to wall penalty: ${report.wallPenaltyDamageLost}`);
+    }
+    return lines.join('\n');
+  }
+
   // ----- Simulation state -----
   function createRng(seed) {
     if (seed == null) {
@@ -832,5 +996,7 @@
     getProcChancePerSwing,
     runFight,
     formatReport,
+    runRangedFight,
+    formatRangedReport,
   };
 })(typeof window !== 'undefined' ? window : typeof self !== 'undefined' ? self : this);
