@@ -275,7 +275,7 @@
   }
 
   // ----- Special attacks (Flying Kick, Backstab, etc.) -----
-  // Flying Kick uses skill/level-based base only (EQMacEmu: GetSkillBaseDamage + min level*4/5), not primary weapon.
+  // Flying Kick uses skill/level-based base only (EQMacEmu: GetSkillBaseDamage + min level*4/5), not primary weapon. Flying Kick Base damage is 29
   const SPECIAL_ATTACKS = {
     monk: { name: 'Flying Kick', cooldownDecisec: 80, useWeaponDamage: false },
     rogue: { name: 'Backstab', cooldownDecisec: 120, damageMultiplier: 3, fromBehindOnly: true },
@@ -411,7 +411,7 @@
       if (canFireSpecial && report.special && t >= nextSpecialAt) {
         report.special.attempts++;
         const isRogueBackstab = options.classId === 'rogue' && specialConfig.fromBehindOnly;
-        const specialHits = !isRogueBackstab || rollHit(toHit, avoidance, rng, fromBehind);
+        const specialHits = rollHit(toHit, avoidance, rng, fromBehind);
         if (specialHits) {
           report.special.hits++;
           report.special.count++;
@@ -423,9 +423,9 @@
             const backstabBase = Math.floor(((effectiveSkill * 0.02) + 2.0) * w1.damage);
             baseDmg = calcMeleeDamage(backstabBase, offenseRating, mitigation, rng, 0);
             baseDmg = Math.max(1, Math.floor(baseDmg * specialConfig.damageMultiplier));
-          } else if (specialConfig.useWeaponDamage === false) {
-            // Flying Kick: level-based base only (EQMacEmu min_dmg = level*4/5)
-            const fkBase = level * 2;
+          } else if (options.classId === 'monk' && specialConfig.useWeaponDamage === false) {
+            // Flying Kick: level-based base only (EQMacEmu base 29, min_dmg = level*4/5)
+            const fkBase = 29;
             baseDmg = calcMeleeDamage(fkBase, offenseRating, mitigation, rng, 0);
             const fkMin = Math.floor(level * 4 / 5);
             baseDmg = Math.max(1, Math.max(baseDmg, fkMin));
@@ -444,6 +444,7 @@
             const minHit = level >= 60 ? level * 2 : level > 50 ? Math.floor(level * 3 / 2) : level;
             dmg = Math.max(dmg, minHit);
           }
+         
           report.special.totalDamage += dmg;
           report.special.maxDamage = Math.max(report.special.maxDamage, dmg);
           report.special.hitList.push(dmg);
@@ -781,12 +782,16 @@
       if (w2.procs != null) lines.push(`  Procs: ${w2.procs}`);
       if (w2.procDamageTotal != null && w2.procDamageTotal > 0) lines.push(`  Proc spell damage: ${w2.procDamageTotal}`);
     }
-    if (report.special && report.special.count > 0) {
-      lines.push('', report.special.name, `  Count: ${report.special.count}`, `  Total damage: ${report.special.totalDamage}`, `  Max hit: ${report.special.maxDamage}`);
-      if (report.special.attempts != null && report.special.doubleBackstabs !== undefined) {
+    if (report.special && (report.special.count > 0 || (report.special.attempts != null && report.special.attempts > 0))) {
+      lines.push('', report.special.name, `  Count: ${report.special.count}`);
+      if (report.special.attempts != null) {
         const a = report.special.attempts;
-        const h = report.special.hits;
-        lines.push(`  Total backstab attempts: ${a}`, `  Backstab hits: ${h}`, `  Backstab damage: ${report.special.totalDamage}`, `  Backstab accuracy: ${a > 0 ? (h / a * 100).toFixed(1) : 0}%`, `  Backstab max hit: ${report.special.maxDamage}`, `  Double backstabs: ${report.special.doubleBackstabs}`);
+        const h = report.special.hits != null ? report.special.hits : report.special.count;
+        lines.push(`  Attempts: ${a}`, `  Accuracy: ${a > 0 ? (h / a * 100).toFixed(1) : 0}%`);
+      }
+      lines.push(`  Total damage: ${report.special.totalDamage}`, `  Max hit: ${report.special.maxDamage}`, `  DPS: ${(report.special.totalDamage / report.durationSec).toFixed(2)}`);
+      if (report.special.doubleBackstabs !== undefined) {
+        lines.push(`  Double backstabs: ${report.special.doubleBackstabs}`);
         const modPct = report.special.backstabModPercent != null ? report.special.backstabModPercent : 0;
         if (modPct !== 0 && report.special.backstabSkill != null) {
           const skill = report.special.backstabSkill;
