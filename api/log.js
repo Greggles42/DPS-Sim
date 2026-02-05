@@ -29,7 +29,11 @@ export default async function handler(req, res) {
   let payload;
   try {
     payload = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
-    if (!payload || typeof payload !== 'object') return;
+    if (!payload || typeof payload !== 'object') {
+      setCors(res);
+      res.setHeader('Content-Type', 'application/json');
+      return res.status(200).json({});
+    }
   } catch (e) {
     setCors(res);
     res.setHeader('Content-Type', 'application/json');

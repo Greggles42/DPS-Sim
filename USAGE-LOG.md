@@ -33,6 +33,22 @@ Optional, off-by-default. No UI; the main tool does not show any tracking.
 - **Summarize:** `node usage-log-summary.js`  
   Reads `usage-log.jsonl` and prints total runs, unique users, weapon combos, class breakdown, etc.
 
+## Troubleshooting: Summary shows 0 runs
+
+If [https://dps-sim.vercel.app/api/summary](https://dps-sim.vercel.app/api/summary) shows "Total simulations run: 0":
+
+1. **Create a Vercel Blob store** (required for logging to work):
+   - Vercel dashboard → your project → **Storage** → **Create Database** / **Add Storage** → choose **Blob**.
+   - This provides `BLOB_READ_WRITE_TOKEN` to the project. Without it, `/api/log` returns 200 but does not persist data, and the summary has nothing to read.
+
+2. **Run a simulation on the deployed app** (not only locally):
+   - Open **https://dps-sim.vercel.app**, click "Run simulation". Each run sends one POST to `/api/log`; the summary page only shows runs that were logged after the Blob store existed.
+
+3. **Confirm the app is deployed with logging enabled**:
+   - In the deployed repo, `index.html` should have `USAGE_LOG_URL = 'https://dps-sim.vercel.app/api/log'` (or your Vercel URL). If you set it to empty or a local URL for testing, the live site won’t log.
+
+4. **Browser/network**: Ad blockers or strict privacy settings can block the POST to `/api/log`. Try from a normal browser profile and check DevTools → Network for a POST to `api/log` (status 200) after a run.
+
 ## Payload (per run)
 
 Each run sends one POST with a JSON object, e.g.:
