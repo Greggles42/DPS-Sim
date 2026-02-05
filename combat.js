@@ -278,7 +278,7 @@
   // Flying Kick uses skill/level-based base only (EQMacEmu: GetSkillBaseDamage + min level*4/5), not primary weapon. Flying Kick Base damage is 29
   const SPECIAL_ATTACKS = {
     monk: { name: 'Flying Kick', cooldownDecisec: 80, useWeaponDamage: false },
-    rogue: { name: 'Backstab', cooldownDecisec: 120, damageMultiplier: 3, fromBehindOnly: true },
+    rogue: { name: 'Backstab', cooldownDecisec: 120, fromBehindOnly: true },
   };
 
   // ----- Simulation state -----
@@ -420,9 +420,9 @@
             const backstabSkill = options.backstabSkill != null ? options.backstabSkill : 225;
             const backstabModPct = options.backstabModPercent || 0;
             const effectiveSkill = Math.min(255, Math.floor(backstabSkill * (100 + backstabModPct) / 100));
-            const backstabBase = Math.floor(((effectiveSkill * 0.02) + 2.0) * w1.damage);
+            const backstabBase = Math.floor(((effectiveSkill * 0.02) + 2) * w1.damage);
             baseDmg = calcMeleeDamage(backstabBase, offenseRating, mitigation, rng, 0);
-            baseDmg = Math.max(1, Math.floor(baseDmg * specialConfig.damageMultiplier));
+            baseDmg = Math.max(1, baseDmg);
           } else if (options.classId === 'monk' && specialConfig.useWeaponDamage === false) {
             // Flying Kick: level-based base only (EQMacEmu base 29, min_dmg = level*4/5)
             const fkBase = 29;
@@ -461,9 +461,9 @@
               const backstabSkill2 = options.backstabSkill != null ? options.backstabSkill : 225;
               const backstabModPct2 = options.backstabModPercent || 0;
               const effectiveSkill2 = Math.min(255, Math.floor(backstabSkill2 * (100 + backstabModPct2) / 100));
-              const backstabBase2 = Math.floor(((effectiveSkill2 * 0.02) + 2.0) * w1.damage);
+              const backstabBase2 = Math.floor(((effectiveSkill2 * 0.02) + 2) * w1.damage);
               let baseDmg2 = calcMeleeDamage(backstabBase2, offenseRating, mitigation, rng, 0);
-              baseDmg2 = Math.max(1, Math.floor(baseDmg2 * specialConfig.damageMultiplier));
+              baseDmg2 = Math.max(1, baseDmg2);
               const mult2 = rollDamageMultiplier(offenseRating, baseDmg2, level, options.classId, false, rng);
               let dmg2 = mult2.damage;
               const beforeCrit2 = dmg2;
