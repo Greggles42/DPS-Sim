@@ -413,12 +413,12 @@
       <input type="number" id="ranged-level" min="1" max="65" value="60" placeholder="60">
       <label for="ranged-haste">Total haste (%)</label>
       <input type="number" id="ranged-haste" min="0" value="99" placeholder="e.g. 99">
+      <div class="row">
+        <div><label for="ranged-worn-attack" class="small-label">Worn attack</label><input type="number" id="ranged-worn-attack" min="0" value="0" placeholder="0"></div>
+        <div><label for="ranged-spell-attack" class="small-label">Spell attack</label><input type="number" id="ranged-spell-attack" min="0" value="0" placeholder="0"></div>
+      </div>
       <details class="collapse-secondary">
-        <summary class="collapse-summary">Worn/spell attack, archery mastery, options</summary>
-        <div class="row">
-          <div><label for="ranged-worn-attack" class="small-label">Worn attack</label><input type="number" id="ranged-worn-attack" min="0" value="0" placeholder="0"></div>
-          <div><label for="ranged-spell-attack" class="small-label">Spell attack</label><input type="number" id="ranged-spell-attack" min="0" value="0" placeholder="0"></div>
-        </div>
+        <summary class="collapse-summary">Archery mastery, options</summary>
         <label>Archery Mastery</label>
         <div class="radio-group">
           <label><input type="radio" name="archery-mastery" value="1"> 1</label>
@@ -426,7 +426,7 @@
           <label><input type="radio" name="archery-mastery" value="3" checked> 3</label>
         </div>
         <p class="hint">AA Archery Mastery rank (1, 2, or 3).</p>
-        <label class="checkbox-label"><input type="checkbox" id="mob-stationary"> Mob stationary</label>
+        <label class="checkbox-label"><input type="checkbox" id="mob-stationary" checked> Mob stationary</label>
         <p class="hint">When checked, target is not moving (affects hit/damage if sim uses it).</p>
         <label class="checkbox-label"><input type="checkbox" id="use-walled-mob-penalty"> Use Walled Mob Penalty</label>
         <p class="hint">When checked, the report tracks damage lost due to wall penalty vs a standard hit.</p>
