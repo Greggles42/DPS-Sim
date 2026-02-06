@@ -278,16 +278,17 @@
     return Math.max(10, delay / hasteMod); // min delay often 10 (1 sec)
   }
 
-  // ----- Proc chance (PPM-based) -----
-  // Live-style: PPM = (DEX/170) + 0.5 (main hand), offhand half that. Chance per swing = PPM / swings_per_minute = PPM * effectiveDelaySec / 60.
-  // effectiveDelayDecisec is haste-adjusted so PPM stays constant regardless of haste.
-  function getProcChancePerSwing(effectiveDelayDecisec, isOffhand, dualWieldPct, dex) {
+  // ----- Proc chance (server formula) -----
+  // chance = (0.0004166667 + 1.1437908496732e-5 * dex) * weapon_speed; offhand: chance *= 50 / GetDualWieldChance().
+  // weapon_speed = effective delay (deciseconds). dualWieldChance = 0..100 (same scale as GetDualWieldChance).
+  function getProcChancePerSwing(effectiveDelayDecisec, isOffhand, dualWieldChance, dex) {
     if (effectiveDelayDecisec <= 0) return 0;
-    let ppm = (dex != null ? dex : 150) / 170 + 0.5;
-    ppm = Math.min(2, Math.max(0.5, ppm)); // ~0.5–2 PPM by DEX
-    if (isOffhand) ppm *= 0.5;
-    const swingsPerMin = 600 / effectiveDelayDecisec;
-    const chance = ppm / swingsPerMin;
+    const d = dex != null ? dex : 150;
+    let chance = (0.0004166667 + 1.1437908496732e-5 * d) * effectiveDelayDecisec;
+    if (isOffhand) {
+      const dw = Math.max(1, dualWieldChance != null ? dualWieldChance : 100);
+      chance *= 50 / dw;
+    }
     return Math.min(1, Math.max(0, chance));
   }
 
