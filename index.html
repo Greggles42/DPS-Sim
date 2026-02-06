@@ -102,6 +102,7 @@
       min-height: 120px;
     }
     .hint { font-size: 0.75rem; color: var(--muted); margin-top: -0.5rem; margin-bottom: 0.75rem; }
+    .small-label { display: block; font-size: 0.75rem; color: var(--muted); margin-bottom: 0.2rem; }
     .info-icon { display: inline-flex; align-items: center; justify-content: center; width: 1em; height: 1em; margin-left: 0.25rem; font-size: 0.85em; color: var(--accent); cursor: help; border: 1px solid var(--border); border-radius: 50%; }
     .radio-group { display: flex; gap: 1rem; align-items: center; margin-bottom: 0.75rem; }
     .radio-group label { display: flex; align-items: center; gap: 0.35rem; margin-bottom: 0; cursor: pointer; }
@@ -160,6 +161,17 @@
       <input type="text" id="w1-proc" placeholder="e.g. Flaming Sword">
       <label for="w1-proc-damage">Proc spell damage (on proc)</label>
       <input type="number" id="w1-proc-damage" min="0" value="0" placeholder="0">
+      <label for="w1-elem-type">Elemental type (optional)</label>
+      <select id="w1-elem-type">
+        <option value="">None</option>
+        <option value="fire">Fire</option>
+        <option value="cold">Cold</option>
+        <option value="poison">Poison</option>
+        <option value="disease">Disease</option>
+        <option value="magic">Magic</option>
+      </select>
+      <label for="w1-elem-damage">Elemental damage</label>
+      <input type="number" id="w1-elem-damage" min="0" value="0" placeholder="0">
     </section>
 
     <section id="weapon2-section">
@@ -174,6 +186,17 @@
       <input type="text" id="w2-proc" placeholder="e.g. Poison">
       <label for="w2-proc-damage">Proc spell damage (on proc)</label>
       <input type="number" id="w2-proc-damage" min="0" value="0" placeholder="0">
+      <label for="w2-elem-type">Elemental type (optional)</label>
+      <select id="w2-elem-type">
+        <option value="">None</option>
+        <option value="fire">Fire</option>
+        <option value="cold">Cold</option>
+        <option value="poison">Poison</option>
+        <option value="disease">Disease</option>
+        <option value="magic">Magic</option>
+      </select>
+      <label for="w2-elem-damage">Elemental damage</label>
+      <input type="number" id="w2-elem-damage" min="0" value="0" placeholder="0">
     </section>
 
     <section>
@@ -239,6 +262,15 @@
       <input type="number" id="target-ac" min="1" value="300" placeholder="e.g. 300" title="Used only for damage roll: when level-based mitigation would be 200 and mob AC &gt; 200, use this value. Does not affect hit chance.">
       <label for="mob-level">Mob level</label>
       <input type="number" id="mob-level" min="1" max="70" value="60" title="Used for getMitigation (damage roll) and getAvoidanceNPC (hit chance). Avoidance = level*9+5, cap 400/460.">
+      <label>Target resistances (for elemental damage)</label>
+      <div class="row">
+        <div><label for="target-mr" class="small-label">MR</label><input type="number" id="target-mr" min="0" value="35" placeholder="35"></div>
+        <div><label for="target-fr" class="small-label">FR</label><input type="number" id="target-fr" min="0" value="35" placeholder="35"></div>
+        <div><label for="target-cr" class="small-label">CR</label><input type="number" id="target-cr" min="0" value="35" placeholder="35"></div>
+        <div><label for="target-pr" class="small-label">PR</label><input type="number" id="target-pr" min="0" value="35" placeholder="35"></div>
+        <div><label for="target-dr" class="small-label">DR</label><input type="number" id="target-dr" min="0" value="35" placeholder="35"></div>
+      </div>
+      <p class="hint">Magic, Fire, Cold, Poison, Disease. Used when weapons have elemental damage.</p>
       <label for="duration">Fight duration (seconds)</label>
       <input type="number" id="duration" min="1" value="6000" placeholder="e.g. 6000">
       <label for="runs">Number of runs (average report)</label>
@@ -263,6 +295,17 @@
       <input type="text" id="ranged-proc" placeholder="e.g. Flaming Arrows">
       <label for="ranged-proc-damage">Proc spell damage (on proc)</label>
       <input type="number" id="ranged-proc-damage" min="0" value="0" placeholder="0">
+      <label for="ranged-elem-type">Elemental type (optional)</label>
+      <select id="ranged-elem-type">
+        <option value="">None</option>
+        <option value="fire">Fire</option>
+        <option value="cold">Cold</option>
+        <option value="poison">Poison</option>
+        <option value="disease">Disease</option>
+        <option value="magic">Magic</option>
+      </select>
+      <label for="ranged-elem-damage">Elemental damage</label>
+      <input type="number" id="ranged-elem-damage" min="0" value="0" placeholder="0">
     </section>
 
     <section>
@@ -271,6 +314,17 @@
       <select id="arrow-preset"></select>
       <label for="arrow-damage">Damage</label>
       <input type="number" id="arrow-damage" min="0" value="5" placeholder="e.g. 5">
+      <label for="arrow-elem-type">Elemental type (optional)</label>
+      <select id="arrow-elem-type">
+        <option value="">None</option>
+        <option value="fire">Fire</option>
+        <option value="cold">Cold</option>
+        <option value="poison">Poison</option>
+        <option value="disease">Disease</option>
+        <option value="magic">Magic</option>
+      </select>
+      <label for="arrow-elem-damage">Elemental damage</label>
+      <input type="number" id="arrow-elem-damage" min="0" value="0" placeholder="0">
     </section>
 
     <section>
@@ -302,6 +356,15 @@
       <input type="number" id="ranged-target-ac" min="1" value="300" placeholder="e.g. 300">
       <label for="ranged-mob-level">Mob level</label>
       <input type="number" id="ranged-mob-level" min="1" max="70" value="60" placeholder="60">
+      <label>Target resistances (for elemental damage)</label>
+      <div class="row">
+        <div><label for="ranged-target-mr" class="small-label">MR</label><input type="number" id="ranged-target-mr" min="0" value="35" placeholder="35"></div>
+        <div><label for="ranged-target-fr" class="small-label">FR</label><input type="number" id="ranged-target-fr" min="0" value="35" placeholder="35"></div>
+        <div><label for="ranged-target-cr" class="small-label">CR</label><input type="number" id="ranged-target-cr" min="0" value="35" placeholder="35"></div>
+        <div><label for="ranged-target-pr" class="small-label">PR</label><input type="number" id="ranged-target-pr" min="0" value="35" placeholder="35"></div>
+        <div><label for="ranged-target-dr" class="small-label">DR</label><input type="number" id="ranged-target-dr" min="0" value="35" placeholder="35"></div>
+      </div>
+      <p class="hint">Magic, Fire, Cold, Poison, Disease.</p>
       <label for="ranged-duration">Fight duration (seconds)</label>
       <input type="number" id="ranged-duration" min="1" value="6000" placeholder="e.g. 6000">
       <label for="ranged-runs">Number of runs (average report)</label>
@@ -410,13 +473,13 @@
         return (RANGED_WEAPON_PRESETS[b].damage - RANGED_WEAPON_PRESETS[a].damage) || (RANGED_WEAPON_PRESETS[a].name || '').localeCompare(RANGED_WEAPON_PRESETS[b].name || '');
       });
 
-      // Arrow presets (PQDI) – base damage only; delay removed per UI
+      // Arrow presets (PQDI) – base damage + elemental from elemdmgtype/elemdmgamt
       const ARROW_PRESETS = {
-        '24493': { damage: 11, name: 'Blessed Champion Arrows' },
-        '24488': { damage: 11, name: 'Mithril Champion Arrows' },
-        '10762': { damage: 10, name: 'Ice Tipped Acrylia Arrow' },
-        '10761': { damage: 10, name: 'Shadow Tipped Acrylia Arrow' },
-        '10760': { damage: 10, name: 'Flame Tipped Acrylia Arrow' },
+        '24493': { damage: 11, name: 'Blessed Champion Arrows', elemType: 'fire', elemDamage: 4 },
+        '24488': { damage: 11, name: 'Mithril Champion Arrows', elemType: 'fire', elemDamage: 3 },
+        '10762': { damage: 10, name: 'Ice Tipped Acrylia Arrow', elemType: 'cold', elemDamage: 4 },
+        '10761': { damage: 10, name: 'Shadow Tipped Acrylia Arrow', elemType: 'magic', elemDamage: 4 },
+        '10760': { damage: 10, name: 'Flame Tipped Acrylia Arrow', elemType: 'fire', elemDamage: 4 },
       };
       const ARROW_PRESET_IDS = Object.keys(ARROW_PRESETS).sort(function (a, b) {
         return (ARROW_PRESETS[b].damage - ARROW_PRESETS[a].damage) || (ARROW_PRESETS[a].name || '').localeCompare(ARROW_PRESETS[b].name || '');
@@ -508,7 +571,13 @@
         const minDmg = minDmgRaw && minDmgRaw.value !== '' ? parseInt(minDmgRaw.value, 10) : null;
         const maxDmg = maxDmgRaw && maxDmgRaw.value !== '' ? parseInt(maxDmgRaw.value, 10) : null;
         const is2H = prefix === 'w1' && isW1TwoHanded();
-        return { damage, delay, procSpell: proc, procSpellDamage: procSpellDamage || 0, minDmg, maxDmg, is2H };
+        const elemTypeEl = $(prefix + '-elem-type');
+        const elemDamageEl = $(prefix + '-elem-damage');
+        const elemType = elemTypeEl && elemTypeEl.value && elemTypeEl.value.trim() ? elemTypeEl.value.trim() : undefined;
+        const elemDamage = elemDamageEl && elemDamageEl.value !== '' ? (parseInt(elemDamageEl.value, 10) || 0) : 0;
+        const out = { damage, delay, procSpell: proc, procSpellDamage: procSpellDamage || 0, minDmg, maxDmg, is2H };
+        if (elemType && elemDamage > 0) { out.elemType = elemType; out.elemDamage = elemDamage; }
+        return out;
       }
 
       function run() {
@@ -527,6 +596,11 @@
         const level = parseInt($('level').value, 10) || 60;
         const targetAC = parseInt($('target-ac').value, 10) || 200;
         const mobLevel = parseInt($('mob-level').value, 10) || 60;
+        const targetMR = parseInt($('target-mr').value, 10) || 35;
+        const targetFR = parseInt($('target-fr').value, 10) || 35;
+        const targetCR = parseInt($('target-cr').value, 10) || 35;
+        const targetPR = parseInt($('target-pr').value, 10) || 35;
+        const targetDR = parseInt($('target-dr').value, 10) || 35;
         const durationSec = parseInt($('duration').value, 10) || 6000;
         const str = parseInt($('str').value, 10) || 255;
         const runs = Math.max(1, Math.min(1000, parseInt($('runs').value, 10) || 20));
@@ -555,6 +629,7 @@
           level,
           targetAC,
           mobLevel,
+          targetMR, targetFR, targetCR, targetPR, targetDR,
           fightDurationSec: durationSec,
           dex,
           str,
@@ -783,7 +858,13 @@
           procSpell: ($('ranged-proc').value || '').trim() || undefined,
           procSpellDamage: parseInt($('ranged-proc-damage').value, 10) || 0,
         };
+        const rangedElemType = ($('ranged-elem-type').value || '').trim();
+        const rangedElemDamage = parseInt($('ranged-elem-damage').value, 10) || 0;
+        if (rangedElemType && rangedElemDamage > 0) { rangedWeapon.elemType = rangedElemType; rangedWeapon.elemDamage = rangedElemDamage; }
         const arrow = { damage: arrowDamage };
+        const arrowElemType = ($('arrow-elem-type').value || '').trim();
+        const arrowElemDamage = parseInt($('arrow-elem-damage').value, 10) || 0;
+        if (arrowElemType && arrowElemDamage > 0) { arrow.elemType = arrowElemType; arrow.elemDamage = arrowElemDamage; }
         const options = {
           rangedWeapon,
           arrow,
@@ -791,6 +872,11 @@
           level: parseInt($('ranged-level').value, 10) || 60,
           targetAC: parseInt($('ranged-target-ac').value, 10) || 300,
           mobLevel: parseInt($('ranged-mob-level').value, 10) || 60,
+          targetMR: parseInt($('ranged-target-mr').value, 10) || 35,
+          targetFR: parseInt($('ranged-target-fr').value, 10) || 35,
+          targetCR: parseInt($('ranged-target-cr').value, 10) || 35,
+          targetPR: parseInt($('ranged-target-pr').value, 10) || 35,
+          targetDR: parseInt($('ranged-target-dr').value, 10) || 35,
           fightDurationSec: parseInt($('ranged-duration').value, 10) || 6000,
           offenseSkill: 252,
           wornAttack: parseInt($('ranged-worn-attack').value, 10) || 0,
@@ -943,7 +1029,8 @@
           const p = ARROW_PRESETS[id];
           const opt = document.createElement('option');
           opt.value = id;
-          opt.textContent = (p.name || id) + ' (' + p.damage + ')';
+          const elemStr = (p.elemType && p.elemDamage) ? ' + ' + p.elemDamage + ' ' + p.elemType : '';
+          opt.textContent = (p.name || id) + ' (' + p.damage + elemStr + ')';
           sel.appendChild(opt);
         });
       }
@@ -951,6 +1038,8 @@
         const p = id ? ARROW_PRESETS[id] : null;
         if (p) {
           $('arrow-damage').value = p.damage;
+          $('arrow-elem-type').value = p.elemType || '';
+          $('arrow-elem-damage').value = (p.elemDamage != null ? p.elemDamage : 0) || '';
         }
       }
 

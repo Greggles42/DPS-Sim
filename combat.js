@@ -93,6 +93,27 @@
     return damage;
   }
 
+  // Elemental damage vs target resistance: if resist > 200 return 0; roll = random(1,201) - resist; if roll < 1 return 0; if roll <= 99 return weaponDamage * roll / 100; else return weaponDamage
+  function applyElementalResist(weaponDamage, resistValue, rng) {
+    if (resistValue > 200) return 0;
+    const roll = Math.floor(rng() * 201) + 1 - resistValue;
+    if (roll < 1) return 0;
+    if (roll <= 99) return Math.floor(weaponDamage * roll / 100);
+    return weaponDamage;
+  }
+
+  function getResistForElemType(options, elemType) {
+    const key = elemType === 'fire' ? 'targetFR' : elemType === 'cold' ? 'targetCR' : elemType === 'poison' ? 'targetPR' : elemType === 'disease' ? 'targetDR' : elemType === 'magic' ? 'targetMR' : null;
+    return key != null && options[key] != null ? options[key] : 35;
+  }
+
+  function addElementalToDamage(dmg, weapon, options, rng) {
+    if (!weapon || !weapon.elemType || !(weapon.elemDamage > 0)) return { dmg, elementalAdded: 0 };
+    const resist = getResistForElemType(options, weapon.elemType);
+    const added = applyElementalResist(weapon.elemDamage, resist, rng);
+    return { dmg: dmg + added, elementalAdded: added };
+  }
+
   // ----- Client::RollDamageMultiplier (applied to every client melee swing) -----
   function getRollDamageMultiplierParams(level, classId) {
     const isMonk = classId === 'monk';
@@ -356,6 +377,7 @@
       },
       durationSec: options.fightDurationSec,
       totalDamage: 0,
+      elementalDamageTotal: 0,
       critHits: 0,
       critDamageGain: 0,
       wallPenaltyDamageLost: useWalledMobPenalty ? 0 : undefined,
@@ -400,6 +422,12 @@
         report.ranged.procDamageTotal += procDmg;
         dmg += procDmg;
       }
+      let er = addElementalToDamage(dmg, bow, options, rng);
+      dmg = er.dmg;
+      report.elementalDamageTotal += er.elementalAdded;
+      er = addElementalToDamage(dmg, arrow, options, rng);
+      dmg = er.dmg;
+      report.elementalDamageTotal += er.elementalAdded;
       report.ranged.totalDamage += dmg;
       report.totalDamage += dmg;
       report.ranged.maxDamage = Math.max(report.ranged.maxDamage, dmg);
@@ -443,6 +471,9 @@
     }
     if (report.wallPenaltyDamageLost != null && report.wallPenaltyDamageLost >= 0) {
       lines.splice(lines.length - 2, 0, `Damage lost to wall penalty: ${report.wallPenaltyDamageLost}`);
+    }
+    if (report.elementalDamageTotal != null && report.elementalDamageTotal > 0) {
+      lines.splice(lines.length - 2, 0, `Elemental damage: ${report.elementalDamageTotal}`);
     }
     return lines.join('\n');
   }
@@ -542,6 +573,7 @@
       weapon2: { swings: 0, hits: 0, totalDamage: 0, maxDamage: 0, minDamage: Infinity, hitList: [], procs: 0, procDamageTotal: 0, rounds: 0, single: 0, double: 0, triple: 0 },
       durationSec: options.fightDurationSec,
       totalDamage: 0,
+      elementalDamageTotal: 0,
       damageBonus: mainHandDamageBonus,
       damageBonusTotal: 0,
       calculatedToHit: toHit,
@@ -610,7 +642,9 @@
             const minHit = level >= 60 ? level * 2 : level > 50 ? Math.floor(level * 3 / 2) : level;
             dmg = Math.max(dmg, minHit);
           }
-         
+          const er = addElementalToDamage(dmg, w1, options, rng);
+          dmg = er.dmg;
+          report.elementalDamageTotal += er.elementalAdded;
           report.special.totalDamage += dmg;
           report.special.maxDamage = Math.max(report.special.maxDamage, dmg);
           report.special.hitList.push(dmg);
@@ -640,6 +674,9 @@
                 const minHit = level >= 60 ? level * 2 : level > 50 ? Math.floor(level * 3 / 2) : level;
                 dmg2 = Math.max(dmg2, minHit);
               }
+              const er2 = addElementalToDamage(dmg2, w1, options, rng);
+              dmg2 = er2.dmg;
+              report.elementalDamageTotal += er2.elementalAdded;
               report.special.totalDamage += dmg2;
               report.special.maxDamage = Math.max(report.special.maxDamage, dmg2);
               report.special.hitList.push(dmg2);
@@ -669,6 +706,9 @@
           dmg = critResult.damage;
           dmg = Math.max(dmg, 1 + mainHandDamageBonus);
           if (critResult.isCrit) { report.critHits++; report.critDamageGain += (dmg - beforeCrit); }
+          const er = addElementalToDamage(dmg, w1, options, rng);
+          dmg = er.dmg;
+          report.elementalDamageTotal += er.elementalAdded;
           report.weapon1.swings++;
           report.weapon1.hits++;
           report.weapon1.totalDamage += dmg;
@@ -700,6 +740,9 @@
             dmg = critResult.damage;
             dmg = Math.max(dmg, 1 + mainHandDamageBonus);
             if (critResult.isCrit) { report.critHits++; report.critDamageGain += (dmg - beforeCrit); }
+            const er = addElementalToDamage(dmg, w1, options, rng);
+            dmg = er.dmg;
+            report.elementalDamageTotal += er.elementalAdded;
             report.weapon1.swings++;
             report.weapon1.hits++;
             report.weapon1.totalDamage += dmg;
@@ -730,6 +773,9 @@
               dmg = critResult.damage;
               dmg = Math.max(dmg, 1 + mainHandDamageBonus);
               if (critResult.isCrit) { report.critHits++; report.critDamageGain += (dmg - beforeCrit); }
+              const er = addElementalToDamage(dmg, w1, options, rng);
+              dmg = er.dmg;
+              report.elementalDamageTotal += er.elementalAdded;
               report.weapon1.swings++;
               report.weapon1.hits++;
               report.weapon1.totalDamage += dmg;
@@ -813,6 +859,9 @@
             const critResult = rollMeleeCrit(dmg, 0, level, options.classId, options.dex, options.critChanceMult, false, false, 0, rng);
             dmg = critResult.damage;
             if (critResult.isCrit) { report.critHits++; report.critDamageGain += (dmg - beforeCrit); }
+            const er = addElementalToDamage(dmg, w2, options, rng);
+            dmg = er.dmg;
+            report.elementalDamageTotal += er.elementalAdded;
             report.weapon2.swings++;
             report.weapon2.hits++;
             report.weapon2.totalDamage += dmg;
@@ -839,6 +888,9 @@
               const critResult = rollMeleeCrit(dmg, 0, level, options.classId, options.dex, options.critChanceMult, false, false, 0, rng);
               dmg = critResult.damage;
               if (critResult.isCrit) { report.critHits++; report.critDamageGain += (dmg - beforeCrit); }
+              const er = addElementalToDamage(dmg, w2, options, rng);
+              dmg = er.dmg;
+              report.elementalDamageTotal += er.elementalAdded;
               report.weapon2.swings++;
               report.weapon2.hits++;
               report.weapon2.totalDamage += dmg;
@@ -970,6 +1022,9 @@
       const fw = report.fistweaving;
       const fwAcc = fw.swings > 0 ? (fw.hits / fw.swings * 100).toFixed(1) : '0';
       lines.push('', 'Fistweaving (9 dmg, no proc)', `  Rounds: ${fw.rounds}`, `  Single / Double: ${fw.single ?? '—'} / ${fw.double ?? '—'}`, `  Swings: ${fw.swings}`, `  Hits: ${fw.hits}`, `  Accuracy: ${fwAcc}%`, `  Total damage: ${fw.totalDamage}`, `  Max hit: ${fw.maxDamage}`, `  DPS: ${(fw.totalDamage / report.durationSec).toFixed(2)}`);
+    }
+    if (report.elementalDamageTotal != null && report.elementalDamageTotal > 0) {
+      lines.push('', `Elemental damage: ${report.elementalDamageTotal}`);
     }
     lines.push('', `Total damage: ${report.totalDamage}`, `DPS: ${(report.totalDamage / report.durationSec).toFixed(2)}`);
     return lines.join('\n');
