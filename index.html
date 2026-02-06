@@ -77,6 +77,7 @@
       margin-bottom: 0.75rem;
     }
     .row > * { flex: 1; }
+    .row input, .row select { margin-bottom: 0; }
     button {
       background: var(--accent);
       color: var(--bg);
@@ -152,55 +153,54 @@
       <h2>Weapon 1 (Main Hand)</h2>
       <label for="w1-preset">Quick select</label>
       <select id="w1-preset"></select>
-      <label for="w1-damage">Damage</label>
-      <input type="number" id="w1-damage" min="1" value="12" placeholder="e.g. 12">
-      <label for="w1-delay">Delay (deciseconds)</label>
-      <input type="number" id="w1-delay" min="10" value="40" placeholder="40 = 4.0 sec">
+      <div class="row">
+        <div><label for="w1-damage" class="small-label">Damage</label><input type="number" id="w1-damage" min="1" value="12" placeholder="e.g. 12"></div>
+        <div><label for="w1-delay" class="small-label">Delay (decisec)</label><input type="number" id="w1-delay" min="10" value="40" placeholder="40 = 4.0s"></div>
+      </div>
       <p class="hint">Delay in tenths of a second (40 = 4.0s, 25 = 2.5s)</p>
       <label for="w1-proc">Proc spell (name or leave blank)</label>
       <input type="text" id="w1-proc" placeholder="e.g. Flaming Sword">
       <label for="w1-proc-damage">Proc spell damage (on proc)</label>
       <input type="number" id="w1-proc-damage" min="0" value="0" placeholder="0">
-      <label for="w1-elem-type">Elemental type (optional)</label>
-      <select id="w1-elem-type">
-        <option value="">None</option>
-        <option value="fire">Fire</option>
-        <option value="cold">Cold</option>
-        <option value="poison">Poison</option>
-        <option value="disease">Disease</option>
-        <option value="magic">Magic</option>
-      </select>
-      <label for="w1-elem-damage">Elemental damage</label>
-      <input type="number" id="w1-elem-damage" min="0" value="0" placeholder="0">
-      <label for="w1-bane">Bane damage</label>
-      <input type="number" id="w1-bane" min="0" value="0" placeholder="0">
+      <div class="row">
+        <div><label for="w1-elem-type" class="small-label">Elemental type</label><select id="w1-elem-type">
+          <option value="">None</option>
+          <option value="fire">Fire</option>
+          <option value="cold">Cold</option>
+          <option value="poison">Poison</option>
+          <option value="disease">Disease</option>
+          <option value="magic">Magic</option>
+        </select></div>
+        <div><label for="w1-elem-damage" class="small-label">Elem dmg</label><input type="number" id="w1-elem-damage" min="0" value="0" placeholder="0"></div>
+        <div><label for="w1-bane" class="small-label">Bane dmg</label><input type="number" id="w1-bane" min="0" value="0" placeholder="0"></div>
+      </div>
     </section>
 
     <section id="weapon2-section">
       <h2>Weapon 2 (Offhand, optional)</h2>
       <label for="w2-preset">Quick select</label>
       <select id="w2-preset"></select>
-      <label for="w2-damage">Damage</label>
-      <input type="number" id="w2-damage" min="0" value="0" placeholder="0 = no offhand">
-      <label for="w2-delay">Delay (deciseconds)</label>
-      <input type="number" id="w2-delay" min="0" value="0" placeholder="0">
+      <div class="row">
+        <div><label for="w2-damage" class="small-label">Damage</label><input type="number" id="w2-damage" min="0" value="0" placeholder="0 = no offhand"></div>
+        <div><label for="w2-delay" class="small-label">Delay (decisec)</label><input type="number" id="w2-delay" min="0" value="0" placeholder="0"></div>
+      </div>
+      <p class="hint">Delay in tenths of a second (40 = 4.0s, 25 = 2.5s)</p>
       <label for="w2-proc">Proc spell (name or leave blank)</label>
       <input type="text" id="w2-proc" placeholder="e.g. Poison">
       <label for="w2-proc-damage">Proc spell damage (on proc)</label>
       <input type="number" id="w2-proc-damage" min="0" value="0" placeholder="0">
-      <label for="w2-elem-type">Elemental type (optional)</label>
-      <select id="w2-elem-type">
-        <option value="">None</option>
-        <option value="fire">Fire</option>
-        <option value="cold">Cold</option>
-        <option value="poison">Poison</option>
-        <option value="disease">Disease</option>
-        <option value="magic">Magic</option>
-      </select>
-      <label for="w2-elem-damage">Elemental damage</label>
-      <input type="number" id="w2-elem-damage" min="0" value="0" placeholder="0">
-      <label for="w2-bane">Bane damage</label>
-      <input type="number" id="w2-bane" min="0" value="0" placeholder="0">
+      <div class="row">
+        <div><label for="w2-elem-type" class="small-label">Elemental type</label><select id="w2-elem-type">
+          <option value="">None</option>
+          <option value="fire">Fire</option>
+          <option value="cold">Cold</option>
+          <option value="poison">Poison</option>
+          <option value="disease">Disease</option>
+          <option value="magic">Magic</option>
+        </select></div>
+        <div><label for="w2-elem-damage" class="small-label">Elem dmg</label><input type="number" id="w2-elem-damage" min="0" value="0" placeholder="0"></div>
+        <div><label for="w2-bane" class="small-label">Bane dmg</label><input type="number" id="w2-bane" min="0" value="0" placeholder="0"></div>
+      </div>
     </section>
 
     <section>
@@ -222,15 +222,15 @@
       <input type="number" id="haste" min="0" value="99" placeholder="e.g. 99">
       <label for="offense-skill">Offense skill (0–255)</label>
       <input type="number" id="offense-skill" min="0" max="255" value="252" placeholder="252" title="Skill value used for to-hit only (7 + offense skill + weapon skill). Damage uses offense RATING = offense skill + STR + worn + spell.">
-      <label for="worn-attack">Worn attack (adds to offense rating) <span class="info-icon" title="Adds to offense rating (the portion of attack that affects damage). Avatar of Battle and Vengeance stack up to 250; procced avatar ≈ 100 worn attack.">&#8505;</span></label>
-      <input type="number" id="worn-attack" min="0" value="0" placeholder="e.g. 0">
-      <label for="spell-attack">Spell attack (adds to offense rating)</label>
-      <input type="number" id="spell-attack" min="0" value="0" placeholder="e.g. 0" title="Adds to offense rating (the portion of attack that affects damage).">
+      <div class="row">
+        <div><label for="worn-attack" class="small-label">Worn attack <span class="info-icon" title="Adds to offense rating. Avatar of Battle and Vengeance stack up to 250.">&#8505;</span></label><input type="number" id="worn-attack" min="0" value="0" placeholder="0"></div>
+        <div><label for="spell-attack" class="small-label">Spell attack</label><input type="number" id="spell-attack" min="0" value="0" placeholder="0" title="Adds to offense rating (the portion of attack that affects damage)."></div>
+      </div>
       <p class="hint">Offense skill = 0–255 value (to-hit only). Offense rating = skill + STR + worn + spell (used for damage).</p>
-      <label for="double-attack">Double attack skill</label>
-      <input type="number" id="double-attack" min="0" value="250" placeholder="e.g. 250">
-      <label for="dual-wield">Dual wield skill</label>
-      <input type="number" id="dual-wield" min="0" value="252" placeholder="0 = no dual wield">
+      <div class="row">
+        <div><label for="double-attack" class="small-label">Double attack skill</label><input type="number" id="double-attack" min="0" value="250" placeholder="250"></div>
+        <div><label for="dual-wield" class="small-label">Dual wield skill</label><input type="number" id="dual-wield" min="0" value="252" placeholder="0 = no offhand"></div>
+      </div>
       <label class="checkbox-label"><input type="checkbox" id="ambidexterity-aa"> Ambidexterity AA (+32 effective dual wield)</label>
       <label class="checkbox-label"><input type="checkbox" id="special-attacks"> Special attacks (Flying Kick / Backstab on cooldown)</label>
       <p class="hint" id="special-hint">Monk: Flying Kick every 8s. Rogue: Backstab every 12s (from behind only).</p>
@@ -246,10 +246,10 @@
       </div>
       <label for="level">Level</label>
       <input type="number" id="level" min="1" max="65" value="60" title="Used for double attack, dual wield, and main hand damage bonus (warrior classes, 28+).">
-      <label for="str">STR (adds to offense rating when ≥75; offense rating affects damage)</label>
-      <input type="number" id="str" min="1" value="255" placeholder="255">
-      <label for="dex">DEX (proc rate, crit chance)</label>
-      <input type="number" id="dex" min="1" value="255" placeholder="255">
+      <div class="row">
+        <div><label for="str" class="small-label">STR</label><input type="number" id="str" min="1" value="255" placeholder="255" title="Adds to offense rating when ≥75; affects damage."></div>
+        <div><label for="dex" class="small-label">DEX</label><input type="number" id="dex" min="1" value="255" placeholder="255" title="Proc rate, crit chance."></div>
+      </div>
       <label for="crit-chance-aa">Crit Chance AA % (Combat Fury, etc.)</label>
       <input type="number" id="crit-chance-aa" min="0" value="6" placeholder="0">
     </section>
@@ -292,47 +292,45 @@
       <h2>Ranged weapon</h2>
       <label for="ranged-preset">Quick select</label>
       <select id="ranged-preset"></select>
-      <label for="ranged-damage">Damage</label>
-      <input type="number" id="ranged-damage" min="1" value="12" placeholder="e.g. 12">
-      <label for="ranged-delay">Delay (deciseconds)</label>
-      <input type="number" id="ranged-delay" min="10" value="40" placeholder="40 = 4.0 sec">
+      <div class="row">
+        <div><label for="ranged-damage" class="small-label">Damage</label><input type="number" id="ranged-damage" min="1" value="12" placeholder="e.g. 12"></div>
+        <div><label for="ranged-delay" class="small-label">Delay (decisec)</label><input type="number" id="ranged-delay" min="10" value="40" placeholder="40 = 4.0s"></div>
+      </div>
       <p class="hint">Delay in tenths of a second (40 = 4.0s, 25 = 2.5s)</p>
       <label for="ranged-proc">Proc spell (name or leave blank)</label>
       <input type="text" id="ranged-proc" placeholder="e.g. Flaming Arrows">
       <label for="ranged-proc-damage">Proc spell damage (on proc)</label>
       <input type="number" id="ranged-proc-damage" min="0" value="0" placeholder="0">
-      <label for="ranged-elem-type">Elemental type (optional)</label>
-      <select id="ranged-elem-type">
-        <option value="">None</option>
-        <option value="fire">Fire</option>
-        <option value="cold">Cold</option>
-        <option value="poison">Poison</option>
-        <option value="disease">Disease</option>
-        <option value="magic">Magic</option>
-      </select>
-      <label for="ranged-elem-damage">Elemental damage</label>
-      <input type="number" id="ranged-elem-damage" min="0" value="0" placeholder="0">
-      <label for="ranged-bane">Bane damage</label>
-      <input type="number" id="ranged-bane" min="0" value="0" placeholder="0">
+      <div class="row">
+        <div><label for="ranged-elem-type" class="small-label">Elemental type</label><select id="ranged-elem-type">
+          <option value="">None</option>
+          <option value="fire">Fire</option>
+          <option value="cold">Cold</option>
+          <option value="poison">Poison</option>
+          <option value="disease">Disease</option>
+          <option value="magic">Magic</option>
+        </select></div>
+        <div><label for="ranged-elem-damage" class="small-label">Elem dmg</label><input type="number" id="ranged-elem-damage" min="0" value="0" placeholder="0"></div>
+        <div><label for="ranged-bane" class="small-label">Bane dmg</label><input type="number" id="ranged-bane" min="0" value="0" placeholder="0"></div>
+      </div>
     </section>
 
     <section>
       <h2>Arrow type</h2>
       <label for="arrow-preset">Quick select</label>
       <select id="arrow-preset"></select>
-      <label for="arrow-damage">Damage</label>
-      <input type="number" id="arrow-damage" min="0" value="5" placeholder="e.g. 5">
-      <label for="arrow-elem-type">Elemental type (optional)</label>
-      <select id="arrow-elem-type">
-        <option value="">None</option>
-        <option value="fire">Fire</option>
-        <option value="cold">Cold</option>
-        <option value="poison">Poison</option>
-        <option value="disease">Disease</option>
-        <option value="magic">Magic</option>
-      </select>
-      <label for="arrow-elem-damage">Elemental damage</label>
-      <input type="number" id="arrow-elem-damage" min="0" value="0" placeholder="0">
+      <div class="row">
+        <div><label for="arrow-damage" class="small-label">Damage</label><input type="number" id="arrow-damage" min="0" value="5" placeholder="e.g. 5"></div>
+        <div><label for="arrow-elem-type" class="small-label">Elemental type</label><select id="arrow-elem-type">
+          <option value="">None</option>
+          <option value="fire">Fire</option>
+          <option value="cold">Cold</option>
+          <option value="poison">Poison</option>
+          <option value="disease">Disease</option>
+          <option value="magic">Magic</option>
+        </select></div>
+        <div><label for="arrow-elem-damage" class="small-label">Elem dmg</label><input type="number" id="arrow-elem-damage" min="0" value="0" placeholder="0"></div>
+      </div>
     </section>
 
     <section>
@@ -341,10 +339,10 @@
       <input type="number" id="ranged-level" min="1" max="65" value="60" placeholder="60">
       <label for="ranged-haste">Total haste (%)</label>
       <input type="number" id="ranged-haste" min="0" value="99" placeholder="e.g. 99">
-      <label for="ranged-worn-attack">Worn attack (adds to offense rating)</label>
-      <input type="number" id="ranged-worn-attack" min="0" value="0" placeholder="e.g. 0">
-      <label for="ranged-spell-attack">Spell attack (adds to offense rating)</label>
-      <input type="number" id="ranged-spell-attack" min="0" value="0" placeholder="e.g. 0">
+      <div class="row">
+        <div><label for="ranged-worn-attack" class="small-label">Worn attack</label><input type="number" id="ranged-worn-attack" min="0" value="0" placeholder="0"></div>
+        <div><label for="ranged-spell-attack" class="small-label">Spell attack</label><input type="number" id="ranged-spell-attack" min="0" value="0" placeholder="0"></div>
+      </div>
       <label>Archery Mastery</label>
       <div class="radio-group">
         <label><input type="radio" name="archery-mastery" value="1"> 1</label>
@@ -453,7 +451,8 @@
         '1154': { damage: 12, delay: 18, proc: 'Anarchy', procDamage: 288, name: 'Sceptre of Destruction', type: '1hb' },
         '27324': { damage: 45, delay: 44, proc: 'Avatar', procDamage: 0, name: 'Primal Velium Brawl Stick', is2H: true, type: '2hb' },
         '27320': { damage: 15, delay: 20, proc: 'Avatar', procDamage: 0, name: 'Primal Velium Fist Wraps', type: 'h2h' },
-        '28923': { damage: 1, delay: 18, proc: '', procDamage: 0, name: 'Great Mace of Slaughter', type: '1hb' },
+        '28974': { damage: 10, delay: 40, proc: '', procDamage: 0, name: 'Great Maul of Slaughter', is2H: true, type: '2hb', elemType: 'disease', elemDamage: 5, baneDamage: 55 },
+        '28923': { damage: 1, delay: 18, proc: '', procDamage: 0, name: 'Great Mace of Slaughter', type: '1hb', elemType: 'magic', elemDamage: 1, baneDamage: 16 },
         '28831': { damage: 16, delay: 22, proc: 'Terrifying Darkness', procDamage: 100, name: 'Blackout', type: '1hp' },
         '6631': { damage: 44, delay: 40, proc: 'One Hundred Blows', procDamage: 120, name: 'Ton Po\'s Bo Stick of Understanding', is2H: true, type: '2hb' },
         '6639': { damage: 29, delay: 30, proc: 'One Hundred Blows', procDamage: 120, name: 'Tranquil Staff', is2H: true, type: '2hb' },
@@ -526,6 +525,12 @@
           $(prefix + '-proc').value = p.proc || '';
           const procDmgEl = $(prefix + '-proc-damage');
           if (procDmgEl) procDmgEl.value = (p.procDamage != null ? p.procDamage : 0) || '';
+          const elemTypeEl = $(prefix + '-elem-type');
+          if (elemTypeEl) elemTypeEl.value = p.elemType || '';
+          const elemDamageEl = $(prefix + '-elem-damage');
+          if (elemDamageEl) elemDamageEl.value = (p.elemDamage != null ? p.elemDamage : 0) || '';
+          const baneEl = $(prefix + '-bane');
+          if (baneEl) baneEl.value = (p.baneDamage != null ? p.baneDamage : 0) || '';
           if (prefix === 'w1') {
             if (p.is2H || p.type === '2hb') {
               $('w2-preset').value = 'unequipped';
