@@ -442,41 +442,76 @@
     return report;
   }
 
-  function formatRangedReport(report) {
+  function formatRangedReport(report, runsAveraged) {
     if (report.error) return report.error;
     const r = report.ranged;
-    const lines = [
-      '--- Ranged Combat Report ---',
-      `Duration: ${report.durationSec} seconds`,
-      report.calculatedToHit != null ? `Calculated To Hit: ${report.calculatedToHit}` : '',
-      report.offenseRating != null ? `Offense rating (for damage): ${report.offenseRating}` : '',
-      report.displayedAttack != null ? `Displayed Attack: ${report.displayedAttack}  ( (offense rating + toHit) * 1000 / 744 )` : '',
-      '',
-      'Ranged',
-      `  Shots: ${r.swings}`,
-      `  Hits: ${r.hits}`,
-      r.swings > 0 ? `  Accuracy: ${(r.hits / r.swings * 100).toFixed(1)}%` : '',
-      `  Total damage: ${r.totalDamage}`,
-      `  Max hit: ${r.maxDamage != null ? r.maxDamage : '—'}`,
-      `  Min hit: ${r.minDamage != null ? r.minDamage : '—'}`,
-      r.procs != null ? `  Procs: ${r.procs}` : '',
-      (r.procDamageTotal != null && r.procDamageTotal > 0) ? `  Proc spell damage: ${r.procDamageTotal}` : '',
-      '',
-      `Total damage: ${report.totalDamage}`,
-      `DPS: ${(report.totalDamage / report.durationSec).toFixed(2)}`,
-    ];
-    if (report.critHits != null && report.critHits >= 0) {
-      lines.splice(lines.length - 2, 0, `Critical hits: ${report.critHits}`);
-      if (report.critDamageGain != null) {
-        lines.splice(lines.length - 2, 0, `Net DPS from criticals: ${(report.critDamageGain / report.durationSec).toFixed(2)}`);
-      }
+    const dur = report.durationSec;
+    const totalDPS = dur ? (report.totalDamage / dur).toFixed(2) : '—';
+    const runs = runsAveraged != null ? runsAveraged : 1;
+    function fmt(v) {
+      return v == null ? '—' : (Number.isInteger(v) ? String(v) : v.toFixed(2));
+    }
+    const lines = [];
+
+    // 1. Executive Summary
+    lines.push('=== Executive Summary ===', '');
+    lines.push(`  Duration:              ${dur} seconds`);
+    lines.push(`  Runs averaged:        ${runs}`);
+    lines.push(`  Total DPS:            ${totalDPS}`);
+    lines.push(`  Total damage:         ${report.totalDamage}`);
+    if (report.critHits != null && report.critHits >= 0) lines.push(`  Critical hits:         ${report.critHits}`);
+    if (report.critDamageGain != null) {
+      lines.push(`  Crit DPS gain:         ${(report.critDamageGain / dur).toFixed(2)} (vs non-crit baseline)`);
     }
     if (report.wallPenaltyDamageLost != null && report.wallPenaltyDamageLost >= 0) {
-      lines.splice(lines.length - 2, 0, `Damage lost to wall penalty: ${report.wallPenaltyDamageLost}`);
+      lines.push(`  Wall penalty lost:    ${report.wallPenaltyDamageLost}`);
     }
     if (report.elementalDamageTotal != null && report.elementalDamageTotal > 0) {
-      lines.splice(lines.length - 2, 0, `Elemental damage: ${report.elementalDamageTotal}`);
+      lines.push(`  Elemental damage:     ${report.elementalDamageTotal}`);
     }
+    lines.push('');
+
+    // 2. Offense & To-Hit Model
+    lines.push('=== Offense & To-Hit Model ===', '');
+    if (report.calculatedToHit != null) lines.push(`  Calculated to-hit:     ${report.calculatedToHit}`);
+    if (report.offenseRating != null) lines.push(`  Offense rating:        ${report.offenseRating}  (used for damage)`);
+    if (report.displayedAttack != null) lines.push(`  Displayed ATK:         ${report.displayedAttack}`);
+    lines.push('  ATK formula:           (offense rating + toHit) * 1000 / 744');
+    lines.push('');
+
+    // 3. Weapon Overview (Ranged)
+    lines.push('=== Weapon Overview ===', '');
+    lines.push('  Ranged');
+    lines.push(`    Total damage:       ${r.totalDamage}`);
+    lines.push(`    Weapon DPS:          ${(r.totalDamage / dur).toFixed(2)}`);
+    lines.push('');
+
+    // 4. Attack Distribution
+    lines.push('=== Attack Distribution ===', '');
+    lines.push(`    Shots:              ${r.swings}`);
+    lines.push(`    Hits:               ${r.hits}`);
+    if (r.swings > 0) lines.push(`    Accuracy:             ${(r.hits / r.swings * 100).toFixed(1)}%`);
+    lines.push('');
+
+    // 5. Hit Damage Statistics
+    lines.push('=== Hit Damage Statistics ===', '');
+    lines.push(`    Max hit:             ${fmt(r.maxDamage)}`);
+    lines.push(`    Min hit:             ${fmt(r.minDamage)}`);
+    lines.push('');
+
+    // 6. Procs & Specials
+    lines.push('=== Procs & Specials ===', '');
+    if (r.procs != null) lines.push(`    Procs:               ${r.procs}`);
+    if (r.procDamageTotal != null && r.procDamageTotal > 0) {
+      lines.push(`    Proc damage:         ${r.procDamageTotal}`);
+      lines.push(`    Proc DPS:            ${(r.procDamageTotal / dur).toFixed(2)}`);
+    }
+    lines.push('');
+
+    // 7. Final Totals
+    lines.push('=== Final Totals ===', '');
+    lines.push(`  Total damage:         ${report.totalDamage}`);
+    lines.push(`  Total DPS:            ${totalDPS}`);
     return lines.join('\n');
   }
 
@@ -947,88 +982,167 @@
     return v == null ? '—' : (Number.isInteger(v) ? String(v) : v.toFixed(2));
   }
 
-  function formatReport(report, weapon1Label, weapon2Label) {
+  function formatReport(report, weapon1Label, weapon2Label, runsAveraged) {
     const w1 = report.weapon1;
     const w2 = report.weapon2;
     const s1 = w1.hitStats || {};
     const s2 = w2.hitStats || {};
-    const lines = [
-      '--- Combat Report ---',
-      `Duration: ${report.durationSec} seconds`,
-      report.calculatedToHit != null ? `Calculated To Hit: ${report.calculatedToHit}` : '',
-      report.offenseSkill != null ? `Offense skill (0–255, used in to-hit): ${report.offenseSkill}` : '',
-      report.offenseRating != null ? `Offense rating (for damage): ${report.offenseRating}  (skill + STR + worn + spell)` : '',
-      report.offenseRatingFromStr != null ? `Offense rating from stats (STR): ${report.offenseRatingFromStr}` : '',
-      report.displayedAttack != null ? `Displayed Attack: ${report.displayedAttack}  ( (offense rating + toHit) * 1000 / 744 )` : '',
-      report.damageBonus != null ? `Main hand damage bonus: ${report.damageBonus}` : '',
-      report.damageBonusTotal != null && report.damageBonusTotal > 0 ? `Damage from bonus: ${report.damageBonusTotal}` : '',
-      (report.critHits != null && report.critHits >= 0) ? `Critical hits: ${report.critHits}` : '',
-      (report.critDamageGain != null && report.critDamageGain >= 0) ? `Net DPS from criticals (vs normal): ${(report.critDamageGain / report.durationSec).toFixed(2)}` : '',
-      '',
-      weapon1Label || 'Weapon 1',
-      `  Combat rounds: ${w1.rounds != null ? w1.rounds : w1.swings}`,
-      (function () {
-        const rounds = w1.rounds != null ? w1.rounds : w1.swings;
-        if (rounds <= 0) return '';
-        const single = w1.single != null ? w1.single : 0;
-        const double = w1.double != null ? w1.double : 0;
-        const triple = w1.triple != null ? w1.triple : 0;
-        return `  Single / Double / Triple (% of rounds): ${(single / rounds * 100).toFixed(1)}% / ${(double / rounds * 100).toFixed(1)}% / ${(triple / rounds * 100).toFixed(1)}%`;
-      })(),
-      `  Single attacks: ${w1.single != null ? w1.single : '—'}`,
-      `  Double attacks: ${w1.double != null ? w1.double : '—'}`,
-      `  Triple attacks: ${w1.triple != null ? w1.triple : '—'}`,
-      `  Swings: ${w1.swings}`,
-      `  Hits: ${w1.hits}`,
-      w1.swings > 0 ? `  Overall accuracy: ${(w1.hits / w1.swings * 100).toFixed(1)}%` : '',
-      `  Total damage: ${w1.totalDamage}`,
-      `  Max hit: ${formatHitStat(s1.max != null ? s1.max : w1.maxDamage)}`,
-      `  Min hit: ${formatHitStat(s1.min)}`,
-      `  Mean hit: ${formatHitStat(s1.mean)}`,
-      `  Median hit: ${formatHitStat(s1.median)}`,
-      `  Mode hit: ${formatHitStat(s1.mode)}`,
-      w1.procs != null ? `  Procs: ${w1.procs}` : '',
-      (w1.procDamageTotal != null && w1.procDamageTotal > 0) ? `  Proc spell damage: ${w1.procDamageTotal}` : '',
-    ].filter(Boolean);
+    const dur = report.durationSec;
+    const totalDPS = dur ? (report.totalDamage / dur).toFixed(2) : '—';
+    const runs = runsAveraged != null ? runsAveraged : 1;
+    const lines = [];
+
+    // 1. Executive Summary
+    lines.push('=== Executive Summary ===', '');
+    lines.push(`  Duration:              ${dur} seconds`);
+    lines.push(`  Runs averaged:        ${runs}`);
+    lines.push(`  Total DPS:            ${totalDPS}`);
+    lines.push(`  Total damage:         ${report.totalDamage}`);
+    if (report.critHits != null && report.critHits >= 0) lines.push(`  Critical hits:         ${report.critHits}`);
+    if (report.critDamageGain != null && report.critDamageGain >= 0) {
+      lines.push(`  Crit DPS gain:         ${(report.critDamageGain / dur).toFixed(2)} (vs non-crit baseline)`);
+    }
+    if (report.elementalDamageTotal != null && report.elementalDamageTotal > 0) {
+      lines.push(`  Elemental damage:     ${report.elementalDamageTotal}`);
+    }
+    lines.push('');
+
+    // 2. Offense & To-Hit Model
+    lines.push('=== Offense & To-Hit Model ===', '');
+    if (report.calculatedToHit != null) lines.push(`  Calculated to-hit:     ${report.calculatedToHit}`);
+    if (report.offenseSkill != null) lines.push(`  Offense skill:         ${report.offenseSkill}  (0–255, used for to-hit only)`);
+    if (report.offenseRating != null) lines.push(`  Offense rating:        ${report.offenseRating}  (used for damage)`);
+    if (report.offenseRatingFromStr != null) lines.push(`    From STR:            ${report.offenseRatingFromStr}`);
+    if (report.offenseRating != null && report.offenseRatingFromStr != null) {
+      const other = report.offenseRating - report.offenseRatingFromStr;
+      lines.push(`    From other:          ${other}  (skill + worn + spell)`);
+    }
+    if (report.displayedAttack != null) lines.push(`  Displayed ATK:         ${report.displayedAttack}`);
+    lines.push('  ATK formula:           (offense rating + toHit) * 1000 / 744');
+    lines.push('');
+
+    // 3. Weapon Overview
+    lines.push('=== Weapon Overview ===', '');
+    lines.push(`  ${weapon1Label || 'Weapon 1'}`);
+    if (report.damageBonus != null) lines.push(`    Damage bonus:        ${report.damageBonus}`);
+    if (report.damageBonusTotal != null && report.damageBonusTotal > 0) lines.push(`    Damage from bonus:   ${report.damageBonusTotal}`);
+    lines.push(`    Total damage:       ${w1.totalDamage}`);
+    lines.push(`    Weapon DPS:          ${(w1.totalDamage / dur).toFixed(2)}`);
+    lines.push('');
     if (w2.swings > 0) {
-      const w2RoundPct = (function () {
-        const rounds = w2.rounds != null ? w2.rounds : w2.swings;
-        if (rounds <= 0) return '';
-        const single = w2.single != null ? w2.single : 0;
-        const double = w2.double != null ? w2.double : 0;
-        return `  Single / Double (% of rounds): ${(single / rounds * 100).toFixed(1)}% / ${(double / rounds * 100).toFixed(1)}%`;
-      })();
-      lines.push('', weapon2Label || 'Weapon 2', `  Combat rounds: ${w2.rounds != null ? w2.rounds : w2.swings}`, w2RoundPct, `  Single attacks: ${w2.single != null ? w2.single : '—'}`, `  Double attacks: ${w2.double != null ? w2.double : '—'}`, `  Swings: ${w2.swings}`, `  Hits: ${w2.hits}`, w2.swings > 0 ? `  Overall accuracy: ${(w2.hits / w2.swings * 100).toFixed(1)}%` : '', `  Total damage: ${w2.totalDamage}`, `  Max hit: ${formatHitStat(s2.max != null ? s2.max : w2.maxDamage)}`, `  Min hit: ${formatHitStat(s2.min)}`, `  Mean hit: ${formatHitStat(s2.mean)}`, `  Median hit: ${formatHitStat(s2.median)}`, `  Mode hit: ${formatHitStat(s2.mode)}`);
-      if (w2.procs != null) lines.push(`  Procs: ${w2.procs}`);
-      if (w2.procDamageTotal != null && w2.procDamageTotal > 0) lines.push(`  Proc spell damage: ${w2.procDamageTotal}`);
+      lines.push(`  ${weapon2Label || 'Weapon 2'}`);
+      lines.push(`    Total damage:       ${w2.totalDamage}`);
+      lines.push(`    Weapon DPS:          ${(w2.totalDamage / dur).toFixed(2)}`);
+      lines.push('');
+    }
+
+    // 4. Attack Distribution (Weapon 1)
+    lines.push('=== Attack Distribution ===', '');
+    lines.push(`  ${weapon1Label || 'Weapon 1'}`, '');
+    const r1 = w1.rounds != null ? w1.rounds : w1.swings;
+    lines.push(`    Combat rounds:       ${r1}`);
+    if (r1 > 0) {
+      const single1 = w1.single != null ? w1.single : 0;
+      const double1 = w1.double != null ? w1.double : 0;
+      const triple1 = w1.triple != null ? w1.triple : 0;
+      lines.push(`    Single / Double / Triple (%):  ${(single1 / r1 * 100).toFixed(1)}% / ${(double1 / r1 * 100).toFixed(1)}% / ${(triple1 / r1 * 100).toFixed(1)}%`);
+    }
+    lines.push(`    Single attacks:      ${w1.single != null ? w1.single : '—'}`);
+    lines.push(`    Double attacks:      ${w1.double != null ? w1.double : '—'}`);
+    lines.push(`    Triple attacks:      ${w1.triple != null ? w1.triple : '—'}`);
+    lines.push(`    Swings:              ${w1.swings}`);
+    lines.push(`    Hits:                ${w1.hits}`);
+    if (w1.swings > 0) lines.push(`    Accuracy:             ${(w1.hits / w1.swings * 100).toFixed(1)}%`);
+    lines.push('');
+    if (w2.swings > 0) {
+      lines.push(`  ${weapon2Label || 'Weapon 2'}`, '');
+      const r2 = w2.rounds != null ? w2.rounds : w2.swings;
+      lines.push(`    Combat rounds:       ${r2}`);
+      if (r2 > 0) {
+        const single2 = w2.single != null ? w2.single : 0;
+        const double2 = w2.double != null ? w2.double : 0;
+        lines.push(`    Single / Double (%):  ${(single2 / r2 * 100).toFixed(1)}% / ${(double2 / r2 * 100).toFixed(1)}%`);
+      }
+      lines.push(`    Single attacks:      ${w2.single != null ? w2.single : '—'}`);
+      lines.push(`    Double attacks:      ${w2.double != null ? w2.double : '—'}`);
+      lines.push(`    Swings:              ${w2.swings}`);
+      lines.push(`    Hits:                ${w2.hits}`);
+      if (w2.swings > 0) lines.push(`    Accuracy:             ${(w2.hits / w2.swings * 100).toFixed(1)}%`);
+      lines.push('');
+    }
+
+    // 5. Hit Damage Statistics
+    lines.push('=== Hit Damage Statistics ===', '');
+    lines.push(`  ${weapon1Label || 'Weapon 1'}`);
+    lines.push(`    Max hit:             ${formatHitStat(s1.max != null ? s1.max : w1.maxDamage)}`);
+    lines.push(`    Min hit:             ${formatHitStat(s1.min)}`);
+    lines.push(`    Mean hit:            ${formatHitStat(s1.mean)}`);
+    lines.push(`    Median hit:          ${formatHitStat(s1.median)}`);
+    lines.push(`    Mode hit:            ${formatHitStat(s1.mode)}`);
+    lines.push('');
+    if (w2.swings > 0) {
+      lines.push(`  ${weapon2Label || 'Weapon 2'}`);
+      lines.push(`    Max hit:             ${formatHitStat(s2.max != null ? s2.max : w2.maxDamage)}`);
+      lines.push(`    Min hit:             ${formatHitStat(s2.min)}`);
+      lines.push(`    Mean hit:            ${formatHitStat(s2.mean)}`);
+      lines.push(`    Median hit:          ${formatHitStat(s2.median)}`);
+      lines.push(`    Mode hit:            ${formatHitStat(s2.mode)}`);
+      lines.push('');
+    }
+
+    // 6. Procs & Specials
+    lines.push('=== Procs & Specials ===', '');
+    lines.push(`  ${weapon1Label || 'Weapon 1'}`);
+    if (w1.procs != null) lines.push(`    Procs:               ${w1.procs}`);
+    if (w1.procDamageTotal != null && w1.procDamageTotal > 0) {
+      lines.push(`    Proc damage:         ${w1.procDamageTotal}`);
+      lines.push(`    Proc DPS:            ${(w1.procDamageTotal / dur).toFixed(2)}`);
+    }
+    if (w2.swings > 0) {
+      lines.push(`  ${weapon2Label || 'Weapon 2'}`);
+      if (w2.procs != null) lines.push(`    Procs:               ${w2.procs}`);
+      if (w2.procDamageTotal != null && w2.procDamageTotal > 0) {
+        lines.push(`    Proc damage:         ${w2.procDamageTotal}`);
+        lines.push(`    Proc DPS:            ${(w2.procDamageTotal / dur).toFixed(2)}`);
+      }
     }
     if (report.special && (report.special.count > 0 || (report.special.attempts != null && report.special.attempts > 0))) {
-      lines.push('', report.special.name, `  Count: ${report.special.count}`);
-      if (report.special.attempts != null) {
-        const a = report.special.attempts;
-        const h = report.special.hits != null ? report.special.hits : report.special.count;
-        lines.push(`  Attempts: ${a}`, `  Accuracy: ${a > 0 ? (h / a * 100).toFixed(1) : 0}%`);
+      const sp = report.special;
+      lines.push(`  ${sp.name}`);
+      lines.push(`    Count:               ${sp.count}`);
+      if (sp.attempts != null) {
+        const a = sp.attempts;
+        const h = sp.hits != null ? sp.hits : sp.count;
+        lines.push(`    Attempts:            ${a}`);
+        lines.push(`    Accuracy:            ${a > 0 ? (h / a * 100).toFixed(1) : 0}%`);
       }
-      lines.push(`  Total damage: ${report.special.totalDamage}`, `  Max hit: ${report.special.maxDamage}`, `  DPS: ${(report.special.totalDamage / report.durationSec).toFixed(2)}`);
-      if (report.special.doubleBackstabs !== undefined) {
-        lines.push(`  Double backstabs: ${report.special.doubleBackstabs}`);
-        const modPct = report.special.backstabModPercent != null ? report.special.backstabModPercent : 0;
-        if (modPct !== 0 && report.special.backstabSkill != null) {
-          const skill = report.special.backstabSkill;
-          const effectiveSkill = Math.min(255, Math.floor(skill * (100 + modPct) / 100));
-          lines.push(`  Effective backstab skill: ${effectiveSkill} (skill + ${modPct}% mod, cap 255)`);
-        }
+      lines.push(`    Total damage:       ${sp.totalDamage}`);
+      lines.push(`    Max hit:             ${sp.maxDamage}`);
+      lines.push(`    DPS:                 ${(sp.totalDamage / dur).toFixed(2)}`);
+      if (sp.doubleBackstabs !== undefined) lines.push(`    Double backstabs:    ${sp.doubleBackstabs}`);
+      if (sp.backstabModPercent != null && sp.backstabModPercent !== 0 && sp.backstabSkill != null) {
+        const effectiveSkill = Math.min(255, Math.floor(sp.backstabSkill * (100 + sp.backstabModPercent) / 100));
+        lines.push(`    Effective backstab:  ${effectiveSkill} (skill + ${sp.backstabModPercent}% mod, cap 255)`);
       }
     }
     if (report.fistweaving && report.fistweaving.rounds > 0) {
       const fw = report.fistweaving;
       const fwAcc = fw.swings > 0 ? (fw.hits / fw.swings * 100).toFixed(1) : '0';
-      lines.push('', 'Fistweaving (9 dmg, no proc)', `  Rounds: ${fw.rounds}`, `  Single / Double: ${fw.single ?? '—'} / ${fw.double ?? '—'}`, `  Swings: ${fw.swings}`, `  Hits: ${fw.hits}`, `  Accuracy: ${fwAcc}%`, `  Total damage: ${fw.totalDamage}`, `  Max hit: ${fw.maxDamage}`, `  DPS: ${(fw.totalDamage / report.durationSec).toFixed(2)}`);
+      lines.push('  Fistweaving (9 dmg, no proc)');
+      lines.push(`    Rounds:              ${fw.rounds}`);
+      lines.push(`    Single / Double:     ${fw.single ?? '—'} / ${fw.double ?? '—'}`);
+      lines.push(`    Swings:              ${fw.swings}`);
+      lines.push(`    Hits:                ${fw.hits}`);
+      lines.push(`    Accuracy:            ${fwAcc}%`);
+      lines.push(`    Total damage:       ${fw.totalDamage}`);
+      lines.push(`    DPS:                 ${(fw.totalDamage / dur).toFixed(2)}`);
     }
-    if (report.elementalDamageTotal != null && report.elementalDamageTotal > 0) {
-      lines.push('', `Elemental damage: ${report.elementalDamageTotal}`);
-    }
-    lines.push('', `Total damage: ${report.totalDamage}`, `DPS: ${(report.totalDamage / report.durationSec).toFixed(2)}`);
+    lines.push('');
+
+    // 7. Final Totals
+    lines.push('=== Final Totals ===', '');
+    lines.push(`  Total damage:         ${report.totalDamage}`);
+    lines.push(`  Total DPS:            ${totalDPS}`);
     return lines.join('\n');
   }
 

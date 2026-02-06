@@ -51,10 +51,6 @@
       text-transform: uppercase;
       letter-spacing: 0.05em;
     }
-    section.section--core {
-      border-left: 3px solid var(--accent);
-      box-shadow: 0 0 0 1px var(--border);
-    }
     .collapse-summary {
       font-size: 0.8rem;
       color: var(--muted);
@@ -139,9 +135,11 @@
     .hint { font-size: 0.75rem; color: var(--muted); margin-top: -0.5rem; margin-bottom: 0.75rem; }
     .small-label { display: block; font-size: 0.75rem; color: var(--muted); margin-bottom: 0.2rem; }
     .info-icon { display: inline-flex; align-items: center; justify-content: center; width: 1em; height: 1em; margin-left: 0.25rem; font-size: 0.85em; color: var(--accent); cursor: help; border: 1px solid var(--border); border-radius: 50%; }
-    .radio-group { display: flex; gap: 1rem; align-items: center; margin-bottom: 0.75rem; }
+    .radio-group { display: flex; gap: 1rem; align-items: center; margin-bottom: 0.75rem; flex-wrap: wrap; }
     .radio-group label { display: flex; align-items: center; gap: 0.35rem; margin-bottom: 0; cursor: pointer; }
     .radio-group input[type="radio"] { width: auto; margin: 0; }
+    .radio-option-main { font-size: 1.05rem; font-weight: 600; color: var(--text); }
+    .radio-option-note { font-size: 0.85rem; color: var(--muted); font-weight: 400; }
     .checkbox-label { display: flex; align-items: center; gap: 0.35rem; cursor: pointer; margin-bottom: 0.25rem; }
     .checkbox-label input[type="checkbox"] { width: auto; margin: 0; }
     #histogram-container { max-width: 900px; }
@@ -192,7 +190,7 @@
 <body>
   <div class="banner">
     <div class="banner-left">
-      <h1>EverQuest DPS Simulator <span id="app-version" style="font-weight: 400; color: var(--muted); font-size: 0.85rem;">v0.7</span></h1>
+      <h1>EverQuest DPS Simulator <span id="app-version" style="font-weight: 400; color: var(--muted); font-size: 0.85rem;">v0.8</span></h1>
       <p class="muted" style="margin:0 0 1rem; color: var(--muted); font-size: 0.9rem;">
         Formulas based on <a href="https://github.com/SecretsOTheP/EQMacEmu/blob/main/zone/attack.cpp" target="_blank" rel="noopener" style="color: var(--accent);">EQMacEmu attack.cpp</a>.
       </p>
@@ -328,8 +326,8 @@
       <h2>Target & Fight</h2>
       <label>Attacking from</label>
       <div class="radio-group">
-        <label><input type="radio" name="from-behind" value="0"> Front (use avoidance)</label>
-        <label><input type="radio" name="from-behind" value="1" checked> Behind (no dodge/parry/riposte/block)</label>
+        <label><input type="radio" name="from-behind" value="0"><span class="radio-option-main">Front</span> <span class="radio-option-note">(use avoidance)</span></label>
+        <label><input type="radio" name="from-behind" value="1" checked><span class="radio-option-main">Behind</span> <span class="radio-option-note">(no dodge/parry/riposte/block)</span></label>
       </div>
       <p class="hint">Behind: misses still occur from to-hit vs avoidance; only block/parry/dodge/riposte are skipped.</p>
       <div class="row">
@@ -474,6 +472,7 @@
   <section style="margin-top: 1rem;">
     <h2>Version log</h2>
     <ul style="font-size: 0.9rem; color: var(--muted); margin: 0; padding-left: 1.25rem;">
+      <li><strong>0.8</strong> — Added UI improvements, added elemental and bane damage.</li>
       <li><strong>0.7</strong> — Added Ranged Combat simulations.</li>
       <li><strong>0.6</strong> — Multi-run report: all values (including crit hits and crit damage gain) are averages per run, not cumulative. Clear distinction between offense skill (0–255, to-hit only) and offense rating (skill + STR + worn + spell, used for damage): UI labels, report lines, and hint; report shows Offense skill, Offense rating (for damage), and Offense rating from stats (STR).</li>
       <li><strong>0.5</strong> — Added logging to simulation operations.</li>
@@ -516,7 +515,7 @@
       }
 
       // When releasing: 1) Bump VERSION below. 2) Add a new <li> at the top of the Version log section above.
-      const VERSION = '0.7';
+      const VERSION = '0.8';
       const versionEl = $('app-version');
       if (versionEl) versionEl.textContent = 'v' + VERSION;
 
@@ -846,8 +845,7 @@
         const w2Label = useWeapon2
           ? `Weapon 2 (${weapon2.damage}d / ${weapon2.delay} delay${weapon2.procSpell ? ' / ' + weapon2.procSpell : ''})`
           : 'Weapon 2';
-        $('report').textContent = EQCombat.formatReport(report, w1Label, w2Label) +
-          (runs > 1 ? '\n(Averaged over ' + runs + ' runs)' : '');
+        $('report').textContent = EQCombat.formatReport(report, w1Label, w2Label, runs);
 
         const dpsEl = $('dps-value');
         if (dpsEl && report.durationSec) dpsEl.textContent = (report.totalDamage / report.durationSec).toFixed(2);
@@ -1035,7 +1033,7 @@
             displayedAttack: r0.displayedAttack,
           };
         }
-        $('report').textContent = EQCombat.formatRangedReport(report) + (runs > 1 ? '\n(Averaged over ' + runs + ' runs)' : '');
+        $('report').textContent = EQCombat.formatRangedReport(report, runs);
         const dpsEl = $('dps-value');
         if (dpsEl && report.durationSec) dpsEl.textContent = (report.totalDamage / report.durationSec).toFixed(2);
         const histContainer = $('histogram-container');
