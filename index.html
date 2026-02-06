@@ -244,14 +244,14 @@
         <label class="checkbox-label"><input type="checkbox" id="fistweaving"> Include Fistweaving</label>
         <p class="hint">After each main-hand round, one offhand round with 9 damage (can double attack, no proc). Monk + 2H only.</p>
       </div>
-      <label for="level">Level</label>
-      <input type="number" id="level" min="1" max="65" value="60" title="Used for double attack, dual wield, and main hand damage bonus (warrior classes, 28+).">
+      <div class="row">
+        <div><label for="level" class="small-label">Level</label><input type="number" id="level" min="1" max="65" value="60" placeholder="60" title="Used for double attack, dual wield, and main hand damage bonus (warrior classes, 28+)."></div>
+        <div><label for="crit-chance-aa" class="small-label">Crit Chance AA %</label><input type="number" id="crit-chance-aa" min="0" value="6" placeholder="0" title="Combat Fury, etc."></div>
+      </div>
       <div class="row">
         <div><label for="str" class="small-label">STR</label><input type="number" id="str" min="1" value="255" placeholder="255" title="Adds to offense rating when ≥75; affects damage."></div>
         <div><label for="dex" class="small-label">DEX</label><input type="number" id="dex" min="1" value="255" placeholder="255" title="Proc rate, crit chance."></div>
       </div>
-      <label for="crit-chance-aa">Crit Chance AA % (Combat Fury, etc.)</label>
-      <input type="number" id="crit-chance-aa" min="0" value="6" placeholder="0">
     </section>
 
     <section>
@@ -262,10 +262,10 @@
         <label><input type="radio" name="from-behind" value="1" checked> Behind (no dodge/parry/riposte/block)</label>
       </div>
       <p class="hint">Behind: misses still occur from to-hit vs avoidance; only block/parry/dodge/riposte are skipped.</p>
-      <label for="target-ac">Target AC (mitigation for damage roll)</label>
-      <input type="number" id="target-ac" min="1" value="300" placeholder="e.g. 300" title="Used only for damage roll: when level-based mitigation would be 200 and mob AC &gt; 200, use this value. Does not affect hit chance.">
-      <label for="mob-level">Mob level</label>
-      <input type="number" id="mob-level" min="1" max="70" value="60" title="Used for getMitigation (damage roll) and getAvoidanceNPC (hit chance). Avoidance = level*9+5, cap 400/460.">
+      <div class="row">
+        <div><label for="target-ac" class="small-label">Target AC</label><input type="number" id="target-ac" min="1" value="300" placeholder="300" title="Mitigation for damage roll; does not affect hit chance."></div>
+        <div><label for="mob-level" class="small-label">Mob level</label><input type="number" id="mob-level" min="1" max="70" value="60" placeholder="60" title="Used for mitigation and avoidance (hit chance)."></div>
+      </div>
       <label>Target resistances (for elemental damage)</label>
       <div class="row">
         <div><label for="target-mr" class="small-label">MR</label><input type="number" id="target-mr" min="0" value="35" placeholder="35"></div>
@@ -277,10 +277,10 @@
       <p class="hint">Magic, Fire, Cold, Poison, Disease. Used when weapons have elemental damage.</p>
       <label class="checkbox-label"><input type="checkbox" id="apply-bane"> Apply Bane Damage</label>
       <p class="hint">When checked, each weapon's bane damage is added to its base damage.</p>
-      <label for="duration">Fight duration (seconds)</label>
-      <input type="number" id="duration" min="1" value="6000" placeholder="e.g. 6000">
-      <label for="runs">Number of runs (average report)</label>
-      <input type="number" id="runs" min="1" value="20" placeholder="20">
+      <div class="row">
+        <div><label for="duration" class="small-label">Fight duration (sec)</label><input type="number" id="duration" min="1" value="6000" placeholder="6000"></div>
+        <div><label for="runs" class="small-label">Number of runs</label><input type="number" id="runs" min="1" value="20" placeholder="20"></div>
+      </div>
       <button type="button" id="btn-run">Run simulation</button>
     </section>
   </div>
@@ -358,10 +358,10 @@
 
     <section>
       <h2>Target & Fight (ranged)</h2>
-      <label for="ranged-target-ac">Target AC (mitigation for damage roll)</label>
-      <input type="number" id="ranged-target-ac" min="1" value="300" placeholder="e.g. 300">
-      <label for="ranged-mob-level">Mob level</label>
-      <input type="number" id="ranged-mob-level" min="1" max="70" value="60" placeholder="60">
+      <div class="row">
+        <div><label for="ranged-target-ac" class="small-label">Target AC</label><input type="number" id="ranged-target-ac" min="1" value="300" placeholder="300"></div>
+        <div><label for="ranged-mob-level" class="small-label">Mob level</label><input type="number" id="ranged-mob-level" min="1" max="70" value="60" placeholder="60"></div>
+      </div>
       <label>Target resistances (for elemental damage)</label>
       <div class="row">
         <div><label for="ranged-target-mr" class="small-label">MR</label><input type="number" id="ranged-target-mr" min="0" value="35" placeholder="35"></div>
@@ -373,10 +373,10 @@
       <p class="hint">Magic, Fire, Cold, Poison, Disease.</p>
       <label class="checkbox-label"><input type="checkbox" id="ranged-apply-bane"> Apply Bane Damage</label>
       <p class="hint">When checked, ranged weapon bane damage is added to base damage.</p>
-      <label for="ranged-duration">Fight duration (seconds)</label>
-      <input type="number" id="ranged-duration" min="1" value="6000" placeholder="e.g. 6000">
-      <label for="ranged-runs">Number of runs (average report)</label>
-      <input type="number" id="ranged-runs" min="1" value="20" placeholder="20">
+      <div class="row">
+        <div><label for="ranged-duration" class="small-label">Fight duration (sec)</label><input type="number" id="ranged-duration" min="1" value="6000" placeholder="6000"></div>
+        <div><label for="ranged-runs" class="small-label">Number of runs</label><input type="number" id="ranged-runs" min="1" value="20" placeholder="20"></div>
+      </div>
       <button type="button" id="btn-run-ranged">Run simulation</button>
     </section>
   </div>
