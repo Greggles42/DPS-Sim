@@ -273,9 +273,16 @@
 
   // ----- Haste: effective delay (deciseconds, 10 = 1 sec) -----
   // haste_mod = 1 + hastePercent/100. Timer = delay / haste_mod (delay in decisec).
+  // All inputs (delay, fightDurationSec, cooldownDecisec) stay in deciseconds; internal timers use milliseconds.
+  const DECISEC_TO_MS = 100; // 1 decisec = 100 ms
+  const MIN_DELAY_DECISEC = 4; // minimum effective delay after haste (0.4 sec)
   function effectiveDelayDecisec(delay, hastePercent) {
     const hasteMod = 1 + (hastePercent || 0) / 100;
-    return Math.max(10, delay / hasteMod); // min delay often 10 (1 sec)
+    return Math.max(MIN_DELAY_DECISEC, delay / hasteMod);
+  }
+  // Effective delay in ms for timer math (inputs still decisec).
+  function effectiveDelayMs(delayDecisec, hastePercent) {
+    return effectiveDelayDecisec(delayDecisec, hastePercent) * DECISEC_TO_MS;
   }
 
   // ----- Proc chance (server formula) -----
@@ -358,6 +365,7 @@
     const mobStationary = !!options.mobStationary;
 
     const delayDecisec = effectiveDelayDecisec(bow.delay, options.hastePercent);
+    const delayMs = delayDecisec * DECISEC_TO_MS;
     // Ranged procs use same chance as primary (main hand): (base + dex factor) * weapon_speed; no offhand penalty.
     const procChance = (bow.procSpell != null && bow.procSpell !== '')
       ? getProcChancePerSwing(delayDecisec, false, 0, options.dex || 150)
@@ -389,14 +397,14 @@
       displayedAttack: Math.floor((offenseRating + toHit) * 1000 / 744),
     };
 
-    const durationDecisec = Math.floor(options.fightDurationSec * 10);
-    let nextRangedAt = 0;
+    const durationMs = Math.floor(options.fightDurationSec * 1000);
+    let nextRangedAtMs = 0;
 
-    while (nextRangedAt < durationDecisec) {
+    while (nextRangedAtMs < durationMs) {
       report.ranged.swings++;
       const hit = rollHit(toHit, avoidance, rng, true);
       if (!hit) {
-        nextRangedAt += delayDecisec;
+        nextRangedAtMs += delayMs;
         continue;
       }
       report.ranged.hits++;
@@ -435,7 +443,7 @@
       report.ranged.maxDamage = Math.max(report.ranged.maxDamage, dmg);
       if (dmg < report.ranged.minDamage) report.ranged.minDamage = dmg;
       report.ranged.hitList.push(dmg);
-      nextRangedAt += delayDecisec;
+      nextRangedAtMs += delayMs;
     }
 
     if (report.ranged.minDamage === Infinity) report.ranged.minDamage = null;
@@ -597,6 +605,8 @@
 
     const delay1 = effectiveDelayDecisec(w1.delay, options.hastePercent);
     const delay2 = w2 ? effectiveDelayDecisec(w2.delay, options.hastePercent) : 0;
+    const delay1Ms = effectiveDelayMs(w1.delay, options.hastePercent);
+    const delay2Ms = w2 ? effectiveDelayMs(w2.delay, options.hastePercent) : 0;
 
     const procChance1 = w1.procSpell != null
       ? getProcChancePerSwing(delay1, false, dualWieldPct, options.dex || 150)
@@ -635,15 +645,19 @@
       fistweaving: (options.classId === 'monk' && w1.is2H && options.fistweaving) ? { rounds: 0, swings: 0, hits: 0, totalDamage: 0, maxDamage: 0, single: 0, double: 0 } : null,
     };
 
-    const durationDecisec = Math.floor(options.fightDurationSec * 10);
-    let nextSwing1 = 0;
-    let nextSwing2 = dualWielding ? Math.floor(rng() * delay2) : Infinity;
-    let nextSpecialAt = 0;
+    const durationMs = Math.floor(options.fightDurationSec * 1000);
+    const specialCooldownMs = specialConfig ? specialConfig.cooldownDecisec * DECISEC_TO_MS : 0;
+    let nextSwing1Ms = 0;
+    let nextSwing2Ms = dualWielding ? rng() * delay2Ms : Infinity;
+    let nextSpecialAtMs = (canFireSpecial && report.special) ? 0 : Infinity;
 
-    // Each swing: (1) AvoidanceCheck: rollHit(toHit, avoidance) → hit or miss. (2) If hit: CalcMeleeDamage uses RollD20(offense, mitigation) → damage. Avoidance and mitigation are checked every time.
-    for (let t = 0; t < durationDecisec; t++) {
+    // Event-driven loop: timers in ms. Each swing: (1) AvoidanceCheck: rollHit(toHit, avoidance) → hit or miss. (2) If hit: CalcMeleeDamage uses RollD20(offense, mitigation) → damage.
+    while (true) {
+      const tMs = Math.min(nextSpecialAtMs, nextSwing1Ms, dualWielding ? nextSwing2Ms : Infinity, durationMs);
+      if (tMs >= durationMs) break;
+
       // Special attack (Flying Kick / Backstab) on cooldown
-      if (canFireSpecial && report.special && t >= nextSpecialAt) {
+      if (canFireSpecial && report.special && tMs >= nextSpecialAtMs) {
         report.special.attempts++;
         const isRogueBackstab = options.classId === 'rogue' && specialConfig.fromBehindOnly;
         const specialHits = rollHit(toHit, avoidance, rng, fromBehind);
@@ -655,8 +669,9 @@
             const backstabSkill = options.backstabSkill != null ? options.backstabSkill : 225;
             const backstabModPct = options.backstabModPercent || 0;
             const effectiveSkill = Math.min(255, Math.floor(backstabSkill * (100 + backstabModPct) / 100));
+            const backstabOffenseRating = effectiveSkill + strBonus + wornAttack + spellAttack;
             const backstabBase = Math.floor(((effectiveSkill * 0.02) + 2) * w1.damage);
-            baseDmg = calcMeleeDamage(backstabBase, offenseRating, mitigation, rng, 0);
+            baseDmg = calcMeleeDamage(backstabBase, backstabOffenseRating, mitigation, rng, 0);
             baseDmg = Math.max(1, baseDmg);
           } else if (options.classId === 'monk' && specialConfig.useWeaponDamage === false) {
             // Flying Kick: level-based base only (EQMacEmu base 29, min_dmg = level*4/5)
@@ -698,8 +713,9 @@
               const backstabSkill2 = options.backstabSkill != null ? options.backstabSkill : 225;
               const backstabModPct2 = options.backstabModPercent || 0;
               const effectiveSkill2 = Math.min(255, Math.floor(backstabSkill2 * (100 + backstabModPct2) / 100));
+              const backstabOffenseRating2 = effectiveSkill2 + strBonus + wornAttack + spellAttack;
               const backstabBase2 = Math.floor(((effectiveSkill2 * 0.02) + 2) * w1.damage);
-              let baseDmg2 = calcMeleeDamage(backstabBase2, offenseRating, mitigation, rng, 0);
+              let baseDmg2 = calcMeleeDamage(backstabBase2, backstabOffenseRating2, mitigation, rng, 0);
               baseDmg2 = Math.max(1, baseDmg2);
               const mult2 = rollDamageMultiplier(offenseRating, baseDmg2, level, options.classId, false, rng);
               let dmg2 = mult2.damage;
@@ -722,13 +738,13 @@
             }
           }
         }
-        nextSpecialAt = t + specialConfig.cooldownDecisec;
+        nextSpecialAtMs = tMs + specialCooldownMs;
       }
 
       // Main hand (one round = one swing opportunity; 1, 2, or 3 attacks per round)
-      if (t >= nextSwing1) {
+      if (tMs >= nextSwing1Ms) {
         report.weapon1.rounds++;
-        nextSwing1 = t + delay1;
+        nextSwing1Ms = tMs + delay1Ms;
         let attacksThisRound = 1;
 
         // Crit is only rolled after a successful hit (we are inside the rollHit success block).
@@ -883,8 +899,8 @@
       }
 
       // Offhand: one round per timer; 1 or 2 attacks (no triple)
-      if (dualWielding && t >= nextSwing2) {
-        nextSwing2 = t + delay2;
+      if (dualWielding && tMs >= nextSwing2Ms) {
+        nextSwing2Ms = tMs + delay2Ms;
         if (checkDualWield(dualWieldEffective, rng)) {
           report.weapon2.rounds++;
           let attacksThisRound = 1;
