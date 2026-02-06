@@ -51,6 +51,25 @@
       text-transform: uppercase;
       letter-spacing: 0.05em;
     }
+    section.section--core {
+      border-left: 3px solid var(--accent);
+      box-shadow: 0 0 0 1px var(--border);
+    }
+    .collapse-summary {
+      font-size: 0.8rem;
+      color: var(--muted);
+      cursor: pointer;
+      padding: 0.35rem 0;
+      margin-bottom: 0.5rem;
+      user-select: none;
+      list-style: none;
+    }
+    .collapse-summary::-webkit-details-marker { display: none; }
+    .collapse-summary::before { content: '▸ '; }
+    details[open] .collapse-summary::before { content: '▾ '; }
+    details.collapse-secondary { margin-bottom: 0.75rem; }
+    details.collapse-secondary summary { margin-bottom: 0; }
+    details.collapse-secondary .hint { margin-bottom: 0.5rem; }
     label {
       display: block;
       font-size: 0.85rem;
@@ -91,6 +110,21 @@
     }
     button:hover { filter: brightness(1.1); }
     button:active { filter: brightness(0.95); }
+    #btn-run, #btn-run-ranged {
+      display: block;
+      width: 100%;
+      margin: 1rem 0 0;
+      padding: 0.9rem 1.75rem;
+      font-size: 1.1rem;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+      transition: transform 0.1s ease, box-shadow 0.15s ease;
+    }
+    #btn-run:hover, #btn-run-ranged:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(126, 184, 218, 0.35);
+    }
+    #btn-run:active, #btn-run-ranged:active { transform: translateY(0); }
     #report {
       white-space: pre-wrap;
       font-family: ui-monospace, 'Cascadia Code', monospace;
@@ -134,22 +168,50 @@
     .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
     .tab-panel { display: block; }
     .tab-panel.hidden { display: none; }
+    .tab-content-wrapper { max-width: 900px; }
+    .banner {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 1.5rem;
+      flex-wrap: wrap;
+      margin-bottom: 0.5rem;
+    }
+    .banner-left { flex: 1; min-width: 0; }
+    #dps-display {
+      flex-shrink: 0;
+      text-align: right;
+      font-weight: 700;
+      color: var(--accent);
+      line-height: 1.2;
+    }
+    #dps-display .dps-label { font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); margin-bottom: 0.2rem; }
+    #dps-value { font-size: 3.25rem; display: block; }
   </style>
 </head>
 <body>
-  <h1>EverQuest DPS Simulator <span id="app-version" style="font-weight: 400; color: var(--muted); font-size: 0.85rem;">v0.7</span></h1>
-  <p class="muted" style="margin:0 0 1rem; color: var(--muted); font-size: 0.9rem;">
-    Formulas based on <a href="https://github.com/SecretsOTheP/EQMacEmu/blob/main/zone/attack.cpp" target="_blank" rel="noopener" style="color: var(--accent);">EQMacEmu attack.cpp</a>.
-  </p>
+  <div class="banner">
+    <div class="banner-left">
+      <h1>EverQuest DPS Simulator <span id="app-version" style="font-weight: 400; color: var(--muted); font-size: 0.85rem;">v0.7</span></h1>
+      <p class="muted" style="margin:0 0 1rem; color: var(--muted); font-size: 0.9rem;">
+        Formulas based on <a href="https://github.com/SecretsOTheP/EQMacEmu/blob/main/zone/attack.cpp" target="_blank" rel="noopener" style="color: var(--accent);">EQMacEmu attack.cpp</a>.
+      </p>
+    </div>
+    <div id="dps-display" title="Total DPS from last run">
+      <div class="dps-label">Total DPS</div>
+      <span id="dps-value">—</span>
+    </div>
+  </div>
 
   <div class="tab-bar">
     <button type="button" class="tab-btn active" id="tab-melee" aria-selected="true">Melee</button>
     <button type="button" class="tab-btn" id="tab-ranged" aria-selected="false">Ranged</button>
   </div>
 
+  <div class="tab-content-wrapper">
   <div id="melee-tab" class="tab-panel">
   <div class="grid">
-    <section>
+    <section class="section--core">
       <h2>Weapon 1 (Main Hand)</h2>
       <label for="w1-preset">Quick select</label>
       <select id="w1-preset"></select>
@@ -158,25 +220,28 @@
         <div><label for="w1-delay" class="small-label">Delay (decisec)</label><input type="number" id="w1-delay" min="10" value="40" placeholder="40 = 4.0s"></div>
       </div>
       <p class="hint">Delay in tenths of a second (40 = 4.0s, 25 = 2.5s)</p>
-      <label for="w1-proc">Proc spell (name or leave blank)</label>
-      <input type="text" id="w1-proc" placeholder="e.g. Flaming Sword">
-      <label for="w1-proc-damage">Proc spell damage (on proc)</label>
-      <input type="number" id="w1-proc-damage" min="0" value="0" placeholder="0">
-      <div class="row">
-        <div><label for="w1-elem-type" class="small-label">Elemental type</label><select id="w1-elem-type">
-          <option value="">None</option>
-          <option value="fire">Fire</option>
-          <option value="cold">Cold</option>
-          <option value="poison">Poison</option>
-          <option value="disease">Disease</option>
-          <option value="magic">Magic</option>
-        </select></div>
-        <div><label for="w1-elem-damage" class="small-label">Elem dmg</label><input type="number" id="w1-elem-damage" min="0" value="0" placeholder="0"></div>
-        <div><label for="w1-bane" class="small-label">Bane dmg</label><input type="number" id="w1-bane" min="0" value="0" placeholder="0"></div>
-      </div>
+      <details class="collapse-secondary">
+        <summary class="collapse-summary">Proc, elemental &amp; bane</summary>
+        <label for="w1-proc">Proc spell (name or leave blank)</label>
+        <input type="text" id="w1-proc" placeholder="e.g. Flaming Sword">
+        <label for="w1-proc-damage">Proc spell damage (on proc)</label>
+        <input type="number" id="w1-proc-damage" min="0" value="0" placeholder="0">
+        <div class="row">
+          <div><label for="w1-elem-type" class="small-label">Elemental type</label><select id="w1-elem-type">
+            <option value="">None</option>
+            <option value="fire">Fire</option>
+            <option value="cold">Cold</option>
+            <option value="poison">Poison</option>
+            <option value="disease">Disease</option>
+            <option value="magic">Magic</option>
+          </select></div>
+          <div><label for="w1-elem-damage" class="small-label">Elem dmg</label><input type="number" id="w1-elem-damage" min="0" value="0" placeholder="0"></div>
+          <div><label for="w1-bane" class="small-label">Bane dmg</label><input type="number" id="w1-bane" min="0" value="0" placeholder="0"></div>
+        </div>
+      </details>
     </section>
 
-    <section id="weapon2-section">
+    <section id="weapon2-section" class="section--core">
       <h2>Weapon 2 (Offhand, optional)</h2>
       <label for="w2-preset">Quick select</label>
       <select id="w2-preset"></select>
@@ -185,25 +250,28 @@
         <div><label for="w2-delay" class="small-label">Delay (decisec)</label><input type="number" id="w2-delay" min="0" value="0" placeholder="0"></div>
       </div>
       <p class="hint">Delay in tenths of a second (40 = 4.0s, 25 = 2.5s)</p>
-      <label for="w2-proc">Proc spell (name or leave blank)</label>
-      <input type="text" id="w2-proc" placeholder="e.g. Poison">
-      <label for="w2-proc-damage">Proc spell damage (on proc)</label>
-      <input type="number" id="w2-proc-damage" min="0" value="0" placeholder="0">
-      <div class="row">
-        <div><label for="w2-elem-type" class="small-label">Elemental type</label><select id="w2-elem-type">
-          <option value="">None</option>
-          <option value="fire">Fire</option>
-          <option value="cold">Cold</option>
-          <option value="poison">Poison</option>
-          <option value="disease">Disease</option>
-          <option value="magic">Magic</option>
-        </select></div>
-        <div><label for="w2-elem-damage" class="small-label">Elem dmg</label><input type="number" id="w2-elem-damage" min="0" value="0" placeholder="0"></div>
-        <div><label for="w2-bane" class="small-label">Bane dmg</label><input type="number" id="w2-bane" min="0" value="0" placeholder="0"></div>
-      </div>
+      <details class="collapse-secondary">
+        <summary class="collapse-summary">Proc, elemental &amp; bane</summary>
+        <label for="w2-proc">Proc spell (name or leave blank)</label>
+        <input type="text" id="w2-proc" placeholder="e.g. Poison">
+        <label for="w2-proc-damage">Proc spell damage (on proc)</label>
+        <input type="number" id="w2-proc-damage" min="0" value="0" placeholder="0">
+        <div class="row">
+          <div><label for="w2-elem-type" class="small-label">Elemental type</label><select id="w2-elem-type">
+            <option value="">None</option>
+            <option value="fire">Fire</option>
+            <option value="cold">Cold</option>
+            <option value="poison">Poison</option>
+            <option value="disease">Disease</option>
+            <option value="magic">Magic</option>
+          </select></div>
+          <div><label for="w2-elem-damage" class="small-label">Elem dmg</label><input type="number" id="w2-elem-damage" min="0" value="0" placeholder="0"></div>
+          <div><label for="w2-bane" class="small-label">Bane dmg</label><input type="number" id="w2-bane" min="0" value="0" placeholder="0"></div>
+        </div>
+      </details>
     </section>
 
-    <section>
+    <section class="section--core">
       <h2>Character & Haste</h2>
       <label>Class (applies defaults and to-hit)</label>
       <select id="class">
@@ -218,43 +286,45 @@
         <option value="beastlord">Beastlord</option>
       </select>
       <p class="hint" id="class-hint">Monk: to-hit +0, DA 250, DW 252. You can still edit values.</p>
-      <label for="haste">Total haste (%) (Worn Haste + Spell Haste + v3 Haste) <span class="info-icon" title="Worn attack: Cloak of Flames 36%&#10;Spell Haste: Visions of Grandeur 58%&#10;v3 Haste: Warsong of the Vah Shir 25%">&#8505;</span></label>
+      <label for="haste">Total haste (%) (Worn + Spell + v3 Haste) <span class="info-icon" title="Worn Haste: e.g. Cloak of Flames 36%&#10;Spell Haste: e.g. Visions of Grandeur 58%&#10;v3 Haste: e.g. Warsong of the Vah Shir 25%">&#8505;</span></label>
       <input type="number" id="haste" min="0" value="99" placeholder="e.g. 99">
-      <label for="offense-skill">Offense skill (0–255)</label>
-      <input type="number" id="offense-skill" min="0" max="255" value="252" placeholder="252" title="Skill value used for to-hit only (7 + offense skill + weapon skill). Damage uses offense RATING = offense skill + STR + worn + spell.">
       <div class="row">
-        <div><label for="worn-attack" class="small-label">Worn attack <span class="info-icon" title="Adds to offense rating. Avatar of Battle and Vengeance stack up to 250.">&#8505;</span></label><input type="number" id="worn-attack" min="0" value="0" placeholder="0"></div>
-        <div><label for="spell-attack" class="small-label">Spell attack</label><input type="number" id="spell-attack" min="0" value="0" placeholder="0" title="Adds to offense rating (the portion of attack that affects damage)."></div>
+        <div><label for="worn-attack" class="small-label">Worn attack</label><input type="number" id="worn-attack" min="0" value="0" placeholder="0"></div>
+        <div><label for="spell-attack" class="small-label">Spell attack</label><input type="number" id="spell-attack" min="0" value="0" placeholder="0"></div>
       </div>
-      <p class="hint">Offense skill = 0–255 value (to-hit only). Offense rating = skill + STR + worn + spell (used for damage).</p>
-      <div class="row">
-        <div><label for="double-attack" class="small-label">Double attack skill</label><input type="number" id="double-attack" min="0" value="250" placeholder="250"></div>
-        <div><label for="dual-wield" class="small-label">Dual wield skill</label><input type="number" id="dual-wield" min="0" value="252" placeholder="0 = no offhand"></div>
-      </div>
-      <label class="checkbox-label"><input type="checkbox" id="ambidexterity-aa"> Ambidexterity AA (+32 effective dual wield)</label>
-      <label class="checkbox-label"><input type="checkbox" id="special-attacks"> Special attacks (Flying Kick / Backstab on cooldown)</label>
-      <p class="hint" id="special-hint">Monk: Flying Kick every 8s. Rogue: Backstab every 12s (from behind only).</p>
-      <div id="rogue-backstab-mod-row" style="display: none;">
-        <label for="backstab-skill">Backstab skill</label>
-        <input type="number" id="backstab-skill" min="0" value="225" placeholder="e.g. 225" title="Used for backstab base damage: (skill*0.02+2)*weapon_damage.">
-        <label for="backstab-mod">Backstab mod %</label>
-        <input type="number" id="backstab-mod" min="0" value="0" placeholder="e.g. 0" title="Increases backstab damage by this % when rogue.">
-      </div>
-      <div id="fistweaving-row" style="display: none;">
-        <label class="checkbox-label"><input type="checkbox" id="fistweaving"> Include Fistweaving</label>
-        <p class="hint">After each main-hand round, one offhand round with 9 damage (can double attack, no proc). Monk + 2H only.</p>
-      </div>
-      <div class="row">
-        <div><label for="level" class="small-label">Level</label><input type="number" id="level" min="1" max="65" value="60" placeholder="60" title="Used for double attack, dual wield, and main hand damage bonus (warrior classes, 28+)."></div>
-        <div><label for="crit-chance-aa" class="small-label">Crit Chance AA %</label><input type="number" id="crit-chance-aa" min="0" value="6" placeholder="0" title="Combat Fury, etc."></div>
-      </div>
-      <div class="row">
-        <div><label for="str" class="small-label">STR</label><input type="number" id="str" min="1" value="255" placeholder="255" title="Adds to offense rating when ≥75; affects damage."></div>
-        <div><label for="dex" class="small-label">DEX</label><input type="number" id="dex" min="1" value="255" placeholder="255" title="Proc rate, crit chance."></div>
-      </div>
+      <details class="collapse-secondary">
+        <summary class="collapse-summary">Skills, STR/DEX, level, crit, options</summary>
+        <label for="offense-skill">Offense skill (0–255)</label>
+        <input type="number" id="offense-skill" min="0" max="255" value="252" placeholder="252" title="Skill value used for to-hit only. Damage uses offense RATING = skill + STR + worn + spell.">
+        <div class="row">
+          <div><label for="double-attack" class="small-label">Double attack skill</label><input type="number" id="double-attack" min="0" value="250" placeholder="250"></div>
+          <div><label for="dual-wield" class="small-label">Dual wield skill</label><input type="number" id="dual-wield" min="0" value="252" placeholder="0 = no offhand"></div>
+        </div>
+        <label class="checkbox-label"><input type="checkbox" id="ambidexterity-aa"> Ambidexterity AA (+32 effective dual wield)</label>
+        <label class="checkbox-label"><input type="checkbox" id="special-attacks"> Special attacks (Flying Kick / Backstab on cooldown)</label>
+        <p class="hint" id="special-hint">Monk: Flying Kick every 8s. Rogue: Backstab every 12s (from behind only).</p>
+        <div id="rogue-backstab-mod-row" style="display: none;">
+          <label for="backstab-skill">Backstab skill</label>
+          <input type="number" id="backstab-skill" min="0" value="225" placeholder="e.g. 225" title="Used for backstab base damage: (skill*0.02+2)*weapon_damage.">
+          <label for="backstab-mod">Backstab mod %</label>
+          <input type="number" id="backstab-mod" min="0" value="0" placeholder="e.g. 0" title="Increases backstab damage by this % when rogue.">
+        </div>
+        <div id="fistweaving-row" style="display: none;">
+          <label class="checkbox-label"><input type="checkbox" id="fistweaving"> Include Fistweaving</label>
+          <p class="hint">After each main-hand round, one offhand round with 9 damage (can double attack, no proc). Monk + 2H only.</p>
+        </div>
+        <div class="row">
+          <div><label for="level" class="small-label">Level</label><input type="number" id="level" min="1" max="65" value="60" placeholder="60"></div>
+          <div><label for="crit-chance-aa" class="small-label">Crit Chance AA %</label><input type="number" id="crit-chance-aa" min="0" value="6" placeholder="0"></div>
+        </div>
+        <div class="row">
+          <div><label for="str" class="small-label">STR</label><input type="number" id="str" min="1" value="255" placeholder="255"></div>
+          <div><label for="dex" class="small-label">DEX</label><input type="number" id="dex" min="1" value="255" placeholder="255"></div>
+        </div>
+      </details>
     </section>
 
-    <section>
+    <section class="section--core">
       <h2>Target & Fight</h2>
       <label>Attacking from</label>
       <div class="radio-group">
@@ -266,21 +336,24 @@
         <div><label for="target-ac" class="small-label">Target AC</label><input type="number" id="target-ac" min="1" value="300" placeholder="300" title="Mitigation for damage roll; does not affect hit chance."></div>
         <div><label for="mob-level" class="small-label">Mob level</label><input type="number" id="mob-level" min="1" max="70" value="60" placeholder="60" title="Used for mitigation and avoidance (hit chance)."></div>
       </div>
-      <label>Target resistances (for elemental damage)</label>
-      <div class="row">
-        <div><label for="target-mr" class="small-label">MR</label><input type="number" id="target-mr" min="0" value="35" placeholder="35"></div>
-        <div><label for="target-fr" class="small-label">FR</label><input type="number" id="target-fr" min="0" value="35" placeholder="35"></div>
-        <div><label for="target-cr" class="small-label">CR</label><input type="number" id="target-cr" min="0" value="35" placeholder="35"></div>
-        <div><label for="target-pr" class="small-label">PR</label><input type="number" id="target-pr" min="0" value="35" placeholder="35"></div>
-        <div><label for="target-dr" class="small-label">DR</label><input type="number" id="target-dr" min="0" value="35" placeholder="35"></div>
-      </div>
-      <p class="hint">Magic, Fire, Cold, Poison, Disease. Used when weapons have elemental damage.</p>
-      <label class="checkbox-label"><input type="checkbox" id="apply-bane"> Apply Bane Damage</label>
-      <p class="hint">When checked, each weapon's bane damage is added to its base damage.</p>
       <div class="row">
         <div><label for="duration" class="small-label">Fight duration (sec)</label><input type="number" id="duration" min="1" value="6000" placeholder="6000"></div>
         <div><label for="runs" class="small-label">Number of runs</label><input type="number" id="runs" min="1" value="20" placeholder="20"></div>
       </div>
+      <details class="collapse-secondary">
+        <summary class="collapse-summary">Resistances &amp; bane options</summary>
+        <label>Target resistances (for elemental damage)</label>
+        <div class="row">
+          <div><label for="target-mr" class="small-label">MR</label><input type="number" id="target-mr" min="0" value="35" placeholder="35"></div>
+          <div><label for="target-fr" class="small-label">FR</label><input type="number" id="target-fr" min="0" value="35" placeholder="35"></div>
+          <div><label for="target-cr" class="small-label">CR</label><input type="number" id="target-cr" min="0" value="35" placeholder="35"></div>
+          <div><label for="target-pr" class="small-label">PR</label><input type="number" id="target-pr" min="0" value="35" placeholder="35"></div>
+          <div><label for="target-dr" class="small-label">DR</label><input type="number" id="target-dr" min="0" value="35" placeholder="35"></div>
+        </div>
+        <p class="hint">Magic, Fire, Cold, Poison, Disease. Used when weapons have elemental damage.</p>
+        <label class="checkbox-label"><input type="checkbox" id="apply-bane"> Apply Bane Damage</label>
+        <p class="hint">When checked, each weapon's bane damage is added to its base damage.</p>
+      </details>
       <button type="button" id="btn-run">Run simulation</button>
     </section>
   </div>
@@ -288,7 +361,7 @@
 
   <div id="ranged-tab" class="tab-panel hidden">
   <div class="grid">
-    <section>
+    <section class="section--core">
       <h2>Ranged weapon</h2>
       <label for="ranged-preset">Quick select</label>
       <select id="ranged-preset"></select>
@@ -297,25 +370,28 @@
         <div><label for="ranged-delay" class="small-label">Delay (decisec)</label><input type="number" id="ranged-delay" min="10" value="40" placeholder="40 = 4.0s"></div>
       </div>
       <p class="hint">Delay in tenths of a second (40 = 4.0s, 25 = 2.5s)</p>
-      <label for="ranged-proc">Proc spell (name or leave blank)</label>
-      <input type="text" id="ranged-proc" placeholder="e.g. Flaming Arrows">
-      <label for="ranged-proc-damage">Proc spell damage (on proc)</label>
-      <input type="number" id="ranged-proc-damage" min="0" value="0" placeholder="0">
-      <div class="row">
-        <div><label for="ranged-elem-type" class="small-label">Elemental type</label><select id="ranged-elem-type">
-          <option value="">None</option>
-          <option value="fire">Fire</option>
-          <option value="cold">Cold</option>
-          <option value="poison">Poison</option>
-          <option value="disease">Disease</option>
-          <option value="magic">Magic</option>
-        </select></div>
-        <div><label for="ranged-elem-damage" class="small-label">Elem dmg</label><input type="number" id="ranged-elem-damage" min="0" value="0" placeholder="0"></div>
-        <div><label for="ranged-bane" class="small-label">Bane dmg</label><input type="number" id="ranged-bane" min="0" value="0" placeholder="0"></div>
-      </div>
+      <details class="collapse-secondary">
+        <summary class="collapse-summary">Proc, elemental &amp; bane</summary>
+        <label for="ranged-proc">Proc spell (name or leave blank)</label>
+        <input type="text" id="ranged-proc" placeholder="e.g. Flaming Arrows">
+        <label for="ranged-proc-damage">Proc spell damage (on proc)</label>
+        <input type="number" id="ranged-proc-damage" min="0" value="0" placeholder="0">
+        <div class="row">
+          <div><label for="ranged-elem-type" class="small-label">Elemental type</label><select id="ranged-elem-type">
+            <option value="">None</option>
+            <option value="fire">Fire</option>
+            <option value="cold">Cold</option>
+            <option value="poison">Poison</option>
+            <option value="disease">Disease</option>
+            <option value="magic">Magic</option>
+          </select></div>
+          <div><label for="ranged-elem-damage" class="small-label">Elem dmg</label><input type="number" id="ranged-elem-damage" min="0" value="0" placeholder="0"></div>
+          <div><label for="ranged-bane" class="small-label">Bane dmg</label><input type="number" id="ranged-bane" min="0" value="0" placeholder="0"></div>
+        </div>
+      </details>
     </section>
 
-    <section>
+    <section class="section--core">
       <h2>Arrow type</h2>
       <label for="arrow-preset">Quick select</label>
       <select id="arrow-preset"></select>
@@ -333,52 +409,59 @@
       </div>
     </section>
 
-    <section>
+    <section class="section--core">
       <h2>Character (ranged)</h2>
       <label for="ranged-level">Level</label>
       <input type="number" id="ranged-level" min="1" max="65" value="60" placeholder="60">
       <label for="ranged-haste">Total haste (%)</label>
       <input type="number" id="ranged-haste" min="0" value="99" placeholder="e.g. 99">
-      <div class="row">
-        <div><label for="ranged-worn-attack" class="small-label">Worn attack</label><input type="number" id="ranged-worn-attack" min="0" value="0" placeholder="0"></div>
-        <div><label for="ranged-spell-attack" class="small-label">Spell attack</label><input type="number" id="ranged-spell-attack" min="0" value="0" placeholder="0"></div>
-      </div>
-      <label>Archery Mastery</label>
-      <div class="radio-group">
-        <label><input type="radio" name="archery-mastery" value="1"> 1</label>
-        <label><input type="radio" name="archery-mastery" value="2"> 2</label>
-        <label><input type="radio" name="archery-mastery" value="3" checked> 3</label>
-      </div>
-      <p class="hint">AA Archery Mastery rank (1, 2, or 3).</p>
-      <label class="checkbox-label"><input type="checkbox" id="mob-stationary"> Mob stationary</label>
-      <p class="hint">When checked, target is not moving (affects hit/damage if sim uses it).</p>
-      <label class="checkbox-label"><input type="checkbox" id="use-walled-mob-penalty"> Use Walled Mob Penalty</label>
-      <p class="hint">When checked, the report tracks damage lost due to wall penalty vs a standard hit.</p>
+      <details class="collapse-secondary">
+        <summary class="collapse-summary">Worn/spell attack, archery mastery, options</summary>
+        <div class="row">
+          <div><label for="ranged-worn-attack" class="small-label">Worn attack</label><input type="number" id="ranged-worn-attack" min="0" value="0" placeholder="0"></div>
+          <div><label for="ranged-spell-attack" class="small-label">Spell attack</label><input type="number" id="ranged-spell-attack" min="0" value="0" placeholder="0"></div>
+        </div>
+        <label>Archery Mastery</label>
+        <div class="radio-group">
+          <label><input type="radio" name="archery-mastery" value="1"> 1</label>
+          <label><input type="radio" name="archery-mastery" value="2"> 2</label>
+          <label><input type="radio" name="archery-mastery" value="3" checked> 3</label>
+        </div>
+        <p class="hint">AA Archery Mastery rank (1, 2, or 3).</p>
+        <label class="checkbox-label"><input type="checkbox" id="mob-stationary"> Mob stationary</label>
+        <p class="hint">When checked, target is not moving (affects hit/damage if sim uses it).</p>
+        <label class="checkbox-label"><input type="checkbox" id="use-walled-mob-penalty"> Use Walled Mob Penalty</label>
+        <p class="hint">When checked, the report tracks damage lost due to wall penalty vs a standard hit.</p>
+      </details>
     </section>
 
-    <section>
+    <section class="section--core">
       <h2>Target & Fight (ranged)</h2>
       <div class="row">
         <div><label for="ranged-target-ac" class="small-label">Target AC</label><input type="number" id="ranged-target-ac" min="1" value="300" placeholder="300"></div>
         <div><label for="ranged-mob-level" class="small-label">Mob level</label><input type="number" id="ranged-mob-level" min="1" max="70" value="60" placeholder="60"></div>
       </div>
-      <label>Target resistances (for elemental damage)</label>
-      <div class="row">
-        <div><label for="ranged-target-mr" class="small-label">MR</label><input type="number" id="ranged-target-mr" min="0" value="35" placeholder="35"></div>
-        <div><label for="ranged-target-fr" class="small-label">FR</label><input type="number" id="ranged-target-fr" min="0" value="35" placeholder="35"></div>
-        <div><label for="ranged-target-cr" class="small-label">CR</label><input type="number" id="ranged-target-cr" min="0" value="35" placeholder="35"></div>
-        <div><label for="ranged-target-pr" class="small-label">PR</label><input type="number" id="ranged-target-pr" min="0" value="35" placeholder="35"></div>
-        <div><label for="ranged-target-dr" class="small-label">DR</label><input type="number" id="ranged-target-dr" min="0" value="35" placeholder="35"></div>
-      </div>
-      <p class="hint">Magic, Fire, Cold, Poison, Disease.</p>
-      <label class="checkbox-label"><input type="checkbox" id="ranged-apply-bane"> Apply Bane Damage</label>
-      <p class="hint">When checked, ranged weapon bane damage is added to base damage.</p>
       <div class="row">
         <div><label for="ranged-duration" class="small-label">Fight duration (sec)</label><input type="number" id="ranged-duration" min="1" value="6000" placeholder="6000"></div>
         <div><label for="ranged-runs" class="small-label">Number of runs</label><input type="number" id="ranged-runs" min="1" value="20" placeholder="20"></div>
       </div>
+      <details class="collapse-secondary">
+        <summary class="collapse-summary">Resistances &amp; bane options</summary>
+        <label>Target resistances (for elemental damage)</label>
+        <div class="row">
+          <div><label for="ranged-target-mr" class="small-label">MR</label><input type="number" id="ranged-target-mr" min="0" value="35" placeholder="35"></div>
+          <div><label for="ranged-target-fr" class="small-label">FR</label><input type="number" id="ranged-target-fr" min="0" value="35" placeholder="35"></div>
+          <div><label for="ranged-target-cr" class="small-label">CR</label><input type="number" id="ranged-target-cr" min="0" value="35" placeholder="35"></div>
+          <div><label for="ranged-target-pr" class="small-label">PR</label><input type="number" id="ranged-target-pr" min="0" value="35" placeholder="35"></div>
+          <div><label for="ranged-target-dr" class="small-label">DR</label><input type="number" id="ranged-target-dr" min="0" value="35" placeholder="35"></div>
+        </div>
+        <p class="hint">Magic, Fire, Cold, Poison, Disease.</p>
+        <label class="checkbox-label"><input type="checkbox" id="ranged-apply-bane"> Apply Bane Damage</label>
+        <p class="hint">When checked, ranged weapon bane damage is added to base damage.</p>
+      </details>
       <button type="button" id="btn-run-ranged">Run simulation</button>
     </section>
+  </div>
   </div>
   </div>
 
@@ -766,6 +849,9 @@
         $('report').textContent = EQCombat.formatReport(report, w1Label, w2Label) +
           (runs > 1 ? '\n(Averaged over ' + runs + ' runs)' : '');
 
+        const dpsEl = $('dps-value');
+        if (dpsEl && report.durationSec) dpsEl.textContent = (report.totalDamage / report.durationSec).toFixed(2);
+
         const histContainer = $('histogram-container');
         if (reports.length > 0) {
           renderHistogram(histContainer, reports[0], w1Label, w2Label);
@@ -950,6 +1036,8 @@
           };
         }
         $('report').textContent = EQCombat.formatRangedReport(report) + (runs > 1 ? '\n(Averaged over ' + runs + ' runs)' : '');
+        const dpsEl = $('dps-value');
+        if (dpsEl && report.durationSec) dpsEl.textContent = (report.totalDamage / report.durationSec).toFixed(2);
         const histContainer = $('histogram-container');
         if (reports.length > 0 && reports[0].ranged && reports[0].ranged.hitList && reports[0].ranged.hitList.length > 0) {
           renderHistogram(histContainer, { weapon1: reports[0].ranged }, 'Ranged', null);
