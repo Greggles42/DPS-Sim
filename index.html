@@ -172,6 +172,8 @@
       </select>
       <label for="w1-elem-damage">Elemental damage</label>
       <input type="number" id="w1-elem-damage" min="0" value="0" placeholder="0">
+      <label for="w1-bane">Bane damage</label>
+      <input type="number" id="w1-bane" min="0" value="0" placeholder="0">
     </section>
 
     <section id="weapon2-section">
@@ -197,6 +199,8 @@
       </select>
       <label for="w2-elem-damage">Elemental damage</label>
       <input type="number" id="w2-elem-damage" min="0" value="0" placeholder="0">
+      <label for="w2-bane">Bane damage</label>
+      <input type="number" id="w2-bane" min="0" value="0" placeholder="0">
     </section>
 
     <section>
@@ -271,6 +275,8 @@
         <div><label for="target-dr" class="small-label">DR</label><input type="number" id="target-dr" min="0" value="35" placeholder="35"></div>
       </div>
       <p class="hint">Magic, Fire, Cold, Poison, Disease. Used when weapons have elemental damage.</p>
+      <label class="checkbox-label"><input type="checkbox" id="apply-bane"> Apply Bane Damage</label>
+      <p class="hint">When checked, each weapon's bane damage is added to its base damage.</p>
       <label for="duration">Fight duration (seconds)</label>
       <input type="number" id="duration" min="1" value="6000" placeholder="e.g. 6000">
       <label for="runs">Number of runs (average report)</label>
@@ -306,6 +312,8 @@
       </select>
       <label for="ranged-elem-damage">Elemental damage</label>
       <input type="number" id="ranged-elem-damage" min="0" value="0" placeholder="0">
+      <label for="ranged-bane">Bane damage</label>
+      <input type="number" id="ranged-bane" min="0" value="0" placeholder="0">
     </section>
 
     <section>
@@ -340,8 +348,8 @@
       <label>Archery Mastery</label>
       <div class="radio-group">
         <label><input type="radio" name="archery-mastery" value="1"> 1</label>
-        <label><input type="radio" name="archery-mastery" value="2" checked> 2</label>
-        <label><input type="radio" name="archery-mastery" value="3"> 3</label>
+        <label><input type="radio" name="archery-mastery" value="2"> 2</label>
+        <label><input type="radio" name="archery-mastery" value="3" checked> 3</label>
       </div>
       <p class="hint">AA Archery Mastery rank (1, 2, or 3).</p>
       <label class="checkbox-label"><input type="checkbox" id="mob-stationary"> Mob stationary</label>
@@ -365,6 +373,8 @@
         <div><label for="ranged-target-dr" class="small-label">DR</label><input type="number" id="ranged-target-dr" min="0" value="35" placeholder="35"></div>
       </div>
       <p class="hint">Magic, Fire, Cold, Poison, Disease.</p>
+      <label class="checkbox-label"><input type="checkbox" id="ranged-apply-bane"> Apply Bane Damage</label>
+      <p class="hint">When checked, ranged weapon bane damage is added to base damage.</p>
       <label for="ranged-duration">Fight duration (seconds)</label>
       <input type="number" id="ranged-duration" min="1" value="6000" placeholder="e.g. 6000">
       <label for="ranged-runs">Number of runs (average report)</label>
@@ -575,7 +585,9 @@
         const elemDamageEl = $(prefix + '-elem-damage');
         const elemType = elemTypeEl && elemTypeEl.value && elemTypeEl.value.trim() ? elemTypeEl.value.trim() : undefined;
         const elemDamage = elemDamageEl && elemDamageEl.value !== '' ? (parseInt(elemDamageEl.value, 10) || 0) : 0;
-        const out = { damage, delay, procSpell: proc, procSpellDamage: procSpellDamage || 0, minDmg, maxDmg, is2H };
+        const baneEl = $(prefix + '-bane');
+        const baneDamage = baneEl && baneEl.value !== '' ? (parseInt(baneEl.value, 10) || 0) : 0;
+        const out = { damage, delay, procSpell: proc, procSpellDamage: procSpellDamage || 0, minDmg, maxDmg, is2H, baneDamage };
         if (elemType && elemDamage > 0) { out.elemType = elemType; out.elemDamage = elemDamage; }
         return out;
       }
@@ -583,6 +595,10 @@
       function run() {
         const weapon1 = getWeapon('w1');
         const weapon2 = getWeapon('w2');
+        if ($('apply-bane').checked) {
+          if (weapon1.baneDamage) weapon1.damage += weapon1.baneDamage;
+          if (weapon2.baneDamage) weapon2.damage += weapon2.baneDamage;
+        }
         if (weapon1.damage < 1 || weapon1.delay < 10) {
           $('report').textContent = 'Weapon 1: set Damage >= 1 and Delay >= 10 (e.g. 40 for 4.0s).';
           return;
@@ -844,12 +860,14 @@
       $('tab-ranged').addEventListener('click', function () { showTab('ranged'); });
 
       function runRanged() {
-        const damage = parseInt($('ranged-damage').value, 10) || 12;
+        let damage = parseInt($('ranged-damage').value, 10) || 12;
         const delay = parseInt($('ranged-delay').value, 10) || 40;
         if (damage < 1 || delay < 10) {
           $('report').textContent = 'Ranged weapon: set Damage >= 1 and Delay >= 10 (e.g. 40 for 4.0s).';
           return;
         }
+        const rangedBane = parseInt($('ranged-bane').value, 10) || 0;
+        if ($('ranged-apply-bane').checked && rangedBane) damage += rangedBane;
         const arrowDamage = parseInt($('arrow-damage').value, 10) || 0;
         const runs = Math.max(1, Math.min(1000, parseInt($('ranged-runs').value, 10) || 20));
         const rangedWeapon = {
@@ -884,7 +902,7 @@
           str: 255,
           dex: 255,
           critChanceMult: 0,
-          archeryMastery: parseInt(document.querySelector('input[name="archery-mastery"]:checked').value, 10) || 2,
+          archeryMastery: parseInt(document.querySelector('input[name="archery-mastery"]:checked').value, 10) || 3,
           mobStationary: $('mob-stationary').checked,
           useWalledMobPenalty: $('use-walled-mob-penalty').checked,
         };
