@@ -358,6 +358,7 @@
     const mobStationary = !!options.mobStationary;
 
     const delayDecisec = effectiveDelayDecisec(bow.delay, options.hastePercent);
+    // Ranged procs use same chance as primary (main hand): (base + dex factor) * weapon_speed; no offhand penalty.
     const procChance = (bow.procSpell != null && bow.procSpell !== '')
       ? getProcChancePerSwing(delayDecisec, false, 0, options.dex || 150)
       : 0;
