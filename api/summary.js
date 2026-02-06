@@ -35,9 +35,9 @@ export default async function handler(req, res) {
 
   try {
     const { blobs } = await list({ prefix: 'dps-sim/' });
-    const blob = blobs.find((b) => b.pathname === BLOB_PATH);
+    const blob = blobs.find((b) => b.pathname === BLOB_PATH || (b.pathname && b.pathname.endsWith('usage-log.jsonl')));
     if (blob && blob.url) {
-      const r = await fetch(blob.url);
+      const r = await fetch(blob.url, { cache: 'no-store' });
       const text = await r.text();
       const lines = text.split('\n').filter((line) => line.trim());
       totalRuns = lines.length;

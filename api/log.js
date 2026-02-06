@@ -44,12 +44,20 @@ export default async function handler(req, res) {
 
   try {
     const { blobs } = await list({ prefix: 'dps-sim/' });
-    const existing = blobs.find((b) => b.pathname === BLOB_PATH);
+    const existing = blobs.find((b) => b.pathname === BLOB_PATH || (b.pathname && b.pathname.endsWith('usage-log.jsonl')));
     let body = line;
     if (existing && existing.url) {
-      const r = await fetch(existing.url);
-      const text = await r.text();
-      body = text + line;
+      try {
+        const r = await fetch(existing.url, { cache: 'no-store' });
+        if (!r.ok) throw new Error('Blob fetch not ok');
+        const text = await r.text();
+        body = text + line;
+      } catch (fetchErr) {
+        // Cannot read existing content; do not overwrite with single line (would wipe history)
+        setCors(res);
+        res.setHeader('Content-Type', 'application/json');
+        return res.status(200).json({});
+      }
     }
     await put(BLOB_PATH, body, {
       access: 'public',
