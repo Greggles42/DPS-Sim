@@ -1078,6 +1078,7 @@
         const hasSpecial = classId === 'monk' || classId === 'rogue';
         $('special-attacks').disabled = !hasSpecial;
         if (!hasSpecial) $('special-attacks').checked = false;
+        else if (classId === 'rogue') $('special-attacks').checked = true;
         const rogueRow = $('rogue-backstab-mod-row');
         if (rogueRow) rogueRow.style.display = classId === 'rogue' ? '' : 'none';
         updateFistweavingVisibility();

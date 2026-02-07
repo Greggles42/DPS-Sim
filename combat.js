@@ -109,12 +109,11 @@
     return key != null && options[key] != null ? options[key] : 35;
   }
 
-  // If weapon (or arrow) has elemental damage: get target's resistance for that element, compute damage that gets through, add to attack.
-  function addElementalToDamage(dmg, weapon, options, rng) {
-    if (!weapon || !weapon.elemType || !(weapon.elemDamage > 0)) return { dmg, elementalAdded: 0 };
+  // Elemental damage is added to base damage BEFORE the melee swing. The adder goes through applyElementalResist first.
+  function getElementalBaseAdder(weapon, options, rng) {
+    if (!weapon || !weapon.elemType || !(weapon.elemDamage > 0)) return 0;
     const resist = getResistForElemType(options, weapon.elemType);
-    const added = applyElementalResist(weapon.elemDamage, resist, rng);
-    return { dmg: dmg + added, elementalAdded: added };
+    return applyElementalResist(weapon.elemDamage, resist, rng);
   }
 
   // ----- Client::RollDamageMultiplier (applied to every client melee swing) -----
@@ -411,7 +410,10 @@
         continue;
       }
       report.ranged.hits++;
-      let baseDmg = calcMeleeDamage(baseDamagePerShot, offenseRating, mitigation, rng, 0);
+      const rangedElemAdder = getElementalBaseAdder(bow, options, rng) + getElementalBaseAdder(arrow, options, rng);
+      report.elementalDamageTotal += rangedElemAdder;
+      const rangedBaseWithElem = baseDamagePerShot + rangedElemAdder;
+      let baseDmg = calcMeleeDamage(rangedBaseWithElem, offenseRating, mitigation, rng, 0);
       baseDmg = Math.max(1, baseDmg);
       const mult = rollDamageMultiplier(offenseRating, baseDmg, level, 'ranger', true, rng);
       let dmg = mult.damage;
@@ -435,12 +437,6 @@
         report.ranged.procDamageTotal += procDmg;
         dmg += procDmg;
       }
-      let er = addElementalToDamage(dmg, bow, options, rng);
-      dmg = er.dmg;
-      report.elementalDamageTotal += er.elementalAdded;
-      er = addElementalToDamage(dmg, arrow, options, rng);
-      dmg = er.dmg;
-      report.elementalDamageTotal += er.elementalAdded;
       report.ranged.totalDamage += dmg;
       report.totalDamage += dmg;
       report.ranged.maxDamage = Math.max(report.ranged.maxDamage, dmg);
@@ -663,17 +659,23 @@
       if (canFireSpecial && report.special && tMs >= nextSpecialAtMs) {
         report.special.attempts++;
         const isRogueBackstab = options.classId === 'rogue' && specialConfig.fromBehindOnly;
-        const specialHits = rollHit(toHit, avoidance, rng, fromBehind);
+        const backstabSkill = options.backstabSkill != null ? options.backstabSkill : 225;
+        const backstabModPct = options.backstabModPercent || 0;
+        const effectiveBackstabSkill = Math.min(255, Math.floor(backstabSkill * (100 + backstabModPct) / 100));
+        const backstabToHit = isRogueBackstab ? (7 + effectiveBackstabSkill + toHitBonus) : toHit;
+        const specialHits = rollHit(backstabToHit, avoidance, rng, fromBehind);
         if (specialHits) {
           report.special.hits++;
           report.special.count++;
           let baseDmg;
+          const specElemAdder = (options.classId === 'monk' && specialConfig.useWeaponDamage === false) ? 0 : getElementalBaseAdder(w1, options, rng);
+          if (specElemAdder > 0) report.elementalDamageTotal += specElemAdder;
           if (isRogueBackstab) {
             const backstabSkill = options.backstabSkill != null ? options.backstabSkill : 225;
             const backstabModPct = options.backstabModPercent || 0;
             const effectiveSkill = Math.min(255, Math.floor(backstabSkill * (100 + backstabModPct) / 100));
             const backstabOffenseRating = effectiveSkill + strBonus + wornAttack + spellAttack;
-            const backstabBase = Math.floor(((effectiveSkill * 0.02) + 2) * w1.damage);
+            const backstabBase = Math.floor(((effectiveSkill * 0.02) + 2) * w1.damage) + specElemAdder;
             baseDmg = calcMeleeDamage(backstabBase, backstabOffenseRating, mitigation, rng, 0);
             baseDmg = Math.max(1, baseDmg);
           } else if (options.classId === 'monk' && specialConfig.useWeaponDamage === false) {
@@ -683,7 +685,7 @@
             const fkMin = Math.floor(level * 4 / 5);
             baseDmg = Math.max(1, Math.max(baseDmg, fkMin));
           } else {
-            baseDmg = calcMeleeDamage(w1.damage, offenseRating, mitigation, rng);
+            baseDmg = calcMeleeDamage(w1.damage + specElemAdder, offenseRating, mitigation, rng);
             baseDmg = Math.max(1, specialConfig.damageMultiplier ? Math.floor(baseDmg * specialConfig.damageMultiplier) : baseDmg);
           }
           const mult = rollDamageMultiplier(offenseRating, baseDmg, level, options.classId, false, rng);
@@ -697,9 +699,6 @@
             const minHit = level >= 60 ? level * 2 : level > 50 ? Math.floor(level * 3 / 2) : level;
             dmg = Math.max(dmg, minHit);
           }
-          const er = addElementalToDamage(dmg, w1, options, rng);
-          dmg = er.dmg;
-          report.elementalDamageTotal += er.elementalAdded;
           report.special.totalDamage += dmg;
           report.special.maxDamage = Math.max(report.special.maxDamage, dmg);
           report.special.hitList.push(dmg);
@@ -708,7 +707,7 @@
 
           // Rogues 55+ can double backstab: same double attack skill chance for a second backstab
           if (isRogueBackstab && level > 54 && report.special.doubleBackstabs !== undefined && checkDoubleAttack(doubleAttackEffective, rng, options.classId)) {
-            const secondHit = rollHit(toHit, avoidance, rng, fromBehind);
+            const secondHit = rollHit(backstabToHit, avoidance, rng, fromBehind);
             if (secondHit) {
               report.special.doubleBackstabs++;
               report.special.hits++;
@@ -717,7 +716,9 @@
               const backstabModPct2 = options.backstabModPercent || 0;
               const effectiveSkill2 = Math.min(255, Math.floor(backstabSkill2 * (100 + backstabModPct2) / 100));
               const backstabOffenseRating2 = effectiveSkill2 + strBonus + wornAttack + spellAttack;
-              const backstabBase2 = Math.floor(((effectiveSkill2 * 0.02) + 2) * w1.damage);
+              const specElemAdder2 = getElementalBaseAdder(w1, options, rng);
+              report.elementalDamageTotal += specElemAdder2;
+              const backstabBase2 = Math.floor(((effectiveSkill2 * 0.02) + 2) * w1.damage) + specElemAdder2;
               let baseDmg2 = calcMeleeDamage(backstabBase2, backstabOffenseRating2, mitigation, rng, 0);
               baseDmg2 = Math.max(1, baseDmg2);
               const mult2 = rollDamageMultiplier(offenseRating, baseDmg2, level, options.classId, false, rng);
@@ -730,9 +731,6 @@
                 const minHit = level >= 60 ? level * 2 : level > 50 ? Math.floor(level * 3 / 2) : level;
                 dmg2 = Math.max(dmg2, minHit);
               }
-              const er2 = addElementalToDamage(dmg2, w1, options, rng);
-              dmg2 = er2.dmg;
-              report.elementalDamageTotal += er2.elementalAdded;
               report.special.totalDamage += dmg2;
               report.special.maxDamage = Math.max(report.special.maxDamage, dmg2);
               report.special.hitList.push(dmg2);
@@ -752,7 +750,9 @@
 
         // Crit is only rolled after a successful hit (we are inside the rollHit success block).
         if (rollHit(toHit, avoidance, rng, fromBehind)) {
-          let dmg = calcMeleeDamage(w1.damage, offenseRating, mitigation, rng, 0);
+          const mhElemAdder = getElementalBaseAdder(w1, options, rng);
+          report.elementalDamageTotal += mhElemAdder;
+          let dmg = calcMeleeDamage(w1.damage + mhElemAdder, offenseRating, mitigation, rng, 0);
           const mult = rollDamageMultiplier(offenseRating, dmg, level, options.classId, false, rng);
           dmg = mult.damage;
           dmg += mainHandDamageBonus;
@@ -762,9 +762,6 @@
           dmg = critResult.damage;
           dmg = Math.max(dmg, 1 + mainHandDamageBonus);
           if (critResult.isCrit) { report.critHits++; report.critDamageGain += (dmg - beforeCrit); }
-          const er = addElementalToDamage(dmg, w1, options, rng);
-          dmg = er.dmg;
-          report.elementalDamageTotal += er.elementalAdded;
           report.weapon1.swings++;
           report.weapon1.hits++;
           report.weapon1.totalDamage += dmg;
@@ -786,7 +783,9 @@
         if (checkDoubleAttack(doubleAttackEffective, rng, options.classId)) {
           attacksThisRound = 2;
           if (rollHit(toHit, avoidance, rng, fromBehind)) {
-            let dmg = calcMeleeDamage(w1.damage, offenseRating, mitigation, rng, 0);
+            const mhElemAdder2 = getElementalBaseAdder(w1, options, rng);
+            report.elementalDamageTotal += mhElemAdder2;
+            let dmg = calcMeleeDamage(w1.damage + mhElemAdder2, offenseRating, mitigation, rng, 0);
             const mult = rollDamageMultiplier(offenseRating, dmg, level, options.classId, false, rng);
             dmg = mult.damage;
             dmg += mainHandDamageBonus;
@@ -796,9 +795,6 @@
             dmg = critResult.damage;
             dmg = Math.max(dmg, 1 + mainHandDamageBonus);
             if (critResult.isCrit) { report.critHits++; report.critDamageGain += (dmg - beforeCrit); }
-            const er = addElementalToDamage(dmg, w1, options, rng);
-            dmg = er.dmg;
-            report.elementalDamageTotal += er.elementalAdded;
             report.weapon1.swings++;
             report.weapon1.hits++;
             report.weapon1.totalDamage += dmg;
@@ -819,7 +815,9 @@
           if (checkTripleAttack(rng, level, options.classId)) {
             attacksThisRound = 3;
             if (rollHit(toHit, avoidance, rng, fromBehind)) {
-              let dmg = calcMeleeDamage(w1.damage, offenseRating, mitigation, rng, 0);
+              const mhElemAdder3 = getElementalBaseAdder(w1, options, rng);
+              report.elementalDamageTotal += mhElemAdder3;
+              let dmg = calcMeleeDamage(w1.damage + mhElemAdder3, offenseRating, mitigation, rng, 0);
               const mult = rollDamageMultiplier(offenseRating, dmg, level, options.classId, false, rng);
               dmg = mult.damage;
               dmg += mainHandDamageBonus;
@@ -829,9 +827,6 @@
               dmg = critResult.damage;
               dmg = Math.max(dmg, 1 + mainHandDamageBonus);
               if (critResult.isCrit) { report.critHits++; report.critDamageGain += (dmg - beforeCrit); }
-              const er = addElementalToDamage(dmg, w1, options, rng);
-              dmg = er.dmg;
-              report.elementalDamageTotal += er.elementalAdded;
               report.weapon1.swings++;
               report.weapon1.hits++;
               report.weapon1.totalDamage += dmg;
@@ -908,16 +903,15 @@
           report.weapon2.rounds++;
           let attacksThisRound = 1;
           if (rollHit(toHit, avoidance, rng, fromBehind)) {
-            let dmg = calcMeleeDamage(w2.damage, offenseRating, mitigation, rng, 0);
+            const ohElemAdder = getElementalBaseAdder(w2, options, rng);
+            report.elementalDamageTotal += ohElemAdder;
+            let dmg = calcMeleeDamage(w2.damage + ohElemAdder, offenseRating, mitigation, rng, 0);
             const mult = rollDamageMultiplier(offenseRating, dmg, level, options.classId, false, rng);
             dmg = mult.damage;
             const beforeCrit = dmg;
             const critResult = rollMeleeCrit(dmg, 0, level, options.classId, options.dex, options.critChanceMult, false, false, 0, rng);
             dmg = critResult.damage;
             if (critResult.isCrit) { report.critHits++; report.critDamageGain += (dmg - beforeCrit); }
-            const er = addElementalToDamage(dmg, w2, options, rng);
-            dmg = er.dmg;
-            report.elementalDamageTotal += er.elementalAdded;
             report.weapon2.swings++;
             report.weapon2.hits++;
             report.weapon2.totalDamage += dmg;
@@ -937,16 +931,15 @@
           if (checkDoubleAttack(doubleAttackEffective, rng, options.classId)) {
             attacksThisRound = 2;
             if (rollHit(toHit, avoidance, rng, fromBehind)) {
-              let dmg = calcMeleeDamage(w2.damage, offenseRating, mitigation, rng, 0);
+              const ohElemAdder2 = getElementalBaseAdder(w2, options, rng);
+              report.elementalDamageTotal += ohElemAdder2;
+              let dmg = calcMeleeDamage(w2.damage + ohElemAdder2, offenseRating, mitigation, rng, 0);
               const mult = rollDamageMultiplier(offenseRating, dmg, level, options.classId, false, rng);
               dmg = mult.damage;
               const beforeCrit = dmg;
               const critResult = rollMeleeCrit(dmg, 0, level, options.classId, options.dex, options.critChanceMult, false, false, 0, rng);
               dmg = critResult.damage;
               if (critResult.isCrit) { report.critHits++; report.critDamageGain += (dmg - beforeCrit); }
-              const er = addElementalToDamage(dmg, w2, options, rng);
-              dmg = er.dmg;
-              report.elementalDamageTotal += er.elementalAdded;
               report.weapon2.swings++;
               report.weapon2.hits++;
               report.weapon2.totalDamage += dmg;
