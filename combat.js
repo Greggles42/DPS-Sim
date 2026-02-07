@@ -93,7 +93,8 @@
     return damage;
   }
 
-  // Elemental damage vs target resistance: if resist > 200 return 0; roll = random(1,201) - resist; if roll < 1 return 0; if roll <= 99 return weaponDamage * roll / 100; else return weaponDamage
+  // Elemental damage vs target resistance: amount added depends on mob's resist for that element.
+  // If resist > 200: full resist, 0 damage. Else roll = random(1,201) - resist; if roll < 1 then 0; if roll <= 99 then weaponDamage * roll/100; else full weaponDamage.
   function applyElementalResist(weaponDamage, resistValue, rng) {
     if (resistValue > 200) return 0;
     const roll = Math.floor(rng() * 201) + 1 - resistValue;
@@ -102,11 +103,13 @@
     return weaponDamage;
   }
 
+  // Target mob's resistance for the given element (from options.targetFR / targetCR / targetPR / targetDR / targetMR; default 35).
   function getResistForElemType(options, elemType) {
     const key = elemType === 'fire' ? 'targetFR' : elemType === 'cold' ? 'targetCR' : elemType === 'poison' ? 'targetPR' : elemType === 'disease' ? 'targetDR' : elemType === 'magic' ? 'targetMR' : null;
     return key != null && options[key] != null ? options[key] : 35;
   }
 
+  // If weapon (or arrow) has elemental damage: get target's resistance for that element, compute damage that gets through, add to attack.
   function addElementalToDamage(dmg, weapon, options, rng) {
     if (!weapon || !weapon.elemType || !(weapon.elemDamage > 0)) return { dmg, elementalAdded: 0 };
     const resist = getResistForElemType(options, weapon.elemType);

@@ -719,8 +719,8 @@
 
         const offenseSkill = Math.min(255, Math.max(0, parseInt($('offense-skill').value, 10) || 252));
         const options = {
-          weapon1: { damage: weapon1.damage, delay: weapon1.delay, procSpell: weapon1.procSpell, procSpellDamage: weapon1.procSpellDamage, is2H: weapon1.is2H },
-          weapon2: useWeapon2 ? { damage: weapon2.damage, delay: weapon2.delay, procSpell: weapon2.procSpell, procSpellDamage: weapon2.procSpellDamage } : undefined,
+          weapon1: { damage: weapon1.damage, delay: weapon1.delay, procSpell: weapon1.procSpell, procSpellDamage: weapon1.procSpellDamage, is2H: weapon1.is2H, elemType: weapon1.elemType, elemDamage: weapon1.elemDamage },
+          weapon2: useWeapon2 ? { damage: weapon2.damage, delay: weapon2.delay, procSpell: weapon2.procSpell, procSpellDamage: weapon2.procSpellDamage, elemType: weapon2.elemType, elemDamage: weapon2.elemDamage } : undefined,
           hastePercent,
           offenseSkill,
           wornAttack,
