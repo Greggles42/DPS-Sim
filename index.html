@@ -211,6 +211,7 @@
   <div class="grid">
     <section class="section--core">
       <h2>Weapon 1 (Main Hand)</h2>
+      <label class="checkbox-label"><input type="checkbox" id="offhand-only" title="Skip main hand; only simulate offhand/dual wield swings"> Offhand only (no main hand)</label>
       <label for="w1-preset">Quick select</label>
       <select id="w1-preset"></select>
       <div class="row">
@@ -686,7 +687,14 @@
           if (weapon1.baneDamage) weapon1.damage += weapon1.baneDamage;
           if (weapon2.baneDamage) weapon2.damage += weapon2.baneDamage;
         }
-        if (weapon1.damage < 1 || weapon1.delay < 10) {
+        const offhandOnly = $('offhand-only').checked;
+        const dualWieldSkillForValidation = parseInt($('dual-wield').value, 10) || 0;
+        if (offhandOnly) {
+          if (weapon2.damage < 1 || weapon2.delay < 10 || dualWieldSkillForValidation < 1) {
+            $('report').textContent = 'Offhand only: set Weapon 2 Damage >= 1, Delay >= 10, and Dual Wield skill.';
+            return;
+          }
+        } else if (weapon1.damage < 1 || weapon1.delay < 10) {
           $('report').textContent = 'Weapon 1: set Damage >= 1 and Delay >= 10 (e.g. 40 for 4.0s).';
           return;
         }
@@ -719,8 +727,8 @@
 
         const offenseSkill = Math.min(255, Math.max(0, parseInt($('offense-skill').value, 10) || 252));
         const options = {
-          weapon1: { damage: weapon1.damage, delay: weapon1.delay, procSpell: weapon1.procSpell, procSpellDamage: weapon1.procSpellDamage, is2H: weapon1.is2H, elemType: weapon1.elemType, elemDamage: weapon1.elemDamage },
-          weapon2: useWeapon2 ? { damage: weapon2.damage, delay: weapon2.delay, procSpell: weapon2.procSpell, procSpellDamage: weapon2.procSpellDamage, elemType: weapon2.elemType, elemDamage: weapon2.elemDamage } : undefined,
+          weapon1: offhandOnly ? undefined : { damage: weapon1.damage, delay: weapon1.delay, procSpell: weapon1.procSpell, procSpellDamage: weapon1.procSpellDamage, is2H: weapon1.is2H, elemType: weapon1.elemType, elemDamage: weapon1.elemDamage },
+          weapon2: (useWeapon2 || offhandOnly) ? { damage: weapon2.damage, delay: weapon2.delay, procSpell: weapon2.procSpell, procSpellDamage: weapon2.procSpellDamage, elemType: weapon2.elemType, elemDamage: weapon2.elemDamage } : undefined,
           hastePercent,
           offenseSkill,
           wornAttack,
@@ -741,14 +749,19 @@
           classId: classId || undefined,
           backstabModPercent: classId === 'rogue' ? (parseInt($('backstab-mod').value, 10) || 0) : undefined,
           backstabSkill: classId === 'rogue' ? (parseInt($('backstab-skill').value, 10) || 0) : undefined,
-          fistweaving: classId === 'monk' && weapon1.is2H && $('fistweaving').checked,
+          fistweaving: !offhandOnly && classId === 'monk' && weapon1.is2H && $('fistweaving').checked,
           critChanceMult: critChanceMult || undefined,
         };
 
         const reports = [];
         for (let i = 0; i < runs; i++) {
           options.seed = runs === 1 ? undefined : (Date.now() + i);
-          reports.push(EQCombat.runFight(options));
+          const r = EQCombat.runFight(options);
+          if (r.error) {
+            $('report').textContent = r.error;
+            return;
+          }
+          reports.push(r);
         }
 
         let report;
@@ -841,8 +854,8 @@
           };
         }
 
-        const w1Label = `Weapon 1 (${weapon1.damage}d / ${weapon1.delay} delay${weapon1.procSpell ? ' / ' + weapon1.procSpell : ''})`;
-        const w2Label = useWeapon2
+        const w1Label = offhandOnly ? 'Main hand (skipped)' : `Weapon 1 (${weapon1.damage}d / ${weapon1.delay} delay${weapon1.procSpell ? ' / ' + weapon1.procSpell : ''})`;
+        const w2Label = (useWeapon2 || offhandOnly)
           ? `Weapon 2 (${weapon2.damage}d / ${weapon2.delay} delay${weapon2.procSpell ? ' / ' + weapon2.procSpell : ''})`
           : 'Weapon 2';
         $('report').textContent = EQCombat.formatReport(report, w1Label, w2Label, runs);

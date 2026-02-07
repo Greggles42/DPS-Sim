@@ -537,8 +537,8 @@
   /**
    * Run a single fight simulation.
    * @param {Object} options
-   * @param {Object} options.weapon1 - { damage, delay, procSpell?, procSpellDamage?, is2H? }
-   * @param {Object} [options.weapon2] - optional offhand
+   * @param {Object} [options.weapon1] - { damage, delay, procSpell?, procSpellDamage?, is2H? }. Omit for offhand-only (skips main hand, only offhand swings).
+   * @param {Object} [options.weapon2] - optional offhand (required when weapon1 omitted)
    * @param {number} options.hastePercent - total haste (e.g. 40 for 40%)
    * @param {number} [options.wornAttack=0] - worn ATK (items)
    * @param {number} [options.spellAttack=0] - spell ATK (buffs)
@@ -598,16 +598,21 @@
 
     const w1 = options.weapon1;
     const w2 = options.weapon2;
-    const mainHandDamageBonus = getDamageBonusClient(level, options.classId, w1.delay, !!w1.is2H);
+    const hasMainHand = !!w1;
+    const mainHandDamageBonus = hasMainHand ? getDamageBonusClient(level, options.classId, w1.delay, !!w1.is2H) : 0;
     const dualWielding = !!w2 && (options.dualWieldSkill != null && options.dualWieldSkill > 0) &&
       options.classId !== 'paladin' && options.classId !== 'shadowknight';
 
-    const delay1 = effectiveDelayDecisec(w1.delay, options.hastePercent);
+    if (!hasMainHand && !dualWielding) {
+      return { error: 'Offhand-only mode requires Weapon 2 with damage, delay, and dual wield skill.' };
+    }
+
+    const delay1 = hasMainHand ? effectiveDelayDecisec(w1.delay, options.hastePercent) : 0;
     const delay2 = w2 ? effectiveDelayDecisec(w2.delay, options.hastePercent) : 0;
-    const delay1Ms = effectiveDelayMs(w1.delay, options.hastePercent);
+    const delay1Ms = hasMainHand ? effectiveDelayMs(w1.delay, options.hastePercent) : Infinity;
     const delay2Ms = w2 ? effectiveDelayMs(w2.delay, options.hastePercent) : 0;
 
-    const procChance1 = w1.procSpell != null
+    const procChance1 = hasMainHand && w1.procSpell != null
       ? getProcChancePerSwing(delay1, false, dualWieldPct, options.dex || 150)
       : 0;
     const procChance2 = w2 && w2.procSpell != null
@@ -629,7 +634,7 @@
       displayedAttack: Math.floor((offenseRating + toHit) * 1000 / 744),
       critHits: 0,
       critDamageGain: 0,
-      special: canFireSpecial ? {
+      special: (canFireSpecial && hasMainHand) ? {
         name: specialConfig.name,
         count: 0,
         attempts: 0,
@@ -641,12 +646,12 @@
         backstabSkill: options.classId === 'rogue' ? Math.min(255, options.backstabSkill != null ? options.backstabSkill : 225) : undefined,
         backstabModPercent: options.classId === 'rogue' ? (options.backstabModPercent || 0) : undefined,
       } : null,
-      fistweaving: (options.classId === 'monk' && w1.is2H && options.fistweaving) ? { rounds: 0, swings: 0, hits: 0, totalDamage: 0, maxDamage: 0, single: 0, double: 0 } : null,
+      fistweaving: (options.classId === 'monk' && hasMainHand && w1.is2H && options.fistweaving) ? { rounds: 0, swings: 0, hits: 0, totalDamage: 0, maxDamage: 0, single: 0, double: 0 } : null,
     };
 
     const durationMs = Math.floor(options.fightDurationSec * 1000);
     const specialCooldownMs = specialConfig ? specialConfig.cooldownDecisec * DECISEC_TO_MS : 0;
-    let nextSwing1Ms = 0;
+    let nextSwing1Ms = hasMainHand ? 0 : Infinity;
     let nextSwing2Ms = dualWielding ? rng() * delay2Ms : Infinity;
     let nextSpecialAtMs = (canFireSpecial && report.special) ? 0 : Infinity;
 
@@ -662,7 +667,8 @@
         const backstabSkill = options.backstabSkill != null ? options.backstabSkill : 225;
         const backstabModPct = options.backstabModPercent || 0;
         const effectiveBackstabSkill = Math.min(255, Math.floor(backstabSkill * (100 + backstabModPct) / 100));
-        const backstabToHit = isRogueBackstab ? (7 + effectiveBackstabSkill + toHitBonus) : toHit;
+        // EQMacEmu GetToHit(skill): toHit = 7 + Offense SKILL + skill (Backstab for backstab), not just Backstab
+        const backstabToHit = isRogueBackstab ? (7 + OFFENSE_SKILL + effectiveBackstabSkill) : toHit;
         const specialHits = rollHit(backstabToHit, avoidance, rng, fromBehind);
         if (specialHits) {
           report.special.hits++;
