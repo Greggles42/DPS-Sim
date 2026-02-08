@@ -13,6 +13,7 @@
       --muted: #8b909a;
       --accent: #7eb8da;
       --input-bg: #1e2128;
+      --section-gap: 1rem;
     }
     * { box-sizing: border-box; }
     body {
@@ -31,7 +32,7 @@
     }
     .grid {
       display: grid;
-      gap: 1rem;
+      gap: var(--section-gap);
       max-width: 900px;
     }
     @media (min-width: 700px) {
@@ -142,7 +143,62 @@
     .radio-option-note { font-size: 0.85rem; color: var(--muted); font-weight: 400; }
     .checkbox-label { display: flex; align-items: center; gap: 0.35rem; cursor: pointer; margin-bottom: 0.25rem; }
     .checkbox-label input[type="checkbox"] { width: auto; margin: 0; }
-    #histogram-container { max-width: 900px; }
+    .main-layout {
+      display: block;
+      margin-top: var(--section-gap);
+    }
+    @media (min-width: 1150px) {
+      .main-layout {
+        display: flex;
+        flex-direction: row;
+        align-items: flex-start;
+        gap: var(--section-gap);
+        margin-top: var(--section-gap);
+      }
+      .main-layout .main-left {
+        flex: 1 1 auto;
+        min-width: 0;
+        max-width: 920px;
+      }
+      .main-layout .histogram-aside {
+        flex: 1 1 auto;
+        min-width: 300px;
+        margin-top: 0;
+        position: sticky;
+        top: 1.5rem;
+        max-height: calc(100vh - 3rem);
+        overflow-y: auto;
+      }
+    }
+    .main-left {
+      display: flex;
+      flex-direction: column;
+      gap: var(--section-gap);
+    }
+    .histogram-aside {
+      display: flex;
+      flex-direction: column;
+      gap: var(--section-gap);
+      margin-top: var(--section-gap);
+    }
+    .report-section,
+    .histogram-panel {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1rem 1.25rem;
+    }
+    .report-section { max-width: 900px; }
+    .report-section h2,
+    .histogram-panel h2 {
+      font-size: 0.9rem;
+      font-weight: 600;
+      margin: 0 0 0.75rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    #histogram-container { max-width: 100%; margin-top: 0; }
     .histogram-section { margin-bottom: 1.5rem; }
     .histogram-section h3 { font-size: 0.9rem; color: var(--muted); margin: 0 0 0.5rem; }
     .histogram-chart { display: flex; align-items: flex-end; gap: 2px; height: 120px; min-height: 120px; padding: 0.5rem 0; }
@@ -185,6 +241,50 @@
     }
     #dps-display .dps-label { font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); margin-bottom: 0.2rem; }
     #dps-value { font-size: 3.25rem; display: block; }
+    #sim-history-list { max-height: 320px; overflow-y: auto; font-size: 0.85rem; }
+    .sim-history-row { display: grid; grid-template-columns: 1fr 1fr auto auto auto; gap: 0.5rem 0.75rem; align-items: center; padding: 0.5rem 0; border-bottom: 1px solid var(--border); }
+    .sim-history-row:last-child { border-bottom: none; }
+    .sim-history-header { font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); padding-bottom: 0.35rem; border-bottom: 1px solid var(--border); margin-bottom: 0.25rem; }
+    .sim-history-row .sim-history-w1, .sim-history-row .sim-history-w2 { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .sim-history-row .sim-history-atk, .sim-history-row .sim-history-ac, .sim-history-row .sim-history-dps { text-align: right; white-space: nowrap; }
+    .sim-history-row .sim-history-dps { font-weight: 600; color: var(--accent); }
+    .sim-history-clear-btn { margin-top: 0.5rem; padding: 0.4rem 0.75rem; font-size: 0.85rem; background: var(--input-bg); color: var(--muted); border: 1px solid var(--border); border-radius: 4px; cursor: pointer; }
+    .sim-history-clear-btn:hover { color: var(--text); border-color: var(--accent); }
+
+    /* Item search autofilter */
+    .item-search-wrap { position: relative; margin-bottom: 0.75rem; }
+    .item-search-wrap input { margin-bottom: 0; }
+    .item-search-list {
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 100%;
+      margin-top: 2px;
+      max-height: 280px;
+      overflow-y: auto;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+      z-index: 100;
+      display: none;
+    }
+    .item-search-list.is-open { display: block; }
+    .item-search-list .item-search-section { padding: 0.35rem 0.5rem 0.2rem; font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); border-bottom: 1px solid var(--border); }
+    .item-search-list .item-search-section:first-child { padding-top: 0.5rem; }
+    .item-search-item {
+      padding: 0.5rem 0.6rem;
+      cursor: pointer;
+      font-size: 0.9rem;
+      border: none;
+      background: none;
+      width: 100%;
+      text-align: left;
+      color: var(--text);
+    }
+    .item-search-item:hover { background: var(--input-bg); }
+    .item-search-item .item-search-item-detail { font-size: 0.75rem; color: var(--muted); margin-top: 0.15rem; }
+    .item-search-list .item-search-msg { padding: 0.6rem 0.6rem; font-size: 0.85rem; color: var(--muted); }
   </style>
 </head>
 <body>
@@ -206,6 +306,8 @@
     <button type="button" class="tab-btn" id="tab-ranged" aria-selected="false">Ranged</button>
   </div>
 
+  <div class="main-layout">
+  <div class="main-left">
   <div class="tab-content-wrapper">
   <div id="melee-tab" class="tab-panel">
   <div class="grid">
@@ -213,6 +315,12 @@
       <h2>Weapon 1 (Main Hand)</h2>
       <label for="w1-preset">Quick select</label>
       <select id="w1-preset"></select>
+      <div class="item-search-wrap">
+        <label for="w1-item-search">Search items (API)</label>
+        <input type="text" id="w1-item-search" placeholder="Type 3+ characters to search..." autocomplete="off">
+        <div id="w1-item-search-list" class="item-search-list" role="listbox"></div>
+      </div>
+      <input type="hidden" id="w1-is2h-override" value="0">
       <div class="row">
         <div><label for="w1-damage" class="small-label">Damage</label><input type="number" id="w1-damage" min="0" value="12" placeholder="0 = unequipped"></div>
         <div><label for="w1-delay" class="small-label">Delay (decisec)</label><input type="number" id="w1-delay" min="0" value="40" placeholder="0 = unequipped, 40 = 4.0s"></div>
@@ -243,6 +351,11 @@
       <h2>Weapon 2 (Offhand, optional)</h2>
       <label for="w2-preset">Quick select</label>
       <select id="w2-preset"></select>
+      <div class="item-search-wrap">
+        <label for="w2-item-search">Search items (API)</label>
+        <input type="text" id="w2-item-search" placeholder="Type 3+ characters to search..." autocomplete="off">
+        <div id="w2-item-search-list" class="item-search-list" role="listbox"></div>
+      </div>
       <div class="row">
         <div><label for="w2-damage" class="small-label">Damage</label><input type="number" id="w2-damage" min="0" value="0" placeholder="0 = no offhand"></div>
         <div><label for="w2-delay" class="small-label">Delay (decisec)</label><input type="number" id="w2-delay" min="0" value="0" placeholder="0"></div>
@@ -463,11 +576,25 @@
   </div>
   </div>
 
-  <section style="margin-top: 1rem;">
+  <section class="report-section">
     <h2>Report</h2>
     <div id="report">Run a simulation to see the report.</div>
-    <div id="histogram-container" style="margin-top: 1rem;"></div>
   </section>
+  </div>
+
+  <aside class="histogram-aside">
+    <section class="histogram-panel">
+      <h2>Histograms</h2>
+      <div id="histogram-container" class="histogram-container"></div>
+    </section>
+    <section class="histogram-panel" id="sim-history-section">
+      <h2>Simulation history</h2>
+      <p class="hint" style="margin-top: -0.5rem; margin-bottom: 0.5rem;">Runs from this session (newest first).</p>
+      <div id="sim-history-list"></div>
+      <button type="button" id="sim-history-clear" class="sim-history-clear-btn">Clear history</button>
+    </section>
+  </aside>
+  </div>
 
   <section style="margin-top: 1rem;">
     <h2>Version log</h2>
@@ -486,6 +613,9 @@
   <p class="muted" style="margin-top: 1.5rem; font-size: 0.85rem;">Made by Gabbiz</p>
 
   <script src="combat.js"></script>
+  <script src="itemSearch.js"></script>
+  <!-- Load after itemSearch.js: provides API key via ItemSearch.setConfig(); copy from itemSearchConfig.example.js if missing -->
+  <script src="itemSearchConfig.js"></script>
   <script>
     (function () {
       const $ = (id) => document.getElementById(id);
@@ -518,6 +648,9 @@
       const VERSION = '0.8';
       const versionEl = $('app-version');
       if (versionEl) versionEl.textContent = 'v' + VERSION;
+
+      const SIM_HISTORY = [];
+      const SIM_HISTORY_MAX = 50;
 
       // Weapon presets from PQDI (damage, delay decisec, proc spell name, name for sorting; type: 1hb/2hb/1hp/1hs/h2h)
       const WEAPON_PRESETS = {
@@ -596,11 +729,19 @@
 
       function isW1TwoHanded() {
         const presetId = $('w1-preset') && $('w1-preset').value;
-        const p = presetId ? WEAPON_PRESETS[presetId] : null;
+        if (!presetId) {
+          const override = $('w1-is2h-override');
+          return !!(override && override.value === '1');
+        }
+        const p = WEAPON_PRESETS[presetId] || null;
         return !!(p && (p.is2H || p.type === '2hb'));
       }
       function applyWeaponPreset(prefix, id) {
         const p = id ? WEAPON_PRESETS[id] : null;
+        if (prefix === 'w1') {
+          const overrideEl = $('w1-is2h-override');
+          if (overrideEl) overrideEl.value = (p && (p.is2H || p.type === '2hb')) ? '1' : '0';
+        }
         if (p) {
           $(prefix + '-damage').value = p.damage;
           $(prefix + '-delay').value = p.delay;
@@ -865,11 +1006,23 @@
           histContainer.innerHTML = '';
         }
 
+        const w1PresetId = ($('w1-preset') && $('w1-preset').value) || '';
+        const w2PresetId = useWeapon2 ? (($('w2-preset') && $('w2-preset').value) || '') : '';
+        const w1Name = w1PresetId && WEAPON_PRESETS[w1PresetId] ? WEAPON_PRESETS[w1PresetId].name : (weapon1.damage + 'd/' + weapon1.delay);
+        const w2Name = useWeapon2 && w2PresetId && WEAPON_PRESETS[w2PresetId] ? WEAPON_PRESETS[w2PresetId].name : (useWeapon2 ? (weapon2.damage + 'd/' + weapon2.delay) : '—');
+        const totalAttack = report.displayedAttack != null ? report.displayedAttack : report.offenseRating;
+        const weaponDps = report.durationSec > 0 ? (report.totalDamage / report.durationSec) : 0;
+        SIM_HISTORY.unshift({
+          weapon1: w1Name,
+          weapon2: useWeapon2 ? w2Name : '—',
+          attack: totalAttack,
+          mobAC: targetAC,
+          dps: weaponDps
+        });
+        if (SIM_HISTORY.length > SIM_HISTORY_MAX) SIM_HISTORY.pop();
+        renderSimHistory();
+
         if (USAGE_LOG_URL) {
-          const w1PresetId = ($('w1-preset') && $('w1-preset').value) || '';
-          const w2PresetId = useWeapon2 ? (($('w2-preset') && $('w2-preset').value) || '') : '';
-          const w1Name = w1PresetId && WEAPON_PRESETS[w1PresetId] ? WEAPON_PRESETS[w1PresetId].name : (weapon1.damage + 'd/' + weapon1.delay);
-          const w2Name = useWeapon2 && w2PresetId && WEAPON_PRESETS[w2PresetId] ? WEAPON_PRESETS[w2PresetId].name : (useWeapon2 ? (weapon2.damage + 'd/' + weapon2.delay) : null);
           logUsage({
             event: 'sim_run',
             v: VERSION,
@@ -943,6 +1096,34 @@
       }
 
       $('btn-run').addEventListener('click', run);
+
+      function renderSimHistory() {
+        const listEl = $('sim-history-list');
+        if (!listEl) return;
+        if (SIM_HISTORY.length === 0) {
+          listEl.innerHTML = '<p class="hint" style="margin: 0;">No runs yet this session.</p>';
+          return;
+        }
+        const header = '<div class="sim-history-row sim-history-header"><span class="sim-history-w1">Weapon 1</span><span class="sim-history-w2">Weapon 2</span><span class="sim-history-atk">Attack</span><span class="sim-history-ac">Mob AC</span><span class="sim-history-dps">DPS</span></div>';
+        const rows = SIM_HISTORY.map(function (h) {
+          return '<div class="sim-history-row">' +
+            '<span class="sim-history-w1" title="' + (h.weapon1 || '').replace(/"/g, '&quot;') + '">' + (h.weapon1 || '—').replace(/</g, '&lt;') + '</span>' +
+            '<span class="sim-history-w2" title="' + (h.weapon2 || '').replace(/"/g, '&quot;') + '">' + (h.weapon2 || '—').replace(/</g, '&lt;') + '</span>' +
+            '<span class="sim-history-atk">' + (h.attack != null ? h.attack : '—') + '</span>' +
+            '<span class="sim-history-ac">' + (h.mobAC != null ? h.mobAC : '—') + '</span>' +
+            '<span class="sim-history-dps">' + (typeof h.dps === 'number' ? h.dps.toFixed(2) : '—') + '</span>' +
+            '</div>';
+        }).join('');
+        listEl.innerHTML = header + rows;
+      }
+
+      const clearHistoryBtn = $('sim-history-clear');
+      if (clearHistoryBtn) {
+        clearHistoryBtn.addEventListener('click', function () {
+          SIM_HISTORY.length = 0;
+          renderSimHistory();
+        });
+      }
 
       function showTab(tabId) {
         const isMelee = tabId === 'melee';
@@ -1117,6 +1298,182 @@
         updateWeapon2Disabled();
       });
       $('w2-preset').addEventListener('change', function () { applyWeaponPreset('w2', this.value); });
+
+      // ----- Item search autofilter (API + recent items) -----
+      const ITEM_SEARCH_RECENT_KEY = 'dps_sim_recent_weapons';
+      const ITEM_SEARCH_MAX_RECENT = 15;
+      const ITEM_SEARCH_MIN_CHARS = 3;
+      const ITEM_SEARCH_DEBOUNCE_MS = 300;
+
+      function getRecentWeapons() {
+        try {
+          const raw = localStorage.getItem(ITEM_SEARCH_RECENT_KEY);
+          if (!raw) return [];
+          const arr = JSON.parse(raw);
+          return Array.isArray(arr) ? arr : [];
+        } catch (e) { return []; }
+      }
+
+      function weaponKey(w) {
+        return (w && w.name) + '|' + (w && w.damage) + '|' + (w && w.delay);
+      }
+
+      function saveRecentWeapon(weapon) {
+        if (!weapon || !weapon.name) return;
+        const key = weaponKey(weapon);
+        let recent = getRecentWeapons().filter(function (r) { return weaponKey(r) !== key; });
+        recent.unshift(weapon);
+        recent = recent.slice(0, ITEM_SEARCH_MAX_RECENT);
+        try { localStorage.setItem(ITEM_SEARCH_RECENT_KEY, JSON.stringify(recent)); } catch (e) {}
+      }
+
+      function applyWeaponFromSearch(prefix, weapon) {
+        if (!weapon) return;
+        $(prefix + '-damage').value = weapon.damage != null ? weapon.damage : 0;
+        $(prefix + '-delay').value = weapon.delay != null ? weapon.delay : 0;
+        $(prefix + '-proc').value = weapon.proc || '';
+        const procDmgEl = $(prefix + '-proc-damage');
+        if (procDmgEl) procDmgEl.value = (weapon.procDamage != null ? weapon.procDamage : 0) || '';
+        const elemTypeEl = $(prefix + '-elem-type');
+        if (elemTypeEl) elemTypeEl.value = weapon.elemType || '';
+        const elemDamageEl = $(prefix + '-elem-damage');
+        if (elemDamageEl) elemDamageEl.value = (weapon.elemDamage != null ? weapon.elemDamage : 0) || '';
+        const baneEl = $(prefix + '-bane');
+        if (baneEl) baneEl.value = (weapon.baneDamage != null ? weapon.baneDamage : 0) || '';
+        const presetEl = $(prefix + '-preset');
+        if (presetEl) presetEl.value = '';
+        if (prefix === 'w1') {
+          const overrideEl = $('w1-is2h-override');
+          if (overrideEl) overrideEl.value = weapon.is2H ? '1' : '0';
+          updateWeapon2Disabled();
+          updateFistweavingVisibility();
+        }
+      }
+
+      function debounce(fn, ms) {
+        let t = null;
+        return function () {
+          const args = arguments;
+          if (t) clearTimeout(t);
+          t = setTimeout(function () { fn.apply(null, args); }, ms);
+        };
+      }
+
+      function renderItemLabel(w) {
+        let detail = (w.damage != null ? w.damage : 0) + ' / ' + (w.delay != null ? w.delay : 0);
+        if (w.proc) detail += ' — ' + w.proc;
+        if (w.elemType && (w.elemDamage || 0) > 0) detail += ' +' + (w.elemDamage || 0) + ' ' + w.elemType;
+        if ((w.baneDamage || 0) > 0) detail += ' bane ' + w.baneDamage;
+        return detail;
+      }
+
+      function renderDropdown(prefix, recent, results, loading, query) {
+        const listEl = $(prefix + '-item-search-list');
+        if (!listEl) return;
+        const q = (query || '').trim();
+        const hasQuery = q.length >= ITEM_SEARCH_MIN_CHARS;
+        let html = '';
+        if (recent && recent.length > 0) {
+          html += '<div class="item-search-section">Recent</div>';
+          recent.forEach(function (w) {
+            const label = renderItemLabel(w);
+            html += '<button type="button" class="item-search-item" data-name="' + (w.name || '').replace(/"/g, '&quot;') + '" data-damage="' + (w.damage != null ? w.damage : '') + '" data-delay="' + (w.delay != null ? w.delay : '') + '" data-proc="' + (w.proc || '').replace(/"/g, '&quot;') + '" data-procdamage="' + (w.procDamage != null ? w.procDamage : '') + '" data-elemtype="' + (w.elemType || '').replace(/"/g, '&quot;') + '" data-elemdamage="' + (w.elemDamage != null ? w.elemDamage : '') + '" data-bane="' + (w.baneDamage != null ? w.baneDamage : '') + '" data-is2h="' + (w.is2H ? '1' : '0') + '"><span>' + (w.name || '').replace(/</g, '&lt;') + '</span><div class="item-search-item-detail">' + label.replace(/</g, '&lt;') + '</div></button>';
+          });
+        }
+        if (loading) {
+          html += '<div class="item-search-section">Search results</div><div class="item-search-msg">Searching...</div>';
+        } else if (hasQuery) {
+          html += '<div class="item-search-section">Search results</div>';
+          if (!results || results.length === 0) {
+            html += '<div class="item-search-msg">No results</div>';
+          } else {
+            results.forEach(function (w) {
+              const label = renderItemLabel(w);
+              html += '<button type="button" class="item-search-item item-search-item-result" data-name="' + (w.name || '').replace(/"/g, '&quot;') + '" data-damage="' + (w.damage != null ? w.damage : '') + '" data-delay="' + (w.delay != null ? w.delay : '') + '" data-proc="' + (w.proc || '').replace(/"/g, '&quot;') + '" data-procdamage="' + (w.procDamage != null ? w.procDamage : '') + '" data-elemtype="' + (w.elemType || '').replace(/"/g, '&quot;') + '" data-elemdamage="' + (w.elemDamage != null ? w.elemDamage : '') + '" data-bane="' + (w.baneDamage != null ? w.baneDamage : '') + '" data-is2h="' + (w.is2H ? '1' : '0') + '"><span>' + (w.name || '').replace(/</g, '&lt;') + '</span><div class="item-search-item-detail">' + label.replace(/</g, '&lt;') + '</div></button>';
+            });
+          }
+        }
+        if (!html && !hasQuery) {
+          html = '<div class="item-search-msg">Type at least ' + ITEM_SEARCH_MIN_CHARS + ' characters to search</div>';
+        }
+        listEl.innerHTML = html;
+        listEl.querySelectorAll('.item-search-item').forEach(function (btn) {
+          btn.addEventListener('click', function () {
+            const w = {
+              name: btn.getAttribute('data-name') || '',
+              damage: parseInt(btn.getAttribute('data-damage'), 10) || 0,
+              delay: parseInt(btn.getAttribute('data-delay'), 10) || 0,
+              proc: btn.getAttribute('data-proc') || '',
+              procDamage: parseInt(btn.getAttribute('data-procdamage'), 10) || 0,
+              elemType: btn.getAttribute('data-elemtype') || '',
+              elemDamage: parseInt(btn.getAttribute('data-elemdamage'), 10) || 0,
+              baneDamage: parseInt(btn.getAttribute('data-bane'), 10) || 0,
+              is2H: btn.getAttribute('data-is2h') === '1'
+            };
+            saveRecentWeapon(w);
+            applyWeaponFromSearch(prefix, w);
+            $(prefix + '-item-search').value = '';
+            closeItemSearchDropdown(prefix);
+          });
+        });
+      }
+
+      function openItemSearchDropdown(prefix) {
+        const listEl = $(prefix + '-item-search-list');
+        if (listEl) listEl.classList.add('is-open');
+      }
+      function closeItemSearchDropdown(prefix) {
+        const listEl = $(prefix + '-item-search-list');
+        if (listEl) listEl.classList.remove('is-open');
+      }
+
+      function runItemSearch(prefix) {
+        const inputEl = $(prefix + '-item-search');
+        const query = (inputEl && inputEl.value || '').trim();
+        const recent = getRecentWeapons();
+        if (query.length < ITEM_SEARCH_MIN_CHARS) {
+          renderDropdown(prefix, recent, null, false, query);
+          openItemSearchDropdown(prefix);
+          return;
+        }
+        renderDropdown(prefix, recent, null, true, query);
+        openItemSearchDropdown(prefix);
+        if (typeof ItemSearch === 'undefined' || !ItemSearch.searchWeapons) {
+          renderDropdown(prefix, recent, [], false, query);
+          return;
+        }
+        ItemSearch.searchWeapons(query).then(function (results) {
+          const recentNow = getRecentWeapons();
+          renderDropdown(prefix, recentNow, results || [], false, query);
+        }).catch(function () {
+          renderDropdown(prefix, getRecentWeapons(), [], false, query);
+        });
+      }
+
+      function setupItemSearch(prefix) {
+        const inputEl = $(prefix + '-item-search');
+        const listEl = $(prefix + '-item-search-list');
+        if (!inputEl || !listEl) return;
+        const debouncedSearch = debounce(function () { runItemSearch(prefix); }, ITEM_SEARCH_DEBOUNCE_MS);
+        inputEl.addEventListener('focus', function () {
+          runItemSearch(prefix);
+        });
+        inputEl.addEventListener('input', function () {
+          debouncedSearch();
+        });
+        inputEl.addEventListener('keydown', function (e) {
+          if (e.key === 'Escape') { closeItemSearchDropdown(prefix); inputEl.blur(); }
+        });
+      }
+
+      document.addEventListener('click', function (e) {
+        if (e.target.closest('.item-search-wrap')) return;
+        closeItemSearchDropdown('w1');
+        closeItemSearchDropdown('w2');
+      });
+
+      setupItemSearch('w1');
+      setupItemSearch('w2');
 
       function fillRangedPresetSelect(selectId) {
         const sel = $(selectId);
