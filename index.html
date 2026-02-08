@@ -1233,11 +1233,23 @@
           histContainer.innerHTML = '';
         }
 
+        const rangedPresetId = ($('ranged-preset') && $('ranged-preset').value) || '';
+        const arrowPresetId = ($('arrow-preset') && $('arrow-preset').value) || '';
+        const rangedWeaponName = rangedPresetId && RANGED_WEAPON_PRESETS[rangedPresetId] ? RANGED_WEAPON_PRESETS[rangedPresetId].name : (damage + 'd/' + delay);
+        const arrowName = arrowPresetId && ARROW_PRESETS[arrowPresetId] ? ARROW_PRESETS[arrowPresetId].name : (arrowDamage > 0 ? arrowDamage + ' dmg' : '—');
+        const rangedTotalAttack = report.displayedAttack != null ? report.displayedAttack : report.offenseRating;
+        const rangedDps = report.durationSec > 0 ? (report.totalDamage / report.durationSec) : 0;
+        SIM_HISTORY.unshift({
+          weapon1: rangedWeaponName,
+          weapon2: arrowName,
+          attack: rangedTotalAttack,
+          mobAC: options.targetAC,
+          dps: rangedDps
+        });
+        if (SIM_HISTORY.length > SIM_HISTORY_MAX) SIM_HISTORY.pop();
+        renderSimHistory();
+
         if (USAGE_LOG_URL) {
-          const rangedPresetId = ($('ranged-preset') && $('ranged-preset').value) || '';
-          const arrowPresetId = ($('arrow-preset') && $('arrow-preset').value) || '';
-          const rangedWeaponName = rangedPresetId && RANGED_WEAPON_PRESETS[rangedPresetId] ? RANGED_WEAPON_PRESETS[rangedPresetId].name : (damage + 'd/' + delay);
-          const arrowName = arrowPresetId && ARROW_PRESETS[arrowPresetId] ? ARROW_PRESETS[arrowPresetId].name : (arrowDamage + ' dmg');
           logUsage({
             event: 'sim_run',
             ranged: true,
