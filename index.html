@@ -960,6 +960,7 @@
             offenseRating: reports[0].offenseRating,
             offenseRatingFromStr: reports[0].offenseRatingFromStr,
             displayedAttack: reports[0].displayedAttack,
+            baseDamageCap: reports[0].baseDamageCap || null,
             critHits: Math.round(reports.reduce((s, r) => s + (r.critHits || 0), 0) / runs),
             critDamageGain: Math.round(reports.reduce((s, r) => s + (r.critDamageGain || 0), 0) / runs),
             special: reports[0].special

@@ -93,6 +93,36 @@
     return damage;
   }
 
+  // ----- Anti-twink base damage caps (from decompiles; level < 40 only) -----
+  // Priest: Druid, Cleric, Shaman. Caster: Wizard, Magician, Necromancer, Enchanter. Default: all others.
+  function getBaseDamageCap(level, classId) {
+    if (level == null || level >= 40) return null;
+    const c = (classId || '').toLowerCase();
+    const isPriest = c === 'druid' || c === 'cleric' || c === 'shaman';
+    const isCaster = c === 'wizard' || c === 'magician' || c === 'necromancer' || c === 'enchanter';
+    if (level < 10) {
+      if (isPriest) return 9;
+      if (isCaster) return 6;
+      return 10;
+    }
+    if (level < 20) {
+      if (isPriest) return 12;
+      if (isCaster) return 10;
+      return 14;
+    }
+    if (level < 30) {
+      if (isPriest) return 20;
+      if (isCaster) return 12;
+      return 30;
+    }
+    if (level < 40) {
+      if (isPriest) return 26;
+      if (isCaster) return 18;
+      return 60;
+    }
+    return null;
+  }
+
   // Elemental damage vs target resistance: amount added depends on mob's resist for that element.
   // If resist > 200: full resist, 0 damage. Else roll = random(1,201) - resist; if roll < 1 then 0; if roll <= 99 then weaponDamage * roll/100; else full weaponDamage.
   function applyElementalResist(weaponDamage, resistValue, rng) {
@@ -462,6 +492,10 @@
 
     // 1. Executive Summary
     lines.push('=== Executive Summary ===', '');
+    if (report.baseDamageCap && report.baseDamageCap.cap != null) {
+      lines.push(`  Base damage cap (anti-twink): ${report.baseDamageCap.cap} (level < 40, imposed on weapon base damage)`);
+      lines.push('');
+    }
     lines.push(`  Duration:              ${dur} seconds`);
     lines.push(`  Runs averaged:        ${runs}`);
     lines.push(`  Total DPS:            ${totalDPS}`);
@@ -599,6 +633,9 @@
     const w1 = options.weapon1;
     const w2 = options.weapon2;
     const hasMainHand = !!w1;
+    const baseDamageCap = getBaseDamageCap(level, options.classId);
+    const cappedW1Damage = hasMainHand ? (baseDamageCap != null ? Math.min(w1.damage, baseDamageCap) : w1.damage) : 0;
+    const cappedW2Damage = w2 ? (baseDamageCap != null ? Math.min(w2.damage, baseDamageCap) : w2.damage) : 0;
     const mainHandDamageBonus = hasMainHand ? getDamageBonusClient(level, options.classId, w1.delay, !!w1.is2H) : 0;
     const dualWielding = !!w2 && (options.dualWieldSkill != null && options.dualWieldSkill > 0) &&
       options.classId !== 'paladin' && options.classId !== 'shadowknight';
@@ -632,6 +669,7 @@
       offenseRating: offenseRating,
       offenseRatingFromStr: strBonus,
       displayedAttack: Math.floor((offenseRating + toHit) * 1000 / 744),
+      baseDamageCap: (baseDamageCap != null && ((w1 && w1.damage > baseDamageCap) || (w2 && w2.damage > baseDamageCap))) ? { cap: baseDamageCap } : null,
       critHits: 0,
       critDamageGain: 0,
       special: (canFireSpecial && hasMainHand) ? {
@@ -681,7 +719,7 @@
             const backstabModPct = options.backstabModPercent || 0;
             const effectiveSkill = Math.min(255, Math.floor(backstabSkill * (100 + backstabModPct) / 100));
             const backstabOffenseRating = effectiveSkill + strBonus + wornAttack + spellAttack;
-            const backstabBase = Math.floor(((effectiveSkill * 0.02) + 2) * w1.damage) + specElemAdder;
+            const backstabBase = Math.floor(((effectiveSkill * 0.02) + 2) * cappedW1Damage) + specElemAdder;
             baseDmg = calcMeleeDamage(backstabBase, backstabOffenseRating, mitigation, rng, 0);
             baseDmg = Math.max(1, baseDmg);
           } else if (options.classId === 'monk' && specialConfig.useWeaponDamage === false) {
@@ -691,7 +729,7 @@
             const fkMin = Math.floor(level * 4 / 5);
             baseDmg = Math.max(1, Math.max(baseDmg, fkMin));
           } else {
-            baseDmg = calcMeleeDamage(w1.damage + specElemAdder, offenseRating, mitigation, rng);
+            baseDmg = calcMeleeDamage(cappedW1Damage + specElemAdder, offenseRating, mitigation, rng);
             baseDmg = Math.max(1, specialConfig.damageMultiplier ? Math.floor(baseDmg * specialConfig.damageMultiplier) : baseDmg);
           }
           const mult = rollDamageMultiplier(offenseRating, baseDmg, level, options.classId, false, rng);
@@ -724,7 +762,7 @@
               const backstabOffenseRating2 = effectiveSkill2 + strBonus + wornAttack + spellAttack;
               const specElemAdder2 = getElementalBaseAdder(w1, options, rng);
               report.elementalDamageTotal += specElemAdder2;
-              const backstabBase2 = Math.floor(((effectiveSkill2 * 0.02) + 2) * w1.damage) + specElemAdder2;
+              const backstabBase2 = Math.floor(((effectiveSkill2 * 0.02) + 2) * cappedW1Damage) + specElemAdder2;
               let baseDmg2 = calcMeleeDamage(backstabBase2, backstabOffenseRating2, mitigation, rng, 0);
               baseDmg2 = Math.max(1, baseDmg2);
               const mult2 = rollDamageMultiplier(offenseRating, baseDmg2, level, options.classId, false, rng);
@@ -758,7 +796,7 @@
         if (rollHit(toHit, avoidance, rng, fromBehind)) {
           const mhElemAdder = getElementalBaseAdder(w1, options, rng);
           report.elementalDamageTotal += mhElemAdder;
-          let dmg = calcMeleeDamage(w1.damage + mhElemAdder, offenseRating, mitigation, rng, 0);
+          let dmg = calcMeleeDamage(cappedW1Damage + mhElemAdder, offenseRating, mitigation, rng, 0);
           const mult = rollDamageMultiplier(offenseRating, dmg, level, options.classId, false, rng);
           dmg = mult.damage;
           dmg += mainHandDamageBonus;
@@ -791,7 +829,7 @@
           if (rollHit(toHit, avoidance, rng, fromBehind)) {
             const mhElemAdder2 = getElementalBaseAdder(w1, options, rng);
             report.elementalDamageTotal += mhElemAdder2;
-            let dmg = calcMeleeDamage(w1.damage + mhElemAdder2, offenseRating, mitigation, rng, 0);
+            let dmg = calcMeleeDamage(cappedW1Damage + mhElemAdder2, offenseRating, mitigation, rng, 0);
             const mult = rollDamageMultiplier(offenseRating, dmg, level, options.classId, false, rng);
             dmg = mult.damage;
             dmg += mainHandDamageBonus;
@@ -823,7 +861,7 @@
             if (rollHit(toHit, avoidance, rng, fromBehind)) {
               const mhElemAdder3 = getElementalBaseAdder(w1, options, rng);
               report.elementalDamageTotal += mhElemAdder3;
-              let dmg = calcMeleeDamage(w1.damage + mhElemAdder3, offenseRating, mitigation, rng, 0);
+              let dmg = calcMeleeDamage(cappedW1Damage + mhElemAdder3, offenseRating, mitigation, rng, 0);
               const mult = rollDamageMultiplier(offenseRating, dmg, level, options.classId, false, rng);
               dmg = mult.damage;
               dmg += mainHandDamageBonus;
@@ -911,7 +949,7 @@
           if (rollHit(toHit, avoidance, rng, fromBehind)) {
             const ohElemAdder = getElementalBaseAdder(w2, options, rng);
             report.elementalDamageTotal += ohElemAdder;
-            let dmg = calcMeleeDamage(w2.damage + ohElemAdder, offenseRating, mitigation, rng, 0);
+            let dmg = calcMeleeDamage(cappedW2Damage + ohElemAdder, offenseRating, mitigation, rng, 0);
             const mult = rollDamageMultiplier(offenseRating, dmg, level, options.classId, false, rng);
             dmg = mult.damage;
             const beforeCrit = dmg;
@@ -939,7 +977,7 @@
             if (rollHit(toHit, avoidance, rng, fromBehind)) {
               const ohElemAdder2 = getElementalBaseAdder(w2, options, rng);
               report.elementalDamageTotal += ohElemAdder2;
-              let dmg = calcMeleeDamage(w2.damage + ohElemAdder2, offenseRating, mitigation, rng, 0);
+              let dmg = calcMeleeDamage(cappedW2Damage + ohElemAdder2, offenseRating, mitigation, rng, 0);
               const mult = rollDamageMultiplier(offenseRating, dmg, level, options.classId, false, rng);
               dmg = mult.damage;
               const beforeCrit = dmg;
