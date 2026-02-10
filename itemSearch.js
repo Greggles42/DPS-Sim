@@ -15,32 +15,42 @@
 
   var config = {
     baseUrl: 'https://dndquarm.com/api/QuarmData/items/search',
-    apiKey: null,  // Set only by itemSearchConfig.js via setConfig()
-    configApplied: false  // Set true when setConfig() has been called (itemSearchConfig.js must load before search)
+    apiKey: null,  // Set by itemSearchConfig.js (local) or kept server-side when using proxyUrl
+    proxyUrl: null, // When set (e.g. '/api/item-search' on Vercel), client calls proxy; key stays on server
+    configApplied: false
   };
 
   /**
-   * Configure the item search API. Must be called by itemSearchConfig.js (before any search) to set baseUrl and apiKey.
+   * Configure the item search API. Call from itemSearchConfig.js (local) or index.html (deployed with proxy).
    * @param {Object} opts
-   * @param {string} [opts.baseUrl] - Base URL for search (default: QuarmData search endpoint).
-   * @param {string} [opts.apiKey] - API key from itemSearchConfig.js (sent as Bearer token on each request).
+   * @param {string} [opts.baseUrl] - Base URL for search (used only when not using proxyUrl).
+   * @param {string} [opts.apiKey] - API key (local only; not used when proxyUrl is set).
+   * @param {string} [opts.proxyUrl] - Proxy endpoint (e.g. '/api/item-search'); key is set in Vercel env.
    */
   function setItemSearchConfig(opts) {
-    if (opts && typeof opts.baseUrl === 'string') config.baseUrl = opts.baseUrl;
-    if (opts && typeof opts.apiKey === 'string') config.apiKey = opts.apiKey;
+    if (!opts) return;
+    if (typeof opts.baseUrl === 'string') config.baseUrl = opts.baseUrl;
+    if (typeof opts.apiKey === 'string') config.apiKey = opts.apiKey;
+    if (typeof opts.proxyUrl === 'string') config.proxyUrl = opts.proxyUrl;
     config.configApplied = true;
   }
 
   /**
-   * Build search URL and headers. API key from itemSearchConfig.js is sent as Bearer token when set.
+   * Build search URL and headers. Uses proxyUrl when set (no key on client); otherwise baseUrl + apiKey.
    * @param {string} nameFilter - Search string (e.g. weapon name).
    * @returns {{ url: string, headers: Object }}
    */
   function getSearchRequest(nameFilter) {
     var encoded = encodeURIComponent(nameFilter || '');
-    var url = config.baseUrl.replace(/\?.*$/, '') + '?nameFilter=' + encoded;
+    var url;
     var headers = { 'Accept': 'application/json' };
-    if (config.apiKey) headers['Authorization'] = 'Bearer ' + config.apiKey;
+    if (config.proxyUrl) {
+      var base = config.proxyUrl.replace(/\?.*$/, '');
+      url = base + (base.indexOf('?') >= 0 ? '&' : '?') + 'nameFilter=' + encoded;
+    } else {
+      url = config.baseUrl.replace(/\?.*$/, '') + '?nameFilter=' + encoded;
+      if (config.apiKey) headers['Authorization'] = 'Bearer ' + config.apiKey;
+    }
     return { url: url, headers: headers };
   }
 
@@ -52,7 +62,7 @@
    */
   function searchItems(nameFilter) {
     if (!config.configApplied) {
-      console.warn('ItemSearch: Load itemSearchConfig.js and call ItemSearch.setConfig() before searching.');
+      console.warn('ItemSearch: Set config before searching (itemSearchConfig.js locally or proxy on Vercel).');
       return Promise.resolve([]);
     }
     var req = getSearchRequest(nameFilter);

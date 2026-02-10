@@ -624,8 +624,12 @@
   <script src="itemSearchConfig.js"></script>
   <script>
     (function () {
-      if (typeof ItemSearch !== 'undefined' && typeof ITEM_SEARCH_CONFIG !== 'undefined') {
-        ItemSearch.setConfig(ITEM_SEARCH_CONFIG);
+      if (typeof ItemSearch !== 'undefined') {
+        if (typeof ITEM_SEARCH_CONFIG !== 'undefined') {
+          ItemSearch.setConfig(ITEM_SEARCH_CONFIG);
+        } else {
+          ItemSearch.setConfig({ proxyUrl: '/api/item-search' });
+        }
       }
       const $ = (id) => document.getElementById(id);
 
