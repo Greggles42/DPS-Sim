@@ -1410,19 +1410,25 @@
         try { localStorage.setItem(ITEM_SEARCH_RECENT_KEY, JSON.stringify(recent)); } catch (e) {}
       }
 
+      /** Populate weapon form fields from selected item (JSON/normalized weapon: damage, delay, proc, procDamage, elemType, elemDamage, baneDamage). */
       function applyWeaponFromSearch(prefix, weapon) {
         if (!weapon) return;
-        $(prefix + '-damage').value = weapon.damage != null ? weapon.damage : 0;
-        $(prefix + '-delay').value = weapon.delay != null ? weapon.delay : 0;
-        $(prefix + '-proc').value = weapon.proc || '';
+        const dmg = Number(weapon.damage);
+        const dly = Number(weapon.delay);
+        const procDmg = Number(weapon.procDamage);
+        const elemDmg = Number(weapon.elemDamage);
+        const bane = Number(weapon.baneDamage);
+        $(prefix + '-damage').value = isNaN(dmg) ? '' : dmg;
+        $(prefix + '-delay').value = isNaN(dly) ? '' : dly;
+        $(prefix + '-proc').value = (weapon.proc != null ? String(weapon.proc) : '') || '';
         const procDmgEl = $(prefix + '-proc-damage');
-        if (procDmgEl) procDmgEl.value = (weapon.procDamage != null ? weapon.procDamage : 0) || '';
+        if (procDmgEl) procDmgEl.value = isNaN(procDmg) ? '' : procDmg;
         const elemTypeEl = $(prefix + '-elem-type');
-        if (elemTypeEl) elemTypeEl.value = weapon.elemType || '';
+        if (elemTypeEl) elemTypeEl.value = (weapon.elemType != null ? String(weapon.elemType) : '') || '';
         const elemDamageEl = $(prefix + '-elem-damage');
-        if (elemDamageEl) elemDamageEl.value = (weapon.elemDamage != null ? weapon.elemDamage : 0) || '';
+        if (elemDamageEl) elemDamageEl.value = isNaN(elemDmg) ? '' : elemDmg;
         const baneEl = $(prefix + '-bane');
-        if (baneEl) baneEl.value = (weapon.baneDamage != null ? weapon.baneDamage : 0) || '';
+        if (baneEl) baneEl.value = isNaN(bane) ? '' : bane;
         const presetEl = $(prefix + '-preset');
         if (presetEl) presetEl.value = '';
         if (prefix === 'w1') {
@@ -1482,15 +1488,16 @@
         listEl.innerHTML = html;
         listEl.querySelectorAll('.item-search-item').forEach(function (btn) {
           btn.addEventListener('click', function () {
+            const num = function (v) { const n = parseInt(v, 10); return isNaN(n) ? 0 : n; };
             const w = {
-              name: btn.getAttribute('data-name') || '',
-              damage: parseInt(btn.getAttribute('data-damage'), 10) || 0,
-              delay: parseInt(btn.getAttribute('data-delay'), 10) || 0,
-              proc: btn.getAttribute('data-proc') || '',
-              procDamage: parseInt(btn.getAttribute('data-procdamage'), 10) || 0,
-              elemType: btn.getAttribute('data-elemtype') || '',
-              elemDamage: parseInt(btn.getAttribute('data-elemdamage'), 10) || 0,
-              baneDamage: parseInt(btn.getAttribute('data-bane'), 10) || 0,
+              name: (btn.getAttribute('data-name') || '').trim(),
+              damage: num(btn.getAttribute('data-damage')),
+              delay: num(btn.getAttribute('data-delay')),
+              proc: (btn.getAttribute('data-proc') || '').trim(),
+              procDamage: num(btn.getAttribute('data-procdamage')),
+              elemType: (btn.getAttribute('data-elemtype') || '').trim(),
+              elemDamage: num(btn.getAttribute('data-elemdamage')),
+              baneDamage: num(btn.getAttribute('data-bane')),
               is2H: btn.getAttribute('data-is2h') === '1'
             };
             saveRecentWeapon(w);
