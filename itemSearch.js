@@ -105,9 +105,9 @@
   };
 
   /**
-   * dndquarm API: eleDmgType number -> element string (0 = none).
+   * dndquarm API: eleDmgType number -> element string (0 = none). 1=magic, 2=fire, 3=cold, 4=poison, 5=disease.
    */
-  var ELE_DMG_TYPE_NUM = { 1: 'fire', 2: 'cold', 3: 'poison', 4: 'disease', 5: 'magic' };
+  var ELE_DMG_TYPE_NUM = { 1: 'magic', 2: 'fire', 3: 'cold', 4: 'poison', 5: 'disease' };
 
   /**
    * Map API item to the weapon shape used by DPS-Sim presets and getWeapon().
