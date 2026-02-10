@@ -53,12 +53,15 @@
       letter-spacing: 0.05em;
     }
     .weapon-name {
-      font-weight: 400;
+      display: block;
+      font-size: 1.15rem;
+      font-weight: 600;
+      color: var(--text);
       text-transform: none;
       letter-spacing: 0;
-      color: var(--text);
+      margin: -0.35rem 0 0.75rem 0;
+      min-height: 1.4em;
     }
-    .weapon-name:not(:empty)::before { content: '— '; color: var(--muted); }
     .collapse-summary {
       font-size: 0.8rem;
       color: var(--muted);
@@ -319,7 +322,8 @@
   <div id="melee-tab" class="tab-panel">
   <div class="grid">
     <section class="section--core">
-      <h2>Weapon 1 (Main Hand) <span id="w1-weapon-name" class="weapon-name"></span></h2>
+      <h2>Weapon 1 (Main Hand)</h2>
+      <div id="w1-weapon-name" class="weapon-name" aria-live="polite"></div>
       <label for="w1-preset">Quick select</label>
       <select id="w1-preset"></select>
       <div class="item-search-wrap">
@@ -355,7 +359,8 @@
     </section>
 
     <section id="weapon2-section" class="section--core">
-      <h2>Weapon 2 (Offhand, optional) <span id="w2-weapon-name" class="weapon-name"></span></h2>
+      <h2>Weapon 2 (Offhand, optional)</h2>
+      <div id="w2-weapon-name" class="weapon-name" aria-live="polite"></div>
       <label for="w2-preset">Quick select</label>
       <select id="w2-preset"></select>
       <div class="item-search-wrap">
