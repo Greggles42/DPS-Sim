@@ -43,7 +43,7 @@ export default async function handler(req, res) {
   }
   const baseUrl = process.env.ITEM_SEARCH_BASE_URL || DEFAULT_BASE_URL;
   const base = baseUrl.replace(/\?.*$/, '');
-  const upstreamUrl = base + '?nameFilter=' + encodeURIComponent(nameFilter) + '&apiKey=' + encodeURIComponent(apiKey);
+  const upstreamUrl = base + '?nameFilter=' + encodeURIComponent(nameFilter);
 
   try {
     const response = await fetch(upstreamUrl, {
