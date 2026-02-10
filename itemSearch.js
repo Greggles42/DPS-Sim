@@ -49,7 +49,7 @@
       url = base + (base.indexOf('?') >= 0 ? '&' : '?') + 'nameFilter=' + encoded;
     } else {
       url = config.baseUrl.replace(/\?.*$/, '') + '?nameFilter=' + encoded;
-      if (config.apiKey) headers['Authorization'] = 'Bearer ' + config.apiKey;
+      if (config.apiKey) headers['Authorization'] = + config.apiKey;
     }
     return { url: url, headers: headers };
   }
