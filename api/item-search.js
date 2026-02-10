@@ -24,32 +24,59 @@ export default async function handler(req, res) {
   }
 
   const apiKey = process.env.ITEM_SEARCH_API_KEY;
+  if (!apiKey) {
+    setCors(res);
+    res.setHeader('Content-Type', 'application/json');
+    return res.status(503).json({
+      error: 'Item search not configured. Set ITEM_SEARCH_API_KEY in Vercel → Project → Settings → Environment Variables, then redeploy.',
+    });
+  }
+
   const nameFilter = typeof req.query.nameFilter === 'string' ? req.query.nameFilter.trim() : '';
   const baseUrl = process.env.ITEM_SEARCH_BASE_URL || DEFAULT_BASE_URL;
   const url = baseUrl.replace(/\?.*$/, '') + '?nameFilter=' + encodeURIComponent(nameFilter);
 
-  const headers = { Accept: 'application/json' };
-  if (apiKey) headers.Authorization = 'Bearer ' + apiKey;
-
   try {
     const response = await fetch(url, {
       method: 'GET',
-      headers,
+      headers: {
+        Accept: 'application/json',
+        Authorization: 'Bearer ' + apiKey,
+      },
     });
 
+    const text = await response.text();
     if (!response.ok) {
       setCors(res);
       res.setHeader('Content-Type', 'application/json');
-      return res.status(response.status).json({ error: 'Upstream search failed' });
+      return res.status(response.status).json({
+        error: 'Upstream search failed',
+        upstream: 'dndquarm.com',
+        status: response.status,
+      });
     }
 
-    const data = await response.json();
+    let data;
+    try {
+      data = text ? JSON.parse(text) : [];
+    } catch (_) {
+      setCors(res);
+      res.setHeader('Content-Type', 'application/json');
+      return res.status(502).json({
+        error: 'Upstream returned invalid JSON',
+        upstream: 'dndquarm.com',
+      });
+    }
+
     setCors(res);
     res.setHeader('Content-Type', 'application/json');
     return res.status(200).json(data);
   } catch (err) {
     setCors(res);
     res.setHeader('Content-Type', 'application/json');
-    return res.status(502).json({ error: 'Item search proxy error' });
+    return res.status(502).json({
+      error: 'Proxy request to dndquarm.com failed',
+      detail: err.message || String(err),
+    });
   }
 }
