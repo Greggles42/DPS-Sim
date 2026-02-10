@@ -449,7 +449,7 @@
       </div>
       <p class="hint">Behind: misses still occur from to-hit vs avoidance; only block/parry/dodge/riposte are skipped.</p>
       <div class="row">
-        <div><label for="target-ac" class="small-label">Target AC</label><input type="number" id="target-ac" min="1" value="300" placeholder="300" title="Mitigation for damage roll; does not affect hit chance."></div>
+        <div><label for="target-ac" class="small-label">Target AC</label><input type="number" id="target-ac" min="1" value="550" placeholder="550" title="Mitigation for damage roll; does not affect hit chance."></div>
         <div><label for="mob-level" class="small-label">Mob level</label><input type="number" id="mob-level" min="1" max="70" value="60" placeholder="60" title="Used for mitigation and avoidance (hit chance)."></div>
       </div>
       <div class="row">
@@ -624,6 +624,9 @@
   <script src="itemSearchConfig.js"></script>
   <script>
     (function () {
+      if (typeof ItemSearch !== 'undefined' && typeof ITEM_SEARCH_CONFIG !== 'undefined') {
+        ItemSearch.setConfig(ITEM_SEARCH_CONFIG);
+      }
       const $ = (id) => document.getElementById(id);
 
       // ----- Background usage log (no UI). Set USAGE_LOG_URL to your endpoint to enable.
@@ -847,7 +850,7 @@
         let doubleAttackSkill = parseInt($('double-attack').value, 10) || 0;
         let dualWieldSkill = parseInt($('dual-wield').value, 10) || 0;
         const level = parseInt($('level').value, 10) || 60;
-        const targetAC = parseInt($('target-ac').value, 10) || 200;
+        const targetAC = parseInt($('target-ac').value, 10) || 550;
         const mobLevel = parseInt($('mob-level').value, 10) || 60;
         const targetMR = parseInt($('target-mr').value, 10) || 35;
         const targetFR = parseInt($('target-fr').value, 10) || 35;

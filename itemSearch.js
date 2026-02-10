@@ -75,13 +75,26 @@
   }
 
   /**
-   * Two-hand weapon types (EQ slot/type strings). Adjust if your API uses different values.
+   * Two-hand weapon types (EQ slot/type strings).
    */
-  var TWO_HAND_TYPES = { '2hb': true, '2hs': true, '2hp': true, 'bow': true };
+  var TWO_HAND_TYPES = { '2hb': true, '2hs': true, '2hp': true, 'bow': true, 'archery': true };
+
+  /**
+   * dndquarm API: itemType number -> weapon skill type string.
+   * EQ item types: 0=1HS, 1=2HS, 2=1HP, 3=2HP, 4=1HB, 5=2HB, 6=Archery, 7=H2H, etc.
+   */
+  var ITEM_TYPE_NUM_TO_TYPE = {
+    0: '1hs', 1: '2hs', 2: '1hp', 3: '2hp', 4: '1hb', 5: '2hb', 6: 'archery', 7: 'h2h'
+  };
+
+  /**
+   * dndquarm API: eleDmgType number -> element string (0 = none).
+   */
+  var ELE_DMG_TYPE_NUM = { 1: 'fire', 2: 'cold', 3: 'poison', 4: 'disease', 5: 'magic' };
 
   /**
    * Map API item to the weapon shape used by DPS-Sim presets and getWeapon().
-   * API fields: name, damage, delay, baneDmgAmt, eleDmgType, eleDmgAmt (plus type/slot for 1h vs 2h, proc if present).
+   * dndquarm JSON: id, name, damage, delay, baneDmgAmt, eleDmgType, eleDmgAmt, itemType, procEffect, procName (often null).
    *
    * @param {Object} item - Raw item from the API.
    * @returns {Object} Normalized weapon: { name, damage, delay, proc?, procDamage?, elemType?, elemDamage?, baneDamage?, is2H, type }.
@@ -111,21 +124,37 @@
     var name = str(get(item, ['name', 'Name', 'item_name', 'itemName']));
     var damage = num(get(item, ['damage', 'Damage', 'dmg', 'Dmg']));
     var delay = num(get(item, ['delay', 'Delay', 'delay_sec', 'delaySec']));
-    var itemType = str(get(item, ['type', 'Type', 'item_type', 'itemType', 'slot', 'Slot'])).toLowerCase();
-    var is2H = itemType ? !!TWO_HAND_TYPES[itemType] : !!get(item, ['is2H', 'isTwoHand', 'twoHanded']);
 
-    var procName = str(get(item, ['proc', 'Proc', 'proc_name', 'procName', 'proceffect', 'ProcEffect']));
+    var itemTypeNum = get(item, ['itemType', 'item_type', 'ItemType']);
+    var itemType = '';
+    var is2H = false;
+    if (typeof itemTypeNum === 'number' && ITEM_TYPE_NUM_TO_TYPE[itemTypeNum] !== undefined) {
+      itemType = ITEM_TYPE_NUM_TO_TYPE[itemTypeNum];
+      is2H = !!TWO_HAND_TYPES[itemType];
+    } else {
+      itemType = str(get(item, ['type', 'Type', 'slot', 'Slot'])).toLowerCase();
+      is2H = itemType ? !!TWO_HAND_TYPES[itemType] : !!get(item, ['is2H', 'isTwoHand', 'twoHanded']);
+    }
+
+    var procName = str(get(item, ['procName', 'proc', 'Proc', 'proc_name', 'ProcName']));
     var procDamage = num(get(item, ['procDamage', 'proc_damage', 'ProcDamage', 'procdamage']));
+    if (item.procSpellData && typeof item.procSpellData === 'object' && item.procSpellData.damage != null) {
+      procDamage = num(item.procSpellData.damage);
+    }
 
-    // API: eleDmgType, eleDmgAmt
-    var elemType = str(get(item, ['eleDmgType', 'elemType', 'elem_type', 'element', 'Element', 'magic', 'Magic'])).toLowerCase();
-    if (elemType && !['fire', 'cold', 'poison', 'disease', 'magic'].includes(elemType)) {
-      var elemMap = { 'fr': 'fire', 'cr': 'cold', 'pr': 'poison', 'dr': 'disease', 'mr': 'magic' };
-      elemType = elemMap[elemType] || elemType;
+    var eleDmgTypeNum = num(get(item, ['eleDmgType', 'elemType', 'elem_type']));
+    var elemType = '';
+    if (typeof eleDmgTypeNum === 'number' && ELE_DMG_TYPE_NUM[eleDmgTypeNum]) {
+      elemType = ELE_DMG_TYPE_NUM[eleDmgTypeNum];
+    } else {
+      elemType = str(get(item, ['eleDmgType', 'elemType', 'elem_type', 'element', 'Element', 'magic', 'Magic'])).toLowerCase();
+      if (elemType && !['fire', 'cold', 'poison', 'disease', 'magic'].includes(elemType)) {
+        var elemMap = { 'fr': 'fire', 'cr': 'cold', 'pr': 'poison', 'dr': 'disease', 'mr': 'magic' };
+        elemType = elemMap[elemType] || elemType;
+      }
     }
     var elemDamage = num(get(item, ['eleDmgAmt', 'elemDamage', 'elem_damage', 'elementalDamage', 'ElementalDamage', 'elemental_damage']));
 
-    // API: baneDmgAmt
     var baneDamage = num(get(item, ['baneDmgAmt', 'baneDamage', 'bane_damage', 'BaneDamage', 'bane']));
 
     var out = {
