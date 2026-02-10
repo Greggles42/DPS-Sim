@@ -50,7 +50,7 @@ export default async function handler(req, res) {
       method: 'GET',
       headers: {
         'Accept': 'application/json',
-        'Authorization': 'Bearer ' + apiKey,
+        'Authorization': apiKey,
         'User-Agent': 'DPS-Sim-ItemSearch/1',
       },
     });
