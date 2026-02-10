@@ -52,6 +52,13 @@
       text-transform: uppercase;
       letter-spacing: 0.05em;
     }
+    .weapon-name {
+      font-weight: 400;
+      text-transform: none;
+      letter-spacing: 0;
+      color: var(--text);
+    }
+    .weapon-name:not(:empty)::before { content: '— '; color: var(--muted); }
     .collapse-summary {
       font-size: 0.8rem;
       color: var(--muted);
@@ -312,7 +319,7 @@
   <div id="melee-tab" class="tab-panel">
   <div class="grid">
     <section class="section--core">
-      <h2>Weapon 1 (Main Hand)</h2>
+      <h2>Weapon 1 (Main Hand) <span id="w1-weapon-name" class="weapon-name"></span></h2>
       <label for="w1-preset">Quick select</label>
       <select id="w1-preset"></select>
       <div class="item-search-wrap">
@@ -348,7 +355,7 @@
     </section>
 
     <section id="weapon2-section" class="section--core">
-      <h2>Weapon 2 (Offhand, optional)</h2>
+      <h2>Weapon 2 (Offhand, optional) <span id="w2-weapon-name" class="weapon-name"></span></h2>
       <label for="w2-preset">Quick select</label>
       <select id="w2-preset"></select>
       <div class="item-search-wrap">
@@ -753,6 +760,24 @@
         const p = WEAPON_PRESETS[presetId] || null;
         return !!(p && (p.is2H || p.type === '2hb'));
       }
+      let w1DisplayName = '';
+      let w2DisplayName = '';
+
+      function updateWeaponNameDisplay(prefix) {
+        const span = $(prefix + '-weapon-name');
+        if (!span) return;
+        const presetVal = ($(prefix + '-preset') && $(prefix + '-preset').value) || '';
+        let name = '';
+        if (presetVal === 'unequipped') {
+          name = 'Unequipped';
+        } else if (presetVal && WEAPON_PRESETS[presetVal]) {
+          name = WEAPON_PRESETS[presetVal].name || '';
+        } else {
+          name = (prefix === 'w1' ? w1DisplayName : w2DisplayName) || 'Custom';
+        }
+        span.textContent = name;
+      }
+
       function applyWeaponPreset(prefix, id) {
         const p = id ? WEAPON_PRESETS[id] : null;
         if (prefix === 'w1') {
@@ -780,6 +805,8 @@
             updateFistweavingVisibility();
           }
         }
+        updateWeaponNameDisplay(prefix);
+        if (prefix === 'w1' && id === 'unequipped') updateWeaponNameDisplay('w2');
       }
 
       function fillWeaponPresetSelect(selId) {
@@ -1366,6 +1393,8 @@
       fillWeaponPresetSelect('w2-preset');
       $('w1-preset').value = 'unequipped';
       applyWeaponPreset('w1', 'unequipped');
+      updateWeaponNameDisplay('w1');
+      updateWeaponNameDisplay('w2');
       updateWeapon2Disabled();
       $('w1-preset').addEventListener('change', function () {
         applyWeaponPreset('w1', this.value);
@@ -1431,6 +1460,8 @@
         if (baneEl) baneEl.value = isNaN(bane) ? '' : bane;
         const presetEl = $(prefix + '-preset');
         if (presetEl) presetEl.value = '';
+        if (prefix === 'w1') { w1DisplayName = (weapon.name || '').trim() || 'Custom'; } else { w2DisplayName = (weapon.name || '').trim() || 'Custom'; }
+        updateWeaponNameDisplay(prefix);
         if (prefix === 'w1') {
           const overrideEl = $('w1-is2h-override');
           if (overrideEl) overrideEl.value = weapon.is2H ? '1' : '0';
