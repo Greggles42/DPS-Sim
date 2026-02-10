@@ -49,8 +49,8 @@ export default async function handler(req, res) {
     const response = await fetch(upstreamUrl, {
       method: 'GET',
       headers: {
-        Accept: 'application/json',
-        Authorization: 'Bearer ' + apiKey,
+        'Accept': 'application/json',
+        'Authorization': 'Bearer ' + apiKey,
         'User-Agent': 'DPS-Sim-ItemSearch/1',
       },
     });
