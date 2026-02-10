@@ -616,9 +616,9 @@
     const wornAttack = options.wornAttack != null ? options.wornAttack : 0;
     const spellAttack = options.spellAttack != null ? options.spellAttack : 0;
     const toHitBonus = options.toHitBonus != null ? options.toHitBonus : 0;
-    // To Hit: 7 + offense SKILL + weapon skill (252). Offense RATING (for damage roll) = offense skill + STR bonus + worn attack + spell attack.
+    // To Hit: 7 + offense SKILL + weapon skill. Weapon skill from skill caps (class/level/type) when options.weaponSkillForToHit provided, else 252.
     const OFFENSE_SKILL = options.offenseSkill != null ? Math.min(255, Math.max(0, options.offenseSkill)) : 252;
-    const WEAPON_SKILL_FOR_TOHIT = 252;
+    const WEAPON_SKILL_FOR_TOHIT = (options.weaponSkillForToHit != null && typeof options.weaponSkillForToHit === 'number') ? options.weaponSkillForToHit : 252;
     const BASE_TO_HIT = 7 + OFFENSE_SKILL + WEAPON_SKILL_FOR_TOHIT;
     const toHit = (options.attackRating != null && options.wornAttack == null && options.spellAttack == null)
       ? options.attackRating + toHitBonus
