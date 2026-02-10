@@ -32,14 +32,21 @@ export default async function handler(req, res) {
     });
   }
 
-  const nameFilter = typeof req.query.nameFilter === 'string' ? req.query.nameFilter.trim() : '';
+  // Vercel may expose query as req.query; fallback to parsing req.url
+  let nameFilter = typeof req.query?.nameFilter === 'string' ? req.query.nameFilter.trim() : '';
+  if (!nameFilter && req.url) {
+    try {
+      const u = new URL(req.url, 'http://localhost');
+      const q = u.searchParams.get('nameFilter');
+      if (typeof q === 'string') nameFilter = q.trim();
+    } catch (_) {}
+  }
   const baseUrl = process.env.ITEM_SEARCH_BASE_URL || DEFAULT_BASE_URL;
   const base = baseUrl.replace(/\?.*$/, '');
-  // Some APIs expect key in query string; try both Bearer and query param for compatibility
-  const url = base + '?nameFilter=' + encodeURIComponent(nameFilter) + '&apiKey=' + encodeURIComponent(apiKey);
+  const upstreamUrl = base + '?nameFilter=' + encodeURIComponent(nameFilter) + '&apiKey=' + encodeURIComponent(apiKey);
 
   try {
-    const response = await fetch(url, {
+    const response = await fetch(upstreamUrl, {
       method: 'GET',
       headers: {
         Accept: 'application/json',
