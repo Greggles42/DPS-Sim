@@ -620,8 +620,12 @@
   <script src="combat.js"></script>
   <script src="weaponSkillCaps.js"></script>
   <script src="itemSearch.js"></script>
-  <!-- Load after itemSearch.js: provides API key via ItemSearch.setConfig(); copy from itemSearchConfig.example.js if missing -->
-  <script src="itemSearchConfig.js"></script>
+  <!-- Load itemSearchConfig.js only locally (file is gitignored; on Vercel we use /api/item-search with env key) -->
+  <script>
+    if (location.hostname === 'localhost' || location.protocol === 'file:') {
+      document.write('<script src="itemSearchConfig.js"><\x2Fscript>');
+    }
+  </script>
   <script>
     (function () {
       if (typeof ItemSearch !== 'undefined') {
