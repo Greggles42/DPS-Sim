@@ -24,23 +24,17 @@ export default async function handler(req, res) {
   }
 
   const apiKey = process.env.ITEM_SEARCH_API_KEY;
-  if (!apiKey) {
-    setCors(res);
-    res.setHeader('Content-Type', 'application/json');
-    return res.status(503).json({ error: 'Item search not configured (missing ITEM_SEARCH_API_KEY)' });
-  }
-
   const nameFilter = typeof req.query.nameFilter === 'string' ? req.query.nameFilter.trim() : '';
   const baseUrl = process.env.ITEM_SEARCH_BASE_URL || DEFAULT_BASE_URL;
   const url = baseUrl.replace(/\?.*$/, '') + '?nameFilter=' + encodeURIComponent(nameFilter);
 
+  const headers = { Accept: 'application/json' };
+  if (apiKey) headers.Authorization = 'Bearer ' + apiKey;
+
   try {
     const response = await fetch(url, {
       method: 'GET',
-      headers: {
-        Accept: 'application/json',
-        Authorization: 'Bearer ' + apiKey,
-      },
+      headers,
     });
 
     if (!response.ok) {
