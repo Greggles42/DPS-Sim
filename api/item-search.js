@@ -34,7 +34,9 @@ export default async function handler(req, res) {
 
   const nameFilter = typeof req.query.nameFilter === 'string' ? req.query.nameFilter.trim() : '';
   const baseUrl = process.env.ITEM_SEARCH_BASE_URL || DEFAULT_BASE_URL;
-  const url = baseUrl.replace(/\?.*$/, '') + '?nameFilter=' + encodeURIComponent(nameFilter);
+  const base = baseUrl.replace(/\?.*$/, '');
+  // Some APIs expect key in query string; try both Bearer and query param for compatibility
+  const url = base + '?nameFilter=' + encodeURIComponent(nameFilter) + '&apiKey=' + encodeURIComponent(apiKey);
 
   try {
     const response = await fetch(url, {
@@ -61,11 +63,15 @@ export default async function handler(req, res) {
     try {
       data = text ? JSON.parse(text) : [];
     } catch (_) {
+      const contentType = response.headers.get('content-type') || '';
+      const snippet = (text || '').slice(0, 200).replace(/\s+/g, ' ');
+      console.error('[item-search] upstream non-JSON response. Content-Type:', contentType, 'Body start:', snippet);
       setCors(res);
       res.setHeader('Content-Type', 'application/json');
       return res.status(502).json({
         error: 'Upstream returned invalid JSON',
         upstream: 'dndquarm.com',
+        detail: 'dndquarm may have returned HTML (wrong auth or endpoint). Check Vercel function logs for response snippet.',
       });
     }
 
