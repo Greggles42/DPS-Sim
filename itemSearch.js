@@ -68,7 +68,14 @@
     var req = getSearchRequest(nameFilter);
     return fetch(req.url, { method: 'GET', headers: req.headers })
       .then(function (res) {
-        if (!res.ok) throw new Error('Item search failed: ' + res.status + ' ' + res.statusText);
+        if (!res.ok) {
+          return res.json().catch(function () { return {}; }).then(function (body) {
+            var msg = (body && body.error) ? body.error : ('Item search failed: ' + res.status);
+            if (body && body.detail) msg += ' — ' + body.detail;
+            if (body && body.status) msg += ' (upstream status ' + body.status + ')';
+            throw new Error(msg);
+          });
+        }
         return res.json();
       })
       .then(function (data) {
@@ -79,7 +86,7 @@
         return [];
       })
       .catch(function (err) {
-        console.error('Item search error:', err);
+        console.error('Item search error:', err.message || err);
         return [];
       });
   }

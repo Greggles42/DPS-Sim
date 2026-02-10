@@ -23,7 +23,7 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const apiKey = process.env.ITEM_SEARCH_API_KEY;
+  const apiKey = process.env.ITEM_SEARCH_API_KEY ? String(process.env.ITEM_SEARCH_API_KEY).trim() : '';
   if (!apiKey) {
     setCors(res);
     res.setHeader('Content-Type', 'application/json');
@@ -42,6 +42,7 @@ export default async function handler(req, res) {
       headers: {
         Accept: 'application/json',
         Authorization: 'Bearer ' + apiKey,
+        'User-Agent': 'DPS-Sim-ItemSearch/1',
       },
     });
 
@@ -72,6 +73,7 @@ export default async function handler(req, res) {
     res.setHeader('Content-Type', 'application/json');
     return res.status(200).json(data);
   } catch (err) {
+    console.error('[item-search] proxy error:', err.message || err);
     setCors(res);
     res.setHeader('Content-Type', 'application/json');
     return res.status(502).json({
