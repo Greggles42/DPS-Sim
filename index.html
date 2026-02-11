@@ -139,6 +139,7 @@
     .char-field-num input { width: 4rem; max-width: 4rem; }
     .char-field select { min-width: 7rem; }
     .char-hint { margin: 0.25rem 0 0.4rem; font-size: 0.72rem; }
+    .char-hint-below-primary { margin-top: 0.5rem; }
     .char-details { margin-top: 0.25rem; }
     .char-details .char-secondary-row { margin-bottom: 0.35rem; }
     .char-checkbox { margin: 0.15rem 0.5rem 0.15rem 0; font-size: 0.8rem; }
@@ -340,6 +341,10 @@
       pointer-events: none;
       background: rgba(0, 0, 0, 0.2);
     }
+    #weapon2-section.is-disabled .weapon-section-header h2,
+    #weapon2-section.is-disabled .weapon-name {
+      text-decoration: line-through;
+    }
   </style>
 </head>
 <body>
@@ -385,7 +390,7 @@
         <div class="char-field char-field-num"><label for="worn-attack">Worn ATK</label><input type="number" id="worn-attack" min="0" value="0" placeholder="0"></div>
         <div class="char-field char-field-num"><label for="spell-attack">Spell ATK</label><input type="number" id="spell-attack" min="0" value="0" placeholder="0"></div>
       </div>
-      <p class="hint char-hint" id="class-hint">Class and level auto-fill skills and weapon caps. Edit below to override.</p>
+      <p class="hint char-hint char-hint-below-primary" id="class-hint">Class and level auto-fill skills and weapon caps. Edit below to override.</p>
       <details class="collapse-secondary char-details">
         <summary class="collapse-summary">Skills, stats, options</summary>
         <div class="char-secondary-row">
@@ -399,10 +404,10 @@
           <div class="char-field char-field-num"><label for="str" class="small-label">STR</label><input type="number" id="str" min="1" value="255" placeholder="255"></div>
           <div class="char-field char-field-num"><label for="dex" class="small-label">DEX</label><input type="number" id="dex" min="1" value="255" placeholder="255"></div>
           <div class="char-field char-field-num"><label for="crit-chance-aa" class="small-label">Crit %</label><input type="number" id="crit-chance-aa" min="0" value="6" placeholder="0"></div>
-          <label class="checkbox-label char-checkbox"><input type="checkbox" id="ambidexterity-aa"> Ambidexterity</label>
-          <label class="checkbox-label char-checkbox"><input type="checkbox" id="special-attacks"> Specials</label>
+          <label class="checkbox-label char-checkbox"><input type="checkbox" id="ambidexterity-aa"> Ambidexterity (+32 dual wield)</label>
+          <label class="checkbox-label char-checkbox"><input type="checkbox" id="special-attacks"> Flying Kick / Backstab on cooldown</label>
         </div>
-        <p class="hint char-hint" id="special-hint">Monk: Flying Kick 8s. Rogue: Backstab 12s.</p>
+        <p class="hint char-hint" id="special-hint">Monk: Flying Kick every 8s. Rogue: Backstab every 12s.</p>
         <div id="rogue-backstab-mod-row" style="display: none;">
           <div class="char-secondary-row">
             <div class="char-field char-field-num"><label for="backstab-skill" class="small-label">Backstab skill</label><input type="number" id="backstab-skill" min="0" value="225" placeholder="225"></div>
@@ -1532,6 +1537,7 @@
       /** Populate weapon form fields from selected item (JSON/normalized weapon: damage, delay, proc, procDamage, elemType, elemDamage, baneDamage). */
       function applyWeaponFromSearch(prefix, weapon) {
         if (!weapon) return;
+        if (prefix === 'w2' && weapon.is2H) return;
         const dmg = Number(weapon.damage);
         const dly = Number(weapon.delay);
         const procDmg = Number(weapon.procDamage);
@@ -1586,29 +1592,38 @@
       function renderDropdown(prefix, recent, results, loading, query) {
         const listEl = $(prefix + '-item-search-list');
         if (!listEl) return;
+        const omit2H = prefix === 'w2';
+        if (omit2H) {
+          recent = recent ? recent.filter(function (w) { return !w.is2H; }) : [];
+          results = results ? results.filter(function (w) { return !w.is2H; }) : [];
+        }
         const q = (query || '').trim();
         const hasQuery = q.length >= ITEM_SEARCH_MIN_CHARS;
         let html = '';
-        if (recent && recent.length > 0) {
-          html += '<div class="item-search-section">Recent</div>';
+        function renderRecent() {
+          if (!recent || recent.length === 0) return '';
+          let s = '<div class="item-search-section">Recent</div>';
           recent.forEach(function (w) {
             const label = renderItemLabel(w);
-            html += '<button type="button" class="item-search-item" data-name="' + (w.name || '').replace(/"/g, '&quot;') + '" data-damage="' + (w.damage != null ? w.damage : '') + '" data-delay="' + (w.delay != null ? w.delay : '') + '" data-proc="' + (w.proc || '').replace(/"/g, '&quot;') + '" data-procdamage="' + (w.procDamage != null ? w.procDamage : '') + '" data-elemtype="' + (w.elemType || '').replace(/"/g, '&quot;') + '" data-elemdamage="' + (w.elemDamage != null ? w.elemDamage : '') + '" data-bane="' + (w.baneDamage != null ? w.baneDamage : '') + '" data-icon="' + (w.icon != null && w.icon > 0 ? w.icon : '') + '" data-is2h="' + (w.is2H ? '1' : '0') + '"><span>' + (w.name || '').replace(/</g, '&lt;') + '</span><div class="item-search-item-detail">' + label.replace(/</g, '&lt;') + '</div></button>';
+            s += '<button type="button" class="item-search-item" data-name="' + (w.name || '').replace(/"/g, '&quot;') + '" data-damage="' + (w.damage != null ? w.damage : '') + '" data-delay="' + (w.delay != null ? w.delay : '') + '" data-proc="' + (w.proc || '').replace(/"/g, '&quot;') + '" data-procdamage="' + (w.procDamage != null ? w.procDamage : '') + '" data-elemtype="' + (w.elemType || '').replace(/"/g, '&quot;') + '" data-elemdamage="' + (w.elemDamage != null ? w.elemDamage : '') + '" data-bane="' + (w.baneDamage != null ? w.baneDamage : '') + '" data-icon="' + (w.icon != null && w.icon > 0 ? w.icon : '') + '" data-is2h="' + (w.is2H ? '1' : '0') + '"><span>' + (w.name || '').replace(/</g, '&lt;') + '</span><div class="item-search-item-detail">' + label.replace(/</g, '&lt;') + '</div></button>';
           });
+          return s;
         }
-        if (loading) {
-          html += '<div class="item-search-section">Search results</div><div class="item-search-msg">Searching...</div>';
-        } else if (hasQuery) {
-          html += '<div class="item-search-section">Search results</div>';
+        function renderSearch() {
+          if (loading) return '<div class="item-search-section">Search results</div><div class="item-search-msg">Searching...</div>';
+          if (!hasQuery) return '';
+          let s = '<div class="item-search-section">Search results</div>';
           if (!results || results.length === 0) {
-            html += '<div class="item-search-msg">No results</div>';
+            s += '<div class="item-search-msg">No results</div>';
           } else {
             results.forEach(function (w) {
               const label = renderItemLabel(w);
-              html += '<button type="button" class="item-search-item item-search-item-result" data-name="' + (w.name || '').replace(/"/g, '&quot;') + '" data-damage="' + (w.damage != null ? w.damage : '') + '" data-delay="' + (w.delay != null ? w.delay : '') + '" data-proc="' + (w.proc || '').replace(/"/g, '&quot;') + '" data-procdamage="' + (w.procDamage != null ? w.procDamage : '') + '" data-elemtype="' + (w.elemType || '').replace(/"/g, '&quot;') + '" data-elemdamage="' + (w.elemDamage != null ? w.elemDamage : '') + '" data-bane="' + (w.baneDamage != null ? w.baneDamage : '') + '" data-icon="' + (w.icon != null && w.icon > 0 ? w.icon : '') + '" data-is2h="' + (w.is2H ? '1' : '0') + '"><span>' + (w.name || '').replace(/</g, '&lt;') + '</span><div class="item-search-item-detail">' + label.replace(/</g, '&lt;') + '</div></button>';
+              s += '<button type="button" class="item-search-item item-search-item-result" data-name="' + (w.name || '').replace(/"/g, '&quot;') + '" data-damage="' + (w.damage != null ? w.damage : '') + '" data-delay="' + (w.delay != null ? w.delay : '') + '" data-proc="' + (w.proc || '').replace(/"/g, '&quot;') + '" data-procdamage="' + (w.procDamage != null ? w.procDamage : '') + '" data-elemtype="' + (w.elemType || '').replace(/"/g, '&quot;') + '" data-elemdamage="' + (w.elemDamage != null ? w.elemDamage : '') + '" data-bane="' + (w.baneDamage != null ? w.baneDamage : '') + '" data-icon="' + (w.icon != null && w.icon > 0 ? w.icon : '') + '" data-is2h="' + (w.is2H ? '1' : '0') + '"><span>' + (w.name || '').replace(/</g, '&lt;') + '</span><div class="item-search-item-detail">' + label.replace(/</g, '&lt;') + '</div></button>';
             });
           }
+          return s;
         }
+        html += hasQuery ? (renderSearch() + renderRecent()) : (renderRecent() + renderSearch());
         if (!html && !hasQuery) {
           html = '<div class="item-search-msg">Type at least ' + ITEM_SEARCH_MIN_CHARS + ' characters to search</div>';
         }
