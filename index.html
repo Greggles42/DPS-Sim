@@ -128,18 +128,19 @@
       font-size: 0.9rem;
       margin-bottom: 0;
     }
+    .char-primary-row { margin-bottom: 0.15rem; }
     .char-primary-row, .char-secondary-row {
       display: flex;
       flex-wrap: wrap;
       gap: 0.5rem 1rem;
       align-items: flex-end;
-      margin-bottom: 0.4rem;
     }
+    .char-secondary-row { margin-bottom: 0.4rem; }
     .char-field { flex: 0 0 auto; }
     .char-field-num input { width: 4rem; max-width: 4rem; }
     .char-field select { min-width: 7rem; }
     .char-hint { margin: 0.25rem 0 0.4rem; font-size: 0.72rem; }
-    .char-hint-below-primary { margin-top: 0.5rem; }
+    .char-hint-below-primary { margin-top: 0.15rem; }
     .char-details { margin-top: 0.25rem; }
     .char-details .char-secondary-row { margin-bottom: 0.35rem; }
     .char-checkbox { margin: 0.15rem 0.5rem 0.15rem 0; font-size: 0.8rem; }
@@ -810,6 +811,8 @@
       }
       let w1DisplayName = '';
       let w2DisplayName = '';
+      let w1FromItemSearch = false;
+      let w2FromItemSearch = false;
       let w1WeaponType = null;
       let w2WeaponType = null;
 
@@ -851,10 +854,11 @@
         const p = id ? WEAPON_PRESETS[id] : null;
         if (prefix === 'w1') {
           w1WeaponType = (p && p.type) ? p.type : null;
+          w1FromItemSearch = false;
           const overrideEl = $('w1-is2h-override');
           if (overrideEl) overrideEl.value = (p && (p.is2H || p.type === '2hb')) ? '1' : '0';
         }
-        if (prefix === 'w2') w2WeaponType = (p && p.type) ? p.type : null;
+        if (prefix === 'w2') { w2WeaponType = (p && p.type) ? p.type : null; w2FromItemSearch = false; }
         if (p) {
           $(prefix + '-damage').value = p.damage;
           $(prefix + '-delay').value = p.delay;
@@ -1125,8 +1129,8 @@
 
         const w1PresetId = ($('w1-preset') && $('w1-preset').value) || '';
         const w2PresetId = useWeapon2 ? (($('w2-preset') && $('w2-preset').value) || '') : '';
-        const w1Name = w1PresetId && WEAPON_PRESETS[w1PresetId] ? WEAPON_PRESETS[w1PresetId].name : (weapon1.damage + 'd/' + weapon1.delay);
-        const w2Name = useWeapon2 && w2PresetId && WEAPON_PRESETS[w2PresetId] ? WEAPON_PRESETS[w2PresetId].name : (useWeapon2 ? (weapon2.damage + 'd/' + weapon2.delay) : '—');
+        const w1Name = (w1PresetId && WEAPON_PRESETS[w1PresetId]) ? WEAPON_PRESETS[w1PresetId].name : (w1FromItemSearch && w1DisplayName ? w1DisplayName : (weapon1.damage + 'd/' + weapon1.delay));
+        const w2Name = useWeapon2 ? ((w2PresetId && WEAPON_PRESETS[w2PresetId]) ? WEAPON_PRESETS[w2PresetId].name : (w2FromItemSearch && w2DisplayName ? w2DisplayName : (weapon2.damage + 'd/' + weapon2.delay))) : '—';
         const w1Label = hasMainHand ? `Weapon 1: ${w1Name} (${weapon1.damage}d / ${weapon1.delay} delay${weapon1.procSpell ? ' / ' + weapon1.procSpell : ''})` : 'Main hand (unequipped)';
         const w2Label = useWeapon2
           ? `Weapon 2: ${w2Name} (${weapon2.damage}d / ${weapon2.delay} delay${weapon2.procSpell ? ' / ' + weapon2.procSpell : ''})`
@@ -1508,6 +1512,11 @@
         applyWeaponPreset('w2', this.value);
         updateWeaponSkillInputs();
       });
+      function clearItemSearchOnManualEdit(prefix) {
+        if (prefix === 'w1') w1FromItemSearch = false; else w2FromItemSearch = false;
+      }
+      [$('w1-damage'), $('w1-delay')].forEach(function (el) { if (el) el.addEventListener('input', function () { clearItemSearchOnManualEdit('w1'); }); });
+      [$('w2-damage'), $('w2-delay')].forEach(function (el) { if (el) el.addEventListener('input', function () { clearItemSearchOnManualEdit('w2'); }); });
       updateWeaponSkillInputs();
 
       // ----- Item search autofilter (API + recent items) -----
@@ -1561,7 +1570,7 @@
         const presetEl = $(prefix + '-preset');
         if (presetEl) presetEl.value = '';
         updateWeaponIcon(prefix, weapon.icon);
-        if (prefix === 'w1') { w1DisplayName = (weapon.name || '').trim() || 'Custom'; w1WeaponType = (weapon.type || '').trim() || null; } else { w2DisplayName = (weapon.name || '').trim() || 'Custom'; w2WeaponType = (weapon.type || '').trim() || null; }
+        if (prefix === 'w1') { w1DisplayName = (weapon.name || '').trim() || 'Custom'; w1FromItemSearch = true; w1WeaponType = (weapon.type || '').trim() || null; } else { w2DisplayName = (weapon.name || '').trim() || 'Custom'; w2FromItemSearch = true; w2WeaponType = (weapon.type || '').trim() || null; }
         updateWeaponNameDisplay(prefix);
         updateWeaponSkillInputs();
         if (prefix === 'w1') {
