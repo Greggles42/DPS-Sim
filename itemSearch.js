@@ -112,6 +112,9 @@
   /** Item IDs that are h2h but API may return as 1hb (e.g. Gharn's Rock, Mithril Ulak). Override type to h2h. */
   var H2H_OVERRIDE_IDS = { 31241: true, 26809: true };
 
+  /** Item types that cannot be used in offhand (2hs, 2hp, 2hb, archery). */
+  var OFFHAND_BLOCKED_ITEM_TYPES = { 1: true, 3: true, 5: true, 6: true };
+
   /**
    * Map API item to the weapon shape used by DPS-Sim presets and getWeapon().
    * dndquarm JSON: id, name, damage, delay, baneDmgAmt, eleDmgType, eleDmgAmt, itemType, procEffect, procName (often null).
@@ -186,12 +189,15 @@
     var finalType = itemType || (is2H ? '2hb' : '1hb');
     if (itemId && H2H_OVERRIDE_IDS[itemId]) finalType = 'h2h';
 
+    var itemTypeNumVal = (typeof itemTypeNum === 'number') ? itemTypeNum : null;
     var out = {
       name: name || 'Unknown',
       damage: damage,
       delay: delay,
       is2H: is2H,
       type: finalType,
+      itemTypeNum: itemTypeNumVal,
+      offhandBlocked: !!(itemTypeNumVal != null && OFFHAND_BLOCKED_ITEM_TYPES[itemTypeNumVal]),
       proc: procName || '',
       procDamage: procDamage,
       elemType: elemType || '',

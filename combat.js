@@ -705,8 +705,8 @@
         const backstabSkill = options.backstabSkill != null ? options.backstabSkill : 225;
         const backstabModPct = options.backstabModPercent || 0;
         const effectiveBackstabSkill = Math.min(255, Math.floor(backstabSkill * (100 + backstabModPct) / 100));
-        // EQMacEmu GetToHit(skill): toHit = 7 + Offense SKILL + skill (Backstab for backstab), not just Backstab
-        const backstabToHit = isRogueBackstab ? (7 + OFFENSE_SKILL + effectiveBackstabSkill) : toHit;
+        // EQMacEmu GetToHit(skill): toHit = 7 + Offense SKILL + skill (Backstab for backstab). Use raw backstab skill, not modded.
+        const backstabToHit = isRogueBackstab ? (7 + OFFENSE_SKILL + backstabSkill) : toHit;
         const specialHits = rollHit(backstabToHit, avoidance, rng, fromBehind);
         if (specialHits) {
           report.special.hits++;
