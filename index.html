@@ -53,19 +53,21 @@
       text-transform: uppercase;
       letter-spacing: 0.05em;
     }
-    .weapon-section-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 0.25rem;
-    }
+    .weapon-section-header { margin-bottom: 0.25rem; }
     .weapon-section-header h2 { margin: 0; }
-    .weapon-icon {
+    .weapon-icon-wrap {
+      position: absolute;
+      top: 1rem;
+      right: 1.25rem;
       width: 56px;
       height: 56px;
-      flex-shrink: 0;
+    }
+    .weapon-icon-wrap .weapon-icon {
+      width: 56px;
+      height: 56px;
       object-fit: contain;
     }
+    .section--core.weapon-section { position: relative; }
     .weapon-name {
       display: block;
       font-size: 1.15rem;
@@ -118,6 +120,28 @@
     }
     .row > * { flex: 1; }
     .row input, .row select { margin-bottom: 0; }
+
+    /* Character & Haste: compact layout */
+    .char-haste-section label { font-size: 0.75rem; margin-bottom: 0.15rem; }
+    .char-haste-section input, .char-haste-section select {
+      padding: 0.25rem 0.35rem;
+      font-size: 0.9rem;
+      margin-bottom: 0;
+    }
+    .char-primary-row, .char-secondary-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem 1rem;
+      align-items: flex-end;
+      margin-bottom: 0.4rem;
+    }
+    .char-field { flex: 0 0 auto; }
+    .char-field-num input { width: 4rem; max-width: 4rem; }
+    .char-field select { min-width: 7rem; }
+    .char-hint { margin: 0.25rem 0 0.4rem; font-size: 0.72rem; }
+    .char-details { margin-top: 0.25rem; }
+    .char-details .char-secondary-row { margin-bottom: 0.35rem; }
+    .char-checkbox { margin: 0.15rem 0.5rem 0.15rem 0; font-size: 0.8rem; }
     button {
       background: var(--accent);
       color: var(--bg);
@@ -342,10 +366,10 @@
   <div class="tab-content-wrapper">
   <div id="melee-tab" class="tab-panel">
   <div class="grid">
-    <section class="section--core grid-full-width" id="character-haste-section">
+    <section class="section--core grid-full-width char-haste-section" id="character-haste-section">
       <h2>Character & Haste</h2>
-      <div class="row">
-        <div><label for="class">Class</label><select id="class">
+      <div class="char-primary-row">
+        <div class="char-field"><label for="class">Class</label><select id="class">
           <option value="">None (manual)</option>
           <option value="warrior">Warrior</option>
           <option value="paladin">Paladin</option>
@@ -356,49 +380,44 @@
           <option value="bard">Bard</option>
           <option value="beastlord">Beastlord</option>
         </select></div>
-        <div><label for="level">Level</label><input type="number" id="level" min="1" max="65" value="60" placeholder="60"></div>
-        <div><label for="haste">Haste % <span class="info-icon" title="Worn + Spell + v3 Haste">&#8505;</span></label><input type="number" id="haste" min="0" value="99" placeholder="99"></div>
+        <div class="char-field char-field-num"><label for="level">Level</label><input type="number" id="level" min="1" max="65" value="60" placeholder="60"></div>
+        <div class="char-field char-field-num"><label for="haste">Haste % <span class="info-icon" title="Worn + Spell + v3 Haste">&#8505;</span></label><input type="number" id="haste" min="0" value="99" placeholder="99"></div>
+        <div class="char-field char-field-num"><label for="worn-attack">Worn ATK</label><input type="number" id="worn-attack" min="0" value="0" placeholder="0"></div>
+        <div class="char-field char-field-num"><label for="spell-attack">Spell ATK</label><input type="number" id="spell-attack" min="0" value="0" placeholder="0"></div>
       </div>
-      <p class="hint" id="class-hint">Class and level auto-fill skills and weapon caps. Edit below to override.</p>
-      <details class="collapse-secondary">
-        <summary class="collapse-summary">Skills, attack, stats, options</summary>
-        <div class="row">
-          <div><label for="offense-skill" class="small-label">Offense skill</label><input type="number" id="offense-skill" min="0" max="255" value="252" placeholder="252" title="Used for to-hit."></div>
-          <div><label for="double-attack" class="small-label">Double attack</label><input type="number" id="double-attack" min="0" value="250" placeholder="250"></div>
-          <div><label for="dual-wield" class="small-label">Dual wield</label><input type="number" id="dual-wield" min="0" value="252" placeholder="0 = no offhand"></div>
+      <p class="hint char-hint" id="class-hint">Class and level auto-fill skills and weapon caps. Edit below to override.</p>
+      <details class="collapse-secondary char-details">
+        <summary class="collapse-summary">Skills, stats, options</summary>
+        <div class="char-secondary-row">
+          <div class="char-field char-field-num"><label for="offense-skill" class="small-label">Offense</label><input type="number" id="offense-skill" min="0" max="255" value="252" placeholder="252" title="Used for to-hit."></div>
+          <div class="char-field char-field-num"><label for="double-attack" class="small-label">Double ATK</label><input type="number" id="double-attack" min="0" value="250" placeholder="250"></div>
+          <div class="char-field char-field-num"><label for="dual-wield" class="small-label">Dual wield</label><input type="number" id="dual-wield" min="0" value="252" placeholder="0"></div>
+          <div class="char-field char-field-num"><label for="primary-weapon-skill" class="small-label" id="primary-weapon-skill-label">Primary skill</label><input type="number" id="primary-weapon-skill" min="0" max="255" placeholder="Auto" title="Weapon skill for main hand."></div>
+          <div class="char-field char-field-num"><label for="secondary-weapon-skill" class="small-label" id="secondary-weapon-skill-label">Secondary</label><input type="number" id="secondary-weapon-skill" min="0" max="255" placeholder="Auto"></div>
         </div>
-        <div class="row">
-          <div><label for="primary-weapon-skill" class="small-label">Primary weapon skill</label><input type="number" id="primary-weapon-skill" min="0" max="255" placeholder="Auto" title="Weapon skill for main hand."></div>
-          <div><label for="secondary-weapon-skill" class="small-label">Secondary weapon skill</label><input type="number" id="secondary-weapon-skill" min="0" max="255" placeholder="Auto" title="Weapon skill for offhand."></div>
+        <div class="char-secondary-row">
+          <div class="char-field char-field-num"><label for="str" class="small-label">STR</label><input type="number" id="str" min="1" value="255" placeholder="255"></div>
+          <div class="char-field char-field-num"><label for="dex" class="small-label">DEX</label><input type="number" id="dex" min="1" value="255" placeholder="255"></div>
+          <div class="char-field char-field-num"><label for="crit-chance-aa" class="small-label">Crit %</label><input type="number" id="crit-chance-aa" min="0" value="6" placeholder="0"></div>
+          <label class="checkbox-label char-checkbox"><input type="checkbox" id="ambidexterity-aa"> Ambidexterity</label>
+          <label class="checkbox-label char-checkbox"><input type="checkbox" id="special-attacks"> Specials</label>
         </div>
-        <div class="row">
-          <div><label for="worn-attack" class="small-label">Worn attack</label><input type="number" id="worn-attack" min="0" value="0" placeholder="0"></div>
-          <div><label for="spell-attack" class="small-label">Spell attack</label><input type="number" id="spell-attack" min="0" value="0" placeholder="0"></div>
-          <div><label for="str" class="small-label">STR</label><input type="number" id="str" min="1" value="255" placeholder="255"></div>
-          <div><label for="dex" class="small-label">DEX</label><input type="number" id="dex" min="1" value="255" placeholder="255"></div>
-          <div><label for="crit-chance-aa" class="small-label">Crit % AA</label><input type="number" id="crit-chance-aa" min="0" value="6" placeholder="0"></div>
-        </div>
-        <label class="checkbox-label"><input type="checkbox" id="ambidexterity-aa"> Ambidexterity AA (+32 dual wield)</label>
-        <label class="checkbox-label"><input type="checkbox" id="special-attacks"> Special attacks (Flying Kick / Backstab)</label>
-        <p class="hint" id="special-hint">Monk: Flying Kick 8s. Rogue: Backstab 12s.</p>
+        <p class="hint char-hint" id="special-hint">Monk: Flying Kick 8s. Rogue: Backstab 12s.</p>
         <div id="rogue-backstab-mod-row" style="display: none;">
-          <div class="row">
-            <div><label for="backstab-skill" class="small-label">Backstab skill</label><input type="number" id="backstab-skill" min="0" value="225" placeholder="225"></div>
-            <div><label for="backstab-mod" class="small-label">Backstab mod %</label><input type="number" id="backstab-mod" min="0" value="0" placeholder="0"></div>
+          <div class="char-secondary-row">
+            <div class="char-field char-field-num"><label for="backstab-skill" class="small-label">Backstab skill</label><input type="number" id="backstab-skill" min="0" value="225" placeholder="225"></div>
+            <div class="char-field char-field-num"><label for="backstab-mod" class="small-label">Backstab mod %</label><input type="number" id="backstab-mod" min="0" value="0" placeholder="0"></div>
           </div>
         </div>
         <div id="fistweaving-row" style="display: none;">
-          <label class="checkbox-label"><input type="checkbox" id="fistweaving"> Include Fistweaving</label>
-          <p class="hint">Offhand 9 dmg rounds. Monk + 2H only.</p>
+          <label class="checkbox-label char-checkbox"><input type="checkbox" id="fistweaving"> Fistweaving</label>
         </div>
       </details>
     </section>
 
-    <section class="section--core">
-      <div class="weapon-section-header">
-        <h2>Weapon 1 (Main Hand)</h2>
-        <img id="w1-weapon-icon" class="weapon-icon" src="" alt="" style="display:none">
-      </div>
+    <section class="section--core weapon-section">
+      <div class="weapon-icon-wrap" id="w1-weapon-icon-wrap" style="display:none"><img id="w1-weapon-icon" class="weapon-icon" src="" alt=""></div>
+      <div class="weapon-section-header"><h2>Weapon 1 (Main Hand)</h2></div>
       <div id="w1-weapon-name" class="weapon-name" aria-live="polite"></div>
       <label for="w1-preset">Quick select</label>
       <select id="w1-preset"></select>
@@ -434,11 +453,9 @@
       </details>
     </section>
 
-    <section id="weapon2-section" class="section--core">
-      <div class="weapon-section-header">
-        <h2>Weapon 2 (Offhand, optional)</h2>
-        <img id="w2-weapon-icon" class="weapon-icon" src="" alt="" style="display:none">
-      </div>
+    <section id="weapon2-section" class="section--core weapon-section">
+      <div class="weapon-icon-wrap" id="w2-weapon-icon-wrap" style="display:none"><img id="w2-weapon-icon" class="weapon-icon" src="" alt=""></div>
+      <div class="weapon-section-header"><h2>Weapon 2 (Offhand, optional)</h2></div>
       <div id="w2-weapon-name" class="weapon-name" aria-live="polite"></div>
       <label for="w2-preset">Quick select</label>
       <select id="w2-preset"></select>
@@ -811,16 +828,17 @@
       }
 
       function updateWeaponIcon(prefix, iconNum) {
+        const wrapEl = $(prefix + '-weapon-icon-wrap');
         const imgEl = $(prefix + '-weapon-icon');
-        if (!imgEl) return;
+        if (!wrapEl || !imgEl) return;
         if (iconNum != null && iconNum > 0) {
           imgEl.src = 'icons/' + iconNum + '.gif';
           imgEl.alt = 'Weapon icon';
-          imgEl.style.display = '';
+          wrapEl.style.display = '';
         } else {
           imgEl.src = '';
           imgEl.alt = '';
-          imgEl.style.display = 'none';
+          wrapEl.style.display = 'none';
         }
       }
 
@@ -1440,22 +1458,26 @@
         return is2H ? '2hb' : '1hb';
       }
       function updateWeaponSkillInputs() {
-        if (typeof WeaponSkillCaps === 'undefined') return;
-        const classId = ($('class').value || '').toLowerCase();
-        const level = parseInt($('level').value, 10) || 60;
-        if (!classId) return;
         const w1PresetId = ($('w1-preset') && $('w1-preset').value) || '';
         const w2PresetId = ($('w2-preset') && $('w2-preset').value) || '';
         const wp1 = w1PresetId ? WEAPON_PRESETS[w1PresetId] : null;
         const wp2 = w2PresetId ? WEAPON_PRESETS[w2PresetId] : null;
         const primaryKey = skillKeyForCap((wp1 && wp1.type) || w1WeaponType, isW1TwoHanded());
         const secondaryKey = skillKeyForCap((wp2 && wp2.type) || w2WeaponType, false);
+        const primaryLabel = $('primary-weapon-skill-label');
+        const secondaryLabel = $('secondary-weapon-skill-label');
+        if (primaryLabel) primaryLabel.textContent = 'Primary (' + primaryKey + ')';
+        if (secondaryLabel) secondaryLabel.textContent = 'Secondary (' + secondaryKey + ')';
+        if (typeof WeaponSkillCaps === 'undefined') return;
+        const classId = ($('class').value || '').toLowerCase();
+        const level = parseInt($('level').value, 10) || 60;
+        if (!classId) return;
         const primaryCap = WeaponSkillCaps.getCapForSimClass(classId, primaryKey, level);
         const secondaryCap = WeaponSkillCaps.getCapForSimClass(classId, secondaryKey, level);
         const primaryEl = $('primary-weapon-skill');
         const secondaryEl = $('secondary-weapon-skill');
-        if (primaryEl) { primaryEl.value = primaryCap > 0 ? primaryCap : ''; primaryEl.placeholder = primaryKey + ' (to-hit)'; }
-        if (secondaryEl) { secondaryEl.value = secondaryCap > 0 ? secondaryCap : ''; secondaryEl.placeholder = secondaryKey + ' (to-hit)'; }
+        if (primaryEl) { primaryEl.value = primaryCap > 0 ? primaryCap : ''; primaryEl.placeholder = primaryKey; }
+        if (secondaryEl) { secondaryEl.value = secondaryCap > 0 ? secondaryCap : ''; secondaryEl.placeholder = secondaryKey; }
       }
 
       $('class').dispatchEvent(new Event('change'));
