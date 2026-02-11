@@ -38,6 +38,7 @@
     @media (min-width: 700px) {
       .grid { grid-template-columns: 1fr 1fr; }
     }
+    .grid-full-width { grid-column: 1 / -1; }
     section {
       background: var(--panel);
       border: 1px solid var(--border);
@@ -321,6 +322,58 @@
   <div class="tab-content-wrapper">
   <div id="melee-tab" class="tab-panel">
   <div class="grid">
+    <section class="section--core grid-full-width" id="character-haste-section">
+      <h2>Character & Haste</h2>
+      <div class="row">
+        <div><label for="class">Class</label><select id="class">
+          <option value="">None (manual)</option>
+          <option value="warrior">Warrior</option>
+          <option value="paladin">Paladin</option>
+          <option value="ranger">Ranger</option>
+          <option value="shadowknight">Shadowknight</option>
+          <option value="monk" selected>Monk</option>
+          <option value="rogue">Rogue</option>
+          <option value="bard">Bard</option>
+          <option value="beastlord">Beastlord</option>
+        </select></div>
+        <div><label for="level">Level</label><input type="number" id="level" min="1" max="65" value="60" placeholder="60"></div>
+        <div><label for="haste">Haste % <span class="info-icon" title="Worn + Spell + v3 Haste">&#8505;</span></label><input type="number" id="haste" min="0" value="99" placeholder="99"></div>
+      </div>
+      <p class="hint" id="class-hint">Class and level auto-fill skills and weapon caps. Edit below to override.</p>
+      <details class="collapse-secondary">
+        <summary class="collapse-summary">Skills, attack, stats, options</summary>
+        <div class="row">
+          <div><label for="offense-skill" class="small-label">Offense skill</label><input type="number" id="offense-skill" min="0" max="255" value="252" placeholder="252" title="Used for to-hit."></div>
+          <div><label for="double-attack" class="small-label">Double attack</label><input type="number" id="double-attack" min="0" value="250" placeholder="250"></div>
+          <div><label for="dual-wield" class="small-label">Dual wield</label><input type="number" id="dual-wield" min="0" value="252" placeholder="0 = no offhand"></div>
+        </div>
+        <div class="row">
+          <div><label for="primary-weapon-skill" class="small-label">Primary weapon skill</label><input type="number" id="primary-weapon-skill" min="0" max="255" placeholder="Auto" title="Weapon skill for main hand."></div>
+          <div><label for="secondary-weapon-skill" class="small-label">Secondary weapon skill</label><input type="number" id="secondary-weapon-skill" min="0" max="255" placeholder="Auto" title="Weapon skill for offhand."></div>
+        </div>
+        <div class="row">
+          <div><label for="worn-attack" class="small-label">Worn attack</label><input type="number" id="worn-attack" min="0" value="0" placeholder="0"></div>
+          <div><label for="spell-attack" class="small-label">Spell attack</label><input type="number" id="spell-attack" min="0" value="0" placeholder="0"></div>
+          <div><label for="str" class="small-label">STR</label><input type="number" id="str" min="1" value="255" placeholder="255"></div>
+          <div><label for="dex" class="small-label">DEX</label><input type="number" id="dex" min="1" value="255" placeholder="255"></div>
+          <div><label for="crit-chance-aa" class="small-label">Crit % AA</label><input type="number" id="crit-chance-aa" min="0" value="6" placeholder="0"></div>
+        </div>
+        <label class="checkbox-label"><input type="checkbox" id="ambidexterity-aa"> Ambidexterity AA (+32 dual wield)</label>
+        <label class="checkbox-label"><input type="checkbox" id="special-attacks"> Special attacks (Flying Kick / Backstab)</label>
+        <p class="hint" id="special-hint">Monk: Flying Kick 8s. Rogue: Backstab 12s.</p>
+        <div id="rogue-backstab-mod-row" style="display: none;">
+          <div class="row">
+            <div><label for="backstab-skill" class="small-label">Backstab skill</label><input type="number" id="backstab-skill" min="0" value="225" placeholder="225"></div>
+            <div><label for="backstab-mod" class="small-label">Backstab mod %</label><input type="number" id="backstab-mod" min="0" value="0" placeholder="0"></div>
+          </div>
+        </div>
+        <div id="fistweaving-row" style="display: none;">
+          <label class="checkbox-label"><input type="checkbox" id="fistweaving"> Include Fistweaving</label>
+          <p class="hint">Offhand 9 dmg rounds. Monk + 2H only.</p>
+        </div>
+      </details>
+    </section>
+
     <section class="section--core">
       <h2>Weapon 1 (Main Hand)</h2>
       <div id="w1-weapon-name" class="weapon-name" aria-live="polite"></div>
@@ -390,64 +443,6 @@
           </select></div>
           <div><label for="w2-elem-damage" class="small-label">Elem dmg</label><input type="number" id="w2-elem-damage" min="0" value="0" placeholder="0"></div>
           <div><label for="w2-bane" class="small-label">Bane dmg</label><input type="number" id="w2-bane" min="0" value="0" placeholder="0"></div>
-        </div>
-      </details>
-    </section>
-
-    <section class="section--core">
-      <h2>Character & Haste</h2>
-      <label>Class (applies defaults and to-hit)</label>
-      <select id="class">
-        <option value="">None (manual)</option>
-        <option value="warrior">Warrior</option>
-        <option value="paladin">Paladin</option>
-        <option value="ranger">Ranger</option>
-        <option value="shadowknight">Shadowknight</option>
-        <option value="monk" selected>Monk</option>
-        <option value="rogue">Rogue</option>
-        <option value="bard">Bard</option>
-        <option value="beastlord">Beastlord</option>
-      </select>
-      <p class="hint" id="class-hint">Monk: to-hit +0, DA 250, DW 252. You can still edit values.</p>
-      <label for="haste">Total haste (%) (Worn + Spell + v3 Haste) <span class="info-icon" title="Worn Haste: e.g. Cloak of Flames 36%&#10;Spell Haste: e.g. Visions of Grandeur 58%&#10;v3 Haste: e.g. Warsong of the Vah Shir 25%">&#8505;</span></label>
-      <input type="number" id="haste" min="0" value="99" placeholder="e.g. 99">
-      <div class="row">
-        <div><label for="worn-attack" class="small-label">Worn attack</label><input type="number" id="worn-attack" min="0" value="0" placeholder="0"></div>
-        <div><label for="spell-attack" class="small-label">Spell attack</label><input type="number" id="spell-attack" min="0" value="0" placeholder="0"></div>
-      </div>
-      <details class="collapse-secondary">
-        <summary class="collapse-summary">Skills, STR/DEX, level, crit, options</summary>
-        <label for="offense-skill">Offense skill (0–255)</label>
-        <input type="number" id="offense-skill" min="0" max="255" value="252" placeholder="252" title="Skill value used for to-hit only. Damage uses offense RATING = skill + STR + worn + spell.">
-        <div class="row">
-          <div><label for="double-attack" class="small-label">Double attack skill</label><input type="number" id="double-attack" min="0" value="250" placeholder="250"></div>
-          <div><label for="dual-wield" class="small-label">Dual wield skill</label><input type="number" id="dual-wield" min="0" value="252" placeholder="0 = no offhand"></div>
-        </div>
-        <div class="row">
-          <div><label for="primary-weapon-skill" class="small-label">Primary weapon skill</label><input type="number" id="primary-weapon-skill" min="0" max="255" placeholder="Auto from class/level" title="Weapon skill (to-hit) for main hand. Auto-filled from skill caps; override as needed."></div>
-          <div><label for="secondary-weapon-skill" class="small-label">Secondary weapon skill</label><input type="number" id="secondary-weapon-skill" min="0" max="255" placeholder="Auto from class/level" title="Weapon skill for offhand. Auto-filled from skill caps; override as needed."></div>
-        </div>
-        <p class="hint">Primary/secondary skill are filled from Quarm/TAKP caps for your class, level, and weapon type. Edit to override.</p>
-        <label class="checkbox-label"><input type="checkbox" id="ambidexterity-aa"> Ambidexterity AA (+32 effective dual wield)</label>
-        <label class="checkbox-label"><input type="checkbox" id="special-attacks"> Special attacks (Flying Kick / Backstab on cooldown)</label>
-        <p class="hint" id="special-hint">Monk: Flying Kick every 8s. Rogue: Backstab every 12s (from behind only).</p>
-        <div id="rogue-backstab-mod-row" style="display: none;">
-          <label for="backstab-skill">Backstab skill</label>
-          <input type="number" id="backstab-skill" min="0" value="225" placeholder="e.g. 225" title="Used for backstab base damage: (skill*0.02+2)*weapon_damage.">
-          <label for="backstab-mod">Backstab mod %</label>
-          <input type="number" id="backstab-mod" min="0" value="0" placeholder="e.g. 0" title="Increases backstab damage by this % when rogue.">
-        </div>
-        <div id="fistweaving-row" style="display: none;">
-          <label class="checkbox-label"><input type="checkbox" id="fistweaving"> Include Fistweaving</label>
-          <p class="hint">After each main-hand round, one offhand round with 9 damage (can double attack, no proc). Monk + 2H only.</p>
-        </div>
-        <div class="row">
-          <div><label for="level" class="small-label">Level</label><input type="number" id="level" min="1" max="65" value="60" placeholder="60"></div>
-          <div><label for="crit-chance-aa" class="small-label">Crit Chance AA %</label><input type="number" id="crit-chance-aa" min="0" value="6" placeholder="0"></div>
-        </div>
-        <div class="row">
-          <div><label for="str" class="small-label">STR</label><input type="number" id="str" min="1" value="255" placeholder="255"></div>
-          <div><label for="dex" class="small-label">DEX</label><input type="number" id="dex" min="1" value="255" placeholder="255"></div>
         </div>
       </details>
     </section>
@@ -1340,16 +1335,25 @@
       }
       $('btn-run-ranged').addEventListener('click', runRanged);
 
-      $('class').addEventListener('change', function () {
-        const classId = (this.value || '').toLowerCase();
+      function applyAmbidexterityDefault() {
+        const classId = ($('class').value || '').toLowerCase();
+        const level = parseInt($('level').value, 10) || 60;
+        const ambidextrousClasses = ['warrior', 'rogue', 'monk', 'bard', 'beastlord'];
+        if (level === 60 && ambidextrousClasses.includes(classId)) {
+          $('ambidexterity-aa').checked = true;
+        }
+      }
+      function onClassOrLevelChange() {
+        const classId = ($('class').value || '').toLowerCase();
         const c = classId ? CLASSES[classId] : null;
         if (c) {
           $('double-attack').value = c.doubleAttack;
           $('dual-wield').value = c.dualWield;
-          $('class-hint').textContent = c.name + ': to-hit +' + (c.toHitBonus || 0) + ', DA ' + c.doubleAttack + ', DW ' + c.dualWield + '. You can still edit values.';
+          $('class-hint').textContent = c.name + ': DA ' + c.doubleAttack + ', DW ' + c.dualWield + ' (to-hit +' + (c.toHitBonus || 0) + '). Edit below to override.';
         } else {
-          $('class-hint').textContent = 'Pick a class to auto-fill DA/DW and apply to-hit modifiers.';
+          $('class-hint').textContent = 'Pick a class to auto-fill skills. Edit below to override.';
         }
+        applyAmbidexterityDefault();
         const hasSpecial = classId === 'monk' || classId === 'rogue';
         $('special-attacks').disabled = !hasSpecial;
         if (!hasSpecial) $('special-attacks').checked = false;
@@ -1358,7 +1362,10 @@
         if (rogueRow) rogueRow.style.display = classId === 'rogue' ? '' : 'none';
         updateFistweavingVisibility();
         updateWeaponSkillInputs();
-      });
+      }
+      $('class').addEventListener('change', onClassOrLevelChange);
+      $('level').addEventListener('change', onClassOrLevelChange);
+      $('level').addEventListener('input', onClassOrLevelChange);
       function updateFistweavingVisibility() {
         const classId = ($('class').value || '').toLowerCase();
         const is2H = isW1TwoHanded();
@@ -1411,9 +1418,6 @@
         applyWeaponPreset('w2', this.value);
         updateWeaponSkillInputs();
       });
-      $('level').addEventListener('change', updateWeaponSkillInputs);
-      $('level').addEventListener('input', updateWeaponSkillInputs);
-
       updateWeaponSkillInputs();
 
       // ----- Item search autofilter (API + recent items) -----
@@ -1523,7 +1527,8 @@
         }
         listEl.innerHTML = html;
         listEl.querySelectorAll('.item-search-item').forEach(function (btn) {
-          btn.addEventListener('click', function () {
+          btn.addEventListener('mousedown', function (e) {
+            e.preventDefault();
             const num = function (v) { const n = parseInt(v, 10); return isNaN(n) ? 0 : n; };
             const w = {
               name: (btn.getAttribute('data-name') || '').trim(),

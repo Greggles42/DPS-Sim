@@ -791,9 +791,11 @@
         report.weapon1.rounds++;
         nextSwing1Ms = tMs + delay1Ms;
         let attacksThisRound = 1;
+        let mainHandHitThisRound = false;
 
         // Crit is only rolled after a successful hit (we are inside the rollHit success block).
         if (rollHit(toHit, avoidance, rng, fromBehind)) {
+          mainHandHitThisRound = true;
           const mhElemAdder = getElementalBaseAdder(w1, options, rng);
           report.elementalDamageTotal += mhElemAdder;
           let dmg = calcMeleeDamage(cappedW1Damage + mhElemAdder, offenseRating, mitigation, rng, 0);
@@ -814,12 +816,6 @@
           report.weapon1.hitList.push(dmg);
           report.totalDamage += dmg;
           report.damageBonusTotal += mainHandDamageBonus;
-          if (checkProc(procChance1, procRng)) {
-            report.weapon1.procs++;
-            const procDmg = (w1.procSpellDamage != null ? w1.procSpellDamage : 0) | 0;
-            report.weapon1.procDamageTotal += procDmg;
-            report.totalDamage += procDmg;
-          }
         } else {
           report.weapon1.swings++;
         }
@@ -827,6 +823,7 @@
         if (checkDoubleAttack(doubleAttackEffective, rng, options.classId)) {
           attacksThisRound = 2;
           if (rollHit(toHit, avoidance, rng, fromBehind)) {
+            mainHandHitThisRound = true;
             const mhElemAdder2 = getElementalBaseAdder(w1, options, rng);
             report.elementalDamageTotal += mhElemAdder2;
             let dmg = calcMeleeDamage(cappedW1Damage + mhElemAdder2, offenseRating, mitigation, rng, 0);
@@ -847,18 +844,13 @@
             report.weapon1.hitList.push(dmg);
             report.totalDamage += dmg;
             report.damageBonusTotal += mainHandDamageBonus;
-            if (checkProc(procChance1, procRng)) {
-              report.weapon1.procs++;
-              const procDmg = (w1.procSpellDamage != null ? w1.procSpellDamage : 0) | 0;
-              report.weapon1.procDamageTotal += procDmg;
-              report.totalDamage += procDmg;
-            }
           } else {
             report.weapon1.swings++;
           }
           if (checkTripleAttack(rng, level, options.classId)) {
             attacksThisRound = 3;
             if (rollHit(toHit, avoidance, rng, fromBehind)) {
+              mainHandHitThisRound = true;
               const mhElemAdder3 = getElementalBaseAdder(w1, options, rng);
               report.elementalDamageTotal += mhElemAdder3;
               let dmg = calcMeleeDamage(cappedW1Damage + mhElemAdder3, offenseRating, mitigation, rng, 0);
@@ -879,16 +871,18 @@
               report.weapon1.hitList.push(dmg);
               report.totalDamage += dmg;
               report.damageBonusTotal += mainHandDamageBonus;
-              if (checkProc(procChance1, procRng)) {
-                report.weapon1.procs++;
-                const procDmg = (w1.procSpellDamage != null ? w1.procSpellDamage : 0) | 0;
-                report.weapon1.procDamageTotal += procDmg;
-                report.totalDamage += procDmg;
-              }
             } else {
               report.weapon1.swings++;
             }
           }
+        }
+
+        // Proc once per round (only if at least one hit landed)
+        if (mainHandHitThisRound && procChance1 > 0 && checkProc(procChance1, procRng)) {
+          report.weapon1.procs++;
+          const procDmg = (w1.procSpellDamage != null ? w1.procSpellDamage : 0) | 0;
+          report.weapon1.procDamageTotal += procDmg;
+          report.totalDamage += procDmg;
         }
 
         if (attacksThisRound === 1) report.weapon1.single++;
@@ -946,7 +940,9 @@
         if (checkDualWield(dualWieldEffective, rng)) {
           report.weapon2.rounds++;
           let attacksThisRound = 1;
+          let offhandHitThisRound = false;
           if (rollHit(toHit, avoidance, rng, fromBehind)) {
+            offhandHitThisRound = true;
             const ohElemAdder = getElementalBaseAdder(w2, options, rng);
             report.elementalDamageTotal += ohElemAdder;
             let dmg = calcMeleeDamage(cappedW2Damage + ohElemAdder, offenseRating, mitigation, rng, 0);
@@ -963,18 +959,13 @@
             report.weapon2.minDamage = Math.min(report.weapon2.minDamage, dmg);
             report.weapon2.hitList.push(dmg);
             report.totalDamage += dmg;
-            if (checkProc(procChance2, procRng)) {
-              report.weapon2.procs++;
-              const procDmg = (w2.procSpellDamage != null ? w2.procSpellDamage : 0) | 0;
-              report.weapon2.procDamageTotal += procDmg;
-              report.totalDamage += procDmg;
-            }
           } else {
             report.weapon2.swings++;
           }
           if (checkDoubleAttack(doubleAttackEffective, rng, options.classId)) {
             attacksThisRound = 2;
             if (rollHit(toHit, avoidance, rng, fromBehind)) {
+              offhandHitThisRound = true;
               const ohElemAdder2 = getElementalBaseAdder(w2, options, rng);
               report.elementalDamageTotal += ohElemAdder2;
               let dmg = calcMeleeDamage(cappedW2Damage + ohElemAdder2, offenseRating, mitigation, rng, 0);
@@ -991,15 +982,16 @@
               report.weapon2.minDamage = Math.min(report.weapon2.minDamage, dmg);
               report.weapon2.hitList.push(dmg);
               report.totalDamage += dmg;
-              if (checkProc(procChance2, procRng)) {
-                report.weapon2.procs++;
-                const procDmg = (w2.procSpellDamage != null ? w2.procSpellDamage : 0) | 0;
-                report.weapon2.procDamageTotal += procDmg;
-                report.totalDamage += procDmg;
-              }
             } else {
               report.weapon2.swings++;
             }
+          }
+          // Proc once per round (only if at least one hit landed)
+          if (offhandHitThisRound && procChance2 > 0 && checkProc(procChance2, procRng)) {
+            report.weapon2.procs++;
+            const procDmg = (w2.procSpellDamage != null ? w2.procSpellDamage : 0) | 0;
+            report.weapon2.procDamageTotal += procDmg;
+            report.totalDamage += procDmg;
           }
           if (attacksThisRound === 1) report.weapon2.single++;
           else report.weapon2.double++;
