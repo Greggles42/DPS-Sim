@@ -148,10 +148,11 @@
     var damage = num(get(item, ['damage', 'Damage', 'dmg', 'Dmg']));
     var delay = num(get(item, ['delay', 'Delay', 'delay_sec', 'delaySec']));
 
-    var itemTypeNum = get(item, ['itemType', 'item_type', 'ItemType']);
+    var itemTypeNumRaw = get(item, ['itemType', 'item_type', 'ItemType']);
+    var itemTypeNum = (typeof itemTypeNumRaw === 'number') ? itemTypeNumRaw : (parseInt(itemTypeNumRaw, 10));
     var itemType = '';
     var is2H = false;
-    if (typeof itemTypeNum === 'number' && ITEM_TYPE_NUM_TO_TYPE[itemTypeNum] !== undefined) {
+    if (!isNaN(itemTypeNum) && ITEM_TYPE_NUM_TO_TYPE[itemTypeNum] !== undefined) {
       itemType = ITEM_TYPE_NUM_TO_TYPE[itemTypeNum];
       is2H = !!TWO_HAND_TYPES[itemType];
     } else {
@@ -189,7 +190,7 @@
     var finalType = itemType || (is2H ? '2hb' : '1hb');
     if (itemId && H2H_OVERRIDE_IDS[itemId]) finalType = 'h2h';
 
-    var itemTypeNumVal = (typeof itemTypeNum === 'number') ? itemTypeNum : null;
+    var itemTypeNumVal = !isNaN(itemTypeNum) ? itemTypeNum : null;
     var out = {
       name: name || 'Unknown',
       damage: damage,

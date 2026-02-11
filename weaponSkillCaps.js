@@ -2,6 +2,7 @@
  * weaponSkillCaps.js
  * Single source of truth: max caps + how to scale by level.
  * Project Quarm / TAKP-like ruleset.
+ * Verified against https://www.pqdi.cc/skills (level 60).
  * Load as script; exposes global WeaponSkillCaps.
  */
 (function (global) {
@@ -21,13 +22,21 @@
       '1hb', '1hs', '1hp', '2hb', '2hs', 'h2h', 'archery', 'throwing'
     ],
     maxCaps: {
+      // 1H Blunt: WAR CLR PAL RNG SHD DRU MNK BRD ROG SHM NEC WIZ MAG ENC BST
       '1hb':      [250, 175, 225, 250, 225, 175, 252, 250, 250, 200, 110, 110, 110, 110, 225],
-      '1hs':      [250, 225, 250, 225, 175, 250, 250,   0,   0,   0,   0,   0,   0,   0,   0],
-      '1hp':      [240, 225, 240, 225, 250, 250, 200, 110, 110, 110, 110, 225,   0,   0,   0],
+      // 1H Slashing
+      '1hs':      [250, 225, 2225, 225, 225, 250, 250,   0,   0,   0,   0,   0,   0,   0,   0],
+      // 1H Piercing (Piercing skill)
+      '1hp':      [240, 225, 225, 225, 225, 250, 200, 110, 110, 110, 110, 225,   0,   0,   0],
+      // 2H Blunt
       '2hb':      [250, 175, 225, 250, 225, 175, 252, 200, 110, 110, 110, 110, 225,   0,   0],
-      '2hs':      [250, 225, 250, 225,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0],
+      // 2H Slashing
+      '2hs':      [250, 225, 225, 225, 225,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0],
+      // Hand to Hand
       'h2h':      [100,  75, 100, 100, 100,  75, 252, 100, 100,  75,  75,  75,  75,  75, 250],
+      // Archery
       'archery':  [240,  75, 240,  75, 240,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0],
+      // Throwing
       'throwing': [200, 113, 200, 113, 250,  75,  75,  75,  75, 113,   0,   0,   0,   0,   0]
     }
   };
