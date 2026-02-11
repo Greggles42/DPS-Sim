@@ -61,6 +61,7 @@
       right: 1.25rem;
       width: 56px;
       height: 56px;
+      cursor: pointer;
     }
     .weapon-icon-wrap .weapon-icon {
       width: 56px;
@@ -1517,6 +1518,16 @@
       }
       [$('w1-damage'), $('w1-delay')].forEach(function (el) { if (el) el.addEventListener('input', function () { clearItemSearchOnManualEdit('w1'); }); });
       [$('w2-damage'), $('w2-delay')].forEach(function (el) { if (el) el.addEventListener('input', function () { clearItemSearchOnManualEdit('w2'); }); });
+      function onWeaponIconClick(prefix) {
+        $((prefix === 'w1' ? 'w1-preset' : 'w2-preset')).value = 'unequipped';
+        applyWeaponPreset(prefix, 'unequipped');
+        updateWeaponSkillInputs();
+        if (prefix === 'w1') { updateFistweavingVisibility(); updateWeapon2Disabled(); }
+      }
+      const w1Wrap = $('w1-weapon-icon-wrap');
+      const w2Wrap = $('w2-weapon-icon-wrap');
+      if (w1Wrap) { w1Wrap.title = 'Click to unequip'; w1Wrap.addEventListener('click', function () { onWeaponIconClick('w1'); }); }
+      if (w2Wrap) { w2Wrap.title = 'Click to unequip'; w2Wrap.addEventListener('click', function () { onWeaponIconClick('w2'); }); }
       updateWeaponSkillInputs();
 
       // ----- Item search autofilter (API + recent items) -----

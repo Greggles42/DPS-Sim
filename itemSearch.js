@@ -101,13 +101,16 @@
    * EQ item types: 0=1HS, 1=2HS, 2=1HP, 3=2HP, 4=1HB, 5=2HB, 6=Archery, 7=H2H, etc.
    */
   var ITEM_TYPE_NUM_TO_TYPE = {
-    0: '1hs', 1: '2hs', 2: '1hp', 3: '2hp', 4: '1hb', 5: '2hb', 6: 'archery', 7: 'h2h'
+    0: '1hs', 1: '2hs', 2: '1hp', 3: '2hp', 4: '1hb', 5: '2hb', 6: 'archery', 7: 'h2h', 45: 'h2h'
   };
 
   /**
    * dndquarm API: eleDmgType number -> element string (0 = none). 1=magic, 2=fire, 3=cold, 4=poison, 5=disease.
    */
   var ELE_DMG_TYPE_NUM = { 1: 'magic', 2: 'fire', 3: 'cold', 4: 'poison', 5: 'disease' };
+
+  /** Item IDs that are h2h but API may return as 1hb (e.g. Gharn's Rock, Mithril Ulak). Override type to h2h. */
+  var H2H_OVERRIDE_IDS = { 31241: true, 26809: true };
 
   /**
    * Map API item to the weapon shape used by DPS-Sim presets and getWeapon().
@@ -179,12 +182,16 @@
 
     var icon = num(get(item, ['icon', 'Icon', 'iconId', 'icon_id']));
 
+    var itemId = num(get(item, ['id', 'Id', 'item_id', 'itemId']));
+    var finalType = itemType || (is2H ? '2hb' : '1hb');
+    if (itemId && H2H_OVERRIDE_IDS[itemId]) finalType = 'h2h';
+
     var out = {
       name: name || 'Unknown',
       damage: damage,
       delay: delay,
       is2H: is2H,
-      type: itemType || (is2H ? '2hb' : '1hb'),
+      type: finalType,
       proc: procName || '',
       procDamage: procDamage,
       elemType: elemType || '',
