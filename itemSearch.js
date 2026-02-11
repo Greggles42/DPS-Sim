@@ -153,10 +153,13 @@
       is2H = itemType ? !!TWO_HAND_TYPES[itemType] : !!get(item, ['is2H', 'isTwoHand', 'twoHanded']);
     }
 
-    var procName = str(get(item, ['procName', 'proc', 'Proc', 'proc_name', 'ProcName']));
-    var procDamage = num(get(item, ['procDamage', 'proc_damage', 'ProcDamage', 'procdamage']));
+    var procName = str(get(item, ['procEffect', 'procName', 'proc', 'Proc', 'proc_name', 'ProcName', 'proc_effect']));
+    var procDamage = num(get(item, ['procDamage', 'proc_damage', 'ProcDamage', 'procdamage', 'procDamageAmt', 'proc_damage_amt']));
     if (item.procSpellData && typeof item.procSpellData === 'object' && item.procSpellData.damage != null) {
       procDamage = num(item.procSpellData.damage);
+    }
+    if (item.procEffectData && typeof item.procEffectData === 'object' && item.procEffectData.damage != null) {
+      procDamage = num(item.procEffectData.damage);
     }
 
     var eleDmgTypeNum = num(get(item, ['eleDmgType', 'elemType', 'elem_type']));
@@ -174,6 +177,8 @@
 
     var baneDamage = num(get(item, ['baneDmgAmt', 'baneDamage', 'bane_damage', 'BaneDamage', 'bane']));
 
+    var icon = num(get(item, ['icon', 'Icon', 'iconId', 'icon_id']));
+
     var out = {
       name: name || 'Unknown',
       damage: damage,
@@ -184,7 +189,8 @@
       procDamage: procDamage,
       elemType: elemType || '',
       elemDamage: elemDamage,
-      baneDamage: baneDamage
+      baneDamage: baneDamage,
+      icon: icon > 0 ? icon : null
     };
 
     return out;

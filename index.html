@@ -53,6 +53,19 @@
       text-transform: uppercase;
       letter-spacing: 0.05em;
     }
+    .weapon-section-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.25rem;
+    }
+    .weapon-section-header h2 { margin: 0; }
+    .weapon-icon {
+      width: 32px;
+      height: 32px;
+      flex-shrink: 0;
+      object-fit: contain;
+    }
     .weapon-name {
       display: block;
       font-size: 1.15rem;
@@ -296,6 +309,13 @@
     .item-search-item:hover { background: var(--input-bg); }
     .item-search-item .item-search-item-detail { font-size: 0.75rem; color: var(--muted); margin-top: 0.15rem; }
     .item-search-list .item-search-msg { padding: 0.6rem 0.6rem; font-size: 0.85rem; color: var(--muted); }
+
+    /* Offhand disabled when main hand is 2H */
+    #weapon2-section.is-disabled {
+      opacity: 0.55;
+      pointer-events: none;
+      background: rgba(0, 0, 0, 0.2);
+    }
   </style>
 </head>
 <body>
@@ -375,7 +395,10 @@
     </section>
 
     <section class="section--core">
-      <h2>Weapon 1 (Main Hand)</h2>
+      <div class="weapon-section-header">
+        <h2>Weapon 1 (Main Hand)</h2>
+        <img id="w1-weapon-icon" class="weapon-icon" src="" alt="" style="display:none">
+      </div>
       <div id="w1-weapon-name" class="weapon-name" aria-live="polite"></div>
       <label for="w1-preset">Quick select</label>
       <select id="w1-preset"></select>
@@ -412,7 +435,10 @@
     </section>
 
     <section id="weapon2-section" class="section--core">
-      <h2>Weapon 2 (Offhand, optional)</h2>
+      <div class="weapon-section-header">
+        <h2>Weapon 2 (Offhand, optional)</h2>
+        <img id="w2-weapon-icon" class="weapon-icon" src="" alt="" style="display:none">
+      </div>
       <div id="w2-weapon-name" class="weapon-name" aria-live="polite"></div>
       <label for="w2-preset">Quick select</label>
       <select id="w2-preset"></select>
@@ -762,10 +788,16 @@
       }
       let w1DisplayName = '';
       let w2DisplayName = '';
+      let w1WeaponType = null;
+      let w2WeaponType = null;
 
       function updateWeaponNameDisplay(prefix) {
         const span = $(prefix + '-weapon-name');
         if (!span) return;
+        if (prefix === 'w2' && isW1TwoHanded()) {
+          span.textContent = 'Unavailable';
+          return;
+        }
         const presetVal = ($(prefix + '-preset') && $(prefix + '-preset').value) || '';
         let name = '';
         if (presetVal === 'unequipped') {
@@ -778,12 +810,28 @@
         span.textContent = name;
       }
 
+      function updateWeaponIcon(prefix, iconNum) {
+        const imgEl = $(prefix + '-weapon-icon');
+        if (!imgEl) return;
+        if (iconNum != null && iconNum > 0) {
+          imgEl.src = 'icons/' + iconNum + '.gif';
+          imgEl.alt = 'Weapon icon';
+          imgEl.style.display = '';
+        } else {
+          imgEl.src = '';
+          imgEl.alt = '';
+          imgEl.style.display = 'none';
+        }
+      }
+
       function applyWeaponPreset(prefix, id) {
         const p = id ? WEAPON_PRESETS[id] : null;
         if (prefix === 'w1') {
+          w1WeaponType = (p && p.type) ? p.type : null;
           const overrideEl = $('w1-is2h-override');
           if (overrideEl) overrideEl.value = (p && (p.is2H || p.type === '2hb')) ? '1' : '0';
         }
+        if (prefix === 'w2') w2WeaponType = (p && p.type) ? p.type : null;
         if (p) {
           $(prefix + '-damage').value = p.damage;
           $(prefix + '-delay').value = p.delay;
@@ -806,6 +854,7 @@
           }
         }
         updateWeaponNameDisplay(prefix);
+        updateWeaponIcon(prefix, null);
         if (prefix === 'w1' && id === 'unequipped') updateWeaponNameDisplay('w2');
       }
 
@@ -1377,9 +1426,19 @@
         const section = $('weapon2-section');
         if (section) {
           section.querySelectorAll('select, input').forEach(function (el) { el.disabled = !!is2H; });
+          section.classList.toggle('is-disabled', !!is2H);
         }
+        updateWeaponNameDisplay('w2');
       }
 
+      var SKILL_TYPE_ALIASES = { '2hp': '2hb' };
+      var VALID_SKILL_KEYS = ['1hb', '1hs', '1hp', '2hb', '2hs', 'h2h', 'archery', 'throwing'];
+      function skillKeyForCap(typeOrNull, is2H) {
+        const t = (typeOrNull || '').toLowerCase();
+        const key = SKILL_TYPE_ALIASES[t] || t;
+        if (VALID_SKILL_KEYS.indexOf(key) >= 0) return key;
+        return is2H ? '2hb' : '1hb';
+      }
       function updateWeaponSkillInputs() {
         if (typeof WeaponSkillCaps === 'undefined') return;
         const classId = ($('class').value || '').toLowerCase();
@@ -1389,14 +1448,14 @@
         const w2PresetId = ($('w2-preset') && $('w2-preset').value) || '';
         const wp1 = w1PresetId ? WEAPON_PRESETS[w1PresetId] : null;
         const wp2 = w2PresetId ? WEAPON_PRESETS[w2PresetId] : null;
-        const primaryKey = (wp1 && wp1.type) ? wp1.type : (isW1TwoHanded() ? '2hb' : '1hb');
-        const secondaryKey = (wp2 && wp2.type) ? wp2.type : '1hb';
+        const primaryKey = skillKeyForCap((wp1 && wp1.type) || w1WeaponType, isW1TwoHanded());
+        const secondaryKey = skillKeyForCap((wp2 && wp2.type) || w2WeaponType, false);
         const primaryCap = WeaponSkillCaps.getCapForSimClass(classId, primaryKey, level);
         const secondaryCap = WeaponSkillCaps.getCapForSimClass(classId, secondaryKey, level);
         const primaryEl = $('primary-weapon-skill');
         const secondaryEl = $('secondary-weapon-skill');
-        if (primaryEl) primaryEl.value = primaryCap > 0 ? primaryCap : '';
-        if (secondaryEl) secondaryEl.value = secondaryCap > 0 ? secondaryCap : '';
+        if (primaryEl) { primaryEl.value = primaryCap > 0 ? primaryCap : ''; primaryEl.placeholder = primaryKey + ' (to-hit)'; }
+        if (secondaryEl) { secondaryEl.value = secondaryCap > 0 ? secondaryCap : ''; secondaryEl.placeholder = secondaryKey + ' (to-hit)'; }
       }
 
       $('class').dispatchEvent(new Event('change'));
@@ -1469,11 +1528,17 @@
         if (baneEl) baneEl.value = isNaN(bane) ? '' : bane;
         const presetEl = $(prefix + '-preset');
         if (presetEl) presetEl.value = '';
-        if (prefix === 'w1') { w1DisplayName = (weapon.name || '').trim() || 'Custom'; } else { w2DisplayName = (weapon.name || '').trim() || 'Custom'; }
+        updateWeaponIcon(prefix, weapon.icon);
+        if (prefix === 'w1') { w1DisplayName = (weapon.name || '').trim() || 'Custom'; w1WeaponType = (weapon.type || '').trim() || null; } else { w2DisplayName = (weapon.name || '').trim() || 'Custom'; w2WeaponType = (weapon.type || '').trim() || null; }
         updateWeaponNameDisplay(prefix);
+        updateWeaponSkillInputs();
         if (prefix === 'w1') {
           const overrideEl = $('w1-is2h-override');
           if (overrideEl) overrideEl.value = weapon.is2H ? '1' : '0';
+          if (weapon.is2H) {
+            $('w2-preset').value = 'unequipped';
+            applyWeaponPreset('w2', 'unequipped');
+          }
           updateWeapon2Disabled();
           updateFistweavingVisibility();
         }
@@ -1506,7 +1571,7 @@
           html += '<div class="item-search-section">Recent</div>';
           recent.forEach(function (w) {
             const label = renderItemLabel(w);
-            html += '<button type="button" class="item-search-item" data-name="' + (w.name || '').replace(/"/g, '&quot;') + '" data-damage="' + (w.damage != null ? w.damage : '') + '" data-delay="' + (w.delay != null ? w.delay : '') + '" data-proc="' + (w.proc || '').replace(/"/g, '&quot;') + '" data-procdamage="' + (w.procDamage != null ? w.procDamage : '') + '" data-elemtype="' + (w.elemType || '').replace(/"/g, '&quot;') + '" data-elemdamage="' + (w.elemDamage != null ? w.elemDamage : '') + '" data-bane="' + (w.baneDamage != null ? w.baneDamage : '') + '" data-is2h="' + (w.is2H ? '1' : '0') + '"><span>' + (w.name || '').replace(/</g, '&lt;') + '</span><div class="item-search-item-detail">' + label.replace(/</g, '&lt;') + '</div></button>';
+            html += '<button type="button" class="item-search-item" data-name="' + (w.name || '').replace(/"/g, '&quot;') + '" data-damage="' + (w.damage != null ? w.damage : '') + '" data-delay="' + (w.delay != null ? w.delay : '') + '" data-proc="' + (w.proc || '').replace(/"/g, '&quot;') + '" data-procdamage="' + (w.procDamage != null ? w.procDamage : '') + '" data-elemtype="' + (w.elemType || '').replace(/"/g, '&quot;') + '" data-elemdamage="' + (w.elemDamage != null ? w.elemDamage : '') + '" data-bane="' + (w.baneDamage != null ? w.baneDamage : '') + '" data-icon="' + (w.icon != null && w.icon > 0 ? w.icon : '') + '" data-is2h="' + (w.is2H ? '1' : '0') + '"><span>' + (w.name || '').replace(/</g, '&lt;') + '</span><div class="item-search-item-detail">' + label.replace(/</g, '&lt;') + '</div></button>';
           });
         }
         if (loading) {
@@ -1518,7 +1583,7 @@
           } else {
             results.forEach(function (w) {
               const label = renderItemLabel(w);
-              html += '<button type="button" class="item-search-item item-search-item-result" data-name="' + (w.name || '').replace(/"/g, '&quot;') + '" data-damage="' + (w.damage != null ? w.damage : '') + '" data-delay="' + (w.delay != null ? w.delay : '') + '" data-proc="' + (w.proc || '').replace(/"/g, '&quot;') + '" data-procdamage="' + (w.procDamage != null ? w.procDamage : '') + '" data-elemtype="' + (w.elemType || '').replace(/"/g, '&quot;') + '" data-elemdamage="' + (w.elemDamage != null ? w.elemDamage : '') + '" data-bane="' + (w.baneDamage != null ? w.baneDamage : '') + '" data-is2h="' + (w.is2H ? '1' : '0') + '"><span>' + (w.name || '').replace(/</g, '&lt;') + '</span><div class="item-search-item-detail">' + label.replace(/</g, '&lt;') + '</div></button>';
+              html += '<button type="button" class="item-search-item item-search-item-result" data-name="' + (w.name || '').replace(/"/g, '&quot;') + '" data-damage="' + (w.damage != null ? w.damage : '') + '" data-delay="' + (w.delay != null ? w.delay : '') + '" data-proc="' + (w.proc || '').replace(/"/g, '&quot;') + '" data-procdamage="' + (w.procDamage != null ? w.procDamage : '') + '" data-elemtype="' + (w.elemType || '').replace(/"/g, '&quot;') + '" data-elemdamage="' + (w.elemDamage != null ? w.elemDamage : '') + '" data-bane="' + (w.baneDamage != null ? w.baneDamage : '') + '" data-icon="' + (w.icon != null && w.icon > 0 ? w.icon : '') + '" data-is2h="' + (w.is2H ? '1' : '0') + '"><span>' + (w.name || '').replace(/</g, '&lt;') + '</span><div class="item-search-item-detail">' + label.replace(/</g, '&lt;') + '</div></button>';
             });
           }
         }
@@ -1530,6 +1595,7 @@
           btn.addEventListener('mousedown', function (e) {
             e.preventDefault();
             const num = function (v) { const n = parseInt(v, 10); return isNaN(n) ? 0 : n; };
+            const iconVal = num(btn.getAttribute('data-icon'));
             const w = {
               name: (btn.getAttribute('data-name') || '').trim(),
               damage: num(btn.getAttribute('data-damage')),
@@ -1539,6 +1605,7 @@
               elemType: (btn.getAttribute('data-elemtype') || '').trim(),
               elemDamage: num(btn.getAttribute('data-elemdamage')),
               baneDamage: num(btn.getAttribute('data-bane')),
+              icon: iconVal > 0 ? iconVal : null,
               is2H: btn.getAttribute('data-is2h') === '1'
             };
             saveRecentWeapon(w);
