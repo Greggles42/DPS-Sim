@@ -1446,6 +1446,10 @@
       }
       function updateWeapon2Disabled() {
         const is2H = isW1TwoHanded();
+        if (is2H) {
+          $('w2-preset').value = 'unequipped';
+          applyWeaponPreset('w2', 'unequipped');
+        }
         const section = $('weapon2-section');
         if (section) {
           section.querySelectorAll('select, input').forEach(function (el) { el.disabled = !!is2H; });
