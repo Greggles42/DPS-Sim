@@ -76,8 +76,15 @@
       color: var(--text);
       text-transform: none;
       letter-spacing: 0;
-      margin: -0.35rem 0 0.75rem 0;
+      margin: -0.35rem 0 0.15rem 0;
       min-height: 1.4em;
+    }
+    .weapon-skill {
+      display: block;
+      font-size: 0.8rem;
+      font-weight: 400;
+      color: var(--muted);
+      margin: 0 0 0.6rem 0;
     }
     .collapse-summary {
       font-size: 0.8rem;
@@ -144,6 +151,7 @@
     .char-hint-below-primary { margin-top: 0.15rem; }
     .char-details { margin-top: 0.25rem; }
     .char-details .char-secondary-row { margin-bottom: 0.35rem; }
+    .char-checkbox-row { display: flex; flex-wrap: wrap; gap: 0.5rem 1rem; margin-bottom: 0.35rem; }
     .char-checkbox { margin: 0.15rem 0.5rem 0.15rem 0; font-size: 0.8rem; }
     button {
       background: var(--accent);
@@ -406,6 +414,8 @@
           <div class="char-field char-field-num"><label for="str" class="small-label">STR</label><input type="number" id="str" min="1" value="255" placeholder="255"></div>
           <div class="char-field char-field-num"><label for="dex" class="small-label">DEX</label><input type="number" id="dex" min="1" value="255" placeholder="255"></div>
           <div class="char-field char-field-num"><label for="crit-chance-aa" class="small-label">Crit %</label><input type="number" id="crit-chance-aa" min="0" value="6" placeholder="0"></div>
+        </div>
+        <div class="char-checkbox-row">
           <label class="checkbox-label char-checkbox"><input type="checkbox" id="ambidexterity-aa"> Ambidexterity (+32 dual wield)</label>
           <label class="checkbox-label char-checkbox"><input type="checkbox" id="special-attacks"> Flying Kick / Backstab on cooldown</label>
         </div>
@@ -426,6 +436,7 @@
       <div class="weapon-icon-wrap" id="w1-weapon-icon-wrap" style="display:none"><img id="w1-weapon-icon" class="weapon-icon" src="" alt=""></div>
       <div class="weapon-section-header"><h2>Weapon 1 (Main Hand)</h2></div>
       <div id="w1-weapon-name" class="weapon-name" aria-live="polite"></div>
+      <div id="w1-weapon-skill" class="weapon-skill"></div>
       <label for="w1-preset">Quick select</label>
       <select id="w1-preset"></select>
       <div class="item-search-wrap">
@@ -438,7 +449,7 @@
         <div><label for="w1-damage" class="small-label">Damage</label><input type="number" id="w1-damage" min="0" value="12" placeholder="0 = unequipped"></div>
         <div><label for="w1-delay" class="small-label">Delay (decisec)</label><input type="number" id="w1-delay" min="0" value="40" placeholder="0 = unequipped, 40 = 4.0s"></div>
       </div>
-      <p class="hint">Delay in tenths of a second (40 = 4.0s, 25 = 2.5s). Damage 0 or Delay 0 = unequipped (offhand-only if Weapon 2 set).</p>
+      <p class="hint">Delay in tenths of a second (40 = 4.0s, 25 = 2.5s).</p>
       <details class="collapse-secondary">
         <summary class="collapse-summary">Proc, elemental &amp; bane</summary>
         <label for="w1-proc">Proc spell (name or leave blank)</label>
@@ -464,6 +475,7 @@
       <div class="weapon-icon-wrap" id="w2-weapon-icon-wrap" style="display:none"><img id="w2-weapon-icon" class="weapon-icon" src="" alt=""></div>
       <div class="weapon-section-header"><h2>Weapon 2 (Offhand, optional)</h2></div>
       <div id="w2-weapon-name" class="weapon-name" aria-live="polite"></div>
+      <div id="w2-weapon-skill" class="weapon-skill"></div>
       <label for="w2-preset">Quick select</label>
       <select id="w2-preset"></select>
       <div class="item-search-wrap">
@@ -817,23 +829,31 @@
       let w1WeaponType = null;
       let w2WeaponType = null;
 
+      function formatSkillLabel(key) { return (key || '').toUpperCase(); }
       function updateWeaponNameDisplay(prefix) {
         const span = $(prefix + '-weapon-name');
+        const skillEl = $(prefix + '-weapon-skill');
         if (!span) return;
         if (prefix === 'w2' && isW1TwoHanded()) {
           span.textContent = 'Unavailable';
+          if (skillEl) skillEl.textContent = '';
           return;
         }
         const presetVal = ($(prefix + '-preset') && $(prefix + '-preset').value) || '';
         let name = '';
+        let skillKey = '';
         if (presetVal === 'unequipped') {
           name = 'Unequipped';
         } else if (presetVal && WEAPON_PRESETS[presetVal]) {
-          name = WEAPON_PRESETS[presetVal].name || '';
+          const p = WEAPON_PRESETS[presetVal];
+          name = p.name || '';
+          skillKey = skillKeyForCap(p.type, p.is2H || p.type === '2hb');
         } else {
           name = (prefix === 'w1' ? w1DisplayName : w2DisplayName) || 'Custom';
+          skillKey = skillKeyForCap(prefix === 'w1' ? w1WeaponType : w2WeaponType, prefix === 'w1' && isW1TwoHanded());
         }
         span.textContent = name;
+        if (skillEl) skillEl.textContent = (name && name !== 'Unequipped') ? formatSkillLabel(skillKey) : '';
       }
 
       function updateWeaponIcon(prefix, iconNum) {
@@ -1426,7 +1446,7 @@
         if (c) {
           $('double-attack').value = c.doubleAttack;
           $('dual-wield').value = c.dualWield;
-          $('class-hint').textContent = c.name + ': DA ' + c.doubleAttack + ', DW ' + c.dualWield + ' (to-hit +' + (c.toHitBonus || 0) + '). Edit below to override.';
+          $('class-hint').textContent = 'Class and level auto-fill skills and weapon caps. Edit below to override.';
         } else {
           $('class-hint').textContent = 'Pick a class to auto-fill skills. Edit below to override.';
         }
