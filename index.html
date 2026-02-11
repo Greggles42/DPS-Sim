@@ -446,8 +446,6 @@
       <div class="weapon-section-header"><h2>Weapon 1 (Main Hand)</h2></div>
       <div id="w1-weapon-name" class="weapon-name" aria-live="polite"></div>
       <div id="w1-weapon-skill" class="weapon-skill"></div>
-      <label for="w1-preset">Quick select</label>
-      <select id="w1-preset"></select>
       <div class="item-search-wrap">
         <label for="w1-item-search">Search items (API)</label>
         <input type="text" id="w1-item-search" placeholder="Type 3+ characters to search..." autocomplete="off">
@@ -485,8 +483,6 @@
       <div class="weapon-section-header"><h2>Weapon 2 (Offhand, optional)</h2></div>
       <div id="w2-weapon-name" class="weapon-name" aria-live="polite"></div>
       <div id="w2-weapon-skill" class="weapon-skill"></div>
-      <label for="w2-preset">Quick select</label>
-      <select id="w2-preset"></select>
       <div class="item-search-wrap">
         <label for="w2-item-search">Search items (API)</label>
         <input type="text" id="w2-item-search" placeholder="Type 3+ characters to search..." autocomplete="off">
@@ -851,19 +847,11 @@
           if (skillEl) skillEl.textContent = '';
           return;
         }
-        const presetVal = ($(prefix + '-preset') && $(prefix + '-preset').value) || '';
-        let name = '';
-        let skillKey = '';
-        if (presetVal === 'unequipped') {
-          name = 'Unequipped';
-        } else if (presetVal && WEAPON_PRESETS[presetVal]) {
-          const p = WEAPON_PRESETS[presetVal];
-          name = p.name || '';
-          skillKey = skillKeyForCap(p.type, p.is2H || p.type === '2hb');
-        } else {
-          name = (prefix === 'w1' ? w1DisplayName : w2DisplayName) || 'Custom';
-          skillKey = skillKeyForCap(prefix === 'w1' ? w1WeaponType : w2WeaponType, prefix === 'w1' && isW1TwoHanded());
-        }
+        const dmg = parseInt($(prefix + '-damage').value, 10) || 0;
+        const dly = parseInt($(prefix + '-delay').value, 10) || 0;
+        const isUnequipped = dmg <= 0 || dly <= 0;
+        let name = isUnequipped ? 'Unequipped' : ((prefix === 'w1' ? w1DisplayName : w2DisplayName) || 'Custom');
+        const skillKey = skillKeyForCap(prefix === 'w1' ? w1WeaponType : w2WeaponType, prefix === 'w1' && isW1TwoHanded());
         span.textContent = name;
         if (skillEl) skillEl.textContent = (name && name !== 'Unequipped') ? formatSkillLabel(skillKey) : '';
       }
@@ -888,10 +876,11 @@
         if (prefix === 'w1') {
           w1WeaponType = (p && p.type) ? p.type : null;
           w1FromItemSearch = false;
+          if (id === 'unequipped') w1DisplayName = '';
           const overrideEl = $('w1-is2h-override');
           if (overrideEl) overrideEl.value = (p && (p.is2H || p.type === '2hb')) ? '1' : '0';
         }
-        if (prefix === 'w2') { w2WeaponType = (p && p.type) ? p.type : null; w2FromItemSearch = false; }
+        if (prefix === 'w2') { w2WeaponType = (p && p.type) ? p.type : null; w2FromItemSearch = false; if (id === 'unequipped') w2DisplayName = ''; }
         if (p) {
           $(prefix + '-damage').value = p.damage;
           $(prefix + '-delay').value = p.delay;
@@ -904,11 +893,10 @@
           if (elemDamageEl) elemDamageEl.value = (p.elemDamage != null ? p.elemDamage : 0) || '';
           const baneEl = $(prefix + '-bane');
           if (baneEl) baneEl.value = (p.baneDamage != null ? p.baneDamage : 0) || '';
+          if (prefix === 'w1' && (p.is2H || p.type === '2hb')) {
+            applyWeaponPreset('w2', 'unequipped');
+          }
           if (prefix === 'w1') {
-            if (p.is2H || p.type === '2hb') {
-              $('w2-preset').value = 'unequipped';
-              applyWeaponPreset('w2', 'unequipped');
-            }
             updateWeapon2Disabled();
             updateFistweavingVisibility();
           }
@@ -916,27 +904,6 @@
         updateWeaponNameDisplay(prefix);
         updateWeaponIcon(prefix, null);
         if (prefix === 'w1' && id === 'unequipped') updateWeaponNameDisplay('w2');
-      }
-
-      function fillWeaponPresetSelect(selId) {
-        const sel = document.getElementById(selId);
-        if (!sel) return;
-        const current = sel.value;
-        sel.innerHTML = '<option value="unequipped">Unequipped</option><option value="">Custom</option>';
-        const ids = selId === 'w2-preset'
-          ? WEAPON_PRESET_IDS.filter(function (id) {
-              const p = WEAPON_PRESETS[id];
-              return p && !(p.is2H || p.type === '2hb');
-            })
-          : WEAPON_PRESET_IDS;
-        ids.forEach(function (id) {
-          const opt = document.createElement('option');
-          opt.value = id;
-          opt.textContent = weaponOptionLabel(id);
-          sel.appendChild(opt);
-        });
-        if (current === 'unequipped' || (WEAPON_PRESETS[current] && ids.indexOf(current) !== -1)) sel.value = current;
-        else if (ids.indexOf(current) === -1) sel.value = 'unequipped';
       }
 
       // Class-specific defaults and modifiers (EQMacEmu / attack.cpp style)
@@ -1015,13 +982,9 @@
         const useWeapon2 = weapon2.damage > 0 && weapon2.delay > 0 && dualWieldSkill > 0;
 
         const offenseSkill = Math.min(255, Math.max(0, parseInt($('offense-skill').value, 10) || 252));
-        const w1PresetIdForSkill = ($('w1-preset') && $('w1-preset').value) || '';
-        const w2PresetIdForSkill = ($('w2-preset') && $('w2-preset').value) || '';
-        const wp1 = w1PresetIdForSkill ? WEAPON_PRESETS[w1PresetIdForSkill] : null;
-        const wp2 = w2PresetIdForSkill ? WEAPON_PRESETS[w2PresetIdForSkill] : null;
         const skillKey = hasMainHand
-          ? skillKeyForCap((wp1 && wp1.type) || w1WeaponType, weapon1.is2H)
-          : skillKeyForCap((wp2 && wp2.type) || w2WeaponType, weapon2.is2H);
+          ? skillKeyForCap(w1WeaponType, weapon1.is2H)
+          : skillKeyForCap(w2WeaponType, weapon2.is2H);
         let weaponSkillForToHit = getWeaponSkillInput(skillKey);
         if (weaponSkillForToHit <= 0 && typeof WeaponSkillCaps !== 'undefined' && classId && level) {
           weaponSkillForToHit = WeaponSkillCaps.getCapForSimClass(classId, skillKey, level) || undefined;
@@ -1157,21 +1120,17 @@
           };
         }
 
-        const w1PresetId = ($('w1-preset') && $('w1-preset').value) || '';
-        const w2PresetId = useWeapon2 ? (($('w2-preset') && $('w2-preset').value) || '') : '';
-        const w1Name = (w1PresetId && WEAPON_PRESETS[w1PresetId]) ? WEAPON_PRESETS[w1PresetId].name : (w1FromItemSearch && w1DisplayName ? w1DisplayName : (weapon1.damage + 'd/' + weapon1.delay));
-        const w2Name = useWeapon2 ? ((w2PresetId && WEAPON_PRESETS[w2PresetId]) ? WEAPON_PRESETS[w2PresetId].name : (w2FromItemSearch && w2DisplayName ? w2DisplayName : (weapon2.damage + 'd/' + weapon2.delay))) : '—';
+        const w1Name = (w1FromItemSearch && w1DisplayName ? w1DisplayName : (weapon1.damage + 'd/' + weapon1.delay));
+        const w2Name = useWeapon2 ? (w2FromItemSearch && w2DisplayName ? w2DisplayName : (weapon2.damage + 'd/' + weapon2.delay)) : '—';
         const w1Label = hasMainHand ? `Weapon 1: ${w1Name} (${weapon1.damage}d / ${weapon1.delay} delay${weapon1.procSpell ? ' / ' + weapon1.procSpell : ''})` : 'Main hand (unequipped)';
         const w2Label = useWeapon2
           ? `Weapon 2: ${w2Name} (${weapon2.damage}d / ${weapon2.delay} delay${weapon2.procSpell ? ' / ' + weapon2.procSpell : ''})`
           : 'Weapon 2';
         let reportText = EQCombat.formatReport(report, w1Label, w2Label, runs);
         if (typeof WeaponSkillCaps !== 'undefined' && classId && level) {
-          const w1PresetIdForCap = ($('w1-preset') && $('w1-preset').value) || '';
-          const pForCap = w1PresetIdForCap ? WEAPON_PRESETS[w1PresetIdForCap] : null;
-          const skillKey = (pForCap && pForCap.type) ? pForCap.type : (weapon1.is2H ? '2hb' : '1hb');
-          const skillCap = WeaponSkillCaps.getCapForSimClass(classId, skillKey, level);
-          reportText = '  Weapon skill cap (' + skillKey + '): ' + skillCap + ' (Quarm/TAKP)\n\n' + reportText;
+          const capSkillKey = skillKeyForCap(w1WeaponType, weapon1.is2H);
+          const skillCap = WeaponSkillCaps.getCapForSimClass(classId, capSkillKey, level);
+          reportText = '  Weapon skill cap (' + capSkillKey + '): ' + skillCap + ' (Quarm/TAKP)\n\n' + reportText;
         }
         $('report').textContent = reportText;
 
@@ -1203,8 +1162,8 @@
             v: VERSION,
             uid: getOrCreateAnonymousUserId(),
             ts: Date.now(),
-            w1: { preset: w1PresetId, name: w1Name, damage: weapon1.damage, delay: weapon1.delay, is2H: !!weapon1.is2H },
-            w2: useWeapon2 ? { preset: w2PresetId, name: w2Name, damage: weapon2.damage, delay: weapon2.delay } : null,
+            w1: { name: w1Name, damage: weapon1.damage, delay: weapon1.delay, is2H: !!weapon1.is2H },
+            w2: useWeapon2 ? { name: w2Name, damage: weapon2.damage, delay: weapon2.delay } : null,
             classId: classId || '',
             durationSec,
             runs,
@@ -1480,10 +1439,7 @@
       }
       function updateWeapon2Disabled() {
         const is2H = isW1TwoHanded();
-        if (is2H) {
-          $('w2-preset').value = 'unequipped';
-          applyWeaponPreset('w2', 'unequipped');
-        }
+        if (is2H) applyWeaponPreset('w2', 'unequipped');
         const section = $('weapon2-section');
         if (section) {
           section.querySelectorAll('select, input').forEach(function (el) { el.disabled = !!is2H; });
@@ -1518,30 +1474,16 @@
 
       $('class').dispatchEvent(new Event('change'));
 
-      fillWeaponPresetSelect('w1-preset');
-      fillWeaponPresetSelect('w2-preset');
-      $('w1-preset').value = 'unequipped';
       applyWeaponPreset('w1', 'unequipped');
       updateWeaponNameDisplay('w1');
       updateWeaponNameDisplay('w2');
       updateWeapon2Disabled();
-      $('w1-preset').addEventListener('change', function () {
-        applyWeaponPreset('w1', this.value);
-        updateFistweavingVisibility();
-        updateWeapon2Disabled();
-        updateWeaponSkillInputs();
-      });
-      $('w2-preset').addEventListener('change', function () {
-        applyWeaponPreset('w2', this.value);
-        updateWeaponSkillInputs();
-      });
       function clearItemSearchOnManualEdit(prefix) {
         if (prefix === 'w1') w1FromItemSearch = false; else w2FromItemSearch = false;
       }
-      [$('w1-damage'), $('w1-delay')].forEach(function (el) { if (el) el.addEventListener('input', function () { clearItemSearchOnManualEdit('w1'); }); });
-      [$('w2-damage'), $('w2-delay')].forEach(function (el) { if (el) el.addEventListener('input', function () { clearItemSearchOnManualEdit('w2'); }); });
+      [$('w1-damage'), $('w1-delay')].forEach(function (el) { if (el) el.addEventListener('input', function () { clearItemSearchOnManualEdit('w1'); updateWeaponNameDisplay('w1'); }); });
+      [$('w2-damage'), $('w2-delay')].forEach(function (el) { if (el) el.addEventListener('input', function () { clearItemSearchOnManualEdit('w2'); updateWeaponNameDisplay('w2'); }); });
       function onWeaponIconClick(prefix) {
-        $((prefix === 'w1' ? 'w1-preset' : 'w2-preset')).value = 'unequipped';
         applyWeaponPreset(prefix, 'unequipped');
         updateWeaponSkillInputs();
         if (prefix === 'w1') { updateFistweavingVisibility(); updateWeapon2Disabled(); }
@@ -1601,8 +1543,6 @@
         if (elemDamageEl) elemDamageEl.value = isNaN(elemDmg) ? '' : elemDmg;
         const baneEl = $(prefix + '-bane');
         if (baneEl) baneEl.value = isNaN(bane) ? '' : bane;
-        const presetEl = $(prefix + '-preset');
-        if (presetEl) presetEl.value = '';
         updateWeaponIcon(prefix, weapon.icon);
         if (prefix === 'w1') { w1DisplayName = (weapon.name || '').trim() || 'Custom'; w1FromItemSearch = true; w1WeaponType = (weapon.type || '').trim() || null; } else { w2DisplayName = (weapon.name || '').trim() || 'Custom'; w2FromItemSearch = true; w2WeaponType = (weapon.type || '').trim() || null; }
         updateWeaponNameDisplay(prefix);
@@ -1610,10 +1550,7 @@
         if (prefix === 'w1') {
           const overrideEl = $('w1-is2h-override');
           if (overrideEl) overrideEl.value = weapon.is2H ? '1' : '0';
-          if (weapon.is2H) {
-            $('w2-preset').value = 'unequipped';
-            applyWeaponPreset('w2', 'unequipped');
-          }
+          if (weapon.is2H) applyWeaponPreset('w2', 'unequipped');
           updateWeapon2Disabled();
           updateFistweavingVisibility();
         }
