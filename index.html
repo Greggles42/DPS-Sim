@@ -819,11 +819,11 @@
       }
 
       function isW1TwoHanded() {
-        const presetId = $('w1-preset') && $('w1-preset').value;
-        if (!presetId) {
-          const override = $('w1-is2h-override');
-          return !!(override && override.value === '1');
-        }
+        const overrideEl = $('w1-is2h-override');
+        if (overrideEl && overrideEl.value === '1') return true;
+        const presetEl = $('w1-preset');
+        const presetId = presetEl && presetEl.value;
+        if (!presetId) return false;
         const p = WEAPON_PRESETS[presetId] || null;
         const type2H = p && p.type && (p.type.toLowerCase() === '2hb' || p.type.toLowerCase() === '2hs' || p.type.toLowerCase() === '2hp');
         return !!(p && (p.is2H || type2H));
@@ -1546,11 +1546,12 @@
         const baneEl = $(prefix + '-bane');
         if (baneEl) baneEl.value = isNaN(bane) ? '' : bane;
         updateWeaponIcon(prefix, weapon.icon);
-        if (prefix === 'w1') { w1DisplayName = (weapon.name || '').trim() || 'Custom'; w1FromItemSearch = true; w1WeaponType = (weapon.type || '').trim() || null; } else { w2DisplayName = (weapon.name || '').trim() || 'Custom'; w2FromItemSearch = true; w2WeaponType = (weapon.type || '').trim() || null; }
+        var normType = (weapon.type != null && weapon.type !== '') ? String(weapon.type).trim().toLowerCase() : null;
+        if (prefix === 'w1') { w1DisplayName = (weapon.name || '').trim() || 'Custom'; w1FromItemSearch = true; w1WeaponType = normType; } else { w2DisplayName = (weapon.name || '').trim() || 'Custom'; w2FromItemSearch = true; w2WeaponType = normType; }
         updateWeaponNameDisplay(prefix);
         updateWeaponSkillInputs();
         if (prefix === 'w1') {
-          const type2H = weapon.type && (weapon.type.toLowerCase() === '2hb' || weapon.type.toLowerCase() === '2hs' || weapon.type.toLowerCase() === '2hp');
+          const type2H = normType === '2hb' || normType === '2hs' || normType === '2hp';
           const is2H = !!weapon.is2H || !!type2H;
           const overrideEl = $('w1-is2h-override');
           if (overrideEl) overrideEl.value = is2H ? '1' : '0';
@@ -1628,19 +1629,21 @@
             const num = function (v) { const n = parseInt(v, 10); return isNaN(n) ? 0 : n; };
             const iconVal = num(btn.getAttribute('data-icon'));
             const weaponTypeRaw = (btn.getAttribute('data-weapon-type') || '').trim();
+            const typeLower = weaponTypeRaw ? weaponTypeRaw.toLowerCase() : '';
+            const derived2H = typeLower === '2hb' || typeLower === '2hs' || typeLower === '2hp';
             const w = {
               name: (btn.getAttribute('data-name') || '').trim(),
               damage: num(btn.getAttribute('data-damage')),
               delay: num(btn.getAttribute('data-delay')),
-              type: weaponTypeRaw || null,
+              type: typeLower || weaponTypeRaw || null,
               proc: (btn.getAttribute('data-proc') || '').trim(),
               procDamage: num(btn.getAttribute('data-procdamage')),
               elemType: (btn.getAttribute('data-elemtype') || '').trim(),
               elemDamage: num(btn.getAttribute('data-elemdamage')),
               baneDamage: num(btn.getAttribute('data-bane')),
               icon: iconVal > 0 ? iconVal : null,
-              is2H: btn.getAttribute('data-is2h') === '1',
-              offhandBlocked: btn.getAttribute('data-offhand-blocked') === '1'
+              is2H: btn.getAttribute('data-is2h') === '1' || derived2H,
+              offhandBlocked: btn.getAttribute('data-offhand-blocked') === '1' || derived2H
             };
             saveRecentWeapon(w);
             applyWeaponFromSearch(prefix, w);
