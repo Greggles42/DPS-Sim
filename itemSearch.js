@@ -101,7 +101,7 @@
    * EQ item types: 0=1HS, 1=2HS, 2=1HP, 3=2HP, 4=1HB, 5=2HB, 6=Archery, 7=H2H, 35=2HP (2h piercing), etc.
    */
   var ITEM_TYPE_NUM_TO_TYPE = {
-    0: '1hs', 1: '2hs', 2: '1hp', 3: '2hp', 4: '1hb', 5: '2hb', 6: 'archery', 7: 'h2h', 35: '2hp', 45: 'h2h'
+    0: '1hs', 1: '2hs', 2: '1hb', 3: '2hb', 4: 'bow', 5: '2hb', 6: 'throwing', 7: 'h2h', 10: '1hp',35: '2hp', 45: 'h2h'
   };
 
   /**
