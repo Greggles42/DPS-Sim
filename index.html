@@ -825,7 +825,8 @@
           return !!(override && override.value === '1');
         }
         const p = WEAPON_PRESETS[presetId] || null;
-        return !!(p && (p.is2H || p.type === '2hb'));
+        const type2H = p && p.type && (p.type.toLowerCase() === '2hb' || p.type.toLowerCase() === '2hs' || p.type.toLowerCase() === '2hp');
+        return !!(p && (p.is2H || type2H));
       }
       let w1DisplayName = '';
       let w2DisplayName = '';
@@ -873,12 +874,13 @@
 
       function applyWeaponPreset(prefix, id) {
         const p = id ? WEAPON_PRESETS[id] : null;
+        const pType2H = p && p.type && (p.type.toLowerCase() === '2hb' || p.type.toLowerCase() === '2hs' || p.type.toLowerCase() === '2hp');
         if (prefix === 'w1') {
           w1WeaponType = (p && p.type) ? p.type : null;
           w1FromItemSearch = false;
           if (id === 'unequipped') w1DisplayName = '';
           const overrideEl = $('w1-is2h-override');
-          if (overrideEl) overrideEl.value = (p && (p.is2H || p.type === '2hb')) ? '1' : '0';
+          if (overrideEl) overrideEl.value = (p && (p.is2H || pType2H)) ? '1' : '0';
         }
         if (prefix === 'w2') { w2WeaponType = (p && p.type) ? p.type : null; w2FromItemSearch = false; if (id === 'unequipped') w2DisplayName = ''; }
         if (p) {
@@ -893,7 +895,7 @@
           if (elemDamageEl) elemDamageEl.value = (p.elemDamage != null ? p.elemDamage : 0) || '';
           const baneEl = $(prefix + '-bane');
           if (baneEl) baneEl.value = (p.baneDamage != null ? p.baneDamage : 0) || '';
-          if (prefix === 'w1' && (p.is2H || p.type === '2hb')) {
+          if (prefix === 'w1' && (p.is2H || pType2H)) {
             applyWeaponPreset('w2', 'unequipped');
           }
           if (prefix === 'w1') {
@@ -1548,9 +1550,11 @@
         updateWeaponNameDisplay(prefix);
         updateWeaponSkillInputs();
         if (prefix === 'w1') {
+          const type2H = weapon.type && (weapon.type.toLowerCase() === '2hb' || weapon.type.toLowerCase() === '2hs' || weapon.type.toLowerCase() === '2hp');
+          const is2H = !!weapon.is2H || !!type2H;
           const overrideEl = $('w1-is2h-override');
-          if (overrideEl) overrideEl.value = weapon.is2H ? '1' : '0';
-          if (weapon.is2H) applyWeaponPreset('w2', 'unequipped');
+          if (overrideEl) overrideEl.value = is2H ? '1' : '0';
+          if (is2H) applyWeaponPreset('w2', 'unequipped');
           updateWeapon2Disabled();
           updateFistweavingVisibility();
         }
