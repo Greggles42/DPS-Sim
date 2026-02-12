@@ -92,16 +92,16 @@
   }
 
   /**
-   * Two-hand weapon types (EQ slot/type strings).
+   * Two-hand weapon types (EQ slot/type strings). Matches 2H entries in ITEM_TYPE_NUM_TO_TYPE.
    */
   var TWO_HAND_TYPES = { '2hb': true, '2hs': true, '2hp': true, 'bow': true, 'archery': true };
 
   /**
    * dndquarm API: itemType number -> weapon skill type string.
-   * EQ item types: 0=1HS, 1=2HS, 2=1HP, 3=2HP, 4=1HB, 5=2HB, 6=Archery, 7=H2H, 35=2HP (2h piercing), etc.
+   * 0=1HS, 1=2HS, 2=1HB, 3=2HB, 4=bow, 5=2HB, 6=throwing, 7=H2H, 10=1HP, 35=2HP, 45=H2H
    */
   var ITEM_TYPE_NUM_TO_TYPE = {
-    0: '1hs', 1: '2hs', 2: '1hb', 3: '2hb', 4: 'bow', 5: '2hb', 6: 'throwing', 7: 'h2h', 10: '1hp',35: '2hp', 45: 'h2h'
+    0: '1hs', 1: '2hs', 2: '1hb', 3: '2hb', 4: 'bow', 5: '2hb', 6: 'throwing', 7: 'h2h', 10: '1hp', 35: '2hp', 45: 'h2h'
   };
 
   /**
@@ -109,11 +109,11 @@
    */
   var ELE_DMG_TYPE_NUM = { 1: 'magic', 2: 'fire', 3: 'cold', 4: 'poison', 5: 'disease' };
 
-  /** Item IDs that are h2h but API may return as 1hb (e.g. Gharn's Rock, Mithril Ulak). Override type to h2h. */
-  var H2H_OVERRIDE_IDS = { 31241: true, 26809: true };
+  /** Item IDs that are h2h but API may return as 1hb (e.g. Gharn's Rock, Mithril Ulak). Override type to h2h. Empty if not used. */
+  var H2H_OVERRIDE_IDS = {};
 
-  /** Item types that cannot be used in offhand (2hs, 2hp, 2hb, archery). */
-  var OFFHAND_BLOCKED_ITEM_TYPES = { 1: true, 3: true, 5: true, 6: true, 35: true };
+  /** Item types that cannot be used in offhand (2hs, 2hb, bow, throwing, 2hp per ITEM_TYPE_NUM_TO_TYPE). */
+  var OFFHAND_BLOCKED_ITEM_TYPES = { 1: true, 3: true, 4: true, 5: true, 6: true, 35: true };
 
   /**
    * Map API item to the weapon shape used by DPS-Sim presets and getWeapon().

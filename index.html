@@ -825,7 +825,7 @@
         const presetId = presetEl && presetEl.value;
         if (!presetId) return false;
         const p = WEAPON_PRESETS[presetId] || null;
-        const type2H = p && p.type && (p.type.toLowerCase() === '2hb' || p.type.toLowerCase() === '2hs' || p.type.toLowerCase() === '2hp');
+        const type2H = p && p.type && (p.type.toLowerCase() === '2hb' || p.type.toLowerCase() === '2hs' || p.type.toLowerCase() === '2hp' || p.type.toLowerCase() === 'bow');
         return !!(p && (p.is2H || type2H));
       }
       let w1DisplayName = '';
@@ -874,7 +874,7 @@
 
       function applyWeaponPreset(prefix, id) {
         const p = id ? WEAPON_PRESETS[id] : null;
-        const pType2H = p && p.type && (p.type.toLowerCase() === '2hb' || p.type.toLowerCase() === '2hs' || p.type.toLowerCase() === '2hp');
+        const pType2H = p && p.type && (p.type.toLowerCase() === '2hb' || p.type.toLowerCase() === '2hs' || p.type.toLowerCase() === '2hp' || p.type.toLowerCase() === 'bow');
         if (prefix === 'w1') {
           w1WeaponType = (p && p.type) ? p.type : null;
           w1FromItemSearch = false;
@@ -1450,7 +1450,7 @@
         updateWeaponNameDisplay('w2');
       }
 
-      var SKILL_TYPE_ALIASES = { '2hp': '1hp' };
+      var SKILL_TYPE_ALIASES = { '2hp': '1hp', 'bow': 'archery' };
       var VALID_SKILL_KEYS = ['1hb', '1hs', '1hp', '2hb', '2hs', 'h2h', 'archery', 'throwing'];
       function skillKeyForCap(typeOrNull, is2H) {
         const t = (typeOrNull || '').toLowerCase();
@@ -1551,7 +1551,7 @@
         updateWeaponNameDisplay(prefix);
         updateWeaponSkillInputs();
         if (prefix === 'w1') {
-          const type2H = normType === '2hb' || normType === '2hs' || normType === '2hp';
+          const type2H = normType === '2hb' || normType === '2hs' || normType === '2hp' || normType === 'bow';
           const is2H = !!weapon.is2H || !!type2H;
           const overrideEl = $('w1-is2h-override');
           if (overrideEl) overrideEl.value = is2H ? '1' : '0';
@@ -1630,7 +1630,7 @@
             const iconVal = num(btn.getAttribute('data-icon'));
             const weaponTypeRaw = (btn.getAttribute('data-weapon-type') || '').trim();
             const typeLower = weaponTypeRaw ? weaponTypeRaw.toLowerCase() : '';
-            const derived2H = typeLower === '2hb' || typeLower === '2hs' || typeLower === '2hp';
+            const derived2H = typeLower === '2hb' || typeLower === '2hs' || typeLower === '2hp' || typeLower === 'bow';
             const w = {
               name: (btn.getAttribute('data-name') || '').trim(),
               damage: num(btn.getAttribute('data-damage')),
