@@ -101,7 +101,7 @@
    * 0=1HS, 1=2HS, 2=1HB, 3=2HB, 4=bow, 5=2HB, 6=throwing, 7=H2H, 10=1HP, 35=2HP, 45=H2H
    */
   var ITEM_TYPE_NUM_TO_TYPE = {
-    0: '1hs', 1: '2hs', 2: '1hb', 3: '2hb', 4: 'bow', 5: '2hb', 6: 'throwing', 7: 'h2h', 10: '1hp', 35: '2hp', 45: 'h2h'
+    0: '1hs', 1: '2hs', 2: '1hb', 3: '2hb', 4: 'bow', 5: 'bs', 6: 'throwing', 7: 'h2h', 10: '1hp', 35: '2hp', 45: 'h2h'
   };
 
   /**
