@@ -1169,7 +1169,7 @@
       lines.push(`  ${sp.name}`);
       if (sp.name === 'Backstab') {
         lines.push(`    Number of backstab rounds: ${a}`);
-        if (sp.attemptedAttacks != null) lines.push(`    Attempted attacks:   ${attemptedAttacks}`);
+        if (sp.attemptedAttacks != null) lines.push(`    Total attempted hit rolls: ${attemptedAttacks}`);
       } else {
         lines.push(`    Attempts:            ${a}`);
       }
