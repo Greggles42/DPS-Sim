@@ -200,8 +200,8 @@
     if (isNaN(slots)) slots = null;
 
     var itemId = num(get(item, ['id', 'Id', 'item_id', 'itemId']));
-    var finalType = itemType || (is2H ? '2hb' : '1hb');
-    if (itemId && H2H_OVERRIDE_IDS[itemId]) finalType = 'h2h';
+    var finalType = itemType || 'undefined';
+    // H2H override disabled for now: if (itemId && H2H_OVERRIDE_IDS[itemId]) finalType = 'h2h';
 
     var itemTypeNumVal = !isNaN(itemTypeNum) ? itemTypeNum : null;
     var out = {

@@ -847,6 +847,7 @@
 
       function formatSkillLabel(key) {
         if (key === '1hp' || key === '2hp') return 'Piercing';
+        if (key === 'undefined') return 'UNDEFINED';
         return (key || '').toUpperCase();
       }
       function updateWeaponNameDisplay(prefix) {
@@ -1459,9 +1460,10 @@
       }
 
       var SKILL_TYPE_ALIASES = { '2hp': '1hp', 'bow': 'archery' };
-      var VALID_SKILL_KEYS = ['1hb', '1hs', '1hp', '2hb', '2hs', 'h2h', 'archery', 'throwing'];
+      var VALID_SKILL_KEYS = ['1hb', '1hs', '1hp', '2hb', '2hs', 'h2h', 'archery', 'throwing', 'undefined'];
       function skillKeyForCap(typeOrNull, is2H) {
         const t = (typeOrNull || '').toLowerCase();
+        if (t === 'undefined') return 'undefined';
         const key = SKILL_TYPE_ALIASES[t] || t;
         if (VALID_SKILL_KEYS.indexOf(key) >= 0) return key;
         return is2H ? '2hb' : '1hb';
