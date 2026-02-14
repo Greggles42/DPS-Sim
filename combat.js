@@ -594,6 +594,8 @@
    * @param {number} [options.backstabSkill] - backstab skill for base damage (skill*0.02+2)*weapon_damage; also enforces minHit by level
    * @param {number} [options.seed] - optional RNG seed for reproducibility
    * @param {number} [options.critChanceMult] - AA Critical Hit Chance bonus (percent)
+   * @param {boolean} [options.duelist] - rogue only: double melee damage for 12s at a random time in the fight
+   * @param {boolean} [options.innerFlame] - monk only: double melee damage for 12s at a random time in the fight
    */
   function runFight(options) {
     const fromBehind = !!options.fromBehind;
@@ -689,6 +691,13 @@
     };
 
     const durationMs = Math.floor(options.fightDurationSec * 1000);
+    const duelist = !!(options.duelist && options.classId === 'rogue');
+    const innerFlame = !!(options.innerFlame && options.classId === 'monk');
+    const BUFF_12S_MS = 12000;
+    const duelistStartMs = duelist ? Math.floor(rng() * Math.max(0, durationMs - BUFF_12S_MS)) : 0;
+    const duelistEndMs = duelistStartMs + BUFF_12S_MS;
+    const innerFlameStartMs = innerFlame ? Math.floor(rng() * Math.max(0, durationMs - BUFF_12S_MS)) : 0;
+    const innerFlameEndMs = innerFlameStartMs + BUFF_12S_MS;
     const specialCooldownMs = specialConfig ? specialConfig.cooldownDecisec * DECISEC_TO_MS : 0;
     let nextSwing1Ms = hasMainHand ? 0 : Infinity;
     let nextSwing2Ms = dualWielding ? rng() * delay2Ms : Infinity;
@@ -761,6 +770,10 @@
 
       // Main hand (one round = one swing opportunity; 1, 2, or 3 attacks per round)
       if (tMs >= nextSwing1Ms) {
+        const duelistThisRound = duelist && tMs >= duelistStartMs && tMs < duelistEndMs;
+        const innerFlameThisRound = innerFlame && tMs >= innerFlameStartMs && tMs < innerFlameEndMs;
+        const duelistMult = (duelistThisRound || innerFlameThisRound) ? 2 : 1;
+
         report.weapon1.rounds++;
         nextSwing1Ms = tMs + delay1Ms;
         let attacksThisRound = 1;
@@ -780,7 +793,8 @@
           const critResult = rollMeleeCrit(dmg, mainHandDamageBonus, level, options.classId, options.dex, options.critChanceMult, false, false, 0, rng);
           dmg = critResult.damage;
           dmg = Math.max(dmg, 1 + mainHandDamageBonus);
-          if (critResult.isCrit) { report.critHits++; report.critDamageGain += (dmg - beforeCrit); }
+          if (critResult.isCrit) { report.critHits++; report.critDamageGain += (dmg - beforeCrit) * duelistMult; }
+          if (duelistMult > 1) dmg *= duelistMult;
           report.weapon1.swings++;
           report.weapon1.hits++;
           report.weapon1.totalDamage += dmg;
@@ -808,7 +822,8 @@
             const critResult = rollMeleeCrit(dmg, mainHandDamageBonus, level, options.classId, options.dex, options.critChanceMult, false, false, 0, rng);
             dmg = critResult.damage;
             dmg = Math.max(dmg, 1 + mainHandDamageBonus);
-            if (critResult.isCrit) { report.critHits++; report.critDamageGain += (dmg - beforeCrit); }
+            if (critResult.isCrit) { report.critHits++; report.critDamageGain += (dmg - beforeCrit) * duelistMult; }
+            if (duelistMult > 1) dmg *= duelistMult;
             report.weapon1.swings++;
             report.weapon1.hits++;
             report.weapon1.totalDamage += dmg;
@@ -835,7 +850,8 @@
               const critResult = rollMeleeCrit(dmg, mainHandDamageBonus, level, options.classId, options.dex, options.critChanceMult, false, false, 0, rng);
               dmg = critResult.damage;
               dmg = Math.max(dmg, 1 + mainHandDamageBonus);
-              if (critResult.isCrit) { report.critHits++; report.critDamageGain += (dmg - beforeCrit); }
+              if (critResult.isCrit) { report.critHits++; report.critDamageGain += (dmg - beforeCrit) * duelistMult; }
+              if (duelistMult > 1) dmg *= duelistMult;
               report.weapon1.swings++;
               report.weapon1.hits++;
               report.weapon1.totalDamage += dmg;
@@ -910,6 +926,9 @@
       // Offhand: one round per timer; 1 or 2 attacks (no triple)
       if (dualWielding && tMs >= nextSwing2Ms) {
         nextSwing2Ms = tMs + delay2Ms;
+        const duelistOhRound = duelist && tMs >= duelistStartMs && tMs < duelistEndMs;
+        const innerFlameOhRound = innerFlame && tMs >= innerFlameStartMs && tMs < innerFlameEndMs;
+        const duelistOhMult = (duelistOhRound || innerFlameOhRound) ? 2 : 1;
         if (checkDualWield(dualWieldEffective, rng)) {
           report.weapon2.rounds++;
           let attacksThisRound = 1;
@@ -924,7 +943,8 @@
             const beforeCrit = dmg;
             const critResult = rollMeleeCrit(dmg, 0, level, options.classId, options.dex, options.critChanceMult, false, false, 0, rng);
             dmg = critResult.damage;
-            if (critResult.isCrit) { report.critHits++; report.critDamageGain += (dmg - beforeCrit); }
+            if (critResult.isCrit) { report.critHits++; report.critDamageGain += (dmg - beforeCrit) * duelistOhMult; }
+            if (duelistOhMult > 1) dmg *= duelistOhMult;
             report.weapon2.swings++;
             report.weapon2.hits++;
             report.weapon2.totalDamage += dmg;
@@ -947,7 +967,8 @@
               const beforeCrit = dmg;
               const critResult = rollMeleeCrit(dmg, 0, level, options.classId, options.dex, options.critChanceMult, false, false, 0, rng);
               dmg = critResult.damage;
-              if (critResult.isCrit) { report.critHits++; report.critDamageGain += (dmg - beforeCrit); }
+              if (critResult.isCrit) { report.critHits++; report.critDamageGain += (dmg - beforeCrit) * duelistOhMult; }
+              if (duelistOhMult > 1) dmg *= duelistOhMult;
               report.weapon2.swings++;
               report.weapon2.hits++;
               report.weapon2.totalDamage += dmg;

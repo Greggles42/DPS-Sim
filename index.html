@@ -434,9 +434,15 @@
             <div class="char-field char-field-num"><label for="backstab-skill" class="small-label">Backstab skill</label><input type="number" id="backstab-skill" min="0" value="225" placeholder="225"></div>
             <div class="char-field char-field-num"><label for="backstab-mod" class="small-label">Backstab mod %</label><input type="number" id="backstab-mod" min="0" value="0" placeholder="0"></div>
           </div>
+          <div class="char-checkbox-row">
+            <label class="checkbox-label char-checkbox"><input type="checkbox" id="duelist"> Duelist (random round: double melee damage)</label>
+          </div>
         </div>
         <div id="fistweaving-row" style="display: none;">
           <label class="checkbox-label char-checkbox"><input type="checkbox" id="fistweaving"> Fistweaving</label>
+        </div>
+        <div id="innerflame-row" style="display: none;">
+          <label class="checkbox-label char-checkbox"><input type="checkbox" id="innerflame"> Inner Flame (12s random window: double melee damage)</label>
         </div>
       </details>
     </section>
@@ -1040,6 +1046,8 @@
           weaponSkillForToHit: weaponSkillForToHit,
           backstabModPercent: classId === 'rogue' ? (parseInt($('backstab-mod').value, 10) || 0) : undefined,
           backstabSkill: classId === 'rogue' ? (parseInt($('backstab-skill').value, 10) || 0) : undefined,
+          duelist: classId === 'rogue' && $('duelist').checked,
+          innerFlame: classId === 'monk' && $('innerflame').checked,
           fistweaving: hasMainHand && classId === 'monk' && weapon1.is2H && $('fistweaving').checked,
           critChanceMult: critChanceMult || undefined,
         };
@@ -1449,6 +1457,8 @@
         else if (classId === 'rogue') $('special-attacks').checked = true;
         const rogueRow = $('rogue-backstab-mod-row');
         if (rogueRow) rogueRow.style.display = classId === 'rogue' ? '' : 'none';
+        const innerflameRow = $('innerflame-row');
+        if (innerflameRow) innerflameRow.style.display = classId === 'monk' ? '' : 'none';
         updateFistweavingVisibility();
         updateWeaponSkillInputs();
       }
