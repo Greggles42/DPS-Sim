@@ -681,6 +681,7 @@
         maxDamage: 0,
         hitList: [],
         doubleBackstabs: options.classId === 'rogue' ? 0 : undefined,
+        attemptedAttacks: options.classId === 'rogue' ? 0 : undefined,
         backstabSkill: options.classId === 'rogue' ? Math.min(255, options.backstabSkill != null ? options.backstabSkill : 225) : undefined,
         backstabModPercent: options.classId === 'rogue' ? (options.backstabModPercent || 0) : undefined,
       } : null,
@@ -707,6 +708,7 @@
         const effectiveBackstabSkill = Math.min(255, Math.floor(backstabSkill * (100 + backstabModPct) / 100));
         // EQMacEmu GetToHit(skill): toHit = 7 + Offense SKILL + skill (Backstab for backstab). Use raw backstab skill, not modded.
         const backstabToHit = isRogueBackstab ? (7 + OFFENSE_SKILL + backstabSkill) : toHit;
+        if (report.special.attemptedAttacks !== undefined) report.special.attemptedAttacks++;
         const specialHits = rollHit(backstabToHit, avoidance, rng, fromBehind);
         if (specialHits) {
           report.special.hits++;
@@ -751,6 +753,7 @@
 
           // Rogues 55+ can double backstab: same double attack skill chance for a second backstab
           if (isRogueBackstab && level > 54 && report.special.doubleBackstabs !== undefined && checkDoubleAttack(doubleAttackEffective, rng, options.classId)) {
+            if (report.special.attemptedAttacks !== undefined) report.special.attemptedAttacks++;
             const secondHit = rollHit(backstabToHit, avoidance, rng, fromBehind);
             if (secondHit) {
               report.special.doubleBackstabs++;
@@ -1160,14 +1163,13 @@
       const h = sp.hits != null ? sp.hits : sp.count;
       const D = sp.doubleBackstabs != null ? sp.doubleBackstabs : 0;
       const singleBackstabs = Math.max(0, h - 2 * D);
-      const roundsWithHit = singleBackstabs + D;
-      const acc = sp.doubleBackstabs !== undefined
-        ? (h > 0 ? ((roundsWithHit / h) * 100).toFixed(1) : '0')
-        : (a > 0 ? (h / a * 100).toFixed(1) : '0');
+      const attemptedAttacks = sp.attemptedAttacks != null ? sp.attemptedAttacks : a;
+      const acc = attemptedAttacks > 0 ? (h / attemptedAttacks * 100).toFixed(1) : '0';
       const dpsLabel = sp.name === 'Backstab' ? 'DPS from backstab' : 'DPS';
       lines.push(`  ${sp.name}`);
       if (sp.name === 'Backstab') {
         lines.push(`    Number of backstab rounds: ${a}`);
+        if (sp.attemptedAttacks != null) lines.push(`    Attempted attacks:   ${attemptedAttacks}`);
       } else {
         lines.push(`    Attempts:            ${a}`);
       }
