@@ -106,11 +106,12 @@
   var TWO_HAND_TYPES = { '2hb': true, '2hs': true, '2hp': true, 'bow': true, 'archery': true };
 
   /**
-   * dndquarm API: itemType number -> weapon skill type string.
-   * 0=1HS, 1=2HS, 2=1HB, 3=2HB, 4=bow, 5=2HB, 6=throwing, 7=H2H, 10=1HP, 35=2HP, 45=H2H
+   * API itemType number -> weapon skill type (EQ Emulator schema).
+   * Read from API same as damage/delay; used to set type (1HB/1HP/1HS/2HB/2HS/2HP/bow/h2h/throwing).
+   * 0=1HS, 1=2HS, 2=1HP, 3=1HB, 4=2HB, 5=bow, 6=throwing, 7=h2h, 35=2HP, 45=h2h
    */
   var ITEM_TYPE_NUM_TO_TYPE = {
-    0: '1hs', 1: '2hs', 2: '1hb', 3: '2hb', 4: 'bow', 5: 'bs', 6: 'throwing', 7: 'h2h', 10: '1hp', 35: '2hp', 45: 'h2h'
+    0: '1hs', 1: '2hs', 2: '1hp', 3: '1hb', 4: '2hb', 5: 'bow', 6: 'throwing', 7: 'h2h', 35: '2hp', 45: 'h2h'
   };
 
   /**
@@ -121,8 +122,8 @@
   /** Item IDs that are h2h but API may return as 1hb (e.g. Gharn's Rock, Mithril Ulak). Override type to h2h. Empty if not used. */
   var H2H_OVERRIDE_IDS = {};
 
-  /** Item types that cannot be used in offhand (2hs, 2hb, bow, throwing, 2hp per ITEM_TYPE_NUM_TO_TYPE). */
-  var OFFHAND_BLOCKED_ITEM_TYPES = { 1: true, 3: true, 4: true, 5: true, 6: true, 35: true };
+  /** Item types that cannot be used in offhand (2HS, 2HB, bow, throwing, 2HP). */
+  var OFFHAND_BLOCKED_ITEM_TYPES = { 1: true, 4: true, 5: true, 6: true, 35: true };
 
   /**
    * Map API item to the weapon shape used by DPS-Sim presets and getWeapon().
@@ -156,8 +157,8 @@
     var name = str(get(item, ['name', 'Name', 'item_name', 'itemName']));
     var damage = num(get(item, ['damage', 'Damage', 'dmg', 'Dmg']));
     var delay = num(get(item, ['delay', 'Delay', 'delay_sec', 'delaySec']));
-
-    var itemTypeNumRaw = get(item, ['itemType', 'item_type', 'ItemType']);
+    /* itemType from API (same pattern as damage/delay) -> maps to 1HB/1HP/1HS/2HB/2HS/2HP/bow/h2h/throwing */
+    var itemTypeNumRaw = get(item, ['itemType', 'item_type', 'ItemType', 'itemtype']);
     var itemTypeNum = (typeof itemTypeNumRaw === 'number') ? itemTypeNumRaw : (parseInt(itemTypeNumRaw, 10));
     var itemType = '';
     var is2H = false;
