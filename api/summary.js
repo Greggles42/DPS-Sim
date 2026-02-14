@@ -1,11 +1,13 @@
 /**
  * GET /api/summary — DPS-Sim usage summary page.
  * Shows total simulations run, unique users, and a log of recent runs with parameters.
+ * Uses Vercel KV (no Blob list()).
  * Visit: https://dps-sim.vercel.app/api/summary
  */
-import { list } from '@vercel/blob';
+import { kv } from '@vercel/kv';
 
-const BLOB_PATH = 'dps-sim/usage-log.jsonl';
+const LOG_KEY = 'dps_sim_log';
+const UIDS_KEY = 'dps_sim_uids';
 const MAX_LOG_ENTRIES = 200;
 
 function escapeHtml(s) {
@@ -30,33 +32,30 @@ export default async function handler(req, res) {
   }
 
   let totalRuns = 0;
-  const uids = new Set();
+  let uniqueUsers = 0;
   const entries = [];
 
   try {
-    const { blobs } = await list({ prefix: 'dps-sim/' });
-    const blob = blobs.find((b) => b.pathname === BLOB_PATH || (b.pathname && b.pathname.endsWith('usage-log.jsonl')));
-    if (blob && blob.url) {
-      const r = await fetch(blob.url, { cache: 'no-store' });
-      const text = await r.text();
-      const lines = text.split('\n').filter((line) => line.trim());
-      totalRuns = lines.length;
-      for (let i = 0; i < lines.length; i++) {
+    totalRuns = (await kv.llen(LOG_KEY)) || 0;
+    uniqueUsers = (await kv.scard(UIDS_KEY)) || 0;
+    // Last MAX_LOG_ENTRIES (Redis: -N to -1 is last N)
+    const raw = await kv.lrange(LOG_KEY, -MAX_LOG_ENTRIES, -1);
+    if (Array.isArray(raw)) {
+      for (let i = 0; i < raw.length; i++) {
         try {
-          const row = JSON.parse(lines[i]);
-          if (row.uid) uids.add(row.uid);
-          entries.push(row);
+          const row = typeof raw[i] === 'string' ? JSON.parse(raw[i]) : raw[i];
+          if (row && typeof row === 'object') entries.push(row);
         } catch (e) {
-          /* skip bad line */
+          /* skip bad entry */
         }
       }
     }
   } catch (e) {
-    /* no blob or fetch failed */
+    /* KV not configured or read failed */
   }
 
-  // Most recent first, cap for display
-  const recent = entries.slice(-MAX_LOG_ENTRIES).reverse();
+  // Most recent first (KV lrange returns oldest-to-newest for -N..-1)
+  const recent = entries.slice().reverse();
 
   const html = `<!DOCTYPE html>
 <html lang="en">
@@ -91,7 +90,7 @@ export default async function handler(req, res) {
     </div>
     <div class="stat">
       <strong>Unique users</strong>
-      <span>${uids.size}</span>
+      <span>${uniqueUsers}</span>
     </div>
   </div>
   <h2>Recent runs (timestamp and parameters)</h2>

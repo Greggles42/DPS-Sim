@@ -4,6 +4,8 @@
   "private": true,
   "description": "EverQuest DPS Simulator with optional usage logging",
   "dependencies": {
-    "@vercel/blob": "^0.25.0"
+    "@upstash/redis": "^1.36.2",
+    "@vercel/blob": "^0.25.0",
+    "@vercel/kv": "^0.2.0"
   }
 }

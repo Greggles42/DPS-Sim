@@ -553,8 +553,11 @@
   <div class="grid">
     <section class="section--core">
       <h2>Ranged weapon</h2>
-      <label for="ranged-preset">Quick select</label>
-      <select id="ranged-preset"></select>
+      <div class="item-search-wrap">
+        <label for="ranged-weapon-item-search">Search items (API)</label>
+        <input type="text" id="ranged-weapon-item-search" placeholder="Type 3+ characters to search..." autocomplete="off">
+        <div id="ranged-weapon-item-search-list" class="item-search-list" role="listbox"></div>
+      </div>
       <div class="row">
         <div><label for="ranged-damage" class="small-label">Damage</label><input type="number" id="ranged-damage" min="1" value="12" placeholder="e.g. 12"></div>
         <div><label for="ranged-delay" class="small-label">Delay (decisec)</label><input type="number" id="ranged-delay" min="10" value="40" placeholder="40 = 4.0s"></div>
@@ -583,8 +586,11 @@
 
     <section class="section--core">
       <h2>Arrow type</h2>
-      <label for="arrow-preset">Quick select</label>
-      <select id="arrow-preset"></select>
+      <div class="item-search-wrap">
+        <label for="arrow-item-search">Search items (API)</label>
+        <input type="text" id="arrow-item-search" placeholder="Type 3+ characters to search..." autocomplete="off">
+        <div id="arrow-item-search-list" class="item-search-list" role="listbox"></div>
+      </div>
       <div class="row">
         <div><label for="arrow-damage" class="small-label">Damage</label><input type="number" id="arrow-damage" min="0" value="5" placeholder="e.g. 5"></div>
         <div><label for="arrow-elem-type" class="small-label">Elemental type</label><select id="arrow-elem-type">
@@ -832,6 +838,10 @@
       let w2DisplayName = '';
       let w1FromItemSearch = false;
       let w2FromItemSearch = false;
+      let rangedFromItemSearch = false;
+      let rangedWeaponDisplayName = '';
+      let arrowFromItemSearch = false;
+      let arrowDisplayName = '';
       let w1WeaponType = null;
       let w2WeaponType = null;
 
@@ -1368,10 +1378,8 @@
           histContainer.innerHTML = '';
         }
 
-        const rangedPresetId = ($('ranged-preset') && $('ranged-preset').value) || '';
-        const arrowPresetId = ($('arrow-preset') && $('arrow-preset').value) || '';
-        const rangedWeaponName = rangedPresetId && RANGED_WEAPON_PRESETS[rangedPresetId] ? RANGED_WEAPON_PRESETS[rangedPresetId].name : (damage + 'd/' + delay);
-        const arrowName = arrowPresetId && ARROW_PRESETS[arrowPresetId] ? ARROW_PRESETS[arrowPresetId].name : (arrowDamage > 0 ? arrowDamage + ' dmg' : '—');
+        const rangedWeaponName = (rangedFromItemSearch && rangedWeaponDisplayName) ? rangedWeaponDisplayName : (damage + 'd/' + delay);
+        const arrowName = (arrowFromItemSearch && arrowDisplayName) ? arrowDisplayName : (arrowDamage > 0 ? arrowDamage + ' dmg' : '—');
         const rangedTotalAttack = report.displayedAttack != null ? report.displayedAttack : report.offenseRating;
         const rangedDps = report.durationSec > 0 ? (report.totalDamage / report.durationSec) : 0;
         SIM_HISTORY.unshift({
@@ -1498,6 +1506,8 @@
 
       // ----- Item search autofilter (API + recent items) -----
       const ITEM_SEARCH_RECENT_KEY = 'dps_sim_recent_weapons';
+      const ITEM_SEARCH_RECENT_RANGED_KEY = 'dps_sim_recent_ranged_weapons';
+      const ITEM_SEARCH_RECENT_ARROW_KEY = 'dps_sim_recent_arrows';
       const ITEM_SEARCH_MAX_RECENT = 15;
       const ITEM_SEARCH_MIN_CHARS = 3;
       const ITEM_SEARCH_DEBOUNCE_MS = 300;
@@ -1522,6 +1532,45 @@
         recent.unshift(weapon);
         recent = recent.slice(0, ITEM_SEARCH_MAX_RECENT);
         try { localStorage.setItem(ITEM_SEARCH_RECENT_KEY, JSON.stringify(recent)); } catch (e) {}
+      }
+
+      function getRecent(prefix) {
+        if (prefix === 'w1' || prefix === 'w2') return getRecentWeapons();
+        if (prefix === 'ranged-weapon') return getRecentRangedWeapons();
+        if (prefix === 'arrow') return getRecentArrows();
+        return [];
+      }
+      function getRecentRangedWeapons() {
+        try {
+          const raw = localStorage.getItem(ITEM_SEARCH_RECENT_RANGED_KEY);
+          if (!raw) return [];
+          const arr = JSON.parse(raw);
+          return Array.isArray(arr) ? arr : [];
+        } catch (e) { return []; }
+      }
+      function getRecentArrows() {
+        try {
+          const raw = localStorage.getItem(ITEM_SEARCH_RECENT_ARROW_KEY);
+          if (!raw) return [];
+          const arr = JSON.parse(raw);
+          return Array.isArray(arr) ? arr : [];
+        } catch (e) { return []; }
+      }
+      function saveRecentRangedWeapon(weapon) {
+        if (!weapon || !weapon.name) return;
+        const key = weaponKey(weapon);
+        let recent = getRecentRangedWeapons().filter(function (r) { return weaponKey(r) !== key; });
+        recent.unshift(weapon);
+        recent = recent.slice(0, ITEM_SEARCH_MAX_RECENT);
+        try { localStorage.setItem(ITEM_SEARCH_RECENT_RANGED_KEY, JSON.stringify(recent)); } catch (e) {}
+      }
+      function saveRecentArrow(weapon) {
+        if (!weapon || !weapon.name) return;
+        const key = (weapon && weapon.name) + '|' + (weapon && weapon.damage) + '|' + (weapon && weapon.elemType);
+        let recent = getRecentArrows().filter(function (r) { return ((r && r.name) + '|' + (r && r.damage) + '|' + (r && r.elemType)) !== key; });
+        recent.unshift(weapon);
+        recent = recent.slice(0, ITEM_SEARCH_MAX_RECENT);
+        try { localStorage.setItem(ITEM_SEARCH_RECENT_ARROW_KEY, JSON.stringify(recent)); } catch (e) {}
       }
 
       /** Populate weapon form fields from selected item (JSON/normalized weapon: damage, delay, proc, procDamage, elemType, elemDamage, baneDamage). */
@@ -1561,6 +1610,31 @@
         }
       }
 
+      function applyRangedWeaponFromSearch(weapon) {
+        if (!weapon) return;
+        const dmg = Number(weapon.damage);
+        const dly = Number(weapon.delay);
+        $('ranged-damage').value = isNaN(dmg) ? '' : dmg;
+        $('ranged-delay').value = isNaN(dly) ? '' : dly;
+        $('ranged-proc').value = (weapon.proc != null ? String(weapon.proc) : '') || '';
+        $('ranged-proc-damage').value = (weapon.procDamage != null && !isNaN(Number(weapon.procDamage)) ? Number(weapon.procDamage) : 0) || '';
+        $('ranged-elem-type').value = (weapon.elemType != null ? String(weapon.elemType) : '') || '';
+        $('ranged-elem-damage').value = (weapon.elemDamage != null && !isNaN(Number(weapon.elemDamage)) ? Number(weapon.elemDamage) : 0) || '';
+        $('ranged-bane').value = (weapon.baneDamage != null && !isNaN(Number(weapon.baneDamage)) ? Number(weapon.baneDamage) : 0) || '';
+        rangedWeaponDisplayName = (weapon.name || '').trim() || 'Custom';
+        rangedFromItemSearch = true;
+      }
+
+      function applyArrowFromSearch(weapon) {
+        if (!weapon) return;
+        const dmg = Number(weapon.damage);
+        $('arrow-damage').value = isNaN(dmg) ? '' : dmg;
+        $('arrow-elem-type').value = (weapon.elemType != null ? String(weapon.elemType) : '') || '';
+        $('arrow-elem-damage').value = (weapon.elemDamage != null && !isNaN(Number(weapon.elemDamage)) ? Number(weapon.elemDamage) : 0) || '';
+        arrowDisplayName = (weapon.name || '').trim() || 'Custom';
+        arrowFromItemSearch = true;
+      }
+
       function debounce(fn, ms) {
         let t = null;
         return function () {
@@ -1581,6 +1655,7 @@
       function renderDropdown(prefix, recent, results, loading, query) {
         const listEl = $(prefix + '-item-search-list');
         if (!listEl) return;
+        recent = recent || getRecent(prefix);
         const omit2H = prefix === 'w2';
         if (omit2H) {
           const offhandBlockedTypes = { '2hs': 1, '2hp': 1, '2hb': 1, 'archery': 1, 'bow': 1 };
@@ -1589,8 +1664,14 @@
             if (w.type && offhandBlockedTypes[w.type]) return false;
             return true;
           };
-          recent = recent ? recent.filter(offhandOk) : [];
+          recent = recent.filter(offhandOk);
           results = results ? results.filter(offhandOk) : [];
+        }
+        if (prefix === 'ranged-weapon') {
+          const bowTypes = { 'bow': 1, 'archery': 1 };
+          const isBow = function (w) { return w && w.type && bowTypes[w.type]; };
+          recent = recent.filter(isBow);
+          results = results ? results.filter(isBow) : [];
         }
         const q = (query || '').trim();
         const hasQuery = q.length >= ITEM_SEARCH_MIN_CHARS;
@@ -1645,9 +1726,18 @@
               is2H: btn.getAttribute('data-is2h') === '1' || derived2H,
               offhandBlocked: btn.getAttribute('data-offhand-blocked') === '1' || derived2H
             };
-            saveRecentWeapon(w);
-            applyWeaponFromSearch(prefix, w);
-            $(prefix + '-item-search').value = '';
+            const inputEl = $(prefix + '-item-search');
+            if (prefix === 'ranged-weapon') {
+              saveRecentRangedWeapon(w);
+              applyRangedWeaponFromSearch(w);
+            } else if (prefix === 'arrow') {
+              saveRecentArrow(w);
+              applyArrowFromSearch(w);
+            } else {
+              saveRecentWeapon(w);
+              applyWeaponFromSearch(prefix, w);
+            }
+            if (inputEl) inputEl.value = '';
             closeItemSearchDropdown(prefix);
           });
         });
@@ -1665,7 +1755,7 @@
       function runItemSearch(prefix) {
         const inputEl = $(prefix + '-item-search');
         const query = (inputEl && inputEl.value || '').trim();
-        const recent = getRecentWeapons();
+        const recent = getRecent(prefix);
         if (query.length < ITEM_SEARCH_MIN_CHARS) {
           renderDropdown(prefix, recent, null, false, query);
           openItemSearchDropdown(prefix);
@@ -1678,10 +1768,10 @@
           return;
         }
         ItemSearch.searchWeapons(query).then(function (results) {
-          const recentNow = getRecentWeapons();
+          const recentNow = getRecent(prefix);
           renderDropdown(prefix, recentNow, results || [], false, query);
         }).catch(function () {
-          renderDropdown(prefix, getRecentWeapons(), [], false, query);
+          renderDropdown(prefix, getRecent(prefix), [], false, query);
         });
       }
 
@@ -1705,58 +1795,25 @@
         if (e.target.closest('.item-search-wrap')) return;
         closeItemSearchDropdown('w1');
         closeItemSearchDropdown('w2');
+        closeItemSearchDropdown('ranged-weapon');
+        closeItemSearchDropdown('arrow');
       });
 
       setupItemSearch('w1');
       setupItemSearch('w2');
+      setupItemSearch('ranged-weapon');
+      setupItemSearch('arrow');
 
-      function fillRangedPresetSelect(selectId) {
-        const sel = $(selectId);
-        if (!sel) return;
-        sel.innerHTML = '<option value="">Manual</option>';
-        RANGED_WEAPON_PRESET_IDS.forEach(function (id) {
-          const p = RANGED_WEAPON_PRESETS[id];
-          const opt = document.createElement('option');
-          opt.value = id;
-          opt.textContent = (p.name || id) + ' (' + p.damage + ' / ' + p.delay + (p.proc ? ', ' + p.proc : '') + ')';
-          sel.appendChild(opt);
-        });
+      function clearRangedArrowItemSearchOnManualEdit(kind) {
+        if (kind === 'ranged') { rangedFromItemSearch = false; }
+        if (kind === 'arrow') { arrowFromItemSearch = false; }
       }
-      function applyRangedWeaponPreset(id) {
-        const p = id ? RANGED_WEAPON_PRESETS[id] : null;
-        if (p) {
-          $('ranged-damage').value = p.damage;
-          $('ranged-delay').value = p.delay;
-          $('ranged-proc').value = p.proc || '';
-          $('ranged-proc-damage').value = (p.procDamage != null ? p.procDamage : 0) || '';
-        }
-      }
-      function fillArrowPresetSelect(selectId) {
-        const sel = $(selectId);
-        if (!sel) return;
-        sel.innerHTML = '<option value="">Manual</option>';
-        ARROW_PRESET_IDS.forEach(function (id) {
-          const p = ARROW_PRESETS[id];
-          const opt = document.createElement('option');
-          opt.value = id;
-          const elemStr = (p.elemType && p.elemDamage) ? ' + ' + p.elemDamage + ' ' + p.elemType : '';
-          opt.textContent = (p.name || id) + ' (' + p.damage + elemStr + ')';
-          sel.appendChild(opt);
-        });
-      }
-      function applyArrowPreset(id) {
-        const p = id ? ARROW_PRESETS[id] : null;
-        if (p) {
-          $('arrow-damage').value = p.damage;
-          $('arrow-elem-type').value = p.elemType || '';
-          $('arrow-elem-damage').value = (p.elemDamage != null ? p.elemDamage : 0) || '';
-        }
-      }
-
-      fillRangedPresetSelect('ranged-preset');
-      fillArrowPresetSelect('arrow-preset');
-      $('ranged-preset').addEventListener('change', function () { applyRangedWeaponPreset(this.value); });
-      $('arrow-preset').addEventListener('change', function () { applyArrowPreset(this.value); });
+      [$('ranged-damage'), $('ranged-delay'), $('ranged-proc'), $('ranged-proc-damage'), $('ranged-elem-type'), $('ranged-elem-damage'), $('ranged-bane')].forEach(function (el) {
+        if (el) el.addEventListener('input', function () { clearRangedArrowItemSearchOnManualEdit('ranged'); });
+      });
+      [$('arrow-damage'), $('arrow-elem-type'), $('arrow-elem-damage')].forEach(function (el) {
+        if (el) el.addEventListener('input', function () { clearRangedArrowItemSearchOnManualEdit('arrow'); });
+      });
     })();
   </script>
 </body>

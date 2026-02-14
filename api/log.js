@@ -1,13 +1,14 @@
 /**
  * Vercel serverless function: usage-log collector for DPS-Sim.
- * Persists each run to Vercel Blob (dps-sim/usage-log.jsonl).
+ * Persists each run to Vercel KV (Redis list) — no Blob put(), list(), or copy().
  * Set USAGE_LOG_URL in index.html to https://dps-sim.vercel.app/api/log
  *
- * Requires: Blob store in Vercel project + BLOB_READ_WRITE_TOKEN (auto when store is in same project).
+ * Requires: Vercel KV store (or Redis integration) in the project.
  */
-import { list, put } from '@vercel/blob';
+import { kv } from '@vercel/kv';
 
-const BLOB_PATH = 'dps-sim/usage-log.jsonl';
+const LOG_KEY = 'dps_sim_log';
+const UIDS_KEY = 'dps_sim_uids';
 
 function setCors(res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -40,32 +41,16 @@ export default async function handler(req, res) {
     return res.status(200).json({});
   }
 
-  const line = JSON.stringify(payload) + '\n';
+  const line = JSON.stringify(payload);
 
   try {
-    const { blobs } = await list({ prefix: 'dps-sim/' });
-    const existing = blobs.find((b) => b.pathname === BLOB_PATH || (b.pathname && b.pathname.endsWith('usage-log.jsonl')));
-    let body = line;
-    if (existing && existing.url) {
-      try {
-        const r = await fetch(existing.url, { cache: 'no-store' });
-        if (!r.ok) throw new Error('Blob fetch not ok');
-        const text = await r.text();
-        body = text + line;
-      } catch (fetchErr) {
-        // Cannot read existing content; do not overwrite with single line (would wipe history)
-        setCors(res);
-        res.setHeader('Content-Type', 'application/json');
-        return res.status(200).json({});
-      }
+    await kv.rpush(LOG_KEY, line);
+    const uid = payload.uid;
+    if (uid && typeof uid === 'string') {
+      await kv.sadd(UIDS_KEY, uid);
     }
-    await put(BLOB_PATH, body, {
-      access: 'public',
-      addRandomSuffix: false,
-      allowOverwrite: true,
-    });
   } catch (e) {
-    // Blob store not configured or write failed; still return 200
+    // KV not configured or write failed; still return 200
   }
 
   setCors(res);
