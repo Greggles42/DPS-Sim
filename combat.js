@@ -1158,15 +1158,27 @@
       const sp = report.special;
       const a = sp.attempts != null ? sp.attempts : 0;
       const h = sp.hits != null ? sp.hits : sp.count;
-      const acc = a > 0 ? (h / a * 100).toFixed(1) : '0';
+      const D = sp.doubleBackstabs != null ? sp.doubleBackstabs : 0;
+      const singleBackstabs = Math.max(0, h - 2 * D);
+      const roundsWithHit = singleBackstabs + D;
+      const acc = sp.doubleBackstabs !== undefined
+        ? (h > 0 ? ((roundsWithHit / h) * 100).toFixed(1) : '0')
+        : (a > 0 ? (h / a * 100).toFixed(1) : '0');
       const dpsLabel = sp.name === 'Backstab' ? 'DPS from backstab' : 'DPS';
       lines.push(`  ${sp.name}`);
-      lines.push(`    Attempts:            ${a}`);
-      if (sp.doubleBackstabs !== undefined) lines.push(`    Double backstabs:    ${sp.doubleBackstabs}`);
+      if (sp.name === 'Backstab') {
+        lines.push(`    Number of backstab rounds: ${a}`);
+      } else {
+        lines.push(`    Attempts:            ${a}`);
+      }
+      if (sp.doubleBackstabs !== undefined) {
+        lines.push(`    Single backstabs:    ${singleBackstabs}`);
+        lines.push(`    Double backstabs:    ${D}`);
+      }
       lines.push(`    Total hits:         ${h}`);
-      lines.push(`    Accuracy:            ${acc}%`);
+      lines.push(`    Accuracy:           ${acc}%`);
       lines.push(`    Total damage:       ${sp.totalDamage}`);
-      lines.push(`    Max hit:             ${sp.maxDamage}`);
+      lines.push(`    Max hit:            ${sp.maxDamage}`);
       lines.push(`    ${dpsLabel}:          ${(sp.totalDamage / dur).toFixed(2)}`);
       if (sp.backstabSkill != null) {
         const effectiveSkill = Math.min(255, Math.floor(sp.backstabSkill * (100 + (sp.backstabModPercent || 0)) / 100));
