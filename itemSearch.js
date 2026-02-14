@@ -98,7 +98,7 @@
   var SLOT_PRIMARY = 8192;
   var SLOT_SECONDARY = 16384;
   var SLOT_RANGED = 2048;
-  var SLOT_AMMO = 4194304;
+  var SLOT_AMMO = 2097152;
 
   /**
    * Two-hand weapon types (EQ slot/type strings). Matches 2H entries in ITEM_TYPE_NUM_TO_TYPE.
