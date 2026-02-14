@@ -194,6 +194,33 @@
 
     var baneDamage = num(get(item, ['baneDmgAmt', 'baneDamage', 'bane_damage', 'BaneDamage', 'bane']));
 
+    /* Skillmod type 8 = backstab; skillmodvalue is the backstab skill % modifier */
+    var backstabModPercent = null;
+    var skillmodTypeRaw = get(item, ['skillmodType', 'skillmod_type', 'SkillmodType']);
+    var skillmodType = (typeof skillmodTypeRaw === 'number') ? skillmodTypeRaw : parseInt(skillmodTypeRaw, 10);
+    if (skillmodType === 8) {
+      var skillmodValRaw = get(item, ['skillmodValue', 'skillmod_value', 'SkillmodValue']);
+      var skillmodVal = (typeof skillmodValRaw === 'number') ? skillmodValRaw : parseInt(skillmodValRaw, 10);
+      if (!isNaN(skillmodVal)) backstabModPercent = skillmodVal;
+    }
+    var skillmodArr = get(item, ['skillmod', 'skillmods', 'SkillMod']);
+    if (backstabModPercent == null && Array.isArray(skillmodArr)) {
+      for (var i = 0; i < skillmodArr.length; i++) {
+        var mod = skillmodArr[i];
+        if (!mod || typeof mod !== 'object') continue;
+        var modType = (typeof mod.type === 'number') ? mod.type : parseInt(mod.type, 10);
+        if (modType === 8) {
+          var modVal = (typeof mod.value === 'number') ? mod.value : parseInt(mod.value, 10);
+          if (!isNaN(modVal)) { backstabModPercent = modVal; break; }
+        }
+        modType = (typeof mod.skillmodType === 'number') ? mod.skillmodType : parseInt(mod.skillmodType, 10);
+        if (modType === 8) {
+          modVal = (typeof mod.skillmodValue === 'number') ? mod.skillmodValue : parseInt(mod.skillmodValue, 10);
+          if (!isNaN(modVal)) { backstabModPercent = modVal; break; }
+        }
+      }
+    }
+
     var icon = num(get(item, ['icon', 'Icon', 'iconId', 'icon_id']));
 
     var slotsRaw = get(item, ['slots', 'Slots', 'slot', 'Slot']);
@@ -219,7 +246,8 @@
       elemDamage: elemDamage,
       baneDamage: baneDamage,
       icon: icon > 0 ? icon : null,
-      slots: slots
+      slots: slots,
+      backstabModPercent: backstabModPercent
     };
 
     return out;
