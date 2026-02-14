@@ -92,6 +92,15 @@
   }
 
   /**
+   * Item slot bitmasks (EQ slots) for filtering search results.
+   * Weapon 1 = Primary, Weapon 2 = Secondary, Ranged weapon = Ranged, Arrow = Ammo.
+   */
+  var SLOT_PRIMARY = 8192;
+  var SLOT_SECONDARY = 16384;
+  var SLOT_RANGED = 2048;
+  var SLOT_AMMO = 4194304;
+
+  /**
    * Two-hand weapon types (EQ slot/type strings). Matches 2H entries in ITEM_TYPE_NUM_TO_TYPE.
    */
   var TWO_HAND_TYPES = { '2hb': true, '2hs': true, '2hp': true, 'bow': true, 'archery': true };
@@ -186,6 +195,10 @@
 
     var icon = num(get(item, ['icon', 'Icon', 'iconId', 'icon_id']));
 
+    var slotsRaw = get(item, ['slots', 'Slots', 'slot', 'Slot']);
+    var slots = (typeof slotsRaw === 'number' && !isNaN(slotsRaw)) ? slotsRaw : parseInt(slotsRaw, 10);
+    if (isNaN(slots)) slots = null;
+
     var itemId = num(get(item, ['id', 'Id', 'item_id', 'itemId']));
     var finalType = itemType || (is2H ? '2hb' : '1hb');
     if (itemId && H2H_OVERRIDE_IDS[itemId]) finalType = 'h2h';
@@ -204,7 +217,8 @@
       elemType: elemType || '',
       elemDamage: elemDamage,
       baneDamage: baneDamage,
-      icon: icon > 0 ? icon : null
+      icon: icon > 0 ? icon : null,
+      slots: slots
     };
 
     return out;
@@ -221,11 +235,28 @@
     });
   }
 
+  /**
+   * Return true if normalized weapon has the given slot bit set (or if slots is unknown).
+   * @param {Object} weapon - Normalized weapon (with optional .slots number).
+   * @param {number} slotMask - One of SLOT_PRIMARY, SLOT_SECONDARY, SLOT_RANGED, SLOT_AMMO.
+   * @returns {boolean}
+   */
+  function itemMatchesSlot(weapon, slotMask) {
+    if (!weapon) return false;
+    if (weapon.slots == null || weapon.slots === undefined) return true;
+    return (weapon.slots & slotMask) !== 0;
+  }
+
   global.ItemSearch = {
     setConfig: setItemSearchConfig,
     searchItems: searchItems,
     searchWeapons: searchWeapons,
     normalizeItemForWeapon: normalizeItemForWeapon,
-    getSearchRequest: getSearchRequest
+    getSearchRequest: getSearchRequest,
+    itemMatchesSlot: itemMatchesSlot,
+    SLOT_PRIMARY: SLOT_PRIMARY,
+    SLOT_SECONDARY: SLOT_SECONDARY,
+    SLOT_RANGED: SLOT_RANGED,
+    SLOT_AMMO: SLOT_AMMO
   };
 })(typeof self !== 'undefined' ? self : this);

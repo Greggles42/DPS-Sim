@@ -1652,10 +1652,21 @@
         return detail;
       }
 
+      function slotOkForPrefix(prefix, w) {
+        if (!w || typeof ItemSearch === 'undefined' || !ItemSearch.itemMatchesSlot) return true;
+        if (prefix === 'w1') return ItemSearch.itemMatchesSlot(w, ItemSearch.SLOT_PRIMARY);
+        if (prefix === 'w2') return ItemSearch.itemMatchesSlot(w, ItemSearch.SLOT_SECONDARY);
+        if (prefix === 'ranged-weapon') return ItemSearch.itemMatchesSlot(w, ItemSearch.SLOT_RANGED);
+        if (prefix === 'arrow') return ItemSearch.itemMatchesSlot(w, ItemSearch.SLOT_AMMO);
+        return true;
+      }
+
       function renderDropdown(prefix, recent, results, loading, query) {
         const listEl = $(prefix + '-item-search-list');
         if (!listEl) return;
         recent = recent || getRecent(prefix);
+        recent = recent.filter(function (w) { return slotOkForPrefix(prefix, w); });
+        results = results ? results.filter(function (w) { return slotOkForPrefix(prefix, w); }) : [];
         const omit2H = prefix === 'w2';
         if (omit2H) {
           const offhandBlockedTypes = { '2hs': 1, '2hp': 1, '2hb': 1, 'archery': 1, 'bow': 1 };
@@ -1665,13 +1676,7 @@
             return true;
           };
           recent = recent.filter(offhandOk);
-          results = results ? results.filter(offhandOk) : [];
-        }
-        if (prefix === 'ranged-weapon') {
-          const bowTypes = { 'bow': 1, 'archery': 1 };
-          const isBow = function (w) { return w && w.type && bowTypes[w.type]; };
-          recent = recent.filter(isBow);
-          results = results ? results.filter(isBow) : [];
+          results = results.filter(offhandOk);
         }
         const q = (query || '').trim();
         const hasQuery = q.length >= ITEM_SEARCH_MIN_CHARS;
