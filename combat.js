@@ -708,24 +708,28 @@
         const effectiveBackstabSkill = Math.min(255, Math.floor(backstabSkill * (100 + backstabModPct) / 100));
         // EQMacEmu GetToHit(skill): toHit = 7 + Offense SKILL + skill (Backstab for backstab). Use raw backstab skill, not modded.
         const backstabToHit = isRogueBackstab ? (7 + OFFENSE_SKILL + backstabSkill) : toHit;
-        if (report.special.attemptedAttacks !== undefined) report.special.attemptedAttacks++;
-        const specialHits = rollHit(backstabToHit, avoidance, rng, fromBehind);
-        if (specialHits) {
+
+        // Backstab: do double attack check first. If it fails → single backstab (one to-hit roll). If it succeeds → double backstab (normal + bonus attempt, two to-hit rolls).
+        const isDoubleBackstabRound = isRogueBackstab && level > 54 && report.special.doubleBackstabs !== undefined && checkDoubleAttack(doubleAttackEffective, rng, options.classId);
+        const numBackstabRolls = isDoubleBackstabRound ? 2 : 1;
+        if (isDoubleBackstabRound) report.special.doubleBackstabs++;
+
+        function processOneBackstabHit() {
+          if (report.special.attemptedAttacks !== undefined) report.special.attemptedAttacks++;
+          const specialHits = rollHit(backstabToHit, avoidance, rng, fromBehind);
+          if (!specialHits) return;
           report.special.hits++;
           report.special.count++;
           let baseDmg;
           const specElemAdder = (options.classId === 'monk' && specialConfig.useWeaponDamage === false) ? 0 : getElementalBaseAdder(w1, options, rng);
           if (specElemAdder > 0) report.elementalDamageTotal += specElemAdder;
           if (isRogueBackstab) {
-            const backstabSkill = options.backstabSkill != null ? options.backstabSkill : 225;
-            const backstabModPct = options.backstabModPercent || 0;
             const effectiveSkill = Math.min(255, Math.floor(backstabSkill * (100 + backstabModPct) / 100));
             const backstabOffenseRating = effectiveSkill + strBonus + wornAttack + spellAttack;
             const backstabBase = Math.floor(((effectiveSkill * 0.02) + 2) * cappedW1Damage) + specElemAdder;
             baseDmg = calcMeleeDamage(backstabBase, backstabOffenseRating, mitigation, rng, 0);
             baseDmg = Math.max(1, baseDmg);
           } else if (options.classId === 'monk' && specialConfig.useWeaponDamage === false) {
-            // Flying Kick: level-based base only (EQMacEmu base 29, min_dmg = level*4/5)
             const fkBase = 29;
             baseDmg = calcMeleeDamage(fkBase, offenseRating, mitigation, rng, 0);
             const fkMin = Math.floor(level * 4 / 5);
@@ -737,7 +741,6 @@
           const mult = rollDamageMultiplier(offenseRating, baseDmg, level, options.classId, false, rng);
           let dmg = mult.damage;
           const beforeCrit = dmg;
-          // Crit is only rolled after a successful hit (we are inside specialHits here).
           const critResult = rollMeleeCrit(dmg, 0, level, options.classId, options.dex, options.critChanceMult, false, false, 0, rng);
           dmg = critResult.damage;
           if (critResult.isCrit) { report.critHits++; report.critDamageGain += (dmg - beforeCrit); }
@@ -750,42 +753,9 @@
           report.special.hitList.push(dmg);
           report.weapon1.totalDamage += dmg;
           report.totalDamage += dmg;
-
-          // Rogues 55+ can double backstab: same double attack skill chance for a second backstab
-          if (isRogueBackstab && level > 54 && report.special.doubleBackstabs !== undefined && checkDoubleAttack(doubleAttackEffective, rng, options.classId)) {
-            if (report.special.attemptedAttacks !== undefined) report.special.attemptedAttacks++;
-            const secondHit = rollHit(backstabToHit, avoidance, rng, fromBehind);
-            if (secondHit) {
-              report.special.doubleBackstabs++;
-              report.special.hits++;
-              report.special.count++;
-              const backstabSkill2 = options.backstabSkill != null ? options.backstabSkill : 225;
-              const backstabModPct2 = options.backstabModPercent || 0;
-              const effectiveSkill2 = Math.min(255, Math.floor(backstabSkill2 * (100 + backstabModPct2) / 100));
-              const backstabOffenseRating2 = effectiveSkill2 + strBonus + wornAttack + spellAttack;
-              const specElemAdder2 = getElementalBaseAdder(w1, options, rng);
-              report.elementalDamageTotal += specElemAdder2;
-              const backstabBase2 = Math.floor(((effectiveSkill2 * 0.02) + 2) * cappedW1Damage) + specElemAdder2;
-              let baseDmg2 = calcMeleeDamage(backstabBase2, backstabOffenseRating2, mitigation, rng, 0);
-              baseDmg2 = Math.max(1, baseDmg2);
-              const mult2 = rollDamageMultiplier(offenseRating, baseDmg2, level, options.classId, false, rng);
-              let dmg2 = mult2.damage;
-              const beforeCrit2 = dmg2;
-              const critResult2 = rollMeleeCrit(dmg2, 0, level, options.classId, options.dex, options.critChanceMult, false, false, 0, rng);
-              dmg2 = critResult2.damage;
-              if (critResult2.isCrit) { report.critHits++; report.critDamageGain += (dmg2 - beforeCrit2); }
-              if (level != null) {
-                const minHit = level >= 60 ? level * 2 : level > 50 ? Math.floor(level * 3 / 2) : level;
-                dmg2 = Math.max(dmg2, minHit);
-              }
-              report.special.totalDamage += dmg2;
-              report.special.maxDamage = Math.max(report.special.maxDamage, dmg2);
-              report.special.hitList.push(dmg2);
-              report.weapon1.totalDamage += dmg2;
-              report.totalDamage += dmg2;
-            }
-          }
         }
+
+        for (let r = 0; r < numBackstabRolls; r++) processOneBackstabHit();
         nextSpecialAtMs = tMs + specialCooldownMs;
       }
 
@@ -1162,22 +1132,22 @@
       const a = sp.attempts != null ? sp.attempts : 0;
       const h = sp.hits != null ? sp.hits : sp.count;
       const D = sp.doubleBackstabs != null ? sp.doubleBackstabs : 0;
-      const singleBackstabs = Math.max(0, h - 2 * D);
+      const singleBackstabRounds = Math.max(0, a - D);
       const attemptedAttacks = sp.attemptedAttacks != null ? sp.attemptedAttacks : a;
       const acc = attemptedAttacks > 0 ? (h / attemptedAttacks * 100).toFixed(1) : '0';
       const dpsLabel = sp.name === 'Backstab' ? 'DPS from backstab' : 'DPS';
       lines.push(`  ${sp.name}`);
       if (sp.name === 'Backstab') {
         lines.push(`    Number of backstab rounds: ${a}`);
-        if (sp.attemptedAttacks != null) lines.push(`    Total attempted hit rolls: ${attemptedAttacks}`);
+        if (sp.attemptedAttacks != null) lines.push(`    Total backstabs (occurred): ${attemptedAttacks}`);
       } else {
         lines.push(`    Attempts:            ${a}`);
       }
       if (sp.doubleBackstabs !== undefined) {
-        lines.push(`    Single backstabs:    ${singleBackstabs}`);
-        lines.push(`    Double backstabs:    ${D}`);
+        lines.push(`    Single backstab rounds:   ${singleBackstabRounds}`);
+        lines.push(`    Double backstab rounds:   ${D}`);
       }
-      lines.push(`    Total hits:         ${h}`);
+      lines.push(`    Hits landed:        ${h}`);
       lines.push(`    Accuracy:           ${acc}%`);
       lines.push(`    Total damage:       ${sp.totalDamage}`);
       lines.push(`    Max hit:            ${sp.maxDamage}`);
