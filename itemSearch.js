@@ -17,7 +17,7 @@
     baseUrl: 'https://dndquarm.com/api/QuarmData/items/search',
     apiKey: null,  // Set by itemSearchConfig.js (local) or kept server-side when using proxyUrl
     proxyUrl: null, // When set (e.g. '/api/item-search' on Vercel), client calls proxy; key stays on server
-    spellBaseUrl: null, // Optional: e.g. 'https://dndquarm.com/api/QuarmData/spells' or proxy '/api/spell'
+    spellBaseUrl: 'https://dndquarm.com/api/QuarmData/spells/search', // Optional: e.g. 'https://dndquarm.com/api/QuarmData/spells' or proxy '/api/spell'
     configApplied: false
   };
 
@@ -33,7 +33,8 @@
     if (typeof opts.baseUrl === 'string') config.baseUrl = opts.baseUrl;
     if (typeof opts.apiKey === 'string') config.apiKey = opts.apiKey;
     if (typeof opts.proxyUrl === 'string') config.proxyUrl = opts.proxyUrl;
-    if (typeof opts.spellBaseUrl === 'string') config.spellBaseUrl = opts.spellBaseUrl;
+    var spellUrl = opts.spellBaseUrl || opts.spellbaseUrl;
+    if (typeof spellUrl === 'string') config.spellBaseUrl = spellUrl;
     config.configApplied = true;
   }
 
