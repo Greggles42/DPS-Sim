@@ -435,7 +435,7 @@
             <div class="char-field char-field-num"><label for="backstab-mod" class="small-label">Backstab mod %</label><input type="number" id="backstab-mod" min="0" value="0" placeholder="0"></div>
           </div>
           <div class="char-checkbox-row">
-            <label class="checkbox-label char-checkbox"><input type="checkbox" id="duelist"> Duelist (random round: double melee damage)</label>
+            <label class="checkbox-label char-checkbox"><input type="checkbox" id="duelist"> Duelist (12s random window: double melee damage)</label>
           </div>
         </div>
         <div id="fistweaving-row" style="display: none;">
@@ -1627,6 +1627,17 @@
         $(prefix + '-proc').value = (weapon.proc != null ? String(weapon.proc) : '') || '';
         const procDmgEl = $(prefix + '-proc-damage');
         if (procDmgEl) procDmgEl.value = isNaN(procDmg) ? '' : procDmg;
+        if (weapon.procSpellId != null && typeof ItemSearch !== 'undefined' && ItemSearch.fetchSpellById) {
+          const needSpell = !weapon.proc || /^\d+$/.test(String(weapon.proc).trim());
+          if (needSpell) {
+            ItemSearch.fetchSpellById(weapon.procSpellId).then(function (spell) {
+              if (spell && spell.name) {
+                $(prefix + '-proc').value = spell.name;
+                if (procDmgEl) procDmgEl.value = spell.damage != null ? spell.damage : (isNaN(procDmg) ? '' : procDmg);
+              }
+            });
+          }
+        }
         const elemTypeEl = $(prefix + '-elem-type');
         if (elemTypeEl) elemTypeEl.value = (weapon.elemType != null ? String(weapon.elemType) : '') || '';
         const elemDamageEl = $(prefix + '-elem-damage');
@@ -1676,6 +1687,17 @@
         $('ranged-bane').value = (weapon.baneDamage != null && !isNaN(Number(weapon.baneDamage)) ? Number(weapon.baneDamage) : 0) || '';
         rangedWeaponDisplayName = (weapon.name || '').trim() || 'Custom';
         rangedFromItemSearch = true;
+        if (weapon.procSpellId != null && typeof ItemSearch !== 'undefined' && ItemSearch.fetchSpellById) {
+          const needSpell = !weapon.proc || /^\d+$/.test(String(weapon.proc).trim());
+          if (needSpell) {
+            ItemSearch.fetchSpellById(weapon.procSpellId).then(function (spell) {
+              if (spell && spell.name) {
+                $('ranged-proc').value = spell.name;
+                $('ranged-proc-damage').value = spell.damage != null ? spell.damage : (weapon.procDamage != null && !isNaN(Number(weapon.procDamage)) ? Number(weapon.procDamage) : 0);
+              }
+            });
+          }
+        }
       }
 
       function applyArrowFromSearch(weapon) {

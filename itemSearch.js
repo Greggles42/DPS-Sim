@@ -17,6 +17,7 @@
     baseUrl: 'https://dndquarm.com/api/QuarmData/items/search',
     apiKey: null,  // Set by itemSearchConfig.js (local) or kept server-side when using proxyUrl
     proxyUrl: null, // When set (e.g. '/api/item-search' on Vercel), client calls proxy; key stays on server
+    spellBaseUrl: null, // Optional: e.g. 'https://dndquarm.com/api/QuarmData/spells' or proxy '/api/spell'
     configApplied: false
   };
 
@@ -32,7 +33,59 @@
     if (typeof opts.baseUrl === 'string') config.baseUrl = opts.baseUrl;
     if (typeof opts.apiKey === 'string') config.apiKey = opts.apiKey;
     if (typeof opts.proxyUrl === 'string') config.proxyUrl = opts.proxyUrl;
+    if (typeof opts.spellBaseUrl === 'string') config.spellBaseUrl = opts.spellBaseUrl;
     config.configApplied = true;
+  }
+
+  /**
+   * Build request for spell-by-ID lookup. Uses spellBaseUrl if set, else derives from baseUrl (e.g. .../QuarmData/spells).
+   * @param {number|string} spellId - Spell ID.
+   * @returns {{ url: string, headers: Object }|null} Request info or null if not configured.
+   */
+  function getSpellRequest(spellId) {
+    var id = typeof spellId === 'number' ? spellId : parseInt(String(spellId), 10);
+    if (isNaN(id)) return null;
+    var base = config.spellBaseUrl;
+    if (!base) {
+      var itemsBase = (config.baseUrl || '').replace(/\/items\/search.*$/, '');
+      base = itemsBase ? itemsBase + '/spells' : '';
+    }
+    if (!base) return null;
+    var url = base.replace(/\/$/, '') + '/' + id;
+    var headers = { 'Accept': 'application/json' };
+    if (!config.proxyUrl && config.apiKey) headers['Authorization'] = config.apiKey;
+    return { url: url, headers: headers };
+  }
+
+  /**
+   * Fetch spell by ID. Returns { name, damage? } for use in proc spell field and proc spell damage.
+   * @param {number|string} spellId - Spell ID.
+   * @returns {Promise<{ name: string, damage?: number }|null>} Spell info or null on error / not configured.
+   */
+  function fetchSpellById(spellId) {
+    var req = getSpellRequest(spellId);
+    if (!req) return Promise.resolve(null);
+    return fetch(req.url, { method: 'GET', headers: req.headers })
+      .then(function (res) {
+        if (!res.ok) return null;
+        return res.json();
+      })
+      .then(function (data) {
+        if (!data || typeof data !== 'object') return null;
+        var get = function (obj, keys, def) {
+          for (var i = 0; i < keys.length; i++) {
+            var v = obj[keys[i]];
+            if (v !== undefined && v !== null) return v;
+          }
+          return def;
+        };
+        var name = String(get(data, ['name', 'Name', 'spell_name', 'spellName', 'title']) || '').trim();
+        var dmg = get(data, ['damage', 'Damage', 'base_damage', 'baseDamage', 'procDamage', 'proc_damage']);
+        var damage = dmg != null ? (typeof dmg === 'number' ? dmg : parseInt(dmg, 10)) : undefined;
+        if (damage != null && isNaN(damage)) damage = undefined;
+        return name ? { name: name, damage: damage } : null;
+      })
+      .catch(function () { return null; });
   }
 
   /**
@@ -170,7 +223,24 @@
       is2H = itemType ? !!TWO_HAND_TYPES[itemType] : !!get(item, ['is2H', 'isTwoHand', 'twoHanded']);
     }
 
-    var procName = str(get(item, ['procEffect', 'procName', 'proc', 'Proc', 'proc_name', 'ProcName', 'proc_effect']));
+    /* Proc: prefer spell name/damage from procSpellData or procEffectData; otherwise use procEffect/procName (may be spell ID). */
+    var procSpellId = null;
+    var procEffectRaw = get(item, ['procEffect', 'procSpellId', 'proc_spell_id', 'procSpellId', 'proceffect']);
+    if (typeof procEffectRaw === 'number' && !isNaN(procEffectRaw)) procSpellId = procEffectRaw;
+    else if (procEffectRaw != null) { var n = parseInt(procEffectRaw, 10); if (!isNaN(n)) procSpellId = n; }
+    if (item.procSpellData && typeof item.procSpellData === 'object' && item.procSpellData.id != null) {
+      var sid = parseInt(item.procSpellData.id, 10);
+      if (!isNaN(sid)) procSpellId = sid;
+    }
+    var procName = '';
+    if (item.procSpellData && typeof item.procSpellData === 'object' && item.procSpellData.name != null) {
+      procName = str(item.procSpellData.name);
+    } else if (item.procEffectData && typeof item.procEffectData === 'object' && item.procEffectData.name != null) {
+      procName = str(item.procEffectData.name);
+    } else {
+      procName = str(get(item, ['procName', 'proc', 'Proc', 'proc_name', 'ProcName']));
+      if (procSpellId != null && /^\d+$/.test(procName)) procName = '';
+    }
     var procDamage = num(get(item, ['procDamage', 'proc_damage', 'ProcDamage', 'procdamage', 'procDamageAmt', 'proc_damage_amt']));
     if (item.procSpellData && typeof item.procSpellData === 'object' && item.procSpellData.damage != null) {
       procDamage = num(item.procSpellData.damage);
@@ -242,6 +312,7 @@
       offhandBlocked: !!(itemTypeNumVal != null && OFFHAND_BLOCKED_ITEM_TYPES[itemTypeNumVal]),
       proc: procName || '',
       procDamage: procDamage,
+      procSpellId: procSpellId != null ? procSpellId : undefined,
       elemType: elemType || '',
       elemDamage: elemDamage,
       baneDamage: baneDamage,
@@ -282,6 +353,7 @@
     searchWeapons: searchWeapons,
     normalizeItemForWeapon: normalizeItemForWeapon,
     getSearchRequest: getSearchRequest,
+    fetchSpellById: fetchSpellById,
     itemMatchesSlot: itemMatchesSlot,
     SLOT_PRIMARY: SLOT_PRIMARY,
     SLOT_SECONDARY: SLOT_SECONDARY,
