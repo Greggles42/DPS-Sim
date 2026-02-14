@@ -590,8 +590,8 @@
    * @param {number} [options.dex=255] - dexterity for proc
    * @param {boolean} [options.fromBehind] - if true, skip block/parry/dodge/riposte only
    * @param {boolean} [options.specialAttacks] - if true, fire class special on cooldown
-   * @param {number} [options.backstabModPercent] - rogue only: increase effective backstab skill by this % (e.g. 20 for 20%), capped at 255
-   * @param {number} [options.backstabSkill] - rogue only: backstab skill for base damage (skill*0.02+2)*weapon_damage; also enforces minHit by level
+   * @param {number} [options.backstabModPercent] - increase effective backstab skill by this % (e.g. 20 for 20%), capped at 255
+   * @param {number} [options.backstabSkill] - backstab skill for base damage (skill*0.02+2)*weapon_damage; also enforces minHit by level
    * @param {number} [options.seed] - optional RNG seed for reproducibility
    * @param {number} [options.critChanceMult] - AA Critical Hit Chance bonus (percent)
    */
@@ -1156,21 +1156,21 @@
     }
     if (report.special && (report.special.count > 0 || (report.special.attempts != null && report.special.attempts > 0))) {
       const sp = report.special;
+      const a = sp.attempts != null ? sp.attempts : 0;
+      const h = sp.hits != null ? sp.hits : sp.count;
+      const acc = a > 0 ? (h / a * 100).toFixed(1) : '0';
+      const dpsLabel = sp.name === 'Backstab' ? 'DPS from backstab' : 'DPS';
       lines.push(`  ${sp.name}`);
-      lines.push(`    Count:               ${sp.count}`);
-      if (sp.attempts != null) {
-        const a = sp.attempts;
-        const h = sp.hits != null ? sp.hits : sp.count;
-        lines.push(`    Attempts:            ${a}`);
-        lines.push(`    Accuracy:            ${a > 0 ? (h / a * 100).toFixed(1) : 0}%`);
-      }
+      lines.push(`    Attempts:            ${a}`);
+      if (sp.doubleBackstabs !== undefined) lines.push(`    Double backstabs:    ${sp.doubleBackstabs}`);
+      lines.push(`    Total hits:         ${h}`);
+      lines.push(`    Accuracy:            ${acc}%`);
       lines.push(`    Total damage:       ${sp.totalDamage}`);
       lines.push(`    Max hit:             ${sp.maxDamage}`);
-      lines.push(`    DPS:                 ${(sp.totalDamage / dur).toFixed(2)}`);
-      if (sp.doubleBackstabs !== undefined) lines.push(`    Double backstabs:    ${sp.doubleBackstabs}`);
-      if (sp.backstabModPercent != null && sp.backstabModPercent !== 0 && sp.backstabSkill != null) {
-        const effectiveSkill = Math.min(255, Math.floor(sp.backstabSkill * (100 + sp.backstabModPercent) / 100));
-        lines.push(`    Effective backstab:  ${effectiveSkill} (skill + ${sp.backstabModPercent}% mod, cap 255)`);
+      lines.push(`    ${dpsLabel}:          ${(sp.totalDamage / dur).toFixed(2)}`);
+      if (sp.backstabSkill != null) {
+        const effectiveSkill = Math.min(255, Math.floor(sp.backstabSkill * (100 + (sp.backstabModPercent || 0)) / 100));
+        lines.push(`    Effective backstab skill: ${effectiveSkill}`);
       }
     }
     if (report.fistweaving && report.fistweaving.rounds > 0) {
