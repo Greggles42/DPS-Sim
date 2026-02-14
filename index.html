@@ -1608,7 +1608,10 @@
         const apiType = weapon.itemTypeNum != null ? weapon.itemTypeNum : '(not set)';
         const mapped = (weapon.type != null && weapon.type !== '') ? weapon.type : '(undefined)';
         const slots = weapon.slots != null ? weapon.slots : '(not set)';
-        el.textContent = 'Slot: ' + slotLabel + '\nName: ' + (weapon.name || '—') + '\nAPI itemType: ' + apiType + '\nMapped type: ' + mapped + '\nSlots bitmask: ' + slots;
+        const procName = (weapon.proc != null ? String(weapon.proc) : '') || '—';
+        const procId = weapon.procSpellId != null ? weapon.procSpellId : '—';
+        const procDmg = weapon.procDamage != null && !isNaN(Number(weapon.procDamage)) ? weapon.procDamage : '—';
+        el.textContent = 'Slot: ' + slotLabel + '\nName: ' + (weapon.name || '—') + '\nAPI itemType: ' + apiType + '\nMapped type: ' + mapped + '\nSlots bitmask: ' + slots + '\nProc spell name: ' + procName + '\nProc spell ID: ' + procId + '\nProc spell damage: ' + procDmg;
       }
 
       /** Populate weapon form fields from selected item (JSON/normalized weapon: damage, delay, proc, procDamage, elemType, elemDamage, baneDamage). */
