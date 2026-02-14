@@ -290,7 +290,8 @@
       is2H = itemType ? !!TWO_HAND_TYPES[itemType] : !!get(item, ['is2H', 'isTwoHand', 'twoHanded']);
     }
 
-    /* Proc: prefer spell name/damage from procSpellData or procEffectData; otherwise use procEffect/procName (may be spell ID). */
+    /* Proc: procEffect is the spell ID invoked by the proc. Do not use procEffect as the spell name.
+     * Set procSpellId from procEffect; spell name and damage come from spell lookup (or embedded procSpellData/procEffectData). */
     var procSpellId = null;
     var procEffectRaw = get(item, ['procEffect', 'procSpellId', 'proc_spell_id', 'procSpellId', 'proceffect']);
     if (typeof procEffectRaw === 'number' && !isNaN(procEffectRaw)) procSpellId = procEffectRaw;
@@ -304,9 +305,6 @@
       procName = str(item.procSpellData.name);
     } else if (item.procEffectData && typeof item.procEffectData === 'object' && item.procEffectData.name != null) {
       procName = str(item.procEffectData.name);
-    } else {
-      procName = str(get(item, ['procName', 'proc', 'Proc', 'proc_name', 'ProcName']));
-      if (procSpellId != null && /^\d+$/.test(procName)) procName = '';
     }
     var procDamage = num(get(item, ['procDamage', 'proc_damage', 'ProcDamage', 'procdamage', 'procDamageAmt', 'proc_damage_amt']));
     if (item.procSpellData && typeof item.procSpellData === 'object' && item.procSpellData.damage != null) {
