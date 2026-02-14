@@ -1133,13 +1133,14 @@
       const h = sp.hits != null ? sp.hits : sp.count;
       const D = sp.doubleBackstabs != null ? sp.doubleBackstabs : 0;
       const singleBackstabRounds = Math.max(0, a - D);
-      const attemptedAttacks = sp.attemptedAttacks != null ? sp.attemptedAttacks : a;
-      const acc = attemptedAttacks > 0 ? (h / attemptedAttacks * 100).toFixed(1) : '0';
+      const totalBackstabAttempts = sp.doubleBackstabs !== undefined ? (singleBackstabRounds + 2 * D) : a;
+      const attemptedAttacks = sp.attemptedAttacks != null ? sp.attemptedAttacks : totalBackstabAttempts;
+      const acc = totalBackstabAttempts > 0 ? (h / totalBackstabAttempts * 100).toFixed(1) : '0';
       const dpsLabel = sp.name === 'Backstab' ? 'DPS from backstab' : 'DPS';
       lines.push(`  ${sp.name}`);
       if (sp.name === 'Backstab') {
         lines.push(`    Number of backstab rounds: ${a}`);
-        if (sp.attemptedAttacks != null) lines.push(`    Total backstabs (occurred): ${attemptedAttacks}`);
+        if (sp.doubleBackstabs !== undefined) lines.push(`    Total backstabs (occurred): ${totalBackstabAttempts}`);
       } else {
         lines.push(`    Attempts:            ${a}`);
       }
