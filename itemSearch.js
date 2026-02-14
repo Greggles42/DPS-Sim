@@ -58,14 +58,74 @@
     return { url: url, headers: headers };
   }
 
+  /** PQDI spell page base URL (https://www.pqdi.cc/spell). Used when dndquarm spell API is unavailable or returns no damage. */
+  var PQDI_SPELL_BASE = 'https://www.pqdi.cc/spell';
+
   /**
-   * Fetch spell by ID. Returns { name, damage? } for use in proc spell field and proc spell damage.
+   * Parse PQDI spell page HTML for name and damage. Handles "Decrease Hitpoints by X per tick" + tick count for total damage.
+   * @param {string} html - Raw HTML of pqdi.cc/spell/{id}.
+   * @returns {{ name: string, damage?: number }|null}
+   */
+  function parsePqdiSpellHtml(html) {
+    if (!html || typeof html !== 'string') return null;
+    var name = '';
+    var m = html.match(/<title>\s*([^:]+)\s*::/i);
+    if (m) name = m[1].trim();
+    if (!name) {
+      m = html.match(/\*\*name:\*\*\s*([^\n*]+)/);
+      if (m) name = m[1].trim();
+    }
+    if (!name) return null;
+    var damage;
+    var perTick = html.match(/Decrease\s+Hitpoints\s+by\s+(\d+)(?:\s+per\s+tick)?/i);
+    if (perTick) {
+      var perTickVal = parseInt(perTick[1], 10);
+      var ticks = html.match(/(\d+)\s+ticks?/i);
+      if (ticks && /per\s+tick/i.test(html)) {
+        var numTicks = parseInt(ticks[1], 10);
+        damage = perTickVal * (numTicks > 0 ? numTicks : 1);
+      } else {
+        damage = perTickVal;
+      }
+    }
+    return { name: name, damage: damage };
+  }
+
+  /**
+   * Fetch spell name and damage from PQDI (https://www.pqdi.cc/spell/{id}). May be blocked by CORS; use a proxy if needed.
    * @param {number|string} spellId - Spell ID.
-   * @returns {Promise<{ name: string, damage?: number }|null>} Spell info or null on error / not configured.
+   * @returns {Promise<{ name: string, damage?: number }|null>}
+   */
+  function fetchSpellFromPqdi(spellId) {
+    var id = typeof spellId === 'number' ? spellId : parseInt(String(spellId), 10);
+    if (isNaN(id)) return Promise.resolve(null);
+    var url = PQDI_SPELL_BASE + '/' + id;
+    return fetch(url, { method: 'GET', headers: { 'Accept': 'text/html' }, mode: 'cors' })
+      .then(function (res) { return res.ok ? res.text() : null; })
+      .then(function (text) { return text ? parsePqdiSpellHtml(text) : null; })
+      .catch(function () { return null; });
+  }
+
+  /**
+   * Fetch spell by ID. Tries dndquarm (spellBaseUrl) first; falls back to PQDI (pqdi.cc/spell/{id}) for name and/or damage.
+   * If dndquarm returns name but no damage, PQDI is used to fill damage (e.g. from "Decrease Hitpoints by 30 per tick" × ticks).
+   * @param {number|string} spellId - Spell ID.
+   * @returns {Promise<{ name: string, damage?: number }|null>} Spell info or null on error.
    */
   function fetchSpellById(spellId) {
+    var tryPqdi = function () { return fetchSpellFromPqdi(spellId); };
+    var mergePqdiDamage = function (result) {
+      if (result && result.name && result.damage != null) return Promise.resolve(result);
+      return tryPqdi().then(function (pqdi) {
+        if (!pqdi || !pqdi.name) return result;
+        return {
+          name: (result && result.name) ? result.name : pqdi.name,
+          damage: (pqdi.damage != null ? pqdi.damage : (result && result.damage != null ? result.damage : undefined))
+        };
+      });
+    };
     var req = getSpellRequest(spellId);
-    if (!req) return Promise.resolve(null);
+    if (!req) return tryPqdi();
     return fetch(req.url, { method: 'GET', headers: req.headers })
       .then(function (res) {
         if (!res.ok) return null;
@@ -84,9 +144,15 @@
         var dmg = get(data, ['damage', 'Damage', 'base_damage', 'baseDamage', 'procDamage', 'proc_damage']);
         var damage = dmg != null ? (typeof dmg === 'number' ? dmg : parseInt(dmg, 10)) : undefined;
         if (damage != null && isNaN(damage)) damage = undefined;
-        return name ? { name: name, damage: damage } : null;
+        if (name) return { name: name, damage: damage };
+        return null;
       })
-      .catch(function () { return null; });
+      .catch(function () { return null; })
+      .then(function (result) {
+        if (!result || !result.name) return tryPqdi();
+        if (result.damage != null) return result;
+        return mergePqdiDamage(result);
+      });
   }
 
   /**
@@ -355,6 +421,7 @@
     normalizeItemForWeapon: normalizeItemForWeapon,
     getSearchRequest: getSearchRequest,
     fetchSpellById: fetchSpellById,
+    fetchSpellFromPqdi: fetchSpellFromPqdi,
     itemMatchesSlot: itemMatchesSlot,
     SLOT_PRIMARY: SLOT_PRIMARY,
     SLOT_SECONDARY: SLOT_SECONDARY,
