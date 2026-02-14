@@ -849,6 +849,7 @@
       let arrowDisplayName = '';
       let w1WeaponType = null;
       let w2WeaponType = null;
+      let w1BackstabModPercent = null;
 
       function formatSkillLabel(key) {
         if (key === '1hp' || key === '2hp') return 'Piercing';
@@ -870,7 +871,13 @@
         let name = isUnequipped ? 'Unequipped' : ((prefix === 'w1' ? w1DisplayName : w2DisplayName) || 'Custom');
         const skillKey = skillKeyForCap(prefix === 'w1' ? w1WeaponType : w2WeaponType, prefix === 'w1' && isW1TwoHanded());
         span.textContent = name;
-        if (skillEl) skillEl.textContent = (name && name !== 'Unequipped') ? formatSkillLabel(skillKey) : '';
+        if (skillEl) {
+          let skillText = (name && name !== 'Unequipped') ? formatSkillLabel(skillKey) : '';
+          if (prefix === 'w1' && skillText && w1BackstabModPercent != null && !isNaN(w1BackstabModPercent)) {
+            skillText += ' · Backstab +' + w1BackstabModPercent + '%';
+          }
+          skillEl.textContent = skillText;
+        }
       }
 
       function updateWeaponIcon(prefix, iconNum) {
@@ -894,6 +901,7 @@
         if (prefix === 'w1') {
           w1WeaponType = (p && p.type) ? p.type : null;
           w1FromItemSearch = false;
+          w1BackstabModPercent = null;
           if (id === 'unequipped') w1DisplayName = '';
           const overrideEl = $('w1-is2h-override');
           if (overrideEl) overrideEl.value = (p && (p.is2H || pType2H)) ? '1' : '0';
@@ -1496,7 +1504,7 @@
       updateWeaponNameDisplay('w2');
       updateWeapon2Disabled();
       function clearItemSearchOnManualEdit(prefix) {
-        if (prefix === 'w1') w1FromItemSearch = false; else w2FromItemSearch = false;
+        if (prefix === 'w1') { w1FromItemSearch = false; w1BackstabModPercent = null; } else w2FromItemSearch = false;
       }
       [$('w1-damage'), $('w1-delay')].forEach(function (el) { if (el) el.addEventListener('input', function () { clearItemSearchOnManualEdit('w1'); updateWeaponNameDisplay('w1'); }); });
       [$('w2-damage'), $('w2-delay')].forEach(function (el) { if (el) el.addEventListener('input', function () { clearItemSearchOnManualEdit('w2'); updateWeaponNameDisplay('w2'); }); });
@@ -1621,7 +1629,16 @@
         }
         updateWeaponIcon(prefix, weapon.icon);
         var normType = (weapon.type != null && weapon.type !== '') ? String(weapon.type).trim().toLowerCase() : null;
-        if (prefix === 'w1') { w1DisplayName = (weapon.name || '').trim() || 'Custom'; w1FromItemSearch = true; w1WeaponType = normType; } else { w2DisplayName = (weapon.name || '').trim() || 'Custom'; w2FromItemSearch = true; w2WeaponType = normType; }
+        if (prefix === 'w1') {
+          w1DisplayName = (weapon.name || '').trim() || 'Custom';
+          w1FromItemSearch = true;
+          w1WeaponType = normType;
+          w1BackstabModPercent = (weapon.backstabModPercent != null && !isNaN(Number(weapon.backstabModPercent))) ? Number(weapon.backstabModPercent) : null;
+        } else {
+          w2DisplayName = (weapon.name || '').trim() || 'Custom';
+          w2FromItemSearch = true;
+          w2WeaponType = normType;
+        }
         updateWeaponNameDisplay(prefix);
         updateWeaponSkillInputs();
         if (prefix === 'w1') {
