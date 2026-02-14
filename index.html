@@ -665,6 +665,11 @@
     <h2>Report</h2>
     <div id="report">Run a simulation to see the report.</div>
   </section>
+
+  <details id="item-search-debug" class="item-search-debug" style="margin-top: 0.75rem; padding: 0.5rem; background: var(--panel); border: 1px solid var(--border); border-radius: 4px;">
+    <summary style="cursor: pointer; font-size: 0.85rem; color: var(--muted);">Item search debug</summary>
+    <pre id="item-search-debug-content" style="margin: 0.5rem 0 0; font-size: 0.8rem; color: var(--muted); white-space: pre-wrap; word-break: break-word;">Select an item from search to see API itemType and mapped type.</pre>
+  </details>
   </div>
 
   <aside class="histogram-aside">
@@ -1575,9 +1580,23 @@
         try { localStorage.setItem(ITEM_SEARCH_RECENT_ARROW_KEY, JSON.stringify(recent)); } catch (e) {}
       }
 
+      function updateItemSearchDebug(slotLabel, weapon) {
+        const el = $('item-search-debug-content');
+        if (!el) return;
+        if (!weapon) {
+          el.textContent = 'Select an item from search to see API itemType and mapped type.';
+          return;
+        }
+        const apiType = weapon.itemTypeNum != null ? weapon.itemTypeNum : '(not set)';
+        const mapped = (weapon.type != null && weapon.type !== '') ? weapon.type : '(undefined)';
+        const slots = weapon.slots != null ? weapon.slots : '(not set)';
+        el.textContent = 'Slot: ' + slotLabel + '\nName: ' + (weapon.name || '—') + '\nAPI itemType: ' + apiType + '\nMapped type: ' + mapped + '\nSlots bitmask: ' + slots;
+      }
+
       /** Populate weapon form fields from selected item (JSON/normalized weapon: damage, delay, proc, procDamage, elemType, elemDamage, baneDamage). */
       function applyWeaponFromSearch(prefix, weapon) {
         if (!weapon) return;
+        updateItemSearchDebug(prefix === 'w1' ? 'W1' : 'W2', weapon);
         const offhandBlockedTypes = { '2hs': 1, '2hp': 1, '2hb': 1, 'archery': 1, 'bow': 1 };
         if (prefix === 'w2' && (weapon.is2H || weapon.offhandBlocked || (weapon.type && offhandBlockedTypes[weapon.type]))) return;
         const dmg = Number(weapon.damage);
@@ -1614,6 +1633,7 @@
 
       function applyRangedWeaponFromSearch(weapon) {
         if (!weapon) return;
+        updateItemSearchDebug('Ranged weapon', weapon);
         const dmg = Number(weapon.damage);
         const dly = Number(weapon.delay);
         $('ranged-damage').value = isNaN(dmg) ? '' : dmg;
@@ -1629,6 +1649,7 @@
 
       function applyArrowFromSearch(weapon) {
         if (!weapon) return;
+        updateItemSearchDebug('Arrow', weapon);
         const dmg = Number(weapon.damage);
         $('arrow-damage').value = isNaN(dmg) ? '' : dmg;
         $('arrow-elem-type').value = (weapon.elemType != null ? String(weapon.elemType) : '') || '';
@@ -1688,7 +1709,7 @@
           let s = '<div class="item-search-section">Recent</div>';
           recent.forEach(function (w) {
             const label = renderItemLabel(w);
-            s += '<button type="button" class="item-search-item" data-name="' + (w.name || '').replace(/"/g, '&quot;') + '" data-damage="' + (w.damage != null ? w.damage : '') + '" data-delay="' + (w.delay != null ? w.delay : '') + '" data-weapon-type="' + (w.type || '').replace(/"/g, '&quot;') + '" data-proc="' + (w.proc || '').replace(/"/g, '&quot;') + '" data-procdamage="' + (w.procDamage != null ? w.procDamage : '') + '" data-elemtype="' + (w.elemType || '').replace(/"/g, '&quot;') + '" data-elemdamage="' + (w.elemDamage != null ? w.elemDamage : '') + '" data-bane="' + (w.baneDamage != null ? w.baneDamage : '') + '" data-icon="' + (w.icon != null && w.icon > 0 ? w.icon : '') + '" data-is2h="' + (w.is2H ? '1' : '0') + '" data-offhand-blocked="' + (w.offhandBlocked ? '1' : '0') + '"><span>' + (w.name || '').replace(/</g, '&lt;') + '</span><div class="item-search-item-detail">' + label.replace(/</g, '&lt;') + '</div></button>';
+            s += '<button type="button" class="item-search-item" data-name="' + (w.name || '').replace(/"/g, '&quot;') + '" data-damage="' + (w.damage != null ? w.damage : '') + '" data-delay="' + (w.delay != null ? w.delay : '') + '" data-weapon-type="' + (w.type || '').replace(/"/g, '&quot;') + '" data-item-type-num="' + (w.itemTypeNum != null ? String(w.itemTypeNum) : '') + '" data-slots="' + (w.slots != null ? String(w.slots) : '') + '" data-proc="' + (w.proc || '').replace(/"/g, '&quot;') + '" data-procdamage="' + (w.procDamage != null ? w.procDamage : '') + '" data-elemtype="' + (w.elemType || '').replace(/"/g, '&quot;') + '" data-elemdamage="' + (w.elemDamage != null ? w.elemDamage : '') + '" data-bane="' + (w.baneDamage != null ? w.baneDamage : '') + '" data-icon="' + (w.icon != null && w.icon > 0 ? w.icon : '') + '" data-is2h="' + (w.is2H ? '1' : '0') + '" data-offhand-blocked="' + (w.offhandBlocked ? '1' : '0') + '"><span>' + (w.name || '').replace(/</g, '&lt;') + '</span><div class="item-search-item-detail">' + label.replace(/</g, '&lt;') + '</div></button>';
           });
           return s;
         }
@@ -1701,7 +1722,7 @@
           } else {
             results.forEach(function (w) {
               const label = renderItemLabel(w);
-              s += '<button type="button" class="item-search-item item-search-item-result" data-name="' + (w.name || '').replace(/"/g, '&quot;') + '" data-damage="' + (w.damage != null ? w.damage : '') + '" data-delay="' + (w.delay != null ? w.delay : '') + '" data-weapon-type="' + (w.type || '').replace(/"/g, '&quot;') + '" data-proc="' + (w.proc || '').replace(/"/g, '&quot;') + '" data-procdamage="' + (w.procDamage != null ? w.procDamage : '') + '" data-elemtype="' + (w.elemType || '').replace(/"/g, '&quot;') + '" data-elemdamage="' + (w.elemDamage != null ? w.elemDamage : '') + '" data-bane="' + (w.baneDamage != null ? w.baneDamage : '') + '" data-icon="' + (w.icon != null && w.icon > 0 ? w.icon : '') + '" data-is2h="' + (w.is2H ? '1' : '0') + '" data-offhand-blocked="' + (w.offhandBlocked ? '1' : '0') + '"><span>' + (w.name || '').replace(/</g, '&lt;') + '</span><div class="item-search-item-detail">' + label.replace(/</g, '&lt;') + '</div></button>';
+              s += '<button type="button" class="item-search-item item-search-item-result" data-name="' + (w.name || '').replace(/"/g, '&quot;') + '" data-damage="' + (w.damage != null ? w.damage : '') + '" data-delay="' + (w.delay != null ? w.delay : '') + '" data-weapon-type="' + (w.type || '').replace(/"/g, '&quot;') + '" data-item-type-num="' + (w.itemTypeNum != null ? String(w.itemTypeNum) : '') + '" data-slots="' + (w.slots != null ? String(w.slots) : '') + '" data-proc="' + (w.proc || '').replace(/"/g, '&quot;') + '" data-procdamage="' + (w.procDamage != null ? w.procDamage : '') + '" data-elemtype="' + (w.elemType || '').replace(/"/g, '&quot;') + '" data-elemdamage="' + (w.elemDamage != null ? w.elemDamage : '') + '" data-bane="' + (w.baneDamage != null ? w.baneDamage : '') + '" data-icon="' + (w.icon != null && w.icon > 0 ? w.icon : '') + '" data-is2h="' + (w.is2H ? '1' : '0') + '" data-offhand-blocked="' + (w.offhandBlocked ? '1' : '0') + '"><span>' + (w.name || '').replace(/</g, '&lt;') + '</span><div class="item-search-item-detail">' + label.replace(/</g, '&lt;') + '</div></button>';
             });
           }
           return s;
@@ -1715,6 +1736,7 @@
           btn.addEventListener('mousedown', function (e) {
             e.preventDefault();
             const num = function (v) { const n = parseInt(v, 10); return isNaN(n) ? 0 : n; };
+            const numOrNull = function (v) { if (v === null || v === undefined || v === '') return null; const n = parseInt(v, 10); return isNaN(n) ? null : n; };
             const iconVal = num(btn.getAttribute('data-icon'));
             const weaponTypeRaw = (btn.getAttribute('data-weapon-type') || '').trim();
             const typeLower = weaponTypeRaw ? weaponTypeRaw.toLowerCase() : '';
@@ -1724,6 +1746,8 @@
               damage: num(btn.getAttribute('data-damage')),
               delay: num(btn.getAttribute('data-delay')),
               type: typeLower || weaponTypeRaw || null,
+              itemTypeNum: numOrNull(btn.getAttribute('data-item-type-num')),
+              slots: numOrNull(btn.getAttribute('data-slots')),
               proc: (btn.getAttribute('data-proc') || '').trim(),
               procDamage: num(btn.getAttribute('data-procdamage')),
               elemType: (btn.getAttribute('data-elemtype') || '').trim(),
