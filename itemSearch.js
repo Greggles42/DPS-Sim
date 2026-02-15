@@ -50,9 +50,16 @@
     spellData = data && typeof data === 'object' ? data : null;
   }
 
+  /** EQEmu: Spell Effect 0 = SE_CurrentHP (hit points); negative base value = damage. */
+  var SE_CURRENT_HP = 0;
+  /** EQEmu: buffdurationformula 0 = instant (not a buff). */
+  var BUFF_DURATION_FORMULA_INSTANT = 0;
+
   /**
-   * Get spell name and damage from local spell data (spells_en.json format).
-   * Damage: from effect_base_value1..12 (negative = HP decrease); total = per-tick * buffduration (ticks).
+   * Get spell name and damage from local spell data (spells_en.json / EQEmu spells_new format).
+   * Uses EQEmu semantics: only slots with effectid 0 (SE_CurrentHP) count as HP damage; negative
+   * base value = damage. Instant spells (buffdurationformula 0) use base value once; DoTs use
+   * per-tick * buffduration (ticks).
    * @param {number|string} spellId - Spell ID.
    * @returns {{ name: string, damage?: number }|null}
    */
@@ -64,20 +71,37 @@
     if (!spell || typeof spell !== 'object') return null;
     var name = (spell.name != null ? String(spell.name) : '').trim();
     if (!name) return null;
-    var perTick = 0;
-    for (var i = 1; i <= 12; i++) {
-      var v = spell['effect_base_value' + i];
-      if (v !== undefined && v !== null) {
-        var n = typeof v === 'number' ? v : parseInt(v, 10);
-        if (!isNaN(n) && n < 0 && -n > perTick) perTick = -n;
-      }
-    }
+    var bufFormula = spell.buffdurationformula != null
+      ? (typeof spell.buffdurationformula === 'number' ? spell.buffdurationformula : parseInt(String(spell.buffdurationformula), 10))
+      : -1;
+    var isInstant = !isNaN(bufFormula) && bufFormula === BUFF_DURATION_FORMULA_INSTANT;
     var ticks = 1;
-    if (spell.buffduration != null) {
+    if (!isInstant && spell.buffduration != null) {
       var t = typeof spell.buffduration === 'number' ? spell.buffduration : parseInt(String(spell.buffduration), 10);
       if (!isNaN(t) && t > 0) ticks = t;
     }
-    var damage = perTick > 0 ? perTick * ticks : undefined;
+    var totalDirect = 0;
+    var perTickDamage = 0;
+    for (var i = 1; i <= 12; i++) {
+      var eid = spell['effectid' + i];
+      if (eid === undefined || eid === null) continue;
+      var effectId = typeof eid === 'number' ? eid : parseInt(String(eid), 10);
+      if (effectId !== SE_CURRENT_HP) continue;
+      var v = spell['effect_base_value' + i];
+      if (v === undefined || v === null) continue;
+      var n = typeof v === 'number' ? v : parseInt(v, 10);
+      if (isNaN(n) || n >= 0) continue;
+      var absVal = -n;
+      if (isInstant)
+        totalDirect += absVal;
+      else if (absVal > perTickDamage)
+        perTickDamage = absVal;
+    }
+    var damage;
+    if (isInstant)
+      damage = totalDirect > 0 ? totalDirect : undefined;
+    else
+      damage = perTickDamage > 0 ? perTickDamage * ticks : undefined;
     return { name: name, damage: damage };
   }
 
