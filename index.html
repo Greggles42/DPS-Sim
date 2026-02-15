@@ -526,6 +526,9 @@
         <label for="w1-proc-damage">Proc spell damage (on proc)</label>
         <input type="number" id="w1-proc-damage" min="0" value="0" placeholder="0">
         <div class="row">
+          <div><label for="w1-proc-rate" class="small-label">Proc rate %</label><input type="number" id="w1-proc-rate" min="-100" value="0" placeholder="0" title="Item modifier: proc chance × (100 + this) / 100. 0 = no change."></div>
+        </div>
+        <div class="row">
           <div><label for="w1-elem-type" class="small-label">Elemental type</label><select id="w1-elem-type">
             <option value="">None</option>
             <option value="fire">Fire</option>
@@ -561,6 +564,9 @@
         <input type="text" id="w2-proc" placeholder="e.g. Poison">
         <label for="w2-proc-damage">Proc spell damage (on proc)</label>
         <input type="number" id="w2-proc-damage" min="0" value="0" placeholder="0">
+        <div class="row">
+          <div><label for="w2-proc-rate" class="small-label">Proc rate %</label><input type="number" id="w2-proc-rate" min="-100" value="0" placeholder="0" title="Item modifier: proc chance × (100 + this) / 100. 0 = no change."></div>
+        </div>
         <div class="row">
           <div><label for="w2-elem-type" class="small-label">Elemental type</label><select id="w2-elem-type">
             <option value="">None</option>
@@ -1060,6 +1066,8 @@
         const proc = $(prefix + '-proc').value.trim() || null;
         const procDamageEl = $(prefix + '-proc-damage');
         const procSpellDamage = procDamageEl && procDamageEl.value !== '' ? parseInt(procDamageEl.value, 10) : 0;
+        const procRateEl = $(prefix + '-proc-rate');
+        const procRate = procRateEl && procRateEl.value !== '' ? (parseInt(procRateEl.value, 10) || 0) : 0;
         const minDmgRaw = $(prefix + '-min');
         const maxDmgRaw = $(prefix + '-max');
         const minDmg = minDmgRaw && minDmgRaw.value !== '' ? parseInt(minDmgRaw.value, 10) : null;
@@ -1071,7 +1079,7 @@
         const elemDamage = elemDamageEl && elemDamageEl.value !== '' ? (parseInt(elemDamageEl.value, 10) || 0) : 0;
         const baneEl = $(prefix + '-bane');
         const baneDamage = baneEl && baneEl.value !== '' ? (parseInt(baneEl.value, 10) || 0) : 0;
-        const out = { damage, delay, procSpell: proc, procSpellDamage: procSpellDamage || 0, minDmg, maxDmg, is2H, baneDamage };
+        const out = { damage, delay, procSpell: proc, procSpellDamage: procSpellDamage || 0, procRate, minDmg, maxDmg, is2H, baneDamage };
         if (elemType && elemDamage > 0) { out.elemType = elemType; out.elemDamage = elemDamage; }
         return out;
       }
@@ -1127,8 +1135,8 @@
         }
         if (weaponSkillForToHit <= 0) weaponSkillForToHit = undefined;
         const options = {
-          weapon1: hasMainHand ? { damage: weapon1.damage, delay: weapon1.delay, procSpell: weapon1.procSpell, procSpellDamage: weapon1.procSpellDamage, is2H: weapon1.is2H, elemType: weapon1.elemType, elemDamage: weapon1.elemDamage } : undefined,
-          weapon2: useWeapon2 ? { damage: weapon2.damage, delay: weapon2.delay, procSpell: weapon2.procSpell, procSpellDamage: weapon2.procSpellDamage, elemType: weapon2.elemType, elemDamage: weapon2.elemDamage } : undefined,
+          weapon1: hasMainHand ? { damage: weapon1.damage, delay: weapon1.delay, procSpell: weapon1.procSpell, procSpellDamage: weapon1.procSpellDamage, procRate: weapon1.procRate, is2H: weapon1.is2H, elemType: weapon1.elemType, elemDamage: weapon1.elemDamage } : undefined,
+          weapon2: useWeapon2 ? { damage: weapon2.damage, delay: weapon2.delay, procSpell: weapon2.procSpell, procSpellDamage: weapon2.procSpellDamage, procRate: weapon2.procRate, elemType: weapon2.elemType, elemDamage: weapon2.elemDamage } : undefined,
           hastePercent,
           offenseSkill,
           wornAttack,
@@ -1726,7 +1734,20 @@
         const procName = (weapon.proc != null ? String(weapon.proc) : '') || '—';
         const proceffect = weapon.procSpellId != null ? weapon.procSpellId : '—';
         const procDmg = weapon.procDamage != null && !isNaN(Number(weapon.procDamage)) ? weapon.procDamage : '—';
-        el.textContent = 'Slot: ' + slotLabel + '\nName: ' + (weapon.name || '—') + '\nAPI itemType: ' + apiType + '\nMapped type: ' + mapped + '\nSlots bitmask: ' + slots + '\nProc spell name: ' + procName + '\nProceffect: ' + proceffect + '\nProc spell damage: ' + procDmg;
+        const procRate = weapon.procRate != null && !isNaN(Number(weapon.procRate)) ? Number(weapon.procRate) : 0;
+        let procChanceLine = 'Proc rate: ' + procRate + '%';
+        let modifiedProcChanceLine = 'Modified proc chance: —';
+        if (typeof EQCombat !== 'undefined' && EQCombat.getProcChancePerSwing && EQCombat.effectiveDelayDecisec && weapon.delay != null && weapon.delay > 0) {
+          const haste = parseInt($('haste').value, 10) || 99;
+          const dex = parseInt($('dex').value, 10) || 255;
+          const isOffhand = slotLabel === 'W2';
+          const dualWieldPct = isOffhand ? (parseInt($('dual-wield').value, 10) || 100) : 100;
+          const effDelay = EQCombat.effectiveDelayDecisec(weapon.delay, haste);
+          const baseChance = EQCombat.getProcChancePerSwing(effDelay, isOffhand, dualWieldPct, dex);
+          const modifiedChance = Math.min(1, Math.max(0, baseChance * (100 + procRate) / 100));
+          modifiedProcChanceLine = 'Modified proc chance: ' + (modifiedChance * 100).toFixed(2) + '% (base ' + (baseChance * 100).toFixed(2) + '% × (100 + ' + procRate + ') / 100)';
+        }
+        el.textContent = 'Slot: ' + slotLabel + '\nName: ' + (weapon.name || '—') + '\nAPI itemType: ' + apiType + '\nMapped type: ' + mapped + '\nSlots bitmask: ' + slots + '\nProc spell name: ' + procName + '\nProceffect: ' + proceffect + '\nProc spell damage: ' + procDmg + '\n' + procChanceLine + '\n' + modifiedProcChanceLine;
       }
 
       /** Populate weapon form fields from selected item (JSON/normalized weapon: damage, delay, proc, procDamage, elemType, elemDamage, baneDamage). */
@@ -1745,6 +1766,8 @@
         $(prefix + '-proc').value = (weapon.proc != null ? String(weapon.proc) : '') || '';
         const procDmgEl = $(prefix + '-proc-damage');
         if (procDmgEl) procDmgEl.value = isNaN(procDmg) ? '' : procDmg;
+        const procRateEl = $(prefix + '-proc-rate');
+        if (procRateEl) procRateEl.value = (weapon.procRate != null && !isNaN(Number(weapon.procRate))) ? Number(weapon.procRate) : '0';
         if (weapon.procSpellId != null && typeof ItemSearch !== 'undefined' && ItemSearch.fetchSpellById) {
           ItemSearch.fetchSpellById(weapon.procSpellId).then(function (spell) {
             if (spell && spell.name) {
@@ -1880,7 +1903,7 @@
           let s = '<div class="item-search-section">Recent</div>';
           recent.forEach(function (w) {
             const label = renderItemLabel(w);
-            s += '<button type="button" class="item-search-item" data-name="' + (w.name || '').replace(/"/g, '&quot;') + '" data-damage="' + (w.damage != null ? w.damage : '') + '" data-delay="' + (w.delay != null ? w.delay : '') + '" data-weapon-type="' + (w.type || '').replace(/"/g, '&quot;') + '" data-item-type-num="' + (w.itemTypeNum != null ? String(w.itemTypeNum) : '') + '" data-slots="' + (w.slots != null ? String(w.slots) : '') + '" data-classes="' + (w.classes != null ? String(w.classes) : '') + '" data-proc="' + (w.proc || '').replace(/"/g, '&quot;') + '" data-procdamage="' + (w.procDamage != null ? w.procDamage : '') + '" data-proc-spell-id="' + (w.procSpellId != null ? w.procSpellId : '') + '" data-elemtype="' + (w.elemType || '').replace(/"/g, '&quot;') + '" data-elemdamage="' + (w.elemDamage != null ? w.elemDamage : '') + '" data-bane="' + (w.baneDamage != null ? w.baneDamage : '') + '" data-backstab-mod="' + (w.backstabModPercent != null ? String(w.backstabModPercent) : '') + '" data-icon="' + (w.icon != null && w.icon > 0 ? w.icon : '') + '" data-is2h="' + (w.is2H ? '1' : '0') + '" data-offhand-blocked="' + (w.offhandBlocked ? '1' : '0') + '"><span>' + (w.name || '').replace(/</g, '&lt;') + '</span><div class="item-search-item-detail">' + label.replace(/</g, '&lt;') + '</div></button>';
+            s += '<button type="button" class="item-search-item" data-name="' + (w.name || '').replace(/"/g, '&quot;') + '" data-damage="' + (w.damage != null ? w.damage : '') + '" data-delay="' + (w.delay != null ? w.delay : '') + '" data-weapon-type="' + (w.type || '').replace(/"/g, '&quot;') + '" data-item-type-num="' + (w.itemTypeNum != null ? String(w.itemTypeNum) : '') + '" data-slots="' + (w.slots != null ? String(w.slots) : '') + '" data-classes="' + (w.classes != null ? String(w.classes) : '') + '" data-proc="' + (w.proc || '').replace(/"/g, '&quot;') + '" data-procdamage="' + (w.procDamage != null ? w.procDamage : '') + '" data-proc-rate="' + (w.procRate != null ? w.procRate : '0') + '" data-proc-spell-id="' + (w.procSpellId != null ? w.procSpellId : '') + '" data-elemtype="' + (w.elemType || '').replace(/"/g, '&quot;') + '" data-elemdamage="' + (w.elemDamage != null ? w.elemDamage : '') + '" data-bane="' + (w.baneDamage != null ? w.baneDamage : '') + '" data-backstab-mod="' + (w.backstabModPercent != null ? String(w.backstabModPercent) : '') + '" data-icon="' + (w.icon != null && w.icon > 0 ? w.icon : '') + '" data-is2h="' + (w.is2H ? '1' : '0') + '" data-offhand-blocked="' + (w.offhandBlocked ? '1' : '0') + '"><span>' + (w.name || '').replace(/</g, '&lt;') + '</span><div class="item-search-item-detail">' + label.replace(/</g, '&lt;') + '</div></button>';
           });
           return s;
         }
@@ -1893,7 +1916,7 @@
           } else {
             results.forEach(function (w) {
               const label = renderItemLabel(w);
-              s += '<button type="button" class="item-search-item item-search-item-result" data-name="' + (w.name || '').replace(/"/g, '&quot;') + '" data-damage="' + (w.damage != null ? w.damage : '') + '" data-delay="' + (w.delay != null ? w.delay : '') + '" data-weapon-type="' + (w.type || '').replace(/"/g, '&quot;') + '" data-item-type-num="' + (w.itemTypeNum != null ? String(w.itemTypeNum) : '') + '" data-slots="' + (w.slots != null ? String(w.slots) : '') + '" data-classes="' + (w.classes != null ? String(w.classes) : '') + '" data-proc="' + (w.proc || '').replace(/"/g, '&quot;') + '" data-procdamage="' + (w.procDamage != null ? w.procDamage : '') + '" data-proc-spell-id="' + (w.procSpellId != null ? w.procSpellId : '') + '" data-elemtype="' + (w.elemType || '').replace(/"/g, '&quot;') + '" data-elemdamage="' + (w.elemDamage != null ? w.elemDamage : '') + '" data-bane="' + (w.baneDamage != null ? w.baneDamage : '') + '" data-backstab-mod="' + (w.backstabModPercent != null ? String(w.backstabModPercent) : '') + '" data-icon="' + (w.icon != null && w.icon > 0 ? w.icon : '') + '" data-is2h="' + (w.is2H ? '1' : '0') + '" data-offhand-blocked="' + (w.offhandBlocked ? '1' : '0') + '"><span>' + (w.name || '').replace(/</g, '&lt;') + '</span><div class="item-search-item-detail">' + label.replace(/</g, '&lt;') + '</div></button>';
+              s += '<button type="button" class="item-search-item item-search-item-result" data-name="' + (w.name || '').replace(/"/g, '&quot;') + '" data-damage="' + (w.damage != null ? w.damage : '') + '" data-delay="' + (w.delay != null ? w.delay : '') + '" data-weapon-type="' + (w.type || '').replace(/"/g, '&quot;') + '" data-item-type-num="' + (w.itemTypeNum != null ? String(w.itemTypeNum) : '') + '" data-slots="' + (w.slots != null ? String(w.slots) : '') + '" data-classes="' + (w.classes != null ? String(w.classes) : '') + '" data-proc="' + (w.proc || '').replace(/"/g, '&quot;') + '" data-procdamage="' + (w.procDamage != null ? w.procDamage : '') + '" data-proc-rate="' + (w.procRate != null ? w.procRate : '0') + '" data-proc-spell-id="' + (w.procSpellId != null ? w.procSpellId : '') + '" data-elemtype="' + (w.elemType || '').replace(/"/g, '&quot;') + '" data-elemdamage="' + (w.elemDamage != null ? w.elemDamage : '') + '" data-bane="' + (w.baneDamage != null ? w.baneDamage : '') + '" data-backstab-mod="' + (w.backstabModPercent != null ? String(w.backstabModPercent) : '') + '" data-icon="' + (w.icon != null && w.icon > 0 ? w.icon : '') + '" data-is2h="' + (w.is2H ? '1' : '0') + '" data-offhand-blocked="' + (w.offhandBlocked ? '1' : '0') + '"><span>' + (w.name || '').replace(/</g, '&lt;') + '</span><div class="item-search-item-detail">' + label.replace(/</g, '&lt;') + '</div></button>';
             });
           }
           return s;
@@ -1922,6 +1945,7 @@
               classes: numOrNull(btn.getAttribute('data-classes')),
               proc: (btn.getAttribute('data-proc') || '').trim(),
               procDamage: num(btn.getAttribute('data-procdamage')),
+              procRate: num(btn.getAttribute('data-proc-rate')),
               procSpellId: numOrNull(btn.getAttribute('data-proc-spell-id')),
               elemType: (btn.getAttribute('data-elemtype') || '').trim(),
               elemDamage: num(btn.getAttribute('data-elemdamage')),

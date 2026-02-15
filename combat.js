@@ -398,10 +398,12 @@
 
     const delayDecisec = effectiveDelayDecisec(bow.delay, options.hastePercent);
     const delayMs = delayDecisec * DECISEC_TO_MS;
-    // Ranged procs use same chance as primary (main hand): (base + dex factor) * weapon_speed; no offhand penalty.
-    const procChance = (bow.procSpell != null && bow.procSpell !== '')
+    // Ranged procs use same chance as primary (main hand): (base + dex factor) * weapon_speed; no offhand penalty. Apply proc rate modifier.
+    const baseRangedProcChance = (bow.procSpell != null && bow.procSpell !== '')
       ? getProcChancePerSwing(delayDecisec, false, 0, options.dex || 150)
       : 0;
+    const rangedProcRate = (bow.procRate != null && !Number.isNaN(Number(bow.procRate))) ? Number(bow.procRate) : 0;
+    const procChance = Math.min(1, Math.max(0, baseRangedProcChance * (100 + rangedProcRate) / 100));
     const useWalledMobPenalty = !!options.useWalledMobPenalty;
     const WALL_PENALTY_CHANCE = 0.35;
     const WALL_PENALTY_FACTOR = 0.5;
@@ -651,12 +653,16 @@
     const delay1Ms = hasMainHand ? effectiveDelayMs(w1.delay, options.hastePercent) : Infinity;
     const delay2Ms = w2 ? effectiveDelayMs(w2.delay, options.hastePercent) : 0;
 
-    const procChance1 = hasMainHand && w1.procSpell != null
+    const baseProcChance1 = hasMainHand && w1.procSpell != null
       ? getProcChancePerSwing(delay1, false, dualWieldPct, options.dex || 150)
       : 0;
-    const procChance2 = w2 && w2.procSpell != null
+    const baseProcChance2 = w2 && w2.procSpell != null
       ? getProcChancePerSwing(delay2, true, dualWieldPct, options.dex || 150)
       : 0;
+    const procRate1 = (w1.procRate != null && !Number.isNaN(Number(w1.procRate))) ? Number(w1.procRate) : 0;
+    const procRate2 = (w2 && w2.procRate != null && !Number.isNaN(Number(w2.procRate))) ? Number(w2.procRate) : 0;
+    const procChance1 = Math.min(1, Math.max(0, baseProcChance1 * (100 + procRate1) / 100));
+    const procChance2 = Math.min(1, Math.max(0, baseProcChance2 * (100 + procRate2) / 100));
 
     const report = {
       weapon1: { swings: 0, hits: 0, totalDamage: 0, maxDamage: 0, minDamage: Infinity, hitList: [], procs: 0, procDamageTotal: 0, rounds: 0, single: 0, double: 0, triple: 0 },

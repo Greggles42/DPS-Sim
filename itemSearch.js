@@ -444,6 +444,7 @@
     if (item.procEffectData && typeof item.procEffectData === 'object' && item.procEffectData.damage != null) {
       procDamage = num(item.procEffectData.damage);
     }
+    var procRate = num(get(item, ['procrate', 'procRate', 'proc_rate', 'ProcRate', 'proc_rate_mod']));
 
     var eleDmgTypeNum = num(get(item, ['eleDmgType', 'elemType', 'elem_type']));
     var elemType = '';
@@ -509,6 +510,7 @@
       offhandBlocked: !!(itemTypeNumVal != null && OFFHAND_BLOCKED_ITEM_TYPES[itemTypeNumVal]),
       proc: procName || '',
       procDamage: procDamage,
+      procRate: procRate,
       procSpellId: procSpellId != null ? procSpellId : undefined,
       elemType: elemType || '',
       elemDamage: elemDamage,
