@@ -262,22 +262,8 @@
     return [];
   }
 
-  function getItemName(item) {
-    if (!item || typeof item !== 'object') return '';
-    var v = item.name || item.Name || item.item_name || item.itemName;
-    return (v != null ? String(v) : '').trim();
-  }
-
-  function getItemId(item) {
-    if (!item || typeof item !== 'object') return undefined;
-    var v = item.id || item.ID || item.item_id || item.itemId;
-    return v !== undefined && v !== null ? v : undefined;
-  }
-
   /**
    * Perform a GET search and return raw JSON.
-   * When the query is a single word (no space) and 4+ chars, also requests a shorter prefix and merges
-   * results, then filters so only items whose name contains the full query (substring, case-insensitive) are returned.
    * No request is made until itemSearchConfig.js has run and called setConfig().
    * @param {string} nameFilter - Search string.
    * @returns {Promise<Array>} Resolves to array of items from API (or [] on error / if config not applied).
@@ -288,51 +274,6 @@
       return Promise.resolve([]);
     }
     var query = (nameFilter != null ? String(nameFilter) : '').trim();
-    var doFallback = query.length >= 4 && query.indexOf(' ') < 0;
-    var prefixLen = 3;
-    if (doFallback && query.length > prefixLen) {
-      var fallbackQuery = query.substring(0, prefixLen);
-      var mainReq = getSearchRequest(query);
-      var fallbackReq = getSearchRequest(fallbackQuery);
-      return Promise.all([
-        fetch(mainReq.url, { method: 'GET', headers: mainReq.headers })
-          .then(function (res) {
-            if (!res.ok) throw new Error('main');
-            return res.json();
-          })
-          .then(parseItemsResponse)
-          .catch(function () { return []; }),
-        fetch(fallbackReq.url, { method: 'GET', headers: fallbackReq.headers })
-          .then(function (res) {
-            if (!res.ok) throw new Error('fallback');
-            return res.json();
-          })
-          .then(parseItemsResponse)
-          .catch(function () { return []; })
-      ]).then(function (arrays) {
-        var mainList = arrays[0];
-        var fallbackList = arrays[1];
-        var seen = {};
-        var merged = [];
-        mainList.forEach(function (item) {
-          var id = getItemId(item);
-          var key = id !== undefined ? 'id_' + id : getItemName(item);
-          if (!seen[key]) { seen[key] = true; merged.push(item); }
-        });
-        fallbackList.forEach(function (item) {
-          var id = getItemId(item);
-          var key = id !== undefined ? 'id_' + id : getItemName(item);
-          if (!seen[key]) { seen[key] = true; merged.push(item); }
-        });
-        var qLower = query.toLowerCase();
-        return merged.filter(function (item) {
-          return getItemName(item).toLowerCase().indexOf(qLower) >= 0;
-        });
-      }).catch(function (err) {
-        console.error('Item search error:', err.message || err);
-        return [];
-      });
-    }
     var req = getSearchRequest(query);
     return fetch(req.url, { method: 'GET', headers: req.headers })
       .then(function (res) {

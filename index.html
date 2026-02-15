@@ -1849,12 +1849,18 @@
         return true;
       }
 
+      function classOkForSelected(w) {
+        if (!w || typeof ItemSearch === 'undefined' || !ItemSearch.itemMatchesClass) return true;
+        const selectedClassId = ($('class').value || '').trim().toLowerCase();
+        return !selectedClassId || ItemSearch.itemMatchesClass(w, selectedClassId);
+      }
+
       function renderDropdown(prefix, recent, results, loading, query) {
         const listEl = $(prefix + '-item-search-list');
         if (!listEl) return;
         recent = recent || getRecent(prefix);
-        recent = recent.filter(function (w) { return slotOkForPrefix(prefix, w); });
-        results = results ? results.filter(function (w) { return slotOkForPrefix(prefix, w); }) : [];
+        recent = recent.filter(function (w) { return slotOkForPrefix(prefix, w) && classOkForSelected(w); });
+        results = results ? results.filter(function (w) { return slotOkForPrefix(prefix, w) && classOkForSelected(w); }) : [];
         const omit2H = prefix === 'w2';
         if (omit2H) {
           const offhandBlockedTypes = { '2hs': 1, '2hp': 1, '2hb': 1, 'archery': 1, 'bow': 1 };
@@ -1966,7 +1972,8 @@
           renderDropdown(prefix, recent, [], false, query);
           return;
         }
-        ItemSearch.searchWeapons(query).then(function (results) {
+        const selectedClassId = ($('class').value || '').trim().toLowerCase();
+        ItemSearch.searchWeapons(query, selectedClassId).then(function (results) {
           const recentNow = getRecent(prefix);
           renderDropdown(prefix, recentNow, results || [], false, query);
         }).catch(function () {
