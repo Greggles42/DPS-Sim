@@ -311,6 +311,55 @@
     .sim-history-clear-btn { margin-top: 0.5rem; padding: 0.4rem 0.75rem; font-size: 0.85rem; background: var(--input-bg); color: var(--muted); border: 1px solid var(--border); border-radius: 4px; cursor: pointer; }
     .sim-history-clear-btn:hover { color: var(--text); border-color: var(--accent); }
 
+    /* Submit bug/feature modal */
+    .submit-issue-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.6);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+    }
+    .submit-issue-overlay.is-open { display: flex; }
+    .submit-issue-modal {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      max-width: 420px;
+      width: 100%;
+      max-height: 90vh;
+      overflow-y: auto;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+    }
+    .submit-issue-modal h2 { margin: 0 0 1rem; font-size: 1.1rem; }
+    .submit-issue-modal form { padding: 1rem; }
+    .submit-issue-modal label { display: block; margin-bottom: 0.25rem; font-size: 0.9rem; }
+    .submit-issue-modal input[type="text"],
+    .submit-issue-modal input[type="email"],
+    .submit-issue-modal select,
+    .submit-issue-modal textarea {
+      width: 100%;
+      margin-bottom: 0.75rem;
+      padding: 0.4rem 0.5rem;
+      background: var(--input-bg);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      color: var(--text);
+      font: inherit;
+      box-sizing: border-box;
+    }
+    .submit-issue-modal textarea { min-height: 80px; resize: vertical; }
+    .submit-issue-modal .submit-issue-actions { display: flex; gap: 0.5rem; margin-top: 1rem; }
+    .submit-issue-modal .submit-issue-actions button { padding: 0.5rem 1rem; border-radius: 4px; font: inherit; cursor: pointer; }
+    .submit-issue-modal .submit-issue-actions button[type="submit"] { background: var(--accent); color: var(--bg); border: none; }
+    .submit-issue-modal .submit-issue-actions button[type="button"] { background: var(--input-bg); color: var(--text); border: 1px solid var(--border); }
+    .submit-issue-message { padding: 0 1rem 1rem; font-size: 0.9rem; display: none; }
+    .submit-issue-message.is-visible { display: block; }
+    .submit-issue-message.success { color: var(--accent); }
+    .submit-issue-message.error { color: #e88; }
+
     /* Item search autofilter */
     .item-search-wrap { position: relative; margin-bottom: 0.75rem; }
     .item-search-wrap input { margin-bottom: 0; }
@@ -713,7 +762,31 @@
     </ul>
   </section>
 
-  <p class="muted" style="margin-top: 1.5rem; font-size: 0.85rem;">Made by Gabbiz</p>
+  <p class="muted" style="margin-top: 1.5rem; font-size: 0.85rem;">Made by Gabbiz · <button type="button" id="submit-issue-open" class="link-button" style="background:none;border:none;padding:0;font:inherit;color:var(--accent);cursor:pointer;text-decoration:underline;">Report bug / Request feature</button></p>
+
+  <div id="submit-issue-overlay" class="submit-issue-overlay" aria-hidden="true">
+    <div class="submit-issue-modal" role="dialog" aria-labelledby="submit-issue-title">
+      <h2 id="submit-issue-title">Report bug / Request feature</h2>
+      <form id="submit-issue-form">
+        <label for="submit-issue-type">Type</label>
+        <select id="submit-issue-type">
+          <option value="bug">Bug</option>
+          <option value="feature">Feature request</option>
+        </select>
+        <label for="submit-issue-title-input">Title</label>
+        <input type="text" id="submit-issue-title-input" required placeholder="Short summary" maxlength="200">
+        <label for="submit-issue-body">Description</label>
+        <textarea id="submit-issue-body" placeholder="What happened or what would you like to see?" rows="4"></textarea>
+        <label for="submit-issue-email">Email (optional, for follow-up)</label>
+        <input type="email" id="submit-issue-email" placeholder="you@example.com">
+        <div class="submit-issue-actions">
+          <button type="submit" id="submit-issue-btn">Submit</button>
+          <button type="button" id="submit-issue-close">Close</button>
+        </div>
+      </form>
+      <div id="submit-issue-message" class="submit-issue-message" role="status"></div>
+    </div>
+  </div>
 
   <script src="combat.js"></script>
   <script src="weaponSkillCaps.js"></script>
@@ -2002,6 +2075,73 @@
       [$('arrow-damage'), $('arrow-elem-type'), $('arrow-elem-damage')].forEach(function (el) {
         if (el) el.addEventListener('input', function () { clearRangedArrowItemSearchOnManualEdit('arrow'); });
       });
+
+      (function initSubmitIssue() {
+        var overlay = $('submit-issue-overlay');
+        var openBtn = $('submit-issue-open');
+        var closeBtn = $('submit-issue-close');
+        var form = $('submit-issue-form');
+        var msgEl = $('submit-issue-message');
+        var submitBtn = $('submit-issue-btn');
+        if (!overlay || !form) return;
+        function showMsg(text, isError) {
+          if (!msgEl) return;
+          msgEl.textContent = text;
+          msgEl.classList.remove('success', 'error');
+          msgEl.classList.add(isError ? 'error' : 'success', 'is-visible');
+        }
+        function hideMsg() {
+          if (msgEl) { msgEl.classList.remove('is-visible'); }
+        }
+        function closeModal() {
+          overlay.classList.remove('is-open');
+          overlay.setAttribute('aria-hidden', 'true');
+          hideMsg();
+        }
+        openBtn.addEventListener('click', function () {
+          overlay.classList.add('is-open');
+          overlay.setAttribute('aria-hidden', 'false');
+          hideMsg();
+          if (form) form.reset();
+        });
+        closeBtn.addEventListener('click', closeModal);
+        overlay.addEventListener('click', function (e) {
+          if (e.target === overlay) closeModal();
+        });
+        form.addEventListener('submit', function (e) {
+          e.preventDefault();
+          var typeEl = $('submit-issue-type');
+          var titleEl = $('submit-issue-title-input');
+          var bodyEl = $('submit-issue-body');
+          var emailEl = $('submit-issue-email');
+          var type = (typeEl && typeEl.value === 'feature') ? 'feature' : 'bug';
+          var title = titleEl ? titleEl.value.trim() : '';
+          var body = bodyEl ? bodyEl.value.trim() : '';
+          var email = emailEl ? emailEl.value.trim() : '';
+          if (!title) { showMsg('Please enter a title.', true); return; }
+          submitBtn.disabled = true;
+          var base = window.location.origin || '';
+          var url = (base ? base : '') + '/api/submit-issue';
+          fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ type: type, title: title, body: body, email: email || undefined })
+          })
+            .then(function (r) { return r.json().then(function (data) { return { status: r.status, data: data }; }); })
+            .then(function (result) {
+              if (result.status >= 200 && result.status < 300) {
+                showMsg(result.data.message || 'Thank you. Your report has been submitted.');
+                form.reset();
+              } else {
+                showMsg(result.data && result.data.error ? result.data.error : 'Something went wrong. Try again.', true);
+              }
+            })
+            .catch(function () {
+              showMsg('Could not submit. If you are viewing the app locally, use the hosted version to report bugs.', true);
+            })
+            .then(function () { submitBtn.disabled = false; });
+        });
+      })();
     })();
   </script>
 </body>
