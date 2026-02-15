@@ -335,10 +335,9 @@
       is2H = itemType ? !!TWO_HAND_TYPES[itemType] : !!get(item, ['is2H', 'isTwoHand', 'twoHanded']);
     }
 
-    /* Proc: procEffect is the spell ID invoked by the proc. Do not use procEffect as the spell name.
-     * Set procSpellId from procEffect; spell name and damage come from spell lookup (or embedded procSpellData/procEffectData). */
+    /* Proc: proceffect (or procEffect) is the spell ID invoked by the proc — used to look up spells_en.json for spell name and damage. */
     var procSpellId = null;
-    var procEffectRaw = get(item, ['procEffect', 'procSpellId', 'proc_spell_id', 'procSpellId', 'proceffect']);
+    var procEffectRaw = get(item, ['proceffect', 'procEffect', 'procSpellId', 'proc_spell_id', 'procSpellId']);
     if (typeof procEffectRaw === 'number' && !isNaN(procEffectRaw)) procSpellId = procEffectRaw;
     else if (procEffectRaw != null) { var n = parseInt(procEffectRaw, 10); if (!isNaN(n)) procSpellId = n; }
     if (item.procSpellData && typeof item.procSpellData === 'object' && item.procSpellData.id != null) {
