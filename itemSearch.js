@@ -336,9 +336,9 @@
       is2H = itemType ? !!TWO_HAND_TYPES[itemType] : !!get(item, ['is2H', 'isTwoHand', 'twoHanded']);
     }
 
-    /* proceffect = spell ID invoked by the proc; we use it to get spell name and damage from spells_en.json. */
+    /* procEffect / proceffect = spell ID invoked by the proc; we use it to get spell name and damage from spells_en.json. */
     var procSpellId = null;
-    var procEffectRaw = get(item, ['proceffect', 'procEffect', 'proc_effect', 'ProcEffect', 'Proceffect', 'procSpellId', 'proc_spell_id', 'procSpellId']);
+    var procEffectRaw = get(item, ['procEffect', 'proceffect', 'proc_effect', 'ProcEffect', 'Proceffect', 'procSpellId', 'proc_spell_id', 'procSpellId']);
     if (procEffectRaw === undefined || procEffectRaw === null) {
       for (var key in item) {
         if (item.hasOwnProperty(key) && /^proc.*effect|proceffect$/i.test(String(key).replace(/_/g, ''))) {
@@ -350,11 +350,11 @@
         }
       }
     }
-    if (typeof procEffectRaw === 'number' && !isNaN(procEffectRaw)) procSpellId = procEffectRaw;
-    else if (procEffectRaw != null) { var n = parseInt(procEffectRaw, 10); if (!isNaN(n)) procSpellId = n; }
+    if (typeof procEffectRaw === 'number' && !isNaN(procEffectRaw) && procEffectRaw > 0) procSpellId = procEffectRaw;
+    else if (procEffectRaw != null) { var n = parseInt(procEffectRaw, 10); if (!isNaN(n) && n > 0) procSpellId = n; }
     if (item.procSpellData && typeof item.procSpellData === 'object' && item.procSpellData.id != null) {
       var sid = parseInt(item.procSpellData.id, 10);
-      if (!isNaN(sid)) procSpellId = sid;
+      if (!isNaN(sid) && sid > 0) procSpellId = sid;
     }
     var procName = '';
     if (item.procSpellData && typeof item.procSpellData === 'object' && item.procSpellData.name != null) {
