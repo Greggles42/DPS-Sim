@@ -58,8 +58,9 @@
   /**
    * Get spell name and damage from local spell data (spells_en.json / EQEmu spells_new format).
    * Uses EQEmu semantics: only slots with effectid 0 (SE_CurrentHP) count as HP damage; negative
-   * base value = damage. Instant spells (buffdurationformula 0) use base value once; DoTs use
-   * per-tick * buffduration (ticks).
+   * base value = damage. If maxN for that slot is greater than |effect_base_valueN|, maxN is used
+   * as the damage (or per-tick) value. Instant spells (buffdurationformula 0) use base value once;
+   * DoTs use per-tick * buffduration (ticks).
    * @param {number|string} spellId - Spell ID.
    * @returns {{ name: string, damage?: number }|null}
    */
@@ -92,6 +93,11 @@
       var n = typeof v === 'number' ? v : parseInt(v, 10);
       if (isNaN(n) || n >= 0) continue;
       var absVal = -n;
+      var maxV = spell['max' + i];
+      if (maxV !== undefined && maxV !== null) {
+        var maxNum = typeof maxV === 'number' ? maxV : parseInt(String(maxV), 10);
+        if (!isNaN(maxNum) && maxNum > absVal) absVal = maxNum;
+      }
       if (isInstant)
         totalDirect += absVal;
       else if (absVal > perTickDamage)
