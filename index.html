@@ -302,10 +302,10 @@
     #dps-display .dps-label { font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); margin-bottom: 0.2rem; }
     #dps-value { font-size: 3.25rem; display: block; }
     #sim-history-list { max-height: 320px; overflow-y: auto; font-size: 0.85rem; }
-    .sim-history-row { display: grid; grid-template-columns: 1fr 1fr auto auto auto; gap: 0.5rem 0.75rem; align-items: center; padding: 0.5rem 0; border-bottom: 1px solid var(--border); }
+    .sim-history-row { display: grid; grid-template-columns: 1fr 1fr minmax(0, 1fr) auto auto auto; gap: 0.5rem 0.75rem; align-items: center; padding: 0.5rem 0; border-bottom: 1px solid var(--border); }
     .sim-history-row:last-child { border-bottom: none; }
     .sim-history-header { font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); padding-bottom: 0.35rem; border-bottom: 1px solid var(--border); margin-bottom: 0.25rem; }
-    .sim-history-row .sim-history-w1, .sim-history-row .sim-history-w2 { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .sim-history-row .sim-history-w1, .sim-history-row .sim-history-w2, .sim-history-row .sim-history-target { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .sim-history-row .sim-history-atk, .sim-history-row .sim-history-ac, .sim-history-row .sim-history-dps { text-align: right; white-space: nowrap; }
     .sim-history-row .sim-history-dps { font-weight: 600; color: var(--accent); }
     .sim-history-clear-btn { margin-top: 0.5rem; padding: 0.4rem 0.75rem; font-size: 0.85rem; background: var(--input-bg); color: var(--muted); border: 1px solid var(--border); border-radius: 4px; cursor: pointer; }
@@ -361,7 +361,7 @@
 <body>
   <div class="banner">
     <div class="banner-left">
-      <h1>EverQuest DPS Simulator <span id="app-version" style="font-weight: 400; color: var(--muted); font-size: 0.85rem;">v0.8</span></h1>
+      <h1>EverQuest DPS Simulator <span id="app-version" style="font-weight: 400; color: var(--muted); font-size: 0.85rem;">v0.9</span></h1>
       <p class="muted" style="margin:0 0 1rem; color: var(--muted); font-size: 0.9rem;">
         Formulas based on <a href="https://github.com/SecretsOTheP/EQMacEmu/blob/main/zone/attack.cpp" target="_blank" rel="noopener" style="color: var(--accent);">EQMacEmu attack.cpp</a>.
       </p>
@@ -519,6 +519,7 @@
         </div>
       </details>
     </section>
+    <p class="hint" style="margin-top: -0.25rem;">Click weapon icon to unequip.</p>
 
     <section class="section--core">
       <h2>Target & Fight</h2>
@@ -700,6 +701,7 @@
   <section style="margin-top: 1rem;">
     <h2>Version log</h2>
     <ul style="font-size: 0.9rem; color: var(--muted); margin: 0; padding-left: 1.25rem;">
+      <li><strong>0.9</strong> — Item and NPC search added to simulation. Improved some backstab performance. Added Inner Flame and Duelist discipline simulations. Proc damage now derived from spell data (spells_en) using EQEmu rules (SE_CurrentHP, max/limit). Target NPC search (npc_types): pick a mob to fill AC, level, and resistances; selected target name appears in the report and sim history.</li>
       <li><strong>0.8</strong> — Added UI improvements, added elemental and bane damage.</li>
       <li><strong>0.7</strong> — Added Ranged Combat simulations.</li>
       <li><strong>0.6</strong> — Multi-run report: all values (including crit hits and crit damage gain) are averages per run, not cumulative. Clear distinction between offense skill (0–255, to-hit only) and offense rating (skill + STR + worn + spell, used for damage): UI labels, report lines, and hint; report shows Offense skill, Offense rating (for damage), and Offense rating from stats (STR).</li>
@@ -769,7 +771,7 @@
       }
 
       // When releasing: 1) Bump VERSION below. 2) Add a new <li> at the top of the Version log section above.
-      const VERSION = '0.8';
+      const VERSION = '0.9';
       const versionEl = $('app-version');
       if (versionEl) versionEl.textContent = 'v' + VERSION;
 
@@ -1177,6 +1179,9 @@
           ? `Weapon 2: ${w2Name} (${weapon2.damage}d / ${weapon2.delay} delay${weapon2.procSpell ? ' / ' + weapon2.procSpell : ''})`
           : 'Weapon 2';
         let reportText = EQCombat.formatReport(report, w1Label, w2Label, runs);
+        if (window.selectedTargetNpc && window.selectedTargetNpc.name) {
+          reportText = '  Target: ' + String(window.selectedTargetNpc.name).replace(/_/g, ' ') + '\n\n' + reportText;
+        }
         if (typeof WeaponSkillCaps !== 'undefined' && classId && level) {
           const capSkillKey = skillKeyForCap(w1WeaponType, weapon1.is2H);
           const skillCap = WeaponSkillCaps.getCapForSimClass(classId, capSkillKey, level);
@@ -1199,6 +1204,7 @@
         SIM_HISTORY.unshift({
           weapon1: w1Name,
           weapon2: useWeapon2 ? w2Name : '—',
+          targetName: window.selectedTargetNpc && window.selectedTargetNpc.name ? String(window.selectedTargetNpc.name).replace(/_/g, ' ') : undefined,
           attack: totalAttack,
           mobAC: targetAC,
           dps: weaponDps
@@ -1288,11 +1294,13 @@
           listEl.innerHTML = '<p class="hint" style="margin: 0;">No runs yet this session.</p>';
           return;
         }
-        const header = '<div class="sim-history-row sim-history-header"><span class="sim-history-w1">Weapon 1</span><span class="sim-history-w2">Weapon 2</span><span class="sim-history-atk">Attack</span><span class="sim-history-ac">Mob AC</span><span class="sim-history-dps">DPS</span></div>';
+        const header = '<div class="sim-history-row sim-history-header"><span class="sim-history-w1">Weapon 1</span><span class="sim-history-w2">Weapon 2</span><span class="sim-history-target">Target</span><span class="sim-history-atk">Attack</span><span class="sim-history-ac">Mob AC</span><span class="sim-history-dps">DPS</span></div>';
         const rows = SIM_HISTORY.map(function (h) {
+          var targetDisplay = (h.targetName != null && h.targetName !== '') ? h.targetName : '—';
           return '<div class="sim-history-row">' +
             '<span class="sim-history-w1" title="' + (h.weapon1 || '').replace(/"/g, '&quot;') + '">' + (h.weapon1 || '—').replace(/</g, '&lt;') + '</span>' +
             '<span class="sim-history-w2" title="' + (h.weapon2 || '').replace(/"/g, '&quot;') + '">' + (h.weapon2 || '—').replace(/</g, '&lt;') + '</span>' +
+            '<span class="sim-history-target" title="' + targetDisplay.replace(/"/g, '&quot;') + '">' + targetDisplay.replace(/</g, '&lt;') + '</span>' +
             '<span class="sim-history-atk">' + (h.attack != null ? h.attack : '—') + '</span>' +
             '<span class="sim-history-ac">' + (h.mobAC != null ? h.mobAC : '—') + '</span>' +
             '<span class="sim-history-dps">' + (typeof h.dps === 'number' ? h.dps.toFixed(2) : '—') + '</span>' +
@@ -1406,7 +1414,11 @@
             displayedAttack: r0.displayedAttack,
           };
         }
-        $('report').textContent = EQCombat.formatRangedReport(report, runs);
+        let rangedReportText = EQCombat.formatRangedReport(report, runs);
+        if (window.selectedTargetNpc && window.selectedTargetNpc.name) {
+          rangedReportText = '  Target: ' + String(window.selectedTargetNpc.name).replace(/_/g, ' ') + '\n\n' + rangedReportText;
+        }
+        $('report').textContent = rangedReportText;
         const dpsEl = $('dps-value');
         if (dpsEl && report.durationSec) dpsEl.textContent = (report.totalDamage / report.durationSec).toFixed(2);
         const histContainer = $('histogram-container');
@@ -1423,6 +1435,7 @@
         SIM_HISTORY.unshift({
           weapon1: rangedWeaponName,
           weapon2: arrowName,
+          targetName: window.selectedTargetNpc && window.selectedTargetNpc.name ? String(window.selectedTargetNpc.name).replace(/_/g, ' ') : undefined,
           attack: rangedTotalAttack,
           mobAC: options.targetAC,
           dps: rangedDps
