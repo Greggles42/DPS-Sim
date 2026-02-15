@@ -338,7 +338,18 @@
 
     /* proceffect = spell ID invoked by the proc; we use it to get spell name and damage from spells_en.json. */
     var procSpellId = null;
-    var procEffectRaw = item.proceffect !== undefined && item.proceffect !== null ? item.proceffect : get(item, ['procEffect', 'procSpellId', 'proc_spell_id', 'procSpellId']);
+    var procEffectRaw = get(item, ['proceffect', 'procEffect', 'proc_effect', 'ProcEffect', 'Proceffect', 'procSpellId', 'proc_spell_id', 'procSpellId']);
+    if (procEffectRaw === undefined || procEffectRaw === null) {
+      for (var key in item) {
+        if (item.hasOwnProperty(key) && /^proc.*effect|proceffect$/i.test(String(key).replace(/_/g, ''))) {
+          var val = item[key];
+          if (val !== undefined && val !== null && (typeof val === 'number' ? !isNaN(val) : !isNaN(parseInt(val, 10)))) {
+            procEffectRaw = val;
+            break;
+          }
+        }
+      }
+    }
     if (typeof procEffectRaw === 'number' && !isNaN(procEffectRaw)) procSpellId = procEffectRaw;
     else if (procEffectRaw != null) { var n = parseInt(procEffectRaw, 10); if (!isNaN(n)) procSpellId = n; }
     if (item.procSpellData && typeof item.procSpellData === 'object' && item.procSpellData.id != null) {
