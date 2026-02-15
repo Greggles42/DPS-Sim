@@ -522,6 +522,11 @@
 
     <section class="section--core">
       <h2>Target & Fight</h2>
+      <div class="item-search-wrap target-npc-wrap">
+        <label for="target-npc-search">Target NPC</label>
+        <input type="text" id="target-npc-search" placeholder="Search by name (e.g. grimling, dragon)..." autocomplete="off">
+        <div id="target-npc-search-list" class="item-search-list" role="listbox"></div>
+      </div>
       <label>Attacking from</label>
       <div class="radio-group">
         <label><input type="radio" name="from-behind" value="0"><span class="radio-option-main">Front</span> <span class="radio-option-note">(use avoidance)</span></label>
@@ -733,6 +738,11 @@
           .catch(function () {});
       }
       const $ = (id) => document.getElementById(id);
+      var npcTypesList = [];
+      fetch('resources/npc_types.json')
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (data) { npcTypesList = Array.isArray(data) ? data : []; })
+        .catch(function () {});
 
       // ----- Background usage log (no UI). Set USAGE_LOG_URL to your endpoint to enable.
       // e.g. local: 'http://localhost:8765/log'  or Vercel: 'https://dps-sim.vercel.app/api/log'
@@ -1880,12 +1890,83 @@
         });
       }
 
+      function closeTargetNpcDropdown() {
+        var listEl = $('target-npc-search-list');
+        if (listEl) listEl.classList.remove('is-open');
+      }
+      function openTargetNpcDropdown() {
+        var listEl = $('target-npc-search-list');
+        if (listEl) listEl.classList.add('is-open');
+      }
+      function applyTargetNpc(npc) {
+        if (!npc || typeof npc !== 'object') return;
+        window.selectedTargetNpc = npc;
+        var set = function (id, val) {
+          var el = $(id);
+          if (el && val !== undefined && val !== null) el.value = val;
+        };
+        set('target-ac', npc.AC);
+        set('mob-level', npc.level);
+        set('target-mr', npc.MR);
+        set('target-fr', npc.FR);
+        set('target-cr', npc.CR);
+        set('target-pr', npc.PR);
+        set('target-dr', npc.DR);
+      }
+      (function initTargetNpcSearch() {
+        var inputEl = $('target-npc-search');
+        var listEl = $('target-npc-search-list');
+        if (!inputEl || !listEl) return;
+        var minChars = 2;
+        inputEl.addEventListener('input', function () {
+          var q = (inputEl.value || '').trim().toLowerCase();
+          if (q.length < minChars) {
+            listEl.innerHTML = '<div class="item-search-msg">Type at least ' + minChars + ' characters to search</div>';
+            openTargetNpcDropdown();
+            return;
+          }
+          var filtered = npcTypesList.filter(function (n) {
+            var name = (n.name != null ? String(n.name) : '').toLowerCase();
+            return name.indexOf(q) >= 0;
+          }).slice(0, 80);
+          if (filtered.length === 0) {
+            listEl.innerHTML = '<div class="item-search-section">Targets</div><div class="item-search-msg">No matching NPCs</div>';
+          } else {
+            var html = '<div class="item-search-section">Targets</div>';
+            filtered.forEach(function (npc) {
+              var name = (npc.name != null ? String(npc.name) : '').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+              var detail = 'Lvl ' + (npc.level != null ? npc.level : '?') + ' · AC ' + (npc.AC != null ? npc.AC : '?');
+              html += '<button type="button" class="item-search-item" data-npc-id="' + (npc.id != null ? String(npc.id) : '') + '"><span>' + name + '</span><div class="item-search-item-detail">' + detail.replace(/</g, '&lt;') + '</div></button>';
+            });
+            listEl.innerHTML = html;
+            listEl.querySelectorAll('.item-search-item').forEach(function (btn) {
+              btn.addEventListener('mousedown', function (e) {
+                e.preventDefault();
+                var id = btn.getAttribute('data-npc-id');
+                var npc = npcTypesList.find(function (n) { return n != null && String(n.id) === String(id); });
+                if (npc) {
+                  applyTargetNpc(npc);
+                  inputEl.value = (npc.name != null ? String(npc.name) : '').trim();
+                }
+                closeTargetNpcDropdown();
+              });
+            });
+          }
+          openTargetNpcDropdown();
+        });
+        inputEl.addEventListener('keydown', function (e) {
+          if (e.key === 'Escape') { closeTargetNpcDropdown(); inputEl.blur(); }
+        });
+      })();
+
       document.addEventListener('click', function (e) {
         if (e.target.closest('.item-search-wrap')) return;
+        if (e.target.closest('.target-npc-wrap')) return;
         closeItemSearchDropdown('w1');
         closeItemSearchDropdown('w2');
         closeItemSearchDropdown('ranged-weapon');
         closeItemSearchDropdown('arrow');
+        closeTargetNpcDropdown();
       });
 
       setupItemSearch('w1');
