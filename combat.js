@@ -1161,7 +1161,7 @@
       lines.push(`  ${sp.name}`);
       if (sp.name === 'Backstab') {
         lines.push(`    Number of backstab rounds: ${a}`);
-        if (sp.doubleBackstabs !== undefined) lines.push(`    Total backstabs (occurred): ${totalBackstabAttempts}`);
+        if (sp.doubleBackstabs !== undefined) lines.push(`    Backstab swings: ${totalBackstabAttempts}`);
       } else {
         lines.push(`    Attempts:            ${a}`);
       }
@@ -1169,7 +1169,7 @@
         lines.push(`    Single backstab rounds:   ${singleBackstabRounds}`);
         lines.push(`    Double backstab rounds:   ${D}`);
       }
-      lines.push(`    Hits landed:        ${h}`);
+      lines.push(`    ${sp.name === 'Backstab' ? 'Backstab hits landed' : 'Hits landed'}:        ${h}`);
       lines.push(`    Accuracy:           ${acc}%`);
       lines.push(`    Total damage:       ${sp.totalDamage}`);
       lines.push(`    Max hit:            ${sp.maxDamage}`);
