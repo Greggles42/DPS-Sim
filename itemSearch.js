@@ -50,17 +50,18 @@
     spellData = data && typeof data === 'object' ? data : null;
   }
 
-  /** EQEmu: Spell Effect 0 = SE_CurrentHP (hit points); negative base value = damage. */
+  /** EQEmu: Spell Effect 0 = SE_CurrentHP (hit points, per-tick or instant); negative base value = damage. */
   var SE_CURRENT_HP = 0;
+  /** EQEmu: Spell Effect 79 = SE_CurrentHPOnce (one-time HP change); negative base value = damage per application. */
+  var SE_CURRENT_HP_ONCE = 79;
   /** EQEmu: buffdurationformula 0 = instant (not a buff). */
   var BUFF_DURATION_FORMULA_INSTANT = 0;
 
   /**
    * Get spell name and damage from local spell data (spells_en.json / EQEmu spells_new format).
-   * Uses EQEmu semantics: only slots with effectid 0 (SE_CurrentHP) count as HP damage; negative
-   * base value = damage. If maxN (or effect_limit_valueN when maxN is absent) is greater than
-   * |effect_base_valueN|, that limit is used as the damage (or per-tick) value. Instant spells (buffdurationformula 0) use base value once;
-   * DoTs use per-tick * buffduration (ticks).
+   * Uses EQEmu semantics: slots with effectid 0 (SE_CurrentHP) or 79 (SE_CurrentHPOnce) count as HP damage;
+   * negative base value = damage. Effect 0: per-tick for DoT or sum for instant. Effect 79: one-shot damage
+   * added to total. If maxN (or effect_limit_valueN) is greater than |effect_base_valueN|, that limit is used.
    * @param {number|string} spellId - Spell ID.
    * @returns {{ name: string, damage?: number }|null}
    */
@@ -83,11 +84,11 @@
     }
     var totalDirect = 0;
     var perTickDamage = 0;
+    var totalOnce = 0;
     for (var i = 1; i <= 12; i++) {
       var eid = spell['effectid' + i];
       if (eid === undefined || eid === null) continue;
       var effectId = typeof eid === 'number' ? eid : parseInt(String(eid), 10);
-      if (effectId !== SE_CURRENT_HP) continue;
       var v = spell['effect_base_value' + i];
       if (v === undefined || v === null) continue;
       var n = typeof v === 'number' ? v : parseInt(v, 10);
@@ -99,16 +100,19 @@
         var maxNum = typeof maxV === 'number' ? maxV : parseInt(String(maxV), 10);
         if (!isNaN(maxNum) && maxNum > absVal) absVal = maxNum;
       }
-      if (isInstant)
-        totalDirect += absVal;
-      else if (absVal > perTickDamage)
-        perTickDamage = absVal;
+      if (effectId === SE_CURRENT_HP_ONCE) {
+        totalOnce += absVal;
+      } else if (effectId === SE_CURRENT_HP) {
+        if (isInstant)
+          totalDirect += absVal;
+        else if (absVal > perTickDamage)
+          perTickDamage = absVal;
+      }
     }
     var damage;
-    if (isInstant)
-      damage = totalDirect > 0 ? totalDirect : undefined;
-    else
-      damage = perTickDamage > 0 ? perTickDamage * ticks : undefined;
+    var fromDirect = isInstant ? totalDirect : (perTickDamage > 0 ? perTickDamage * ticks : 0);
+    var total = fromDirect + totalOnce;
+    damage = total > 0 ? total : undefined;
     return { name: name, damage: damage };
   }
 
