@@ -21,6 +21,9 @@
     configApplied: false
   };
 
+  /** Local spell data (e.g. from resources/spells_en.json). When set, used for proc spell name/damage instead of dndquarm/PQDI. */
+  var spellData = null;
+
   /**
    * Configure the item search API. Call from itemSearchConfig.js (local) or index.html (deployed with proxy).
    * @param {Object} opts
@@ -36,6 +39,46 @@
     var spellUrl = opts.spellBaseUrl || opts.spellbaseUrl;
     if (typeof spellUrl === 'string') config.spellBaseUrl = spellUrl;
     config.configApplied = true;
+  }
+
+  /**
+   * Set local spell data (object keyed by spell ID, e.g. from resources/spells_en.json).
+   * When set, fetchSpellById uses this for proc spell name and damage instead of dndquarm/PQDI.
+   * @param {Object} data - e.g. { "1790": { name: "Feast of Blood", effect_base_value5: -30, buffduration: "3" }, ... }
+   */
+  function setSpellData(data) {
+    spellData = data && typeof data === 'object' ? data : null;
+  }
+
+  /**
+   * Get spell name and damage from local spell data (spells_en.json format).
+   * Damage: from effect_base_value1..12 (negative = HP decrease); total = per-tick * buffduration (ticks).
+   * @param {number|string} spellId - Spell ID.
+   * @returns {{ name: string, damage?: number }|null}
+   */
+  function getSpellFromLocalData(spellId) {
+    if (!spellData || spellData === null) return null;
+    var id = typeof spellId === 'number' ? String(spellId) : (spellId != null ? String(spellId).trim() : '');
+    if (id === '' || isNaN(parseInt(id, 10))) return null;
+    var spell = spellData[id];
+    if (!spell || typeof spell !== 'object') return null;
+    var name = (spell.name != null ? String(spell.name) : '').trim();
+    if (!name) return null;
+    var perTick = 0;
+    for (var i = 1; i <= 12; i++) {
+      var v = spell['effect_base_value' + i];
+      if (v !== undefined && v !== null) {
+        var n = typeof v === 'number' ? v : parseInt(v, 10);
+        if (!isNaN(n) && n < 0 && -n > perTick) perTick = -n;
+      }
+    }
+    var ticks = 1;
+    if (spell.buffduration != null) {
+      var t = typeof spell.buffduration === 'number' ? spell.buffduration : parseInt(String(spell.buffduration), 10);
+      if (!isNaN(t) && t > 0) ticks = t;
+    }
+    var damage = perTick > 0 ? perTick * ticks : undefined;
+    return { name: name, damage: damage };
   }
 
   /**
@@ -107,12 +150,14 @@
   }
 
   /**
-   * Fetch spell by ID. Tries dndquarm (spellBaseUrl) first; falls back to PQDI (pqdi.cc/spell/{id}) for name and/or damage.
-   * If dndquarm returns name but no damage, PQDI is used to fill damage (e.g. from "Decrease Hitpoints by 30 per tick" × ticks).
+   * Fetch spell by ID. Uses local spell data (spells_en.json) when set; otherwise tries dndquarm then PQDI.
    * @param {number|string} spellId - Spell ID.
    * @returns {Promise<{ name: string, damage?: number }|null>} Spell info or null on error.
    */
   function fetchSpellById(spellId) {
+    var local = getSpellFromLocalData(spellId);
+    if (local && local.name) return Promise.resolve(local);
+
     var tryPqdi = function () { return fetchSpellFromPqdi(spellId); };
     var mergePqdiDamage = function (result) {
       if (result && result.name && result.damage != null) return Promise.resolve(result);
@@ -414,6 +459,8 @@
 
   global.ItemSearch = {
     setConfig: setItemSearchConfig,
+    setSpellData: setSpellData,
+    getSpellFromLocalData: getSpellFromLocalData,
     searchItems: searchItems,
     searchWeapons: searchWeapons,
     normalizeItemForWeapon: normalizeItemForWeapon,

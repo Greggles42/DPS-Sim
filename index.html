@@ -725,6 +725,12 @@
         } else {
           ItemSearch.setConfig({ proxyUrl: '/api/item-search' });
         }
+        fetch('resources/spells_en.json')
+          .then(function (r) { return r.ok ? r.json() : null; })
+          .then(function (data) {
+            if (data && typeof ItemSearch !== 'undefined' && ItemSearch.setSpellData) ItemSearch.setSpellData(data);
+          })
+          .catch(function () {});
       }
       const $ = (id) => document.getElementById(id);
 
