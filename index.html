@@ -525,9 +525,7 @@
         <input type="text" id="w1-proc" placeholder="e.g. Flaming Sword">
         <label for="w1-proc-damage">Proc spell damage (on proc)</label>
         <input type="number" id="w1-proc-damage" min="0" value="0" placeholder="0">
-        <div class="row">
-          <div><label for="w1-proc-rate" class="small-label">Proc rate %</label><input type="number" id="w1-proc-rate" min="-100" value="0" placeholder="0" title="Item modifier: proc chance × (100 + this) / 100. 0 = no change."></div>
-        </div>
+        <input type="hidden" id="w1-proc-rate" value="0">
         <div class="row">
           <div><label for="w1-elem-type" class="small-label">Elemental type</label><select id="w1-elem-type">
             <option value="">None</option>
@@ -564,9 +562,7 @@
         <input type="text" id="w2-proc" placeholder="e.g. Poison">
         <label for="w2-proc-damage">Proc spell damage (on proc)</label>
         <input type="number" id="w2-proc-damage" min="0" value="0" placeholder="0">
-        <div class="row">
-          <div><label for="w2-proc-rate" class="small-label">Proc rate %</label><input type="number" id="w2-proc-rate" min="-100" value="0" placeholder="0" title="Item modifier: proc chance × (100 + this) / 100. 0 = no change."></div>
-        </div>
+        <input type="hidden" id="w2-proc-rate" value="0">
         <div class="row">
           <div><label for="w2-elem-type" class="small-label">Elemental type</label><select id="w2-elem-type">
             <option value="">None</option>
