@@ -292,10 +292,11 @@
 
   /**
    * Map API item to the weapon shape used by DPS-Sim presets and getWeapon().
-   * dndquarm JSON: id, name, damage, delay, baneDmgAmt, eleDmgType, eleDmgAmt, itemType, procEffect, procName (often null).
+   * Reads: id, name, damage, delay, itemtype, proceffect, slots, icon, etc.
+   * proceffect is the spell ID used to look up spell name and damage from spells_en.json.
    *
-   * @param {Object} item - Raw item from the API.
-   * @returns {Object} Normalized weapon: { name, damage, delay, proc?, procDamage?, elemType?, elemDamage?, baneDamage?, is2H, type }.
+   * @param {Object} item - Raw item from the API (e.g. id, Name, damage, delay, itemtype, proceffect, slots, icon).
+   * @returns {Object} Normalized weapon: { name, damage, delay, proc?, procDamage?, procSpellId?, elemType?, elemDamage?, baneDamage?, is2H, type }.
    */
   function normalizeItemForWeapon(item) {
     if (!item || typeof item !== 'object') return null;
@@ -322,8 +323,8 @@
     var name = str(get(item, ['name', 'Name', 'item_name', 'itemName']));
     var damage = num(get(item, ['damage', 'Damage', 'dmg', 'Dmg']));
     var delay = num(get(item, ['delay', 'Delay', 'delay_sec', 'delaySec']));
-    /* itemType from API (same pattern as damage/delay) -> maps to 1HB/1HP/1HS/2HB/2HS/2HP/bow/h2h/throwing */
-    var itemTypeNumRaw = get(item, ['itemType', 'item_type', 'ItemType', 'itemtype']);
+    /* itemtype / itemType from API -> maps to 1HB/1HP/1HS/2HB/2HS/2HP/bow/h2h/throwing */
+    var itemTypeNumRaw = get(item, ['itemtype', 'itemType', 'item_type', 'ItemType']);
     var itemTypeNum = (typeof itemTypeNumRaw === 'number') ? itemTypeNumRaw : (parseInt(itemTypeNumRaw, 10));
     var itemType = '';
     var is2H = false;
@@ -335,9 +336,9 @@
       is2H = itemType ? !!TWO_HAND_TYPES[itemType] : !!get(item, ['is2H', 'isTwoHand', 'twoHanded']);
     }
 
-    /* Proc: proceffect (or procEffect) is the spell ID invoked by the proc — used to look up spells_en.json for spell name and damage. */
+    /* proceffect = spell ID invoked by the proc; we use it to get spell name and damage from spells_en.json. */
     var procSpellId = null;
-    var procEffectRaw = get(item, ['proceffect', 'procEffect', 'procSpellId', 'proc_spell_id', 'procSpellId']);
+    var procEffectRaw = item.proceffect !== undefined && item.proceffect !== null ? item.proceffect : get(item, ['procEffect', 'procSpellId', 'proc_spell_id', 'procSpellId']);
     if (typeof procEffectRaw === 'number' && !isNaN(procEffectRaw)) procSpellId = procEffectRaw;
     else if (procEffectRaw != null) { var n = parseInt(procEffectRaw, 10); if (!isNaN(n)) procSpellId = n; }
     if (item.procSpellData && typeof item.procSpellData === 'object' && item.procSpellData.id != null) {
