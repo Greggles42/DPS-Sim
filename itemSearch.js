@@ -516,6 +516,7 @@
 
     var itemTypeNumVal = !isNaN(itemTypeNum) ? itemTypeNum : null;
     var itemClasses = getItemClasses(item);
+    var itemIdVal = (typeof itemId === 'number' && !isNaN(itemId) && itemId > 0) ? itemId : null;
     var out = {
       name: name || 'Unknown',
       damage: damage,
@@ -534,7 +535,8 @@
       icon: icon > 0 ? icon : null,
       slots: slots,
       classes: itemClasses,
-      backstabModPercent: backstabModPercent
+      backstabModPercent: backstabModPercent,
+      itemId: itemIdVal
     };
 
     return out;

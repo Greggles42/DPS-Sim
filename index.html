@@ -826,6 +826,12 @@
         .then(function (r) { return r.ok ? r.json() : null; })
         .then(function (data) { npcTypesList = Array.isArray(data) ? data : []; })
         .catch(function () {});
+      /** Item ID -> { procrate, ... } from resources/procrates.json; used to override proc rate when weapon is selected from search. */
+      var procRatesByItemId = {};
+      fetch('resources/procrates.json')
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (data) { procRatesByItemId = data && typeof data === 'object' ? data : {}; })
+        .catch(function () {});
 
       // ----- Background usage log (no UI). Set USAGE_LOG_URL to your endpoint to enable.
       // e.g. local: 'http://localhost:8765/log'  or Vercel: 'https://dps-sim.vercel.app/api/log'
@@ -1899,7 +1905,7 @@
           let s = '<div class="item-search-section">Recent</div>';
           recent.forEach(function (w) {
             const label = renderItemLabel(w);
-            s += '<button type="button" class="item-search-item" data-name="' + (w.name || '').replace(/"/g, '&quot;') + '" data-damage="' + (w.damage != null ? w.damage : '') + '" data-delay="' + (w.delay != null ? w.delay : '') + '" data-weapon-type="' + (w.type || '').replace(/"/g, '&quot;') + '" data-item-type-num="' + (w.itemTypeNum != null ? String(w.itemTypeNum) : '') + '" data-slots="' + (w.slots != null ? String(w.slots) : '') + '" data-classes="' + (w.classes != null ? String(w.classes) : '') + '" data-proc="' + (w.proc || '').replace(/"/g, '&quot;') + '" data-procdamage="' + (w.procDamage != null ? w.procDamage : '') + '" data-proc-rate="' + (w.procRate != null ? w.procRate : '0') + '" data-proc-spell-id="' + (w.procSpellId != null ? w.procSpellId : '') + '" data-elemtype="' + (w.elemType || '').replace(/"/g, '&quot;') + '" data-elemdamage="' + (w.elemDamage != null ? w.elemDamage : '') + '" data-bane="' + (w.baneDamage != null ? w.baneDamage : '') + '" data-backstab-mod="' + (w.backstabModPercent != null ? String(w.backstabModPercent) : '') + '" data-icon="' + (w.icon != null && w.icon > 0 ? w.icon : '') + '" data-is2h="' + (w.is2H ? '1' : '0') + '" data-offhand-blocked="' + (w.offhandBlocked ? '1' : '0') + '"><span>' + (w.name || '').replace(/</g, '&lt;') + '</span><div class="item-search-item-detail">' + label.replace(/</g, '&lt;') + '</div></button>';
+            s += '<button type="button" class="item-search-item" data-item-id="' + (w.itemId != null ? String(w.itemId) : '') + '" data-name="' + (w.name || '').replace(/"/g, '&quot;') + '" data-damage="' + (w.damage != null ? w.damage : '') + '" data-delay="' + (w.delay != null ? w.delay : '') + '" data-weapon-type="' + (w.type || '').replace(/"/g, '&quot;') + '" data-item-type-num="' + (w.itemTypeNum != null ? String(w.itemTypeNum) : '') + '" data-slots="' + (w.slots != null ? String(w.slots) : '') + '" data-classes="' + (w.classes != null ? String(w.classes) : '') + '" data-proc="' + (w.proc || '').replace(/"/g, '&quot;') + '" data-procdamage="' + (w.procDamage != null ? w.procDamage : '') + '" data-proc-rate="' + (w.procRate != null ? w.procRate : '0') + '" data-proc-spell-id="' + (w.procSpellId != null ? w.procSpellId : '') + '" data-elemtype="' + (w.elemType || '').replace(/"/g, '&quot;') + '" data-elemdamage="' + (w.elemDamage != null ? w.elemDamage : '') + '" data-bane="' + (w.baneDamage != null ? w.baneDamage : '') + '" data-backstab-mod="' + (w.backstabModPercent != null ? String(w.backstabModPercent) : '') + '" data-icon="' + (w.icon != null && w.icon > 0 ? w.icon : '') + '" data-is2h="' + (w.is2H ? '1' : '0') + '" data-offhand-blocked="' + (w.offhandBlocked ? '1' : '0') + '"><span>' + (w.name || '').replace(/</g, '&lt;') + '</span><div class="item-search-item-detail">' + label.replace(/</g, '&lt;') + '</div></button>';
           });
           return s;
         }
@@ -1912,7 +1918,7 @@
           } else {
             results.forEach(function (w) {
               const label = renderItemLabel(w);
-              s += '<button type="button" class="item-search-item item-search-item-result" data-name="' + (w.name || '').replace(/"/g, '&quot;') + '" data-damage="' + (w.damage != null ? w.damage : '') + '" data-delay="' + (w.delay != null ? w.delay : '') + '" data-weapon-type="' + (w.type || '').replace(/"/g, '&quot;') + '" data-item-type-num="' + (w.itemTypeNum != null ? String(w.itemTypeNum) : '') + '" data-slots="' + (w.slots != null ? String(w.slots) : '') + '" data-classes="' + (w.classes != null ? String(w.classes) : '') + '" data-proc="' + (w.proc || '').replace(/"/g, '&quot;') + '" data-procdamage="' + (w.procDamage != null ? w.procDamage : '') + '" data-proc-rate="' + (w.procRate != null ? w.procRate : '0') + '" data-proc-spell-id="' + (w.procSpellId != null ? w.procSpellId : '') + '" data-elemtype="' + (w.elemType || '').replace(/"/g, '&quot;') + '" data-elemdamage="' + (w.elemDamage != null ? w.elemDamage : '') + '" data-bane="' + (w.baneDamage != null ? w.baneDamage : '') + '" data-backstab-mod="' + (w.backstabModPercent != null ? String(w.backstabModPercent) : '') + '" data-icon="' + (w.icon != null && w.icon > 0 ? w.icon : '') + '" data-is2h="' + (w.is2H ? '1' : '0') + '" data-offhand-blocked="' + (w.offhandBlocked ? '1' : '0') + '"><span>' + (w.name || '').replace(/</g, '&lt;') + '</span><div class="item-search-item-detail">' + label.replace(/</g, '&lt;') + '</div></button>';
+              s += '<button type="button" class="item-search-item item-search-item-result" data-item-id="' + (w.itemId != null ? String(w.itemId) : '') + '" data-name="' + (w.name || '').replace(/"/g, '&quot;') + '" data-damage="' + (w.damage != null ? w.damage : '') + '" data-delay="' + (w.delay != null ? w.delay : '') + '" data-weapon-type="' + (w.type || '').replace(/"/g, '&quot;') + '" data-item-type-num="' + (w.itemTypeNum != null ? String(w.itemTypeNum) : '') + '" data-slots="' + (w.slots != null ? String(w.slots) : '') + '" data-classes="' + (w.classes != null ? String(w.classes) : '') + '" data-proc="' + (w.proc || '').replace(/"/g, '&quot;') + '" data-procdamage="' + (w.procDamage != null ? w.procDamage : '') + '" data-proc-rate="' + (w.procRate != null ? w.procRate : '0') + '" data-proc-spell-id="' + (w.procSpellId != null ? w.procSpellId : '') + '" data-elemtype="' + (w.elemType || '').replace(/"/g, '&quot;') + '" data-elemdamage="' + (w.elemDamage != null ? w.elemDamage : '') + '" data-bane="' + (w.baneDamage != null ? w.baneDamage : '') + '" data-backstab-mod="' + (w.backstabModPercent != null ? String(w.backstabModPercent) : '') + '" data-icon="' + (w.icon != null && w.icon > 0 ? w.icon : '') + '" data-is2h="' + (w.is2H ? '1' : '0') + '" data-offhand-blocked="' + (w.offhandBlocked ? '1' : '0') + '"><span>' + (w.name || '').replace(/</g, '&lt;') + '</span><div class="item-search-item-detail">' + label.replace(/</g, '&lt;') + '</div></button>';
             });
           }
           return s;
@@ -1949,8 +1955,14 @@
               backstabModPercent: numOrNull(btn.getAttribute('data-backstab-mod')),
               icon: iconVal > 0 ? iconVal : null,
               is2H: btn.getAttribute('data-is2h') === '1' || derived2H,
-              offhandBlocked: btn.getAttribute('data-offhand-blocked') === '1' || derived2H
+              offhandBlocked: btn.getAttribute('data-offhand-blocked') === '1' || derived2H,
+              itemId: numOrNull(btn.getAttribute('data-item-id'))
             };
+            if (w.itemId != null && procRatesByItemId[w.itemId] != null) {
+              var entry = procRatesByItemId[w.itemId];
+              var pr = entry.procrate != null ? Number(entry.procrate) : (entry.procRate != null ? Number(entry.procRate) : null);
+              if (pr != null && !isNaN(pr)) w.procRate = pr;
+            }
             const inputEl = $(prefix + '-item-search');
             if (prefix === 'ranged-weapon') {
               saveRecentRangedWeapon(w);
