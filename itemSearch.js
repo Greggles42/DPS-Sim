@@ -445,6 +445,22 @@
       procDamage = num(item.procEffectData.damage);
     }
     var procRate = num(get(item, ['procrate', 'procRate', 'proc_rate', 'ProcRate', 'proc_rate_mod']));
+    if (procRate == null || (typeof procRate === 'number' && isNaN(procRate))) {
+      for (var prKey in item) {
+        if (item.hasOwnProperty(prKey) && /^proc.*rate|procrate$/i.test(String(prKey).replace(/_/g, ''))) {
+          var prVal = num(item[prKey]);
+          if (prVal != null && !isNaN(prVal)) { procRate = prVal; break; }
+        }
+      }
+    }
+    if (item.procSpellData && typeof item.procSpellData === 'object' && item.procSpellData.procRate != null) {
+      var pr = num(item.procSpellData.procRate);
+      if (!isNaN(pr)) procRate = pr;
+    }
+    if (item.procEffectData && typeof item.procEffectData === 'object' && item.procEffectData.procRate != null) {
+      var pr2 = num(item.procEffectData.procRate);
+      if (!isNaN(pr2)) procRate = pr2;
+    }
 
     var eleDmgTypeNum = num(get(item, ['eleDmgType', 'elemType', 'elem_type']));
     var elemType = '';
