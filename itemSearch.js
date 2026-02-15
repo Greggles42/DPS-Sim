@@ -254,8 +254,30 @@
     return { url: url, headers: headers };
   }
 
+  function parseItemsResponse(data) {
+    if (Array.isArray(data)) return data;
+    if (data && Array.isArray(data.items)) return data.items;
+    if (data && Array.isArray(data.results)) return data.results;
+    if (data && typeof data === 'object') return [data];
+    return [];
+  }
+
+  function getItemName(item) {
+    if (!item || typeof item !== 'object') return '';
+    var v = item.name || item.Name || item.item_name || item.itemName;
+    return (v != null ? String(v) : '').trim();
+  }
+
+  function getItemId(item) {
+    if (!item || typeof item !== 'object') return undefined;
+    var v = item.id || item.ID || item.item_id || item.itemId;
+    return v !== undefined && v !== null ? v : undefined;
+  }
+
   /**
    * Perform a GET search and return raw JSON.
+   * When the query is a single word (no space) and 4+ chars, also requests a shorter prefix and merges
+   * results, then filters so only items whose name contains the full query (substring, case-insensitive) are returned.
    * No request is made until itemSearchConfig.js has run and called setConfig().
    * @param {string} nameFilter - Search string.
    * @returns {Promise<Array>} Resolves to array of items from API (or [] on error / if config not applied).
@@ -265,7 +287,53 @@
       console.warn('ItemSearch: Set config before searching (itemSearchConfig.js locally or proxy on Vercel).');
       return Promise.resolve([]);
     }
-    var req = getSearchRequest(nameFilter);
+    var query = (nameFilter != null ? String(nameFilter) : '').trim();
+    var doFallback = query.length >= 4 && query.indexOf(' ') < 0;
+    var prefixLen = 3;
+    if (doFallback && query.length > prefixLen) {
+      var fallbackQuery = query.substring(0, prefixLen);
+      var mainReq = getSearchRequest(query);
+      var fallbackReq = getSearchRequest(fallbackQuery);
+      return Promise.all([
+        fetch(mainReq.url, { method: 'GET', headers: mainReq.headers })
+          .then(function (res) {
+            if (!res.ok) throw new Error('main');
+            return res.json();
+          })
+          .then(parseItemsResponse)
+          .catch(function () { return []; }),
+        fetch(fallbackReq.url, { method: 'GET', headers: fallbackReq.headers })
+          .then(function (res) {
+            if (!res.ok) throw new Error('fallback');
+            return res.json();
+          })
+          .then(parseItemsResponse)
+          .catch(function () { return []; })
+      ]).then(function (arrays) {
+        var mainList = arrays[0];
+        var fallbackList = arrays[1];
+        var seen = {};
+        var merged = [];
+        mainList.forEach(function (item) {
+          var id = getItemId(item);
+          var key = id !== undefined ? 'id_' + id : getItemName(item);
+          if (!seen[key]) { seen[key] = true; merged.push(item); }
+        });
+        fallbackList.forEach(function (item) {
+          var id = getItemId(item);
+          var key = id !== undefined ? 'id_' + id : getItemName(item);
+          if (!seen[key]) { seen[key] = true; merged.push(item); }
+        });
+        var qLower = query.toLowerCase();
+        return merged.filter(function (item) {
+          return getItemName(item).toLowerCase().indexOf(qLower) >= 0;
+        });
+      }).catch(function (err) {
+        console.error('Item search error:', err.message || err);
+        return [];
+      });
+    }
+    var req = getSearchRequest(query);
     return fetch(req.url, { method: 'GET', headers: req.headers })
       .then(function (res) {
         if (!res.ok) {
@@ -278,13 +346,7 @@
         }
         return res.json();
       })
-      .then(function (data) {
-        if (Array.isArray(data)) return data;
-        if (data && Array.isArray(data.items)) return data.items;
-        if (data && Array.isArray(data.results)) return data.results;
-        if (data && typeof data === 'object') return [data];
-        return [];
-      })
+      .then(parseItemsResponse)
       .catch(function (err) {
         console.error('Item search error:', err.message || err);
         return [];
@@ -299,6 +361,43 @@
   var SLOT_SECONDARY = 16384;
   var SLOT_RANGED = 2048;
   var SLOT_AMMO = 2097152;
+
+  /**
+   * Class bitmasks for item usability (EQ item classes field).
+   * If (itemClasses & CLASS_BITMASK[classId]) !== 0, the item is usable by that class.
+   */
+  var CLASS_BITMASK = {
+    warrior: 1,
+    cleric: 2,
+    paladin: 4,
+    ranger: 8,
+    shadowknight: 16,
+    druid: 32,
+    monk: 64,
+    bard: 128,
+    rogue: 256,
+    shaman: 512,
+    necromancer: 1024,
+    wizard: 2048,
+    magician: 4096,
+    enchanter: 8192,
+    beastlord: 16384
+  };
+
+  function getItemClasses(item) {
+    if (!item || typeof item !== 'object') return null;
+    var get = function (obj, keys, def) {
+      for (var i = 0; i < keys.length; i++) {
+        var v = obj[keys[i]];
+        if (v !== undefined && v !== null) return v;
+      }
+      return def;
+    };
+    var raw = get(item, ['classes', 'Classes', 'class', 'Class', 'item_classes', 'itemClasses']);
+    if (raw === undefined || raw === null) return null;
+    var n = typeof raw === 'number' ? raw : parseInt(String(raw), 10);
+    return isNaN(n) ? null : n;
+  }
 
   /**
    * Two-hand weapon types (EQ slot/type strings). Matches 2H entries in ITEM_TYPE_NUM_TO_TYPE.
@@ -458,6 +557,7 @@
     // H2H override disabled for now: if (itemId && H2H_OVERRIDE_IDS[itemId]) finalType = 'h2h';
 
     var itemTypeNumVal = !isNaN(itemTypeNum) ? itemTypeNum : null;
+    var itemClasses = getItemClasses(item);
     var out = {
       name: name || 'Unknown',
       damage: damage,
@@ -474,6 +574,7 @@
       baneDamage: baneDamage,
       icon: icon > 0 ? icon : null,
       slots: slots,
+      classes: itemClasses,
       backstabModPercent: backstabModPercent
     };
 
@@ -482,13 +583,36 @@
 
   /**
    * Search for items and return normalized weapon objects (for dropdown/autopopulate).
+   * When classId is provided, only items usable by that class (per classes bitmask) are returned.
    * @param {string} nameFilter - Search string.
+   * @param {string} [classId] - Selected class (e.g. 'warrior', 'cleric'); filters by item classes bitmask.
    * @returns {Promise<Array<Object>>} Resolves to array of normalized weapons.
    */
-  function searchWeapons(nameFilter) {
+  function searchWeapons(nameFilter, classId) {
     return searchItems(nameFilter).then(function (items) {
+      var mask = classId ? CLASS_BITMASK[classId] : 0;
+      if (mask) {
+        items = items.filter(function (item) {
+          var c = getItemClasses(item);
+          return c == null || (c & mask) !== 0;
+        });
+      }
       return items.map(normalizeItemForWeapon).filter(Boolean);
     });
+  }
+
+  /**
+   * Return true if normalized weapon is usable by the given class (or if weapon has no classes bitmask).
+   * @param {Object} weapon - Normalized weapon (with optional .classes number).
+   * @param {string} classId - e.g. 'warrior', 'cleric'.
+   * @returns {boolean}
+   */
+  function itemMatchesClass(weapon, classId) {
+    if (!weapon) return false;
+    if (weapon.classes == null || weapon.classes === undefined) return true;
+    if (!classId) return true;
+    var mask = CLASS_BITMASK[classId];
+    return mask != null && (weapon.classes & mask) !== 0;
   }
 
   /**
@@ -514,6 +638,8 @@
     fetchSpellById: fetchSpellById,
     fetchSpellFromPqdi: fetchSpellFromPqdi,
     itemMatchesSlot: itemMatchesSlot,
+    itemMatchesClass: itemMatchesClass,
+    CLASS_BITMASK: CLASS_BITMASK,
     SLOT_PRIMARY: SLOT_PRIMARY,
     SLOT_SECONDARY: SLOT_SECONDARY,
     SLOT_RANGED: SLOT_RANGED,

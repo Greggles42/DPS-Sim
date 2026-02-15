@@ -437,12 +437,19 @@
         <div class="char-field"><label for="class">Class</label><select id="class">
           <option value="">None (manual)</option>
           <option value="warrior">Warrior</option>
+          <option value="cleric">Cleric</option>
           <option value="paladin">Paladin</option>
           <option value="ranger">Ranger</option>
           <option value="shadowknight">Shadowknight</option>
+          <option value="druid">Druid</option>
           <option value="monk" selected>Monk</option>
-          <option value="rogue">Rogue</option>
           <option value="bard">Bard</option>
+          <option value="rogue">Rogue</option>
+          <option value="shaman">Shaman</option>
+          <option value="necromancer">Necromancer</option>
+          <option value="wizard">Wizard</option>
+          <option value="magician">Magician</option>
+          <option value="enchanter">Enchanter</option>
           <option value="beastlord">Beastlord</option>
         </select></div>
         <div class="char-field char-field-num"><label for="level">Level</label><input type="number" id="level" min="1" max="65" value="60" placeholder="60"></div>
@@ -1031,12 +1038,19 @@
       // Class-specific defaults and modifiers (EQMacEmu / attack.cpp style)
       const CLASSES = {
         warrior:   { toHitBonus: 24, doubleAttack: 250, dualWield: 245, name: 'Warrior' },
+        cleric:    { toHitBonus: 0,  doubleAttack: 0,   dualWield: 0,   name: 'Cleric' },
         paladin:   { toHitBonus: 0,  doubleAttack: 200, dualWield: 0,   name: 'Paladin' },
         ranger:    { toHitBonus: 0,  doubleAttack: 200, dualWield: 252, name: 'Ranger' },
         shadowknight: { toHitBonus: 0, doubleAttack: 200, dualWield: 0, name: 'Shadowknight' },
+        druid:     { toHitBonus: 0,  doubleAttack: 0,   dualWield: 0,   name: 'Druid' },
         monk:      { toHitBonus: 0,  doubleAttack: 250, dualWield: 252, name: 'Monk' },
-        rogue:     { toHitBonus: 0,  doubleAttack: 252, dualWield: 252, name: 'Rogue' },
         bard:      { toHitBonus: 0,  doubleAttack: 0, dualWield: 245, name: 'Bard' },
+        rogue:     { toHitBonus: 0,  doubleAttack: 252, dualWield: 252, name: 'Rogue' },
+        shaman:    { toHitBonus: 0,  doubleAttack: 0,   dualWield: 0,   name: 'Shaman' },
+        necromancer: { toHitBonus: 0, doubleAttack: 0, dualWield: 0,   name: 'Necromancer' },
+        wizard:    { toHitBonus: 0,  doubleAttack: 0,   dualWield: 0,   name: 'Wizard' },
+        magician:  { toHitBonus: 0,  doubleAttack: 0,   dualWield: 0,   name: 'Magician' },
+        enchanter: { toHitBonus: 0,  doubleAttack: 0,   dualWield: 0,   name: 'Enchanter' },
         beastlord: { toHitBonus: 0,  doubleAttack: 0, dualWield: 252,   name: 'Beastlord' },
       };
 
@@ -1835,12 +1849,18 @@
         return true;
       }
 
+      function classOkForSelected(w) {
+        if (!w || typeof ItemSearch === 'undefined' || !ItemSearch.itemMatchesClass) return true;
+        const selectedClassId = ($('class').value || '').trim().toLowerCase();
+        return !selectedClassId || ItemSearch.itemMatchesClass(w, selectedClassId);
+      }
+
       function renderDropdown(prefix, recent, results, loading, query) {
         const listEl = $(prefix + '-item-search-list');
         if (!listEl) return;
         recent = recent || getRecent(prefix);
-        recent = recent.filter(function (w) { return slotOkForPrefix(prefix, w); });
-        results = results ? results.filter(function (w) { return slotOkForPrefix(prefix, w); }) : [];
+        recent = recent.filter(function (w) { return slotOkForPrefix(prefix, w) && classOkForSelected(w); });
+        results = results ? results.filter(function (w) { return slotOkForPrefix(prefix, w) && classOkForSelected(w); }) : [];
         const omit2H = prefix === 'w2';
         if (omit2H) {
           const offhandBlockedTypes = { '2hs': 1, '2hp': 1, '2hb': 1, 'archery': 1, 'bow': 1 };
@@ -1860,7 +1880,7 @@
           let s = '<div class="item-search-section">Recent</div>';
           recent.forEach(function (w) {
             const label = renderItemLabel(w);
-            s += '<button type="button" class="item-search-item" data-name="' + (w.name || '').replace(/"/g, '&quot;') + '" data-damage="' + (w.damage != null ? w.damage : '') + '" data-delay="' + (w.delay != null ? w.delay : '') + '" data-weapon-type="' + (w.type || '').replace(/"/g, '&quot;') + '" data-item-type-num="' + (w.itemTypeNum != null ? String(w.itemTypeNum) : '') + '" data-slots="' + (w.slots != null ? String(w.slots) : '') + '" data-proc="' + (w.proc || '').replace(/"/g, '&quot;') + '" data-procdamage="' + (w.procDamage != null ? w.procDamage : '') + '" data-proc-spell-id="' + (w.procSpellId != null ? w.procSpellId : '') + '" data-elemtype="' + (w.elemType || '').replace(/"/g, '&quot;') + '" data-elemdamage="' + (w.elemDamage != null ? w.elemDamage : '') + '" data-bane="' + (w.baneDamage != null ? w.baneDamage : '') + '" data-backstab-mod="' + (w.backstabModPercent != null ? String(w.backstabModPercent) : '') + '" data-icon="' + (w.icon != null && w.icon > 0 ? w.icon : '') + '" data-is2h="' + (w.is2H ? '1' : '0') + '" data-offhand-blocked="' + (w.offhandBlocked ? '1' : '0') + '"><span>' + (w.name || '').replace(/</g, '&lt;') + '</span><div class="item-search-item-detail">' + label.replace(/</g, '&lt;') + '</div></button>';
+            s += '<button type="button" class="item-search-item" data-name="' + (w.name || '').replace(/"/g, '&quot;') + '" data-damage="' + (w.damage != null ? w.damage : '') + '" data-delay="' + (w.delay != null ? w.delay : '') + '" data-weapon-type="' + (w.type || '').replace(/"/g, '&quot;') + '" data-item-type-num="' + (w.itemTypeNum != null ? String(w.itemTypeNum) : '') + '" data-slots="' + (w.slots != null ? String(w.slots) : '') + '" data-classes="' + (w.classes != null ? String(w.classes) : '') + '" data-proc="' + (w.proc || '').replace(/"/g, '&quot;') + '" data-procdamage="' + (w.procDamage != null ? w.procDamage : '') + '" data-proc-spell-id="' + (w.procSpellId != null ? w.procSpellId : '') + '" data-elemtype="' + (w.elemType || '').replace(/"/g, '&quot;') + '" data-elemdamage="' + (w.elemDamage != null ? w.elemDamage : '') + '" data-bane="' + (w.baneDamage != null ? w.baneDamage : '') + '" data-backstab-mod="' + (w.backstabModPercent != null ? String(w.backstabModPercent) : '') + '" data-icon="' + (w.icon != null && w.icon > 0 ? w.icon : '') + '" data-is2h="' + (w.is2H ? '1' : '0') + '" data-offhand-blocked="' + (w.offhandBlocked ? '1' : '0') + '"><span>' + (w.name || '').replace(/</g, '&lt;') + '</span><div class="item-search-item-detail">' + label.replace(/</g, '&lt;') + '</div></button>';
           });
           return s;
         }
@@ -1873,7 +1893,7 @@
           } else {
             results.forEach(function (w) {
               const label = renderItemLabel(w);
-              s += '<button type="button" class="item-search-item item-search-item-result" data-name="' + (w.name || '').replace(/"/g, '&quot;') + '" data-damage="' + (w.damage != null ? w.damage : '') + '" data-delay="' + (w.delay != null ? w.delay : '') + '" data-weapon-type="' + (w.type || '').replace(/"/g, '&quot;') + '" data-item-type-num="' + (w.itemTypeNum != null ? String(w.itemTypeNum) : '') + '" data-slots="' + (w.slots != null ? String(w.slots) : '') + '" data-proc="' + (w.proc || '').replace(/"/g, '&quot;') + '" data-procdamage="' + (w.procDamage != null ? w.procDamage : '') + '" data-proc-spell-id="' + (w.procSpellId != null ? w.procSpellId : '') + '" data-elemtype="' + (w.elemType || '').replace(/"/g, '&quot;') + '" data-elemdamage="' + (w.elemDamage != null ? w.elemDamage : '') + '" data-bane="' + (w.baneDamage != null ? w.baneDamage : '') + '" data-backstab-mod="' + (w.backstabModPercent != null ? String(w.backstabModPercent) : '') + '" data-icon="' + (w.icon != null && w.icon > 0 ? w.icon : '') + '" data-is2h="' + (w.is2H ? '1' : '0') + '" data-offhand-blocked="' + (w.offhandBlocked ? '1' : '0') + '"><span>' + (w.name || '').replace(/</g, '&lt;') + '</span><div class="item-search-item-detail">' + label.replace(/</g, '&lt;') + '</div></button>';
+              s += '<button type="button" class="item-search-item item-search-item-result" data-name="' + (w.name || '').replace(/"/g, '&quot;') + '" data-damage="' + (w.damage != null ? w.damage : '') + '" data-delay="' + (w.delay != null ? w.delay : '') + '" data-weapon-type="' + (w.type || '').replace(/"/g, '&quot;') + '" data-item-type-num="' + (w.itemTypeNum != null ? String(w.itemTypeNum) : '') + '" data-slots="' + (w.slots != null ? String(w.slots) : '') + '" data-classes="' + (w.classes != null ? String(w.classes) : '') + '" data-proc="' + (w.proc || '').replace(/"/g, '&quot;') + '" data-procdamage="' + (w.procDamage != null ? w.procDamage : '') + '" data-proc-spell-id="' + (w.procSpellId != null ? w.procSpellId : '') + '" data-elemtype="' + (w.elemType || '').replace(/"/g, '&quot;') + '" data-elemdamage="' + (w.elemDamage != null ? w.elemDamage : '') + '" data-bane="' + (w.baneDamage != null ? w.baneDamage : '') + '" data-backstab-mod="' + (w.backstabModPercent != null ? String(w.backstabModPercent) : '') + '" data-icon="' + (w.icon != null && w.icon > 0 ? w.icon : '') + '" data-is2h="' + (w.is2H ? '1' : '0') + '" data-offhand-blocked="' + (w.offhandBlocked ? '1' : '0') + '"><span>' + (w.name || '').replace(/</g, '&lt;') + '</span><div class="item-search-item-detail">' + label.replace(/</g, '&lt;') + '</div></button>';
             });
           }
           return s;
@@ -1899,6 +1919,7 @@
               type: typeLower || weaponTypeRaw || null,
               itemTypeNum: numOrNull(btn.getAttribute('data-item-type-num')),
               slots: numOrNull(btn.getAttribute('data-slots')),
+              classes: numOrNull(btn.getAttribute('data-classes')),
               proc: (btn.getAttribute('data-proc') || '').trim(),
               procDamage: num(btn.getAttribute('data-procdamage')),
               procSpellId: numOrNull(btn.getAttribute('data-proc-spell-id')),
@@ -1951,7 +1972,8 @@
           renderDropdown(prefix, recent, [], false, query);
           return;
         }
-        ItemSearch.searchWeapons(query).then(function (results) {
+        const selectedClassId = ($('class').value || '').trim().toLowerCase();
+        ItemSearch.searchWeapons(query, selectedClassId).then(function (results) {
           const recentNow = getRecent(prefix);
           renderDropdown(prefix, recentNow, results || [], false, query);
         }).catch(function () {
