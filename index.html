@@ -1918,25 +1918,30 @@
         var listEl = $('target-npc-search-list');
         if (!inputEl || !listEl) return;
         var minChars = 2;
+        function npcNameForSearch(name) {
+          return (name != null ? String(name) : '').replace(/_/g, ' ').toLowerCase();
+        }
+        function npcNameForDisplay(name) {
+          return (name != null ? String(name) : '').replace(/_/g, ' ');
+        }
         inputEl.addEventListener('input', function () {
-          var q = (inputEl.value || '').trim().toLowerCase();
+          var q = (inputEl.value || '').trim().replace(/_/g, ' ').toLowerCase();
           if (q.length < minChars) {
             listEl.innerHTML = '<div class="item-search-msg">Type at least ' + minChars + ' characters to search</div>';
             openTargetNpcDropdown();
             return;
           }
           var filtered = npcTypesList.filter(function (n) {
-            var name = (n.name != null ? String(n.name) : '').toLowerCase();
-            return name.indexOf(q) >= 0;
+            return npcNameForSearch(n.name).indexOf(q) >= 0;
           }).slice(0, 80);
           if (filtered.length === 0) {
             listEl.innerHTML = '<div class="item-search-section">Targets</div><div class="item-search-msg">No matching NPCs</div>';
           } else {
             var html = '<div class="item-search-section">Targets</div>';
             filtered.forEach(function (npc) {
-              var name = (npc.name != null ? String(npc.name) : '').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+              var displayName = npcNameForDisplay(npc.name).replace(/</g, '&lt;').replace(/"/g, '&quot;');
               var detail = 'Lvl ' + (npc.level != null ? npc.level : '?') + ' · AC ' + (npc.AC != null ? npc.AC : '?');
-              html += '<button type="button" class="item-search-item" data-npc-id="' + (npc.id != null ? String(npc.id) : '') + '"><span>' + name + '</span><div class="item-search-item-detail">' + detail.replace(/</g, '&lt;') + '</div></button>';
+              html += '<button type="button" class="item-search-item" data-npc-id="' + (npc.id != null ? String(npc.id) : '') + '"><span>' + displayName + '</span><div class="item-search-item-detail">' + detail.replace(/</g, '&lt;') + '</div></button>';
             });
             listEl.innerHTML = html;
             listEl.querySelectorAll('.item-search-item').forEach(function (btn) {
@@ -1946,7 +1951,7 @@
                 var npc = npcTypesList.find(function (n) { return n != null && String(n.id) === String(id); });
                 if (npc) {
                   applyTargetNpc(npc);
-                  inputEl.value = (npc.name != null ? String(npc.name) : '').trim();
+                  inputEl.value = npcNameForDisplay(npc.name).trim();
                 }
                 closeTargetNpcDropdown();
               });
