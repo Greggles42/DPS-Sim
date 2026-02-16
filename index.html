@@ -101,6 +101,7 @@
     details.collapse-secondary { margin-bottom: 0.75rem; }
     details.collapse-secondary summary { margin-bottom: 0; }
     details.collapse-secondary .hint { margin-bottom: 0.5rem; }
+    details.collapse-tertiary { margin-left: 0.5rem; margin-bottom: 0.5rem; }
     label {
       display: block;
       font-size: 0.85rem;
@@ -259,6 +260,14 @@
       letter-spacing: 0.05em;
     }
     #histogram-container { max-width: 100%; margin-top: 0; }
+    .damage-pie-container { margin-top: 1.25rem; display: flex; flex-wrap: wrap; align-items: flex-start; gap: 1rem; }
+    .damage-pie-container:empty { display: none; }
+    .damage-pie-wrap { flex: 0 0 auto; }
+    .damage-pie-legend { font-size: 0.8rem; margin-top: 0.5rem; max-width: 220px; }
+    .damage-pie-legend dt { margin-top: 0.35rem; font-weight: 600; color: var(--text); }
+    .damage-pie-legend dt:first-child { margin-top: 0; }
+    .damage-pie-legend dd { margin-left: 1rem; color: var(--muted); }
+    .damage-pie-legend dd.sub { margin-left: 1.25rem; font-size: 0.75rem; }
     .histogram-section { margin-bottom: 1.5rem; }
     .histogram-section h3 { font-size: 0.9rem; color: var(--muted); margin: 0 0 0.5rem; }
     .histogram-chart { display: flex; align-items: flex-end; gap: 2px; height: 120px; min-height: 120px; padding: 0.5rem 0; }
@@ -465,6 +474,16 @@
           <div class="char-field char-field-num"><label for="double-attack" class="small-label">Double ATK</label><input type="number" id="double-attack" min="0" value="250" placeholder="250"></div>
           <div class="char-field char-field-num"><label for="dual-wield" class="small-label">Dual wield</label><input type="number" id="dual-wield" min="0" value="252" placeholder="0"></div>
         </div>
+        <details class="collapse-secondary collapse-tertiary">
+          <summary class="collapse-summary">Defensive skills (for future tanking mode)</summary>
+          <div class="char-secondary-row">
+            <div class="char-field char-field-num"><label for="defense-skill" class="small-label">Defense</label><input type="number" id="defense-skill" min="0" max="255" placeholder="0"></div>
+            <div class="char-field char-field-num"><label for="dodge-skill" class="small-label">Dodge</label><input type="number" id="dodge-skill" min="0" max="255" placeholder="0"></div>
+            <div class="char-field char-field-num"><label for="riposte-skill" class="small-label">Riposte</label><input type="number" id="riposte-skill" min="0" max="255" placeholder="0"></div>
+            <div class="char-field char-field-num"><label for="block-skill" class="small-label">Block</label><input type="number" id="block-skill" min="0" max="255" placeholder="0"></div>
+            <div class="char-field char-field-num"><label for="parry-skill" class="small-label">Parry</label><input type="number" id="parry-skill" min="0" max="255" placeholder="0"></div>
+          </div>
+        </details>
         <div class="char-skill-row">
           <div class="char-field char-field-num"><label for="skill-1hb" class="small-label">1HB</label><input type="number" id="skill-1hb" min="0" max="255" placeholder="0" title="1-handed blunt"></div>
           <div class="char-field char-field-num"><label for="skill-1hs" class="small-label">1HS</label><input type="number" id="skill-1hs" min="0" max="255" placeholder="0" title="1-handed slash"></div>
@@ -620,6 +639,34 @@
 
   <div id="ranged-tab" class="tab-panel hidden">
   <div class="grid">
+    <section class="section--core grid-full-width char-haste-section" id="ranged-character-haste-section">
+      <h2>Character & Haste</h2>
+      <div class="char-primary-row">
+        <div class="char-field"><label for="ranged-class">Class</label><select id="ranged-class" disabled title="Ranged sim uses Ranger only.">
+          <option value="ranger" selected>Ranger</option>
+        </select></div>
+        <div class="char-field char-field-num"><label for="ranged-level">Level</label><input type="number" id="ranged-level" min="1" max="65" value="60" placeholder="60"></div>
+        <div class="char-field char-field-num"><label for="ranged-haste">Haste % <span class="info-icon" title="Worn + Spell + v3 Haste">&#8505;</span></label><input type="number" id="ranged-haste" min="0" value="99" placeholder="99"></div>
+        <div class="char-field char-field-num"><label for="ranged-worn-attack">Worn ATK</label><input type="number" id="ranged-worn-attack" min="0" value="0" placeholder="0"></div>
+        <div class="char-field char-field-num"><label for="ranged-spell-attack">Spell ATK</label><input type="number" id="ranged-spell-attack" min="0" value="0" placeholder="0"></div>
+      </div>
+      <p class="hint char-hint char-hint-below-primary">Ranged sim uses Ranger only. Level and haste affect offense and delay.</p>
+      <details class="collapse-secondary">
+        <summary class="collapse-summary">Archery mastery, options</summary>
+        <label>Archery Mastery</label>
+        <div class="radio-group">
+          <label><input type="radio" name="archery-mastery" value="1"> 1</label>
+          <label><input type="radio" name="archery-mastery" value="2"> 2</label>
+          <label><input type="radio" name="archery-mastery" value="3" checked> 3</label>
+        </div>
+        <p class="hint">AA Archery Mastery rank (1, 2, or 3).</p>
+        <label class="checkbox-label"><input type="checkbox" id="mob-stationary" checked> Mob stationary</label>
+        <p class="hint">When checked, target is not moving (affects hit/damage if sim uses it).</p>
+        <label class="checkbox-label"><input type="checkbox" id="use-walled-mob-penalty"> Use Walled Mob Penalty</label>
+        <p class="hint">When checked, the report tracks damage lost due to wall penalty vs a standard hit.</p>
+      </details>
+    </section>
+
     <section class="section--core">
       <h2>Ranged weapon</h2>
       <div class="item-search-wrap">
@@ -675,33 +722,18 @@
     </section>
 
     <section class="section--core">
-      <h2>Character (ranged)</h2>
-      <label for="ranged-level">Level</label>
-      <input type="number" id="ranged-level" min="1" max="65" value="60" placeholder="60">
-      <label for="ranged-haste">Total haste (%)</label>
-      <input type="number" id="ranged-haste" min="0" value="99" placeholder="e.g. 99">
-      <div class="row">
-        <div><label for="ranged-worn-attack" class="small-label">Worn attack</label><input type="number" id="ranged-worn-attack" min="0" value="0" placeholder="0"></div>
-        <div><label for="ranged-spell-attack" class="small-label">Spell attack</label><input type="number" id="ranged-spell-attack" min="0" value="0" placeholder="0"></div>
+      <h2>Target & Fight</h2>
+      <div class="item-search-wrap target-npc-wrap">
+        <label for="ranged-target-npc-search">Target NPC</label>
+        <input type="text" id="ranged-target-npc-search" placeholder="Search by name (e.g. grimling, dragon)..." autocomplete="off">
+        <div id="ranged-target-npc-search-list" class="item-search-list" role="listbox"></div>
       </div>
-      <details class="collapse-secondary">
-        <summary class="collapse-summary">Archery mastery, options</summary>
-        <label>Archery Mastery</label>
-        <div class="radio-group">
-          <label><input type="radio" name="archery-mastery" value="1"> 1</label>
-          <label><input type="radio" name="archery-mastery" value="2"> 2</label>
-          <label><input type="radio" name="archery-mastery" value="3" checked> 3</label>
-        </div>
-        <p class="hint">AA Archery Mastery rank (1, 2, or 3).</p>
-        <label class="checkbox-label"><input type="checkbox" id="mob-stationary" checked> Mob stationary</label>
-        <p class="hint">When checked, target is not moving (affects hit/damage if sim uses it).</p>
-        <label class="checkbox-label"><input type="checkbox" id="use-walled-mob-penalty"> Use Walled Mob Penalty</label>
-        <p class="hint">When checked, the report tracks damage lost due to wall penalty vs a standard hit.</p>
-      </details>
-    </section>
-
-    <section class="section--core">
-      <h2>Target & Fight (ranged)</h2>
+      <label>Attacking from</label>
+      <div class="radio-group">
+        <label><input type="radio" name="ranged-from-behind" value="0"><span class="radio-option-main">Front</span> <span class="radio-option-note">(use avoidance)</span></label>
+        <label><input type="radio" name="ranged-from-behind" value="1" checked><span class="radio-option-main">Behind</span> <span class="radio-option-note">(no dodge/parry/riposte/block)</span></label>
+      </div>
+      <p class="hint">Behind: misses still occur from to-hit vs avoidance; only block/parry/dodge/riposte are skipped.</p>
       <div class="row">
         <div><label for="ranged-target-ac" class="small-label">Target AC</label><input type="number" id="ranged-target-ac" min="1" value="300" placeholder="300"></div>
         <div><label for="ranged-mob-level" class="small-label">Mob level</label><input type="number" id="ranged-mob-level" min="1" max="70" value="60" placeholder="60"></div>
@@ -733,6 +765,7 @@
   <section class="report-section">
     <h2>Report</h2>
     <div id="report">Run a simulation to see the report.</div>
+    <div id="damage-pie-container" class="damage-pie-container" aria-hidden="true"></div>
   </section>
 
   <details id="item-search-debug" class="item-search-debug" style="margin-top: 0.75rem; padding: 0.5rem; background: var(--panel); border: 1px solid var(--border); border-radius: 4px;">
@@ -1098,6 +1131,8 @@
         const hasOffhand = weapon2.damage >= 1 && weapon2.delay >= 10 && dualWieldSkillForValidation >= 1;
         if (!hasMainHand && !hasOffhand) {
           $('report').textContent = 'Set Weapon 1 (Damage >= 1, Delay >= 10) or Weapon 2 with Dual Wield skill.';
+          const pieContainer = $('damage-pie-container');
+          if (pieContainer) pieContainer.innerHTML = '';
           return;
         }
 
@@ -1295,6 +1330,13 @@
           histContainer.innerHTML = '';
         }
 
+        const pieContainer = $('damage-pie-container');
+        if (pieContainer && report.weapon1) {
+          renderDamagePieChart(pieContainer, report);
+        } else if (pieContainer) {
+          pieContainer.innerHTML = '';
+        }
+
         const totalAttack = report.displayedAttack != null ? report.displayedAttack : report.offenseRating;
         const weaponDps = report.durationSec > 0 ? (report.totalDamage / report.durationSec) : 0;
         SIM_HISTORY.unshift({
@@ -1379,6 +1421,75 @@
           section.appendChild(legend);
           container.appendChild(section);
         });
+      }
+
+      function renderDamagePieChart(container, report) {
+        container.innerHTML = '';
+        if (!report || !report.weapon1) return;
+        const w1 = report.weapon1;
+        const w2 = report.weapon2 || {};
+        const special = report.special;
+        const fw = report.fistweaving;
+        const damageBonusTotal = report.damageBonusTotal != null ? report.damageBonusTotal : 0;
+        const primaryBase = Math.max(0, (w1.totalDamage != null ? w1.totalDamage : 0) - damageBonusTotal);
+        const segments = [];
+        if (primaryBase > 0) segments.push({ key: 'primaryBase', value: primaryBase, label: 'Primary hand (base)', color: '#4a9eff' });
+        if (damageBonusTotal > 0) segments.push({ key: 'damageBonus', value: damageBonusTotal, label: 'Damage bonus', color: '#7ab8ff' });
+        const offhandTotal = (w2.totalDamage != null ? w2.totalDamage : 0) + (fw && fw.totalDamage != null ? fw.totalDamage : 0);
+        if (offhandTotal > 0) segments.push({ key: 'offhand', value: offhandTotal, label: 'Offhand', color: '#6ee7b7' });
+        const w1Procs = w1.procDamageTotal != null ? w1.procDamageTotal : 0;
+        if (w1Procs > 0) segments.push({ key: 'w1Procs', value: w1Procs, label: 'Primary procs', color: '#f59e0b' });
+        const w2Procs = w2.procDamageTotal != null ? w2.procDamageTotal : 0;
+        if (w2Procs > 0) segments.push({ key: 'w2Procs', value: w2Procs, label: 'Offhand procs', color: '#fbbf24' });
+        const specialTotal = special && special.totalDamage != null ? special.totalDamage : 0;
+        if (specialTotal > 0) segments.push({ key: 'special', value: specialTotal, label: special && special.name ? special.name : 'Special attacks', color: '#c084fc' });
+        const total = segments.reduce(function (s, seg) { return s + seg.value; }, 0);
+        if (total <= 0) return;
+
+        const size = 260;
+        const canvas = document.createElement('canvas');
+        canvas.width = size;
+        canvas.height = size;
+        canvas.setAttribute('role', 'img');
+        canvas.setAttribute('aria-label', 'Damage breakdown pie chart');
+        const ctx = canvas.getContext('2d');
+        const cx = size / 2;
+        const cy = size / 2;
+        const radius = Math.min(cx, cy) - 4;
+        let startAngle = -Math.PI / 2;
+        segments.forEach(function (seg) {
+          const sliceAngle = (seg.value / total) * Math.PI * 2;
+          const endAngle = startAngle + sliceAngle;
+          ctx.beginPath();
+          ctx.moveTo(cx, cy);
+          ctx.arc(cx, cy, radius, startAngle, endAngle);
+          ctx.closePath();
+          ctx.fillStyle = seg.color;
+          ctx.fill();
+          ctx.strokeStyle = 'rgba(0,0,0,0.25)';
+          ctx.lineWidth = 1;
+          ctx.stroke();
+          startAngle = endAngle;
+        });
+
+        const wrap = document.createElement('div');
+        wrap.className = 'damage-pie-wrap';
+        wrap.appendChild(canvas);
+        const legend = document.createElement('dl');
+        legend.className = 'damage-pie-legend';
+        segments.forEach(function (seg) {
+          const pct = total > 0 ? ((seg.value / total) * 100).toFixed(1) : '0';
+          const dt = document.createElement('dt');
+          dt.style.borderLeftColor = seg.color;
+          dt.style.borderLeftWidth = '3px';
+          dt.style.borderLeftStyle = 'solid';
+          dt.style.paddingLeft = '0.4rem';
+          dt.textContent = seg.label + ': ' + seg.value + ' (' + pct + '%)';
+          legend.appendChild(dt);
+        });
+        wrap.appendChild(legend);
+        container.appendChild(wrap);
+        container.setAttribute('aria-hidden', 'false');
       }
 
       $('btn-run').addEventListener('click', run);
@@ -1567,10 +1678,25 @@
       }
       function onClassOrLevelChange() {
         const classId = ($('class').value || '').toLowerCase();
-        const c = classId ? CLASSES[classId] : null;
-        if (c) {
-          $('double-attack').value = c.doubleAttack;
-          $('dual-wield').value = c.dualWield;
+        if (typeof WeaponSkillCaps !== 'undefined' && classId) {
+          const idx = WeaponSkillCaps.resolveClassIndex(WeaponSkillCaps.SkillCapsSpec, classId);
+          if (idx >= 0) {
+            const combat = WeaponSkillCaps.CombatSkillCaps;
+            const setCap = function (id, val) { var el = $(id); if (el) el.value = (val > 0) ? val : ''; };
+            setCap('offense-skill', combat.offense[idx]);
+            setCap('double-attack', combat.doubleAttack[idx]);
+            setCap('dual-wield', combat.dualWield[idx]);
+            const def = WeaponSkillCaps.DefensiveSkillCaps;
+            setCap('defense-skill', def.defense[idx]);
+            setCap('dodge-skill', def.dodge[idx]);
+            setCap('riposte-skill', def.riposte[idx]);
+            setCap('block-skill', def.block[idx]);
+            setCap('parry-skill', def.parry[idx]);
+          }
+          $('class-hint').textContent = 'Class and level auto-fill skills and weapon caps. Edit below to override.';
+        } else if (classId && CLASSES[classId]) {
+          $('double-attack').value = CLASSES[classId].doubleAttack;
+          $('dual-wield').value = CLASSES[classId].dualWield;
           $('class-hint').textContent = 'Class and level auto-fill skills and weapon caps. Edit below to override.';
         } else {
           $('class-hint').textContent = 'Pick a class to auto-fill skills. Edit below to override.';
@@ -2037,6 +2163,14 @@
         var listEl = $('target-npc-search-list');
         if (listEl) listEl.classList.add('is-open');
       }
+      function closeRangedTargetNpcDropdown() {
+        var listEl = $('ranged-target-npc-search-list');
+        if (listEl) listEl.classList.remove('is-open');
+      }
+      function openRangedTargetNpcDropdown() {
+        var listEl = $('ranged-target-npc-search-list');
+        if (listEl) listEl.classList.add('is-open');
+      }
       function applyTargetNpc(npc) {
         if (!npc || typeof npc !== 'object') return;
         window.selectedTargetNpc = npc;
@@ -2051,6 +2185,13 @@
         set('target-cr', npc.CR);
         set('target-pr', npc.PR);
         set('target-dr', npc.DR);
+        set('ranged-target-ac', npc.AC);
+        set('ranged-mob-level', npc.level);
+        set('ranged-target-mr', npc.MR);
+        set('ranged-target-fr', npc.FR);
+        set('ranged-target-cr', npc.CR);
+        set('ranged-target-pr', npc.PR);
+        set('ranged-target-dr', npc.DR);
       }
       (function initTargetNpcSearch() {
         var inputEl = $('target-npc-search');
@@ -2103,6 +2244,57 @@
         });
       })();
 
+      (function initRangedTargetNpcSearch() {
+        var inputEl = $('ranged-target-npc-search');
+        var listEl = $('ranged-target-npc-search-list');
+        if (!inputEl || !listEl) return;
+        var minChars = 2;
+        function npcNameForSearch(name) {
+          return (name != null ? String(name) : '').replace(/_/g, ' ').toLowerCase();
+        }
+        function npcNameForDisplay(name) {
+          return (name != null ? String(name) : '').replace(/_/g, ' ');
+        }
+        inputEl.addEventListener('input', function () {
+          var q = (inputEl.value || '').trim().replace(/_/g, ' ').toLowerCase();
+          if (q.length < minChars) {
+            listEl.innerHTML = '<div class="item-search-msg">Type at least ' + minChars + ' characters to search</div>';
+            openRangedTargetNpcDropdown();
+            return;
+          }
+          var filtered = npcTypesList.filter(function (n) {
+            return npcNameForSearch(n.name).indexOf(q) >= 0;
+          }).slice(0, 80);
+          if (filtered.length === 0) {
+            listEl.innerHTML = '<div class="item-search-section">Targets</div><div class="item-search-msg">No matching NPCs</div>';
+          } else {
+            var html = '<div class="item-search-section">Targets</div>';
+            filtered.forEach(function (npc) {
+              var displayName = npcNameForDisplay(npc.name).replace(/</g, '&lt;').replace(/"/g, '&quot;');
+              var detail = 'Lvl ' + (npc.level != null ? npc.level : '?') + ' · AC ' + (npc.AC != null ? npc.AC : '?');
+              html += '<button type="button" class="item-search-item" data-npc-id="' + (npc.id != null ? String(npc.id) : '') + '"><span>' + displayName + '</span><div class="item-search-item-detail">' + detail.replace(/</g, '&lt;') + '</div></button>';
+            });
+            listEl.innerHTML = html;
+            listEl.querySelectorAll('.item-search-item').forEach(function (btn) {
+              btn.addEventListener('mousedown', function (e) {
+                e.preventDefault();
+                var id = btn.getAttribute('data-npc-id');
+                var npc = npcTypesList.find(function (n) { return n != null && String(n.id) === String(id); });
+                if (npc) {
+                  applyTargetNpc(npc);
+                  inputEl.value = npcNameForDisplay(npc.name).trim();
+                }
+                closeRangedTargetNpcDropdown();
+              });
+            });
+          }
+          openRangedTargetNpcDropdown();
+        });
+        inputEl.addEventListener('keydown', function (e) {
+          if (e.key === 'Escape') { closeRangedTargetNpcDropdown(); inputEl.blur(); }
+        });
+      })();
+
       document.addEventListener('click', function (e) {
         if (e.target.closest('.item-search-wrap')) return;
         if (e.target.closest('.target-npc-wrap')) return;
@@ -2111,6 +2303,7 @@
         closeItemSearchDropdown('ranged-weapon');
         closeItemSearchDropdown('arrow');
         closeTargetNpcDropdown();
+        closeRangedTargetNpcDropdown();
       });
 
       setupItemSearch('w1');

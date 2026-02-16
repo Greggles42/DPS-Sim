@@ -41,6 +41,29 @@
     }
   };
 
+  /**
+   * Combat skill caps (Offense, Dual Wield, Double Attack) per class.
+   * Same class order as SkillCapsSpec.classes: WAR, CLR, PAL, RNG, SHD, DRU, MNK, BRD, ROG, SHM, NEC, WIZ, MAG, ENC, BST.
+   * 0 = class does not have the skill.
+   */
+  const CombatSkillCaps = {
+    offense:      [252, 200, 225, 252, 225, 200, 252, 252, 252, 200, 140, 140, 140, 140, 252],
+    dualWield:    [245,   0,   0, 245,   0,   0, 252, 245, 245,   0,   0,   0,   0,   0, 245],
+    doubleAttack: [245,   0, 235, 245, 235,   0, 250,   0, 245,   0,   0,   0,   0,   0,   0]
+  };
+
+  /**
+   * Defensive skill caps (Defense, Dodge, Riposte, Block, Parry) per class.
+   * Same class order as SkillCapsSpec.classes. 0 = class does not have the skill.
+   */
+  const DefensiveSkillCaps = {
+    defense:  [252, 200, 252, 240, 252, 200, 252, 252, 252, 200, 145, 145, 145, 145, 240],
+    dodge:    [190,  75, 170, 170, 170,  75, 230, 170, 210,  75,  75,  75,  75,  75, 170],
+    riposte:  [225,   0, 200, 185, 200,   0, 225,  75, 225,   0,   0,   0,   0,   0, 185],
+    block:    [  0,   0,   0, 225,   0,   0,   0,   0,   0,   0, 200,   0,   0,   0,   0],
+    parry:    [230,   0, 205, 220, 205,   0,   0, 185, 230,   0,   0,   0,   0,   0,   0]
+  };
+
   /** Sim classId (e.g. "warrior", "monk") -> spec class index 0..14 */
   const SIM_CLASS_TO_INDEX = {
     warrior: 0,      cleric: 1,    paladin: 2,    ranger: 3,    shadowknight: 4,
@@ -131,6 +154,8 @@
 
   global.WeaponSkillCaps = {
     SkillCapsSpec: SkillCapsSpec,
+    CombatSkillCaps: CombatSkillCaps,
+    DefensiveSkillCaps: DefensiveSkillCaps,
     getWeaponSkillCap: getWeaponSkillCap,
     buildWeaponSkillCapTable: buildWeaponSkillCapTable,
     getCapForSimClass: getCapForSimClass,
