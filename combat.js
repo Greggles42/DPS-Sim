@@ -337,9 +337,35 @@
 
   // ----- Special attacks (Flying Kick, Backstab, etc.) -----
   // Flying Kick uses skill/level-based base only (EQMacEmu: GetSkillBaseDamage + min level*4/5), not primary weapon. Flying Kick Base damage is 29
+  // Base reuse times (seconds); player haste reduces effective reuse: effectiveReuseSec = baseReuseSec / (1 + hastePercent/100)
+  const SPECIAL_ATTACK_REUSE_TIMES = {
+    FeignDeathReuseTime: 9,
+    SneakReuseTime: 7,
+    HideReuseTime: 8,
+    TauntReuseTime: 6,
+    InstillDoubtReuseTime: 9,
+    FishingReuseTime: 11,
+    ForagingReuseTime: 50,
+    MendReuseTime: 290,
+    BashReuseTime: 8,
+    BackstabReuseTime: 10,
+    KickReuseTime: 8,
+    TailRakeReuseTime: 6,
+    EagleStrikeReuseTime: 6,
+    RoundKickReuseTime: 8,
+    TigerClawReuseTime: 7,
+    FlyingKickReuseTime: 8,
+    SenseTrapsReuseTime: 9,
+    DisarmTrapsReuseTime: 9,
+    HarmTouchReuseTime: 4320,
+    LayOnHandsReuseTime: 4320,
+    HarmTouchReuseTimeNPC: 2400,
+    LayOnHandsReuseTimeNPC: 2400,
+    FrenzyReuseTime: 10,
+  };
   const SPECIAL_ATTACKS = {
-    monk: { name: 'Flying Kick', cooldownDecisec: 80, useWeaponDamage: false },
-    rogue: { name: 'Backstab', cooldownDecisec: 120, fromBehindOnly: true },
+    monk: { name: 'Flying Kick', reuseSec: SPECIAL_ATTACK_REUSE_TIMES.FlyingKickReuseTime, useWeaponDamage: false },
+    rogue: { name: 'Backstab', reuseSec: SPECIAL_ATTACK_REUSE_TIMES.BackstabReuseTime, fromBehindOnly: true },
   };
 
   // ----- Ranged (archery) combat -----
@@ -594,6 +620,10 @@
    * @param {boolean} [options.specialAttacks] - if true, fire class special on cooldown
    * @param {number} [options.backstabModPercent] - increase effective backstab skill by this % (e.g. 20 for 20%), capped at 255
    * @param {number} [options.backstabSkill] - backstab skill for base damage (skill*0.02+2)*weapon_damage; also enforces minHit by level
+   * @param {number} [options.backstabReuseSec] - override backstab base reuse time in seconds (default: 10); haste is applied to this base
+   * @param {number} [options.flyingKickReuseSec] - override flying kick base reuse time in seconds (default: 8); haste is applied to this base
+   * @param {number} [options.backstabReuseEffectiveSec] - use this value directly as effective backstab reuse (no haste applied); used when UI passes user-typed effective time
+   * @param {number} [options.flyingKickReuseEffectiveSec] - use this value directly as effective flying kick reuse (no haste applied); used when UI passes user-typed effective time
    * @param {number} [options.seed] - optional RNG seed for reproducibility
    * @param {number} [options.critChanceMult] - AA Critical Hit Chance bonus (percent)
    * @param {boolean} [options.duelist] - rogue only: double melee damage for 12s at a random time in the fight
@@ -704,7 +734,25 @@
     const duelistEndMs = duelistStartMs + BUFF_12S_MS;
     const innerFlameStartMs = innerFlame ? Math.floor(rng() * Math.max(0, durationMs - BUFF_12S_MS)) : 0;
     const innerFlameEndMs = innerFlameStartMs + BUFF_12S_MS;
-    const specialCooldownMs = specialConfig ? specialConfig.cooldownDecisec * DECISEC_TO_MS : 0;
+    // Special attack reuse: base reuse (or user base override) reduced by haste; or user effective override used as-is
+    const hasteMod = 1 + (options.hastePercent || 0) / 100;
+    let effectiveSpecialReuseSec = 0;
+    if (specialConfig) {
+      if (options.classId === 'rogue' && options.backstabReuseEffectiveSec != null && options.backstabReuseEffectiveSec > 0) {
+        effectiveSpecialReuseSec = options.backstabReuseEffectiveSec;
+      } else if (options.classId === 'monk' && options.flyingKickReuseEffectiveSec != null && options.flyingKickReuseEffectiveSec > 0) {
+        effectiveSpecialReuseSec = options.flyingKickReuseEffectiveSec;
+      } else {
+        const baseSpecialReuseSec = options.classId === 'rogue'
+          ? (options.backstabReuseSec != null && options.backstabReuseSec > 0 ? options.backstabReuseSec : specialConfig.reuseSec)
+          : (options.classId === 'monk'
+              ? (options.flyingKickReuseSec != null && options.flyingKickReuseSec > 0 ? options.flyingKickReuseSec : specialConfig.reuseSec)
+              : specialConfig.reuseSec);
+        effectiveSpecialReuseSec = baseSpecialReuseSec > 0 ? baseSpecialReuseSec / hasteMod : 0;
+      }
+    }
+    const specialCooldownMs = effectiveSpecialReuseSec * 1000;
+    if (report.special) report.special.effectiveReuseSec = effectiveSpecialReuseSec;
     let nextSwing1Ms = hasMainHand ? 0 : Infinity;
     let nextSwing2Ms = dualWielding ? rng() * delay2Ms : Infinity;
     let nextSpecialAtMs = (canFireSpecial && report.special) ? 0 : Infinity;
@@ -1177,6 +1225,9 @@
       }
       lines.push(`    ${sp.name === 'Backstab' ? 'Backstab hits landed' : 'Hits landed'}:        ${h}`);
       lines.push(`    Accuracy:           ${acc}%`);
+      if (sp.effectiveReuseSec != null && sp.effectiveReuseSec > 0) {
+        lines.push(`    Effective special attack delay: ${sp.effectiveReuseSec.toFixed(2)}s`);
+      }
       lines.push(`    Total damage:       ${sp.totalDamage}`);
       lines.push(`    Max hit:            ${sp.maxDamage}`);
       lines.push(`    ${dpsLabel}:          ${(sp.totalDamage / dur).toFixed(2)}`);
