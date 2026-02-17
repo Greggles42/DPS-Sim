@@ -506,8 +506,8 @@
         <p class="hint char-hint" id="special-hint">Monk: Flying Kick every 8s. Rogue: Backstab every 10s. Haste reduces these timers.</p>
         <div id="special-reuse-override-row" style="display: none;">
           <div class="char-secondary-row">
-            <div class="char-field char-field-num"><label for="backstab-reuse-sec" class="small-label">Backstab reuse (s)</label><input type="number" id="backstab-reuse-sec" min="0" step="0.1" placeholder="10"></div>
-            <div class="char-field char-field-num"><label for="flyingkick-reuse-sec" class="small-label">Flying Kick reuse (s)</label><input type="number" id="flyingkick-reuse-sec" min="0" step="0.1" placeholder="8"></div>
+            <div id="backstab-reuse-wrap" class="char-field char-field-num" style="display: none;"><label for="backstab-reuse-sec" class="small-label">Backstab reuse (s)</label><input type="number" id="backstab-reuse-sec" min="0" step="0.1" placeholder="10"></div>
+            <div id="flyingkick-reuse-wrap" class="char-field char-field-num" style="display: none;"><label for="flyingkick-reuse-sec" class="small-label">Flying Kick reuse (s)</label><input type="number" id="flyingkick-reuse-sec" min="0" step="0.1" placeholder="8"></div>
           </div>
         </div>
         <div id="rogue-backstab-mod-row" style="display: none;">
@@ -1746,6 +1746,10 @@
             updateSpecialReuseDisplay();
           }
         }
+        const backstabReuseWrap = $('backstab-reuse-wrap');
+        if (backstabReuseWrap) backstabReuseWrap.style.display = classId === 'rogue' ? '' : 'none';
+        const flyingKickReuseWrap = $('flyingkick-reuse-wrap');
+        if (flyingKickReuseWrap) flyingKickReuseWrap.style.display = classId === 'monk' ? '' : 'none';
         const innerflameRow = $('innerflame-row');
         if (innerflameRow) innerflameRow.style.display = classId === 'monk' ? '' : 'none';
         updateFistweavingVisibility();
