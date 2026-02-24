@@ -1603,7 +1603,7 @@
       var SLOT_PRIMARY_BIT = 8192;
       var SLOT_SECONDARY_BIT = 16384;
       function getItemPropsForPreset(presetId) {
-        var raw = typeof procRatesByItemId !== 'undefined' && procRatesByItemId && procRatesByItemId[presetId];
+        var raw = (typeof weaponListData !== 'undefined' && weaponListData && weaponListData[presetId]) || (typeof procRatesByItemId !== 'undefined' && procRatesByItemId && procRatesByItemId[presetId]);
         if (!raw || typeof raw !== 'object') return { lore: '', slots: null };
         var lore = (raw.lore != null ? String(raw.lore) : '').trim();
         var slots = raw.slots != null ? parseInt(raw.slots, 10) : null;
@@ -1624,7 +1624,7 @@
       function classCanUsePreset(presetId, classId) {
         if (!classId) return true;
         var classes = null;
-        var raw = typeof procRatesByItemId !== 'undefined' && procRatesByItemId && procRatesByItemId[presetId];
+        var raw = (typeof weaponListData !== 'undefined' && weaponListData && weaponListData[presetId]) || (typeof procRatesByItemId !== 'undefined' && procRatesByItemId && procRatesByItemId[presetId]);
         if (raw && (raw.classes !== undefined || raw.Classes !== undefined))
           classes = raw.classes != null ? parseInt(raw.classes, 10) : (raw.Classes != null ? parseInt(raw.Classes, 10) : null);
         if (classes === null || isNaN(classes)) {
