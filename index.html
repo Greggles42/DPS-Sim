@@ -549,8 +549,12 @@
       <div class="weapon-section-header"><h2>Weapon 1 (Main Hand)</h2></div>
       <div id="w1-weapon-name" class="weapon-name" aria-live="polite"></div>
       <div id="w1-weapon-skill" class="weapon-skill"></div>
+      <div class="char-checkbox-row" style="margin-bottom: 0.35rem;">
+        <label class="checkbox-label char-checkbox"><input type="checkbox" id="use-itemsearch-api" checked> Use ItemSearch API (dndquarm)</label>
+      </div>
+      <p class="hint char-hint" style="margin-top: 0; margin-bottom: 0.35rem;">When unchecked, item search uses resources/weaponlist.json.</p>
       <div class="item-search-wrap">
-        <label for="w1-item-search">Search items (API)</label>
+        <label for="w1-item-search">Search items</label>
         <input type="text" id="w1-item-search" placeholder="Type 3+ characters to search..." autocomplete="off">
         <div id="w1-item-search-list" class="item-search-list" role="listbox"></div>
       </div>
@@ -897,6 +901,12 @@
       fetch('resources/procrates.json')
         .then(function (r) { return r.ok ? r.json() : null; })
         .then(function (data) { procRatesByItemId = data && typeof data === 'object' ? data : {}; })
+        .catch(function () {});
+      /** Item ID -> raw item from resources/weaponlist.json; used when "Use ItemSearch API" is unchecked. */
+      var weaponListData = {};
+      fetch('resources/weaponlist.json')
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (data) { weaponListData = data && typeof data === 'object' ? data : {}; })
         .catch(function () {});
 
       // ----- Background usage log (no UI). Set USAGE_LOG_URL to your endpoint to enable.
@@ -2484,6 +2494,29 @@
         if (listEl) listEl.classList.remove('is-open');
       }
 
+      function searchWeaponsFromWeaponList(query, classId) {
+        var q = (query || '').toLowerCase();
+        var list = weaponListData || {};
+        var mask = classId && typeof ItemSearch !== 'undefined' && ItemSearch.CLASS_BITMASK ? ItemSearch.CLASS_BITMASK[classId] : 0;
+        var num = function (v) { var n = parseInt(v, 10); return isNaN(n) ? 0 : n; };
+        var raw = [];
+        for (var id in list) {
+          if (!list.hasOwnProperty(id)) continue;
+          var item = list[id];
+          if (!item || typeof item !== 'object') continue;
+          if (num(item.damage) < 1 || num(item.delay) < 1) continue;
+          var name = (item.Name != null ? String(item.Name) : (item.name != null ? String(item.name) : '')).toLowerCase();
+          if (q && name.indexOf(q) < 0) continue;
+          var classes = item.classes != null ? parseInt(item.classes, 10) : (item.Classes != null ? parseInt(item.Classes, 10) : null);
+          if (mask && classes != null && !isNaN(classes) && (classes & mask) === 0) continue;
+          var withId = Object.assign({}, item, { id: parseInt(id, 10) });
+          if (withId.id !== withId.id) withId.id = id;
+          raw.push(withId);
+        }
+        if (typeof ItemSearch === 'undefined' || !ItemSearch.normalizeItemForWeapon) return Promise.resolve(raw);
+        var results = raw.map(function (item) { return ItemSearch.normalizeItemForWeapon(item); }).filter(Boolean);
+        return Promise.resolve(results);
+      }
       function runItemSearch(prefix) {
         const inputEl = $(prefix + '-item-search');
         const query = (inputEl && inputEl.value || '').trim();
@@ -2495,11 +2528,19 @@
         }
         renderDropdown(prefix, recent, null, true, query);
         openItemSearchDropdown(prefix);
+        const selectedClassId = ($('class').value || '').trim().toLowerCase();
+        const useApi = $('use-itemsearch-api') && $('use-itemsearch-api').checked;
+        if (!useApi) {
+          searchWeaponsFromWeaponList(query, selectedClassId).then(function (results) {
+            const recentNow = getRecent(prefix);
+            renderDropdown(prefix, recentNow, results || [], false, query);
+          });
+          return;
+        }
         if (typeof ItemSearch === 'undefined' || !ItemSearch.searchWeapons) {
           renderDropdown(prefix, recent, [], false, query);
           return;
         }
-        const selectedClassId = ($('class').value || '').trim().toLowerCase();
         ItemSearch.searchWeapons(query, selectedClassId).then(function (results) {
           const recentNow = getRecent(prefix);
           renderDropdown(prefix, recentNow, results || [], false, query);
