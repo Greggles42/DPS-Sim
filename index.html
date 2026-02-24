@@ -797,7 +797,10 @@
   </div>
 
   <section class="report-section">
-    <h2>Report</h2>
+    <div class="report-header-row" style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.75rem;">
+      <h2 style="margin: 0;">Report</h2>
+      <button type="button" id="export-report-txt" class="sim-history-clear-btn" title="Download current report as a .txt file">Export to .txt</button>
+    </div>
     <div id="report">Run a simulation to see the report.</div>
   </section>
 
@@ -1917,6 +1920,23 @@
         clearHistoryBtn.addEventListener('click', function () {
           SIM_HISTORY.length = 0;
           renderSimHistory();
+        });
+      }
+
+      const exportReportBtn = $('export-report-txt');
+      if (exportReportBtn) {
+        exportReportBtn.addEventListener('click', function () {
+          var reportEl = $('report');
+          if (!reportEl) return;
+          var text = (reportEl.innerText !== undefined) ? reportEl.innerText : reportEl.textContent;
+          if (!text || !text.trim()) return;
+          var blob = new Blob([text], { type: 'text/plain' });
+          var url = URL.createObjectURL(blob);
+          var a = document.createElement('a');
+          a.href = url;
+          a.download = 'dps-sim-report.txt';
+          a.click();
+          URL.revokeObjectURL(url);
         });
       }
 
