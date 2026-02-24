@@ -336,8 +336,9 @@
     return procChance > 0 && rng() < procChance;
   }
 
-  // ----- Special attacks (Flying Kick, Backstab, etc.) -----
-  // Flying Kick uses skill/level-based base only (EQMacEmu: GetSkillBaseDamage + min level*4/5), not primary weapon. Flying Kick Base damage is 29
+  // ----- Special attacks (Flying Kick, Backstab, Kick, Bash, etc.) -----
+  // Per EQMacEmu special_attacks.cpp: Bash (Warrior/Paladin/SK/Cleric), Slam (Ogre/Troll/Barbarian = Bash without shield), Kick (Warrior/Ranger/Beastlord), Flying Kick (Monk), Backstab (Rogue).
+  // Flying Kick uses skill/level-based base only; Kick/Bash use GetSkillBaseDamage (skill-based base, not weapon).
   // Base reuse times (seconds); player haste reduces effective reuse: effectiveReuseSec = baseReuseSec / (1 + hastePercent/100)
   const SPECIAL_ATTACK_REUSE_TIMES = {
     FeignDeathReuseTime: 9,
@@ -364,9 +365,31 @@
     LayOnHandsReuseTimeNPC: 2400,
     FrenzyReuseTime: 10,
   };
+  const SPECIAL_ATTACKS_BY_TYPE = {
+    flying_kick: { name: 'Flying Kick', reuseSec: SPECIAL_ATTACK_REUSE_TIMES.FlyingKickReuseTime, useWeaponDamage: false, skillBaseDamage: 29, minDamageFormula: 'level*4/5' },
+    backstab: { name: 'Backstab', reuseSec: SPECIAL_ATTACK_REUSE_TIMES.BackstabReuseTime, fromBehindOnly: true },
+    kick: { name: 'Kick', reuseSec: SPECIAL_ATTACK_REUSE_TIMES.KickReuseTime, useWeaponDamage: false, skillBaseDamage: 20 },
+    bash: { name: 'Bash/Slam', reuseSec: SPECIAL_ATTACK_REUSE_TIMES.BashReuseTime, useWeaponDamage: false, skillBaseDamage: 15 },
+  };
+  function canClassUseSpecialType(classId, type) {
+    const c = (classId || '').toLowerCase();
+    if (type === 'flying_kick') return c === 'monk';
+    if (type === 'backstab') return c === 'rogue';
+    if (type === 'kick') return c === 'warrior' || c === 'ranger' || c === 'beastlord';
+    if (type === 'bash') return c === 'warrior' || c === 'paladin' || c === 'shadowknight' || c === 'cleric';
+    return false;
+  }
+  function getDefaultSpecialTypeForClass(classId) {
+    const c = (classId || '').toLowerCase();
+    if (c === 'rogue') return 'backstab';
+    if (c === 'monk') return 'flying_kick';
+    if (c === 'warrior' || c === 'ranger' || c === 'beastlord') return 'kick';
+    if (c === 'paladin' || c === 'shadowknight' || c === 'cleric') return 'bash';
+    return null;
+  }
   const SPECIAL_ATTACKS = {
-    monk: { name: 'Flying Kick', reuseSec: SPECIAL_ATTACK_REUSE_TIMES.FlyingKickReuseTime, useWeaponDamage: false },
-    rogue: { name: 'Backstab', reuseSec: SPECIAL_ATTACK_REUSE_TIMES.BackstabReuseTime, fromBehindOnly: true },
+    monk: SPECIAL_ATTACKS_BY_TYPE.flying_kick,
+    rogue: SPECIAL_ATTACKS_BY_TYPE.backstab,
   };
 
   // ----- Ranged (archery) combat -----
@@ -619,12 +642,15 @@
    * @param {number} [options.dex=255] - dexterity for proc
    * @param {boolean} [options.fromBehind] - if true, skip block/parry/dodge/riposte only
    * @param {boolean} [options.specialAttacks] - if true, fire class special on cooldown
+   * @param {string} [options.specialAttackType] - 'flying_kick'|'backstab'|'kick'|'bash'; must be valid for class (Warrior: kick/bash; Pally/SK/Cleric: bash; Ranger/Beastlord: kick; Monk: flying_kick; Rogue: backstab)
    * @param {number} [options.backstabModPercent] - increase effective backstab skill by this % (e.g. 20 for 20%), capped at 255
    * @param {number} [options.backstabSkill] - backstab skill for base damage (skill*0.02+2)*weapon_damage; also enforces minHit by level
    * @param {number} [options.backstabReuseSec] - override backstab base reuse time in seconds (default: 10); haste is applied to this base
    * @param {number} [options.flyingKickReuseSec] - override flying kick base reuse time in seconds (default: 8); haste is applied to this base
    * @param {number} [options.backstabReuseEffectiveSec] - use this value directly as effective backstab reuse (no haste applied); used when UI passes user-typed effective time
    * @param {number} [options.flyingKickReuseEffectiveSec] - use this value directly as effective flying kick reuse (no haste applied); used when UI passes user-typed effective time
+   * @param {number} [options.kickReuseEffectiveSec] - effective kick reuse (s), no haste applied
+   * @param {number} [options.bashReuseEffectiveSec] - effective bash reuse (s), no haste applied
    * @param {number} [options.seed] - optional RNG seed for reproducibility
    * @param {number} [options.critChanceMult] - AA Critical Hit Chance bonus (percent)
    * @param {boolean} [options.duelist] - rogue only: double melee damage for 12s at a random time in the fight
@@ -634,9 +660,12 @@
     const fromBehind = !!options.fromBehind;
     const rng = createRng(options.seed);
     const procRng = createRng(options.seed != null ? options.seed + 12345 : undefined);
-    const specialConfig = (options.specialAttacks && options.classId && SPECIAL_ATTACKS[options.classId])
-      ? SPECIAL_ATTACKS[options.classId]
-      : null;
+    const specialType = options.specialAttackType || getDefaultSpecialTypeForClass(options.classId);
+    const specialConfig = (options.specialAttacks && options.classId && specialType && canClassUseSpecialType(options.classId, specialType) && SPECIAL_ATTACKS_BY_TYPE[specialType])
+      ? SPECIAL_ATTACKS_BY_TYPE[specialType]
+      : (options.specialAttacks && options.classId && SPECIAL_ATTACKS[options.classId])
+        ? SPECIAL_ATTACKS[options.classId]
+        : null;
     const canFireSpecial = specialConfig && (!specialConfig.fromBehindOnly || fromBehind);
     const level = options.level != null ? options.level : 60;
     const targetAC = options.targetAC;
@@ -719,10 +748,10 @@
         totalDamage: 0,
         maxDamage: 0,
         hitList: [],
-        doubleBackstabs: options.classId === 'rogue' ? 0 : undefined,
-        attemptedAttacks: options.classId === 'rogue' ? 0 : undefined,
-        backstabSkill: options.classId === 'rogue' ? Math.min(255, options.backstabSkill != null ? options.backstabSkill : 225) : undefined,
-        backstabModPercent: options.classId === 'rogue' ? (options.backstabModPercent || 0) : undefined,
+        doubleBackstabs: specialConfig.fromBehindOnly && options.classId === 'rogue' ? 0 : undefined,
+        attemptedAttacks: specialConfig.fromBehindOnly && options.classId === 'rogue' ? 0 : undefined,
+        backstabSkill: specialConfig.fromBehindOnly ? Math.min(255, options.backstabSkill != null ? options.backstabSkill : 225) : undefined,
+        backstabModPercent: specialConfig.fromBehindOnly ? (options.backstabModPercent || 0) : undefined,
       } : null,
       fistweaving: (options.classId === 'monk' && hasMainHand && w1.is2H && options.fistweaving) ? { rounds: 0, swings: 0, hits: 0, totalDamage: 0, maxDamage: 0, single: 0, double: 0 } : null,
     };
@@ -743,17 +772,19 @@
     const hasteMod = 1 + (options.hastePercent || 0) / 100;
     let effectiveSpecialReuseSec = 0;
     if (specialConfig) {
-      if (options.classId === 'rogue' && options.backstabReuseEffectiveSec != null && options.backstabReuseEffectiveSec > 0) {
+      if (specialType === 'backstab' && options.backstabReuseEffectiveSec != null && options.backstabReuseEffectiveSec > 0) {
         effectiveSpecialReuseSec = options.backstabReuseEffectiveSec;
-      } else if (options.classId === 'monk' && options.flyingKickReuseEffectiveSec != null && options.flyingKickReuseEffectiveSec > 0) {
+      } else if (specialType === 'flying_kick' && options.flyingKickReuseEffectiveSec != null && options.flyingKickReuseEffectiveSec > 0) {
         effectiveSpecialReuseSec = options.flyingKickReuseEffectiveSec;
+      } else if (specialType === 'kick' && options.kickReuseEffectiveSec != null && options.kickReuseEffectiveSec > 0) {
+        effectiveSpecialReuseSec = options.kickReuseEffectiveSec;
+      } else if (specialType === 'bash' && options.bashReuseEffectiveSec != null && options.bashReuseEffectiveSec > 0) {
+        effectiveSpecialReuseSec = options.bashReuseEffectiveSec;
       } else {
-        const baseSpecialReuseSec = options.classId === 'rogue'
-          ? (options.backstabReuseSec != null && options.backstabReuseSec > 0 ? options.backstabReuseSec : specialConfig.reuseSec)
-          : (options.classId === 'monk'
-              ? (options.flyingKickReuseSec != null && options.flyingKickReuseSec > 0 ? options.flyingKickReuseSec : specialConfig.reuseSec)
-              : specialConfig.reuseSec);
-        effectiveSpecialReuseSec = baseSpecialReuseSec > 0 ? baseSpecialReuseSec / hasteMod : 0;
+        const baseSpecialReuseSec = specialType === 'backstab' && options.backstabReuseSec != null && options.backstabReuseSec > 0 ? options.backstabReuseSec
+          : (specialType === 'flying_kick' && options.flyingKickReuseSec != null && options.flyingKickReuseSec > 0 ? options.flyingKickReuseSec : null);
+        const baseFromConfig = baseSpecialReuseSec != null ? baseSpecialReuseSec : specialConfig.reuseSec;
+        effectiveSpecialReuseSec = baseFromConfig > 0 ? baseFromConfig / hasteMod : 0;
       }
     }
     const specialCooldownMs = effectiveSpecialReuseSec * 1000;
@@ -770,7 +801,7 @@
       // Special attack (Flying Kick / Backstab) on cooldown
       if (canFireSpecial && report.special && tMs >= nextSpecialAtMs) {
         report.special.attempts++;
-        const isRogueBackstab = options.classId === 'rogue' && specialConfig.fromBehindOnly;
+        const isRogueBackstab = specialConfig.fromBehindOnly === true;
         const backstabSkill = options.backstabSkill != null ? options.backstabSkill : 225;
         const backstabModPct = options.backstabModPercent || 0;
         const effectiveBackstabSkill = Math.min(255, Math.floor(backstabSkill * (100 + backstabModPct) / 100));
@@ -778,7 +809,7 @@
         const backstabToHit = isRogueBackstab ? (7 + OFFENSE_SKILL + backstabSkill) : toHit;
 
         // Backstab: do double attack check first. If it fails → single backstab (one to-hit roll). If it succeeds → double backstab (normal + bonus attempt, two to-hit rolls).
-        const isDoubleBackstabRound = isRogueBackstab && level > 54 && report.special.doubleBackstabs !== undefined && checkDoubleAttack(doubleAttackEffective, rng, options.classId);
+        const isDoubleBackstabRound = isRogueBackstab && options.classId === 'rogue' && level > 54 && report.special.doubleBackstabs !== undefined && checkDoubleAttack(doubleAttackEffective, rng, options.classId);
         const numBackstabRolls = isDoubleBackstabRound ? 2 : 1;
         if (isDoubleBackstabRound) report.special.doubleBackstabs++;
 
@@ -789,7 +820,7 @@
           report.special.hits++;
           report.special.count++;
           let baseDmg;
-          const specElemAdder = (options.classId === 'monk' && specialConfig.useWeaponDamage === false) ? 0 : getElementalBaseAdder(w1, options, rng);
+          const specElemAdder = (specialConfig.useWeaponDamage === false) ? 0 : getElementalBaseAdder(w1, options, rng);
           if (specElemAdder > 0) report.elementalDamageTotal += specElemAdder;
           if (isRogueBackstab) {
             const effectiveSkill = Math.min(255, Math.floor(backstabSkill * (100 + backstabModPct) / 100));
@@ -797,11 +828,15 @@
             const backstabBase = Math.floor(((effectiveSkill * 0.02) + 2) * cappedW1Damage) + specElemAdder;
             baseDmg = calcMeleeDamage(backstabBase, backstabOffenseRating, mitigation, rng, 0);
             baseDmg = Math.max(1, baseDmg);
-          } else if (options.classId === 'monk' && specialConfig.useWeaponDamage === false) {
-            const fkBase = 29;
-            baseDmg = calcMeleeDamage(fkBase, offenseRating, mitigation, rng, 0);
-            const fkMin = Math.floor(level * 4 / 5);
-            baseDmg = Math.max(1, Math.max(baseDmg, fkMin));
+          } else if (specialConfig.useWeaponDamage === false && specialConfig.skillBaseDamage != null) {
+            const skillBase = specialConfig.skillBaseDamage;
+            baseDmg = calcMeleeDamage(skillBase, offenseRating, mitigation, rng, 0);
+            if (specialConfig.minDamageFormula === 'level*4/5') {
+              const fkMin = Math.floor(level * 4 / 5);
+              baseDmg = Math.max(1, Math.max(baseDmg, fkMin));
+            } else {
+              baseDmg = Math.max(1, baseDmg);
+            }
           } else {
             baseDmg = calcMeleeDamage(cappedW1Damage + specElemAdder, offenseRating, mitigation, rng);
             baseDmg = Math.max(1, specialConfig.damageMultiplier ? Math.floor(baseDmg * specialConfig.damageMultiplier) : baseDmg);
@@ -1333,5 +1368,8 @@
     formatReport,
     runRangedFight,
     formatRangedReport,
+    getDefaultSpecialTypeForClass,
+    canClassUseSpecialType,
+    SPECIAL_ATTACKS_BY_TYPE,
   };
 })(typeof window !== 'undefined' ? window : typeof self !== 'undefined' ? self : this);

@@ -502,13 +502,19 @@
         </div>
         <div class="char-checkbox-row">
           <label class="checkbox-label char-checkbox"><input type="checkbox" id="ambidexterity-aa"> Ambidexterity (+32 dual wield)</label>
-          <label class="checkbox-label char-checkbox"><input type="checkbox" id="special-attacks"> Flying Kick / Backstab on cooldown</label>
         </div>
-        <p class="hint char-hint" id="special-hint">Monk: Flying Kick every 8s. Rogue: Backstab every 10s. Haste reduces these timers.</p>
+        <div id="special-attack-row" style="display: none;">
+          <div class="char-secondary-row">
+            <div class="char-field"><label for="special-attack-type" class="small-label">Special attack</label><select id="special-attack-type"><option value="none">None</option><option value="flying_kick">Flying Kick</option><option value="backstab">Backstab</option><option value="kick">Kick</option><option value="bash">Bash/Slam</option></select></div>
+          </div>
+        </div>
+        <p class="hint char-hint" id="special-hint">Flying Kick / Backstab / Kick / Bash/Slam fire on cooldown. Haste reduces reuse.</p>
         <div id="special-reuse-override-row" style="display: none;">
           <div class="char-secondary-row">
             <div id="backstab-reuse-wrap" class="char-field char-field-num" style="display: none;"><label for="backstab-reuse-sec" class="small-label">Backstab reuse (s)</label><input type="number" id="backstab-reuse-sec" min="0" step="0.1" placeholder="10"></div>
             <div id="flyingkick-reuse-wrap" class="char-field char-field-num" style="display: none;"><label for="flyingkick-reuse-sec" class="small-label">Flying Kick reuse (s)</label><input type="number" id="flyingkick-reuse-sec" min="0" step="0.1" placeholder="8"></div>
+            <div id="kick-reuse-wrap" class="char-field char-field-num" style="display: none;"><label for="kick-reuse-sec" class="small-label">Kick reuse (s)</label><input type="number" id="kick-reuse-sec" min="0" step="0.1" placeholder="8"></div>
+            <div id="bash-reuse-wrap" class="char-field char-field-num" style="display: none;"><label for="bash-reuse-sec" class="small-label">Bash/Slam reuse (s)</label><input type="number" id="bash-reuse-sec" min="0" step="0.1" placeholder="8"></div>
           </div>
         </div>
         <div id="rogue-backstab-mod-row" style="display: none;">
@@ -910,21 +916,59 @@
       const SIM_HISTORY = [];
       const SIM_HISTORY_MAX = 50;
 
+      const SPECIAL_BASE_REUSE_SEC = 8;
       const BACKSTAB_BASE_REUSE_SEC = 10;
-      const FLYING_KICK_BASE_REUSE_SEC = 8;
       let backstabReuseManual = false;
       let flyingKickReuseManual = false;
+      let kickReuseManual = false;
+      let bashReuseManual = false;
       function updateSpecialReuseDisplay() {
         const classId = ($('class').value || '').toLowerCase();
-        if (classId !== 'monk' && classId !== 'rogue') return;
+        const type = ($('special-attack-type').value || 'none');
         const hastePercent = parseFloat($('haste').value) || 0;
         const hasteMod = 1 + hastePercent / 100;
+        const eff8 = SPECIAL_BASE_REUSE_SEC / hasteMod;
         const effBackstab = BACKSTAB_BASE_REUSE_SEC / hasteMod;
-        const effFlyingKick = FLYING_KICK_BASE_REUSE_SEC / hasteMod;
         const backstabEl = $('backstab-reuse-sec');
         const flyingKickEl = $('flyingkick-reuse-sec');
+        const kickEl = $('kick-reuse-sec');
+        const bashEl = $('bash-reuse-sec');
         if (backstabEl && !backstabReuseManual) backstabEl.value = effBackstab.toFixed(2);
-        if (flyingKickEl && !flyingKickReuseManual) flyingKickEl.value = effFlyingKick.toFixed(2);
+        if (flyingKickEl && !flyingKickReuseManual) flyingKickEl.value = eff8.toFixed(2);
+        if (kickEl && !kickReuseManual) kickEl.value = eff8.toFixed(2);
+        if (bashEl && !bashReuseManual) bashEl.value = eff8.toFixed(2);
+      }
+      function getSpecialTypesForClass(classId) {
+        if (!classId || !EQCombat.canClassUseSpecialType) return [];
+        const types = ['flying_kick', 'backstab', 'kick', 'bash'];
+        return types.filter(function (t) { return EQCombat.canClassUseSpecialType(classId, t); });
+      }
+      function updateSpecialAttackDropdown() {
+        const classId = ($('class').value || '').toLowerCase();
+        const select = $('special-attack-type');
+        if (!select) return;
+        const validTypes = getSpecialTypesForClass(classId);
+        const defaultType = EQCombat.getDefaultSpecialTypeForClass ? EQCombat.getDefaultSpecialTypeForClass(classId) : (classId === 'rogue' ? 'backstab' : classId === 'monk' ? 'flying_kick' : 'none');
+        const labels = { flying_kick: 'Flying Kick', backstab: 'Backstab', kick: 'Kick', bash: 'Bash/Slam' };
+        select.innerHTML = '<option value="none">None</option>';
+        validTypes.forEach(function (t) { select.appendChild(new Option(labels[t] || t, t)); });
+        const newVal = validTypes.indexOf(defaultType) >= 0 ? defaultType : 'none';
+        select.value = newVal;
+        updateSpecialReuseVisibility();
+      }
+      function updateSpecialReuseVisibility() {
+        const type = ($('special-attack-type').value || 'none');
+        const specialReuseRow = $('special-reuse-override-row');
+        if (specialReuseRow) specialReuseRow.style.display = type !== 'none' ? '' : 'none';
+        const backstabWrap = $('backstab-reuse-wrap');
+        const flyingKickWrap = $('flyingkick-reuse-wrap');
+        const kickWrap = $('kick-reuse-wrap');
+        const bashWrap = $('bash-reuse-wrap');
+        if (backstabWrap) backstabWrap.style.display = type === 'backstab' ? 'block' : 'none';
+        if (flyingKickWrap) flyingKickWrap.style.display = type === 'flying_kick' ? 'block' : 'none';
+        if (kickWrap) kickWrap.style.display = type === 'kick' ? 'block' : 'none';
+        if (bashWrap) bashWrap.style.display = type === 'bash' ? 'block' : 'none';
+        updateSpecialReuseDisplay();
       }
 
       // Weapon presets from PQDI (damage, delay decisec, proc spell name, name for sorting; type: 1hb/2hb/1hp/1hs/h2h)
@@ -1190,7 +1234,8 @@
         const classId = ($('class').value || '').toLowerCase();
         const classConfig = classId ? CLASSES[classId] : null;
         const toHitBonus = (classConfig && classConfig.toHitBonus) ? classConfig.toHitBonus : 0;
-        const specialAttacks = $('special-attacks').checked;
+        const specialAttackType = ($('special-attack-type').value || 'none');
+        const specialAttacks = specialAttackType !== 'none';
 
         const useWeapon2 = weapon2.damage > 0 && weapon2.delay > 0 && dualWieldSkill > 0;
 
@@ -1223,6 +1268,7 @@
           str,
           fromBehind,
           specialAttacks,
+          specialAttackType: specialAttacks ? specialAttackType : undefined,
           classId: classId || undefined,
           weaponSkillForToHit: weaponSkillForToHit,
           backstabModPercent: classId === 'rogue' ? (parseInt($('backstab-mod').value, 10) || 0) : undefined,
@@ -1233,6 +1279,8 @@
           critChanceMult: critChanceMult || undefined,
           backstabReuseEffectiveSec: (backstabReuseManual && (() => { const v = parseFloat($('backstab-reuse-sec').value); return v > 0 && !isNaN(v) ? v : undefined; })()) || undefined,
           flyingKickReuseEffectiveSec: (flyingKickReuseManual && (() => { const v = parseFloat($('flyingkick-reuse-sec').value); return v > 0 && !isNaN(v) ? v : undefined; })()) || undefined,
+          kickReuseEffectiveSec: (kickReuseManual && (() => { const v = parseFloat($('kick-reuse-sec').value); return v > 0 && !isNaN(v) ? v : undefined; })()) || undefined,
+          bashReuseEffectiveSec: (bashReuseManual && (() => { const v = parseFloat($('bash-reuse-sec').value); return v > 0 && !isNaN(v) ? v : undefined; })()) || undefined,
         };
 
         const reports = [];
@@ -1737,31 +1785,21 @@
           $('class-hint').textContent = 'Pick a class to auto-fill skills. Edit below to override.';
         }
         applyAmbidexterityDefault();
-        const hasSpecial = classId === 'monk' || classId === 'rogue';
-        $('special-attacks').disabled = !hasSpecial;
-        if (!hasSpecial) $('special-attacks').checked = false;
-        else if (classId === 'rogue') $('special-attacks').checked = true;
+        const hasSpecial = ['warrior', 'paladin', 'shadowknight', 'cleric', 'ranger', 'beastlord', 'monk', 'rogue'].indexOf(classId) >= 0;
+        const specialAttackRow = $('special-attack-row');
+        if (specialAttackRow) specialAttackRow.style.display = hasSpecial ? '' : 'none';
+        if (hasSpecial) {
+          updateSpecialAttackDropdown();
+          backstabReuseManual = false;
+          flyingKickReuseManual = false;
+          kickReuseManual = false;
+          bashReuseManual = false;
+        } else {
+          const specialReuseRow = $('special-reuse-override-row');
+          if (specialReuseRow) specialReuseRow.style.display = 'none';
+        }
         const rogueRow = $('rogue-backstab-mod-row');
         if (rogueRow) rogueRow.style.display = classId === 'rogue' ? '' : 'none';
-        const specialReuseRow = $('special-reuse-override-row');
-        if (specialReuseRow) {
-          specialReuseRow.style.display = (classId === 'monk' || classId === 'rogue') ? '' : 'none';
-          if (classId === 'monk' || classId === 'rogue') {
-            backstabReuseManual = false;
-            flyingKickReuseManual = false;
-            updateSpecialReuseDisplay();
-          }
-        }
-        const backstabReuseWrap = $('backstab-reuse-wrap');
-        if (backstabReuseWrap) {
-          backstabReuseWrap.classList.toggle('hidden', classId !== 'rogue');
-          backstabReuseWrap.style.display = classId === 'rogue' ? 'block' : 'none';
-        }
-        const flyingKickReuseWrap = $('flyingkick-reuse-wrap');
-        if (flyingKickReuseWrap) {
-          flyingKickReuseWrap.classList.toggle('hidden', classId !== 'monk');
-          flyingKickReuseWrap.style.display = classId === 'monk' ? 'block' : 'none';
-        }
         const innerflameRow = $('innerflame-row');
         if (innerflameRow) innerflameRow.style.display = classId === 'monk' ? '' : 'none';
         updateFistweavingVisibility();
@@ -1775,23 +1813,25 @@
         hasteEl.addEventListener('input', updateSpecialReuseDisplay);
         hasteEl.addEventListener('change', updateSpecialReuseDisplay);
       }
-      function onSpecialReuseInput(id, isBackstab) {
+      function onSpecialReuseInput(id, kind) {
         const el = document.getElementById(id);
         if (!el) return;
         const v = (el.value || '').trim();
-        if (isBackstab) backstabReuseManual = v !== ''; else flyingKickReuseManual = v !== '';
+        if (kind === 'backstab') backstabReuseManual = v !== '';
+        else if (kind === 'flying_kick') flyingKickReuseManual = v !== '';
+        else if (kind === 'kick') kickReuseManual = v !== '';
+        else if (kind === 'bash') bashReuseManual = v !== '';
         if (v === '') updateSpecialReuseDisplay();
       }
-      const backstabReuseEl = $('backstab-reuse-sec');
-      const flyingKickReuseEl = $('flyingkick-reuse-sec');
-      if (backstabReuseEl) {
-        backstabReuseEl.addEventListener('input', function () { onSpecialReuseInput('backstab-reuse-sec', true); });
-        backstabReuseEl.addEventListener('change', function () { onSpecialReuseInput('backstab-reuse-sec', true); });
-      }
-      if (flyingKickReuseEl) {
-        flyingKickReuseEl.addEventListener('input', function () { onSpecialReuseInput('flyingkick-reuse-sec', false); });
-        flyingKickReuseEl.addEventListener('change', function () { onSpecialReuseInput('flyingkick-reuse-sec', false); });
-      }
+      const specialTypeEl = $('special-attack-type');
+      if (specialTypeEl) specialTypeEl.addEventListener('change', updateSpecialReuseVisibility);
+      [['backstab-reuse-sec', 'backstab'], ['flyingkick-reuse-sec', 'flying_kick'], ['kick-reuse-sec', 'kick'], ['bash-reuse-sec', 'bash']].forEach(function (pair) {
+        const el = $(pair[0]);
+        if (el) {
+          el.addEventListener('input', function () { onSpecialReuseInput(pair[0], pair[1]); });
+          el.addEventListener('change', function () { onSpecialReuseInput(pair[0], pair[1]); });
+        }
+      });
       function updateFistweavingVisibility() {
         const classId = ($('class').value || '').toLowerCase();
         const is2H = isW1TwoHanded();
