@@ -1610,6 +1610,16 @@
         if (slots != null) return (slots & SLOT_SECONDARY_BIT) !== 0;
         return true;
       }
+      function classCanUsePreset(presetId, classId) {
+        if (!classId) return true;
+        var raw = typeof procRatesByItemId !== 'undefined' && procRatesByItemId && procRatesByItemId[presetId];
+        if (!raw || (raw.classes === undefined && raw.Classes === undefined)) return true;
+        var classes = raw.classes != null ? parseInt(raw.classes, 10) : (raw.Classes != null ? parseInt(raw.Classes, 10) : null);
+        if (classes === null || isNaN(classes)) return true;
+        if (typeof ItemSearch === 'undefined' || !ItemSearch.CLASS_BITMASK) return true;
+        var mask = ItemSearch.CLASS_BITMASK[classId];
+        return mask != null && (classes & mask) !== 0;
+      }
       function presetToWeapon1(p, applyBane) {
         var damage = p.damage;
         if (applyBane && p.baneDamage) damage += p.baneDamage;
@@ -1693,6 +1703,7 @@
           if (id === 'unequipped') return false;
           const p = WEAPON_PRESETS[id];
           if (!p || p.damage < 1 || p.delay < 10) return false;
+          if (!classCanUsePreset(id, classId)) return false;
           const skillKey = skillKeyForCap(p.type, !!(p.is2H || (p.type && offhandBlockedTypes[p.type])));
           const cap = WeaponSkillCaps.getCapForSimClass(classId, skillKey, level);
           return cap > 0;
