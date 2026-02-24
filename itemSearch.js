@@ -62,8 +62,9 @@
    * Uses EQEmu semantics: slots with effectid 0 (SE_CurrentHP) or 79 (SE_CurrentHPOnce) count as HP damage;
    * negative base value = damage. Effect 0: per-tick for DoT or sum for instant. Effect 79: one-shot damage
    * added to total. If maxN (or effect_limit_valueN) is greater than |effect_base_valueN|, that limit is used.
+   * For DoT spells, buffdurationTicks is the number of 6-second ticks (used by sim to cap damage until duration ends or refresh).
    * @param {number|string} spellId - Spell ID.
-   * @returns {{ name: string, damage?: number }|null}
+   * @returns {{ name: string, damage?: number, buffdurationTicks?: number }|null}
    */
   function getSpellFromLocalData(spellId) {
     if (!spellData || spellData === null) return null;
@@ -113,7 +114,8 @@
     var fromDirect = isInstant ? totalDirect : (perTickDamage > 0 ? perTickDamage * ticks : 0);
     var total = fromDirect + totalOnce;
     damage = total > 0 ? total : undefined;
-    return { name: name, damage: damage };
+    var buffdurationTicks = (!isInstant && ticks > 0) ? ticks : undefined;
+    return { name: name, damage: damage, buffdurationTicks: buffdurationTicks };
   }
 
   /**

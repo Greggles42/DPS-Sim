@@ -320,6 +320,7 @@
   // ----- Proc chance (server formula) -----
   // chance = (0.0004166667 + 1.1437908496732e-5 * dex) * weapon_speed; offhand: chance *= 50 / GetDualWieldChance().
   // weapon_speed = effective delay (deciseconds). dualWieldChance = 0..100 (same scale as GetDualWieldChance).
+  const PROC_TICK_INTERVAL_MS = 6000; // DoT proc ticks every 6 seconds; buffduration = number of ticks
   function getProcChancePerSwing(effectiveDelayDecisec, isOffhand, dualWieldChance, dex) {
     if (effectiveDelayDecisec <= 0) return 0;
     const d = dex != null ? dex : 150;
@@ -599,7 +600,7 @@
   /**
    * Run a single fight simulation.
    * @param {Object} options
-   * @param {Object} [options.weapon1] - { damage, delay, procSpell?, procSpellDamage?, is2H? }. Omit for offhand-only (skips main hand, only offhand swings).
+   * @param {Object} [options.weapon1] - { damage, delay, procSpell?, procSpellDamage?, procBuffDurationTicks?, is2H? }. procBuffDurationTicks = DoT ticks (6s each); omit/0 = instant proc.
    * @param {Object} [options.weapon2] - optional offhand (required when weapon1 omitted)
    * @param {number} options.hastePercent - total haste (e.g. 40 for 40%)
    * @param {number} [options.wornAttack=0] - worn ATK (items)
@@ -727,6 +728,10 @@
     };
 
     const durationMs = Math.floor(options.fightDurationSec * 1000);
+    const procBuffTicks1 = (hasMainHand && w1.procBuffDurationTicks != null && w1.procBuffDurationTicks > 0) ? w1.procBuffDurationTicks : 0;
+    const procBuffTicks2 = (w2 && w2.procBuffDurationTicks != null && w2.procBuffDurationTicks > 0) ? w2.procBuffDurationTicks : 0;
+    let lastProcMs1 = 0, dotEndMs1 = 0, perTick1 = 0;
+    let lastProcMs2 = 0, dotEndMs2 = 0, perTick2 = 0;
     const duelist = !!(options.duelist && options.classId === 'rogue');
     const innerFlame = !!(options.innerFlame && options.classId === 'monk');
     const BUFF_12S_MS = 12000;
@@ -924,8 +929,22 @@
         if (mainHandHitThisRound && procChance1 > 0 && checkProc(procChance1, procRng)) {
           report.weapon1.procs++;
           const procDmg = (w1.procSpellDamage != null ? w1.procSpellDamage : 0) | 0;
-          report.weapon1.procDamageTotal += procDmg;
-          report.totalDamage += procDmg;
+          if (procBuffTicks1 > 0 && procDmg > 0) {
+            perTick1 = procDmg / procBuffTicks1;
+            if (dotEndMs1 > lastProcMs1) {
+              const ticksRan = Math.floor((Math.min(dotEndMs1, tMs) - lastProcMs1) / PROC_TICK_INTERVAL_MS);
+              const dotDmg = Math.floor(ticksRan * perTick1);
+              if (dotDmg > 0) {
+                report.weapon1.procDamageTotal += dotDmg;
+                report.totalDamage += dotDmg;
+              }
+            }
+            lastProcMs1 = tMs;
+            dotEndMs1 = tMs + procBuffTicks1 * PROC_TICK_INTERVAL_MS;
+          } else {
+            report.weapon1.procDamageTotal += procDmg;
+            report.totalDamage += procDmg;
+          }
         }
 
         if (attacksThisRound === 1) report.weapon1.single++;
@@ -1038,12 +1057,44 @@
           if (offhandHitThisRound && procChance2 > 0 && checkProc(procChance2, procRng)) {
             report.weapon2.procs++;
             const procDmg = (w2.procSpellDamage != null ? w2.procSpellDamage : 0) | 0;
-            report.weapon2.procDamageTotal += procDmg;
-            report.totalDamage += procDmg;
+            if (procBuffTicks2 > 0 && procDmg > 0) {
+              perTick2 = procDmg / procBuffTicks2;
+              if (dotEndMs2 > lastProcMs2) {
+                const ticksRan = Math.floor((Math.min(dotEndMs2, tMs) - lastProcMs2) / PROC_TICK_INTERVAL_MS);
+                const dotDmg = Math.floor(ticksRan * perTick2);
+                if (dotDmg > 0) {
+                  report.weapon2.procDamageTotal += dotDmg;
+                  report.totalDamage += dotDmg;
+                }
+              }
+              lastProcMs2 = tMs;
+              dotEndMs2 = tMs + procBuffTicks2 * PROC_TICK_INTERVAL_MS;
+            } else {
+              report.weapon2.procDamageTotal += procDmg;
+              report.totalDamage += procDmg;
+            }
           }
           if (attacksThisRound === 1) report.weapon2.single++;
           else report.weapon2.double++;
         }
+      }
+    }
+
+    // Flush remaining DoT proc damage (ticks that ran before fight end or duration expiry)
+    if (procBuffTicks1 > 0 && dotEndMs1 > lastProcMs1 && perTick1 > 0) {
+      const ticksRan = Math.floor((Math.min(dotEndMs1, durationMs) - lastProcMs1) / PROC_TICK_INTERVAL_MS);
+      const dotDmg = Math.floor(ticksRan * perTick1);
+      if (dotDmg > 0) {
+        report.weapon1.procDamageTotal += dotDmg;
+        report.totalDamage += dotDmg;
+      }
+    }
+    if (procBuffTicks2 > 0 && dotEndMs2 > lastProcMs2 && perTick2 > 0) {
+      const ticksRan = Math.floor((Math.min(dotEndMs2, durationMs) - lastProcMs2) / PROC_TICK_INTERVAL_MS);
+      const dotDmg = Math.floor(ticksRan * perTick2);
+      if (dotDmg > 0) {
+        report.weapon2.procDamageTotal += dotDmg;
+        report.totalDamage += dotDmg;
       }
     }
 

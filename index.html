@@ -146,6 +146,7 @@
     }
     .char-secondary-row { margin-bottom: 0.4rem; }
     .char-field { flex: 0 0 auto; }
+    .hidden { display: none !important; }
     .char-field-num input { width: 4rem; max-width: 4rem; }
     .char-field select { min-width: 7rem; }
     .char-hint { margin: 0.25rem 0 0.4rem; font-size: 0.72rem; }
@@ -551,6 +552,7 @@
         <label for="w1-proc-damage">Proc spell damage (on proc)</label>
         <input type="number" id="w1-proc-damage" min="0" value="0" placeholder="0">
         <input type="hidden" id="w1-proc-rate" value="0">
+        <input type="hidden" id="w1-proc-buff-duration" value="">
         <div class="row">
           <div><label for="w1-elem-type" class="small-label">Elemental type</label><select id="w1-elem-type">
             <option value="">None</option>
@@ -588,6 +590,7 @@
         <label for="w2-proc-damage">Proc spell damage (on proc)</label>
         <input type="number" id="w2-proc-damage" min="0" value="0" placeholder="0">
         <input type="hidden" id="w2-proc-rate" value="0">
+        <input type="hidden" id="w2-proc-buff-duration" value="">
         <div class="row">
           <div><label for="w2-elem-type" class="small-label">Elemental type</label><select id="w2-elem-type">
             <option value="">None</option>
@@ -1129,6 +1132,8 @@
         const procSpellDamage = procDamageEl && procDamageEl.value !== '' ? parseInt(procDamageEl.value, 10) : 0;
         const procRateEl = $(prefix + '-proc-rate');
         const procRate = procRateEl && procRateEl.value !== '' ? (parseInt(procRateEl.value, 10) || 0) : 0;
+        const procBuffDurationEl = $(prefix + '-proc-buff-duration');
+        const procBuffDurationTicks = procBuffDurationEl && procBuffDurationEl.value !== '' ? (parseInt(procBuffDurationEl.value, 10) || 0) : undefined;
         const minDmgRaw = $(prefix + '-min');
         const maxDmgRaw = $(prefix + '-max');
         const minDmg = minDmgRaw && minDmgRaw.value !== '' ? parseInt(minDmgRaw.value, 10) : null;
@@ -1141,6 +1146,7 @@
         const baneEl = $(prefix + '-bane');
         const baneDamage = baneEl && baneEl.value !== '' ? (parseInt(baneEl.value, 10) || 0) : 0;
         const out = { damage, delay, procSpell: proc, procSpellDamage: procSpellDamage || 0, procRate, minDmg, maxDmg, is2H, baneDamage };
+        if (procBuffDurationTicks != null && procBuffDurationTicks > 0) out.procBuffDurationTicks = procBuffDurationTicks;
         if (elemType && elemDamage > 0) { out.elemType = elemType; out.elemDamage = elemDamage; }
         return out;
       }
@@ -1198,8 +1204,8 @@
         }
         if (weaponSkillForToHit <= 0) weaponSkillForToHit = undefined;
         const options = {
-          weapon1: hasMainHand ? { damage: weapon1.damage, delay: weapon1.delay, procSpell: weapon1.procSpell, procSpellDamage: weapon1.procSpellDamage, procRate: weapon1.procRate, is2H: weapon1.is2H, elemType: weapon1.elemType, elemDamage: weapon1.elemDamage } : undefined,
-          weapon2: useWeapon2 ? { damage: weapon2.damage, delay: weapon2.delay, procSpell: weapon2.procSpell, procSpellDamage: weapon2.procSpellDamage, procRate: weapon2.procRate, elemType: weapon2.elemType, elemDamage: weapon2.elemDamage } : undefined,
+          weapon1: hasMainHand ? { damage: weapon1.damage, delay: weapon1.delay, procSpell: weapon1.procSpell, procSpellDamage: weapon1.procSpellDamage, procRate: weapon1.procRate, procBuffDurationTicks: weapon1.procBuffDurationTicks, is2H: weapon1.is2H, elemType: weapon1.elemType, elemDamage: weapon1.elemDamage } : undefined,
+          weapon2: useWeapon2 ? { damage: weapon2.damage, delay: weapon2.delay, procSpell: weapon2.procSpell, procSpellDamage: weapon2.procSpellDamage, procRate: weapon2.procRate, procBuffDurationTicks: weapon2.procBuffDurationTicks, elemType: weapon2.elemType, elemDamage: weapon2.elemDamage } : undefined,
           hastePercent,
           offenseSkill,
           wornAttack,
@@ -1747,9 +1753,15 @@
           }
         }
         const backstabReuseWrap = $('backstab-reuse-wrap');
-        if (backstabReuseWrap) backstabReuseWrap.style.display = classId === 'rogue' ? '' : 'none';
+        if (backstabReuseWrap) {
+          backstabReuseWrap.classList.toggle('hidden', classId !== 'rogue');
+          backstabReuseWrap.style.display = classId === 'rogue' ? 'block' : 'none';
+        }
         const flyingKickReuseWrap = $('flyingkick-reuse-wrap');
-        if (flyingKickReuseWrap) flyingKickReuseWrap.style.display = classId === 'monk' ? '' : 'none';
+        if (flyingKickReuseWrap) {
+          flyingKickReuseWrap.classList.toggle('hidden', classId !== 'monk');
+          flyingKickReuseWrap.style.display = classId === 'monk' ? 'block' : 'none';
+        }
         const innerflameRow = $('innerflame-row');
         if (innerflameRow) innerflameRow.style.display = classId === 'monk' ? '' : 'none';
         updateFistweavingVisibility();
@@ -1965,6 +1977,8 @@
             if (spell && spell.name) {
               $(prefix + '-proc').value = spell.name;
               if (procDmgEl) procDmgEl.value = spell.damage != null ? spell.damage : (isNaN(procDmg) ? '' : procDmg);
+              var bufEl = $(prefix + '-proc-buff-duration');
+              if (bufEl) bufEl.value = (spell.buffdurationTicks != null && spell.buffdurationTicks > 0) ? String(spell.buffdurationTicks) : '';
             }
           });
         }
@@ -2219,6 +2233,55 @@
         });
       }
 
+      const TARGET_NPC_RECENT_KEY = 'dps_sim_recent_target_npcs';
+      const TARGET_NPC_MAX_RECENT = 15;
+      function getRecentTargetNpcIds() {
+        try {
+          const raw = localStorage.getItem(TARGET_NPC_RECENT_KEY);
+          if (!raw) return [];
+          const arr = JSON.parse(raw);
+          return Array.isArray(arr) ? arr : [];
+        } catch (e) { return []; }
+      }
+      function saveRecentTargetNpc(npc) {
+        if (!npc || (npc.id === undefined || npc.id === null)) return;
+        var id = String(npc.id);
+        var recent = getRecentTargetNpcIds().filter(function (rid) { return String(rid) !== id; });
+        recent.unshift(id);
+        recent = recent.slice(0, TARGET_NPC_MAX_RECENT);
+        try { localStorage.setItem(TARGET_NPC_RECENT_KEY, JSON.stringify(recent)); } catch (e) {}
+      }
+      function renderTargetNpcRecentSection(npcTypesList, npcNameForDisplay) {
+        var recentIds = getRecentTargetNpcIds();
+        if (!recentIds.length || !npcTypesList || !npcTypesList.length) return '';
+        var section = '<div class="item-search-section">Recent</div>';
+        var count = 0;
+        for (var i = 0; i < recentIds.length && count < TARGET_NPC_MAX_RECENT; i++) {
+          var npc = npcTypesList.find(function (n) { return n != null && String(n.id) === String(recentIds[i]); });
+          if (!npc) continue;
+          count++;
+          var displayName = npcNameForDisplay(npc.name).replace(/</g, '&lt;').replace(/"/g, '&quot;');
+          var detail = 'Lvl ' + (npc.level != null ? npc.level : '?') + ' · AC ' + (npc.AC != null ? npc.AC : '?');
+          section += '<button type="button" class="item-search-item item-search-item-result" data-npc-id="' + (npc.id != null ? String(npc.id) : '') + '"><span>' + displayName + '</span><div class="item-search-item-detail">' + detail.replace(/</g, '&lt;') + '</div></button>';
+        }
+        return count ? section : '';
+      }
+      function attachTargetNpcButtons(listEl, npcTypesList, npcNameForDisplay, inputEl, closeDropdown) {
+        if (!listEl) return;
+        listEl.querySelectorAll('.item-search-item[data-npc-id]').forEach(function (btn) {
+          btn.addEventListener('mousedown', function (e) {
+            e.preventDefault();
+            var id = btn.getAttribute('data-npc-id');
+            var npc = npcTypesList.find(function (n) { return n != null && String(n.id) === String(id); });
+            if (npc) {
+              applyTargetNpc(npc);
+              saveRecentTargetNpc(npc);
+              inputEl.value = npcNameForDisplay(npc.name).trim();
+            }
+            closeDropdown();
+          });
+        });
+      }
       function closeTargetNpcDropdown() {
         var listEl = $('target-npc-search-list');
         if (listEl) listEl.classList.remove('is-open');
@@ -2271,37 +2334,38 @@
         inputEl.addEventListener('input', function () {
           var q = (inputEl.value || '').trim().replace(/_/g, ' ').toLowerCase();
           if (q.length < minChars) {
-            listEl.innerHTML = '<div class="item-search-msg">Type at least ' + minChars + ' characters to search</div>';
+            var recentHtml = renderTargetNpcRecentSection(npcTypesList, npcNameForDisplay);
+            listEl.innerHTML = recentHtml + '<div class="item-search-msg">Type at least ' + minChars + ' characters to search</div>';
+            attachTargetNpcButtons(listEl, npcTypesList, npcNameForDisplay, inputEl, closeTargetNpcDropdown);
             openTargetNpcDropdown();
             return;
           }
           var filtered = npcTypesList.filter(function (n) {
             return npcNameForSearch(n.name).indexOf(q) >= 0;
           }).slice(0, 80);
+          var html = '<div class="item-search-section">Targets</div>';
           if (filtered.length === 0) {
-            listEl.innerHTML = '<div class="item-search-section">Targets</div><div class="item-search-msg">No matching NPCs</div>';
+            html += '<div class="item-search-msg">No matching NPCs</div>';
           } else {
-            var html = '<div class="item-search-section">Targets</div>';
             filtered.forEach(function (npc) {
               var displayName = npcNameForDisplay(npc.name).replace(/</g, '&lt;').replace(/"/g, '&quot;');
               var detail = 'Lvl ' + (npc.level != null ? npc.level : '?') + ' · AC ' + (npc.AC != null ? npc.AC : '?');
               html += '<button type="button" class="item-search-item" data-npc-id="' + (npc.id != null ? String(npc.id) : '') + '"><span>' + displayName + '</span><div class="item-search-item-detail">' + detail.replace(/</g, '&lt;') + '</div></button>';
             });
-            listEl.innerHTML = html;
-            listEl.querySelectorAll('.item-search-item').forEach(function (btn) {
-              btn.addEventListener('mousedown', function (e) {
-                e.preventDefault();
-                var id = btn.getAttribute('data-npc-id');
-                var npc = npcTypesList.find(function (n) { return n != null && String(n.id) === String(id); });
-                if (npc) {
-                  applyTargetNpc(npc);
-                  inputEl.value = npcNameForDisplay(npc.name).trim();
-                }
-                closeTargetNpcDropdown();
-              });
-            });
           }
+          html += renderTargetNpcRecentSection(npcTypesList, npcNameForDisplay);
+          listEl.innerHTML = html;
+          attachTargetNpcButtons(listEl, npcTypesList, npcNameForDisplay, inputEl, closeTargetNpcDropdown);
           openTargetNpcDropdown();
+        });
+        inputEl.addEventListener('focus', function () {
+          var q = (inputEl.value || '').trim();
+          if (q.length < minChars) {
+            var recentHtml = renderTargetNpcRecentSection(npcTypesList, npcNameForDisplay);
+            listEl.innerHTML = recentHtml + '<div class="item-search-msg">Type at least ' + minChars + ' characters to search</div>';
+            attachTargetNpcButtons(listEl, npcTypesList, npcNameForDisplay, inputEl, closeTargetNpcDropdown);
+            openTargetNpcDropdown();
+          }
         });
         inputEl.addEventListener('keydown', function (e) {
           if (e.key === 'Escape') { closeTargetNpcDropdown(); inputEl.blur(); }
@@ -2322,37 +2386,38 @@
         inputEl.addEventListener('input', function () {
           var q = (inputEl.value || '').trim().replace(/_/g, ' ').toLowerCase();
           if (q.length < minChars) {
-            listEl.innerHTML = '<div class="item-search-msg">Type at least ' + minChars + ' characters to search</div>';
+            var recentHtml = renderTargetNpcRecentSection(npcTypesList, npcNameForDisplay);
+            listEl.innerHTML = recentHtml + '<div class="item-search-msg">Type at least ' + minChars + ' characters to search</div>';
+            attachTargetNpcButtons(listEl, npcTypesList, npcNameForDisplay, inputEl, closeRangedTargetNpcDropdown);
             openRangedTargetNpcDropdown();
             return;
           }
           var filtered = npcTypesList.filter(function (n) {
             return npcNameForSearch(n.name).indexOf(q) >= 0;
           }).slice(0, 80);
+          var html = '<div class="item-search-section">Targets</div>';
           if (filtered.length === 0) {
-            listEl.innerHTML = '<div class="item-search-section">Targets</div><div class="item-search-msg">No matching NPCs</div>';
+            html += '<div class="item-search-msg">No matching NPCs</div>';
           } else {
-            var html = '<div class="item-search-section">Targets</div>';
             filtered.forEach(function (npc) {
               var displayName = npcNameForDisplay(npc.name).replace(/</g, '&lt;').replace(/"/g, '&quot;');
               var detail = 'Lvl ' + (npc.level != null ? npc.level : '?') + ' · AC ' + (npc.AC != null ? npc.AC : '?');
               html += '<button type="button" class="item-search-item" data-npc-id="' + (npc.id != null ? String(npc.id) : '') + '"><span>' + displayName + '</span><div class="item-search-item-detail">' + detail.replace(/</g, '&lt;') + '</div></button>';
             });
-            listEl.innerHTML = html;
-            listEl.querySelectorAll('.item-search-item').forEach(function (btn) {
-              btn.addEventListener('mousedown', function (e) {
-                e.preventDefault();
-                var id = btn.getAttribute('data-npc-id');
-                var npc = npcTypesList.find(function (n) { return n != null && String(n.id) === String(id); });
-                if (npc) {
-                  applyTargetNpc(npc);
-                  inputEl.value = npcNameForDisplay(npc.name).trim();
-                }
-                closeRangedTargetNpcDropdown();
-              });
-            });
           }
+          html += renderTargetNpcRecentSection(npcTypesList, npcNameForDisplay);
+          listEl.innerHTML = html;
+          attachTargetNpcButtons(listEl, npcTypesList, npcNameForDisplay, inputEl, closeRangedTargetNpcDropdown);
           openRangedTargetNpcDropdown();
+        });
+        inputEl.addEventListener('focus', function () {
+          var q = (inputEl.value || '').trim();
+          if (q.length < minChars) {
+            var recentHtml = renderTargetNpcRecentSection(npcTypesList, npcNameForDisplay);
+            listEl.innerHTML = recentHtml + '<div class="item-search-msg">Type at least ' + minChars + ' characters to search</div>';
+            attachTargetNpcButtons(listEl, npcTypesList, npcNameForDisplay, inputEl, closeRangedTargetNpcDropdown);
+            openRangedTargetNpcDropdown();
+          }
         });
         inputEl.addEventListener('keydown', function (e) {
           if (e.key === 'Escape') { closeRangedTargetNpcDropdown(); inputEl.blur(); }
