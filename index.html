@@ -1797,6 +1797,7 @@
           if (primOk) primaryWeapons.push(id);
           if (secOk) secondaryWeapons.push(id);
         });
+        const canDualWield = classConfig && (classConfig.dualWield != null && classConfig.dualWield > 0);
         const combinations = [];
         primaryWeapons.forEach(function (primaryId) {
           var norm = rankWeaponMap[primaryId];
@@ -1805,10 +1806,12 @@
             combinations.push({ primaryId: primaryId, secondaryId: null });
           } else {
             combinations.push({ primaryId: primaryId, secondaryId: null });
-            secondaryWeapons.forEach(function (secondaryId) {
-              if (primaryId === secondaryId) return;
-              combinations.push({ primaryId: primaryId, secondaryId: secondaryId });
-            });
+            if (canDualWield) {
+              secondaryWeapons.forEach(function (secondaryId) {
+                if (primaryId === secondaryId) return;
+                combinations.push({ primaryId: primaryId, secondaryId: secondaryId });
+              });
+            }
           }
         });
         const results = [];
@@ -1856,6 +1859,8 @@
             else results.push({ primaryId: comb.primaryId, secondaryId: comb.secondaryId, label: comboLabel, totalDamage: r.totalDamage, dps: r.totalDamage / durationSec });
           }
           if (index < combinations.length) {
+            var pct = Math.round((index / combinations.length) * 100);
+            $('report').textContent = 'Ranking ' + combinations.length + ' weapon combinations… ' + pct + '% complete (' + index + ' / ' + combinations.length + ')';
             requestAnimationFrame(runNextChunk);
             return;
           }
@@ -1870,7 +1875,7 @@
           });
           $('report').innerHTML = '<pre style="margin:0;">' + lines.join('\n') + '</pre><table class="rank-weapons-table" style="margin-top:0.5rem; border-collapse:collapse; width:100%; font-size:0.9rem;"><thead><tr><th style="text-align:left;">#</th><th style="text-align:left;">Combination</th><th style="text-align:right;">Total dmg</th><th style="text-align:right;">DPS</th></tr></thead><tbody>' + tableRows.join('') + '</tbody></table>';
         }
-        $('report').textContent = 'Ranking ' + combinations.length + ' weapon combinations…';
+        $('report').textContent = 'Ranking ' + combinations.length + ' weapon combinations… 0% complete (0 / ' + combinations.length + ')';
         requestAnimationFrame(runNextChunk);
       }
 
