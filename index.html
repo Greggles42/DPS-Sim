@@ -1590,6 +1590,41 @@
         container.setAttribute('aria-hidden', 'false');
       }
 
+      var SLOT_PRIMARY_BIT = 8192;
+      var SLOT_SECONDARY_BIT = 16384;
+      function getItemPropsForPreset(presetId) {
+        var raw = typeof procRatesByItemId !== 'undefined' && procRatesByItemId && procRatesByItemId[presetId];
+        if (!raw || typeof raw !== 'object') return { lore: '', slots: null };
+        var lore = (raw.lore != null ? String(raw.lore) : '').trim();
+        var slots = raw.slots != null ? parseInt(raw.slots, 10) : null;
+        if (slots !== slots) slots = null;
+        return { lore: lore, slots: slots };
+      }
+      function isLoreItem(props) { return props.lore && props.lore.indexOf('*') >= 0; }
+      function primarySlotAllowed(slots, is2H) {
+        if (slots != null) return (slots & SLOT_PRIMARY_BIT) !== 0;
+        return true;
+      }
+      function secondarySlotAllowed(slots, is2H) {
+        if (is2H) return false;
+        if (slots != null) return (slots & SLOT_SECONDARY_BIT) !== 0;
+        return true;
+      }
+      function presetToWeapon1(p, applyBane) {
+        var damage = p.damage;
+        if (applyBane && p.baneDamage) damage += p.baneDamage;
+        var is2H = !!(p.is2H || (p.type && (p.type.toLowerCase() === '2hb' || p.type.toLowerCase() === '2hs' || p.type.toLowerCase() === '2hp')));
+        return {
+          damage: damage,
+          delay: p.delay,
+          procSpell: p.proc || '',
+          procSpellDamage: p.procDamage || 0,
+          procRate: 0,
+          is2H: is2H,
+          elemType: p.elemType || undefined,
+          elemDamage: (p.elemDamage != null ? p.elemDamage : 0) || 0
+        };
+      }
       function rankWeapons() {
         const classId = ($('class').value || '').toLowerCase();
         if (!classId) {
@@ -1603,6 +1638,7 @@
         const level = parseInt($('level').value, 10) || 60;
         const durationSec = parseInt($('duration').value, 10) || 6000;
         const applyBane = $('apply-bane').checked;
+        const dualWieldSkillForm = parseInt($('dual-wield').value, 10) || 0;
         const hastePercent = parseFloat($('haste').value) || 0;
         const wornAttack = parseInt($('worn-attack').value, 10) || 0;
         const spellAttack = parseInt($('spell-attack').value, 10) || 0;
@@ -1624,7 +1660,6 @@
         const specialAttackType = ($('special-attack-type').value || 'none');
         const specialAttacks = specialAttackType !== 'none';
         const baseOptions = {
-          weapon2: undefined,
           hastePercent,
           offenseSkill,
           wornAttack,
@@ -1632,7 +1667,6 @@
           toHitBonus,
           ambidexterity: $('ambidexterity-aa').checked ? 32 : 0,
           doubleAttackSkill,
-          dualWieldSkill: 0,
           level,
           targetAC,
           mobLevel,
@@ -1654,64 +1688,99 @@
           kickReuseEffectiveSec: (kickReuseManual && (() => { const v = parseFloat($('kick-reuse-sec').value); return v > 0 && !isNaN(v) ? v : undefined; })()) || undefined,
           bashReuseEffectiveSec: (bashReuseManual && (() => { const v = parseFloat($('bash-reuse-sec').value); return v > 0 && !isNaN(v) ? v : undefined; })()) || undefined,
         };
-        const presetIds = WEAPON_PRESET_IDS.filter(function (id) {
+        const offhandBlockedTypes = { '2hb': 1, '2hs': 1, '2hp': 1, 'archery': 1, 'bow': 1 };
+        const allPresetIds = WEAPON_PRESET_IDS.filter(function (id) {
           if (id === 'unequipped') return false;
           const p = WEAPON_PRESETS[id];
           if (!p || p.damage < 1 || p.delay < 10) return false;
-          const skillKey = skillKeyForCap(p.type, !!(p.is2H || (p.type && (p.type.toLowerCase() === '2hb' || p.type.toLowerCase() === '2hs' || p.type.toLowerCase() === '2hp'))));
+          const skillKey = skillKeyForCap(p.type, !!(p.is2H || (p.type && offhandBlockedTypes[p.type])));
           const cap = WeaponSkillCaps.getCapForSimClass(classId, skillKey, level);
           return cap > 0;
+        });
+        const primaryWeapons = [];
+        const secondaryWeapons = [];
+        allPresetIds.forEach(function (id) {
+          const p = WEAPON_PRESETS[id];
+          const is2H = !!(p.is2H || (p.type && offhandBlockedTypes[p.type]));
+          const props = getItemPropsForPreset(id);
+          const primOk = primarySlotAllowed(props.slots, is2H);
+          const secOk = secondarySlotAllowed(props.slots, is2H) && !is2H && !(p.type && offhandBlockedTypes[p.type]);
+          if (primOk) primaryWeapons.push(id);
+          if (secOk) secondaryWeapons.push(id);
+        });
+        const combinations = [];
+        primaryWeapons.forEach(function (primaryId) {
+          const p = WEAPON_PRESETS[primaryId];
+          const is2H = !!(p.is2H || (p.type && offhandBlockedTypes[p.type]));
+          if (is2H) {
+            combinations.push({ primaryId: primaryId, secondaryId: null });
+          } else {
+            secondaryWeapons.forEach(function (secondaryId) {
+              if (primaryId === secondaryId) return;
+              combinations.push({ primaryId: primaryId, secondaryId: secondaryId });
+            });
+          }
         });
         const results = [];
         let index = 0;
         function runNextChunk() {
-          const chunkSize = 8;
-          const end = Math.min(index + chunkSize, presetIds.length);
+          const chunkSize = 6;
+          const end = Math.min(index + chunkSize, combinations.length);
           for (; index < end; index++) {
-            const presetId = presetIds[index];
-            const p = WEAPON_PRESETS[presetId];
-            let damage = p.damage;
-            if (applyBane && p.baneDamage) damage += p.baneDamage;
-            const is2H = !!(p.is2H || (p.type && (p.type.toLowerCase() === '2hb' || p.type.toLowerCase() === '2hs' || p.type.toLowerCase() === '2hp')));
-            const skillKey = skillKeyForCap(p.type, is2H);
+            const comb = combinations[index];
+            const p1 = WEAPON_PRESETS[comb.primaryId];
+            const is2H = !!(p1.is2H || (p1.type && offhandBlockedTypes[p1.type]));
+            const w1 = presetToWeapon1(p1, applyBane);
+            const skillKey = skillKeyForCap(p1.type, is2H);
             const weaponSkillForToHit = WeaponSkillCaps.getCapForSimClass(classId, skillKey, level) || 252;
-            const w1 = {
-              damage: damage,
-              delay: p.delay,
-              procSpell: p.proc || '',
-              procSpellDamage: p.procDamage || 0,
-              procRate: 0,
-              is2H: is2H,
-              elemType: p.elemType || undefined,
-              elemDamage: (p.elemDamage != null ? p.elemDamage : 0) || 0
-            };
+            let weapon2 = undefined;
+            let dualWieldSkill = 0;
+            let name2 = '';
+            if (comb.secondaryId) {
+              const p2 = WEAPON_PRESETS[comb.secondaryId];
+              let d2 = p2.damage;
+              if (applyBane && p2.baneDamage) d2 += p2.baneDamage;
+              weapon2 = {
+                damage: d2,
+                delay: p2.delay,
+                procSpell: p2.proc || '',
+                procSpellDamage: p2.procDamage || 0,
+                procRate: 0,
+                elemType: p2.elemType || undefined,
+                elemDamage: (p2.elemDamage != null ? p2.elemDamage : 0) || 0
+              };
+              dualWieldSkill = dualWieldSkillForm;
+              name2 = p2.name || comb.secondaryId;
+            }
             const options = Object.assign({}, baseOptions, {
               weapon1: w1,
+              weapon2: weapon2,
+              dualWieldSkill: dualWieldSkill,
               weaponSkillForToHit: weaponSkillForToHit,
               fistweaving: classId === 'monk' && is2H && $('fistweaving').checked
             });
             const r = EQCombat.runFight(options);
-            if (r.error) results.push({ presetId, name: p.name || presetId, totalDamage: 0, dps: 0, error: r.error });
-            else results.push({ presetId, name: p.name || presetId, totalDamage: r.totalDamage, dps: r.totalDamage / durationSec, damage: p.damage, delay: p.delay, type: p.type });
+            const name1 = p1.name || comb.primaryId;
+            const comboLabel = comb.secondaryId ? (name1 + ' + ' + name2) : name1;
+            if (r.error) results.push({ primaryId: comb.primaryId, secondaryId: comb.secondaryId, label: comboLabel, totalDamage: 0, dps: 0, error: r.error });
+            else results.push({ primaryId: comb.primaryId, secondaryId: comb.secondaryId, label: comboLabel, totalDamage: r.totalDamage, dps: r.totalDamage / durationSec });
           }
-          if (index < presetIds.length) {
+          if (index < combinations.length) {
             requestAnimationFrame(runNextChunk);
             return;
           }
           results.sort(function (a, b) { return (b.dps || 0) - (a.dps || 0); });
-          const lines = ['=== Weapon rank (by DPS) ===', 'Class: ' + (classConfig && classConfig.name ? classConfig.name : classId) + ', Level: ' + level + ', Duration: ' + durationSec + 's', ''];
+          const lines = ['=== Weapon combination rank (by DPS) ===', 'Class: ' + (classConfig && classConfig.name ? classConfig.name : classId) + ', Level: ' + level + ', Duration: ' + durationSec + 's', '2H solo or Primary + Secondary.', ''];
           const tableRows = results.map(function (row, i) {
             const rank = i + 1;
-            const name = (row.name || row.presetId).replace(/</g, '&lt;').replace(/"/g, '&quot;');
+            const label = (row.label || '').replace(/</g, '&lt;').replace(/"/g, '&quot;');
             const dps = row.dps != null ? row.dps.toFixed(2) : '—';
             const dmg = row.totalDamage != null ? Math.round(row.totalDamage) : '—';
-            const stats = row.damage != null && row.delay != null ? row.damage + 'd/' + row.delay : '—';
-            const type = (row.type || '').replace(/</g, '&lt;');
-            return '<tr><td>' + rank + '</td><td>' + name + '</td><td>' + stats + '</td><td>' + type + '</td><td>' + dmg + '</td><td>' + dps + '</td></tr>';
+            return '<tr><td>' + rank + '</td><td>' + label + '</td><td>' + dmg + '</td><td>' + dps + '</td></tr>';
           });
-          $('report').innerHTML = '<pre style="margin:0;">' + lines.join('\n') + '</pre><table class="rank-weapons-table" style="margin-top:0.5rem; border-collapse:collapse; width:100%; font-size:0.9rem;"><thead><tr><th style="text-align:left;">#</th><th style="text-align:left;">Weapon</th><th style="text-align:left;">Dmg/Dly</th><th style="text-align:left;">Type</th><th style="text-align:right;">Total dmg</th><th style="text-align:right;">DPS</th></tr></thead><tbody>' + tableRows.join('') + '</tbody></table>';
+          $('report').innerHTML = '<pre style="margin:0;">' + lines.join('\n') + '</pre><table class="rank-weapons-table" style="margin-top:0.5rem; border-collapse:collapse; width:100%; font-size:0.9rem;"><thead><tr><th style="text-align:left;">#</th><th style="text-align:left;">Combination</th><th style="text-align:right;">Total dmg</th><th style="text-align:right;">DPS</th></tr></thead><tbody>' + tableRows.join('') + '</tbody></table>';
         }
-        $('report').textContent = 'Ranking ' + presetIds.length + ' weapons…';
+        $('report').textContent = 'Ranking ' + combinations.length + ' weapon combinations…';
         requestAnimationFrame(runNextChunk);
       }
 
