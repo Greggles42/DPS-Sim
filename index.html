@@ -550,7 +550,7 @@
       <div id="w1-weapon-name" class="weapon-name" aria-live="polite"></div>
       <div id="w1-weapon-skill" class="weapon-skill"></div>
       <div class="char-checkbox-row" style="margin-bottom: 0.35rem;">
-        <label class="checkbox-label char-checkbox"><input type="checkbox" id="use-itemsearch-api" checked> Use ItemSearch API (dndquarm)</label>
+        <label class="checkbox-label char-checkbox"><input type="checkbox" id="use-itemsearch-api" checked> Use ItemSearch API</label>
       </div>
       <p class="hint char-hint" style="margin-top: 0; margin-bottom: 0.35rem;">When unchecked, item search uses resources/weaponlist.json.</p>
       <div class="item-search-wrap">
@@ -1651,6 +1651,51 @@
           elemDamage: (p.elemDamage != null ? p.elemDamage : 0) || 0
         };
       }
+      /** EQ itemtype number -> skill type (melee only). Used when building rank list from weaponlist.json. */
+      var RANK_ITEM_TYPE_NUM_TO_TYPE = { 0: '1hs', 1: '2hs', 2: '1hp', 3: '1hb', 4: '2hb', 7: 'h2h', 35: '2hp', 45: 'h2h' };
+      function normalizeWeaponFromList(id, raw) {
+        if (!raw || typeof raw !== 'object') return null;
+        var dmg = parseInt(raw.damage, 10); var dly = parseInt(raw.delay, 10);
+        if (isNaN(dmg) || dmg < 1 || isNaN(dly) || dly < 1) return null;
+        var item = { id: id, Name: raw.Name, name: raw.Name, damage: raw.damage, delay: raw.delay, itemtype: raw.itemtype, slots: raw.slots, classes: raw.classes, lore: raw.lore, proceffect: raw.proceffect, procrate: raw.procrate, elemdmgtype: raw.elemdmgtype, elemdmgamt: raw.elemdmgamt, banedmgamt: raw.banedmgamt, eleDmgType: raw.elemdmgtype, eleDmgAmt: raw.elemdmgamt, baneDmgAmt: raw.banedmgamt };
+        var norm = (typeof ItemSearch !== 'undefined' && ItemSearch.normalizeItemForWeapon) ? ItemSearch.normalizeItemForWeapon(item) : null;
+        if (norm && norm.damage >= 1 && norm.delay >= 1) return norm;
+        var it = raw.itemtype != null ? parseInt(raw.itemtype, 10) : NaN;
+        var typeStr = !isNaN(it) && RANK_ITEM_TYPE_NUM_TO_TYPE[it] ? RANK_ITEM_TYPE_NUM_TO_TYPE[it] : '1hb';
+        var is2H = (typeStr === '2hb' || typeStr === '2hs' || typeStr === '2hp');
+        var elemType = ''; var elemDamage = 0;
+        if (raw.elemdmgtype != null && raw.elemdmgamt != null) {
+          var et = { 1: 'magic', 2: 'fire', 3: 'cold', 4: 'poison', 5: 'disease' }[parseInt(raw.elemdmgtype, 10)];
+          if (et) { elemType = et; elemDamage = parseInt(raw.elemdmgamt, 10) || 0; }
+        }
+        return {
+          name: (raw.Name != null ? String(raw.Name) : '') || id,
+          damage: dmg,
+          delay: dly,
+          proc: '',
+          procDamage: 0,
+          elemType: elemType || undefined,
+          elemDamage: elemDamage,
+          baneDamage: (raw.banedmgamt != null ? parseInt(raw.banedmgamt, 10) : 0) || 0,
+          is2H: is2H,
+          type: typeStr
+        };
+      }
+      function normalizedToWeapon1(norm, applyBane) {
+        var damage = norm.damage;
+        if (applyBane && norm.baneDamage) damage += norm.baneDamage;
+        var is2H = !!(norm.is2H || (norm.type && (norm.type.toLowerCase() === '2hb' || norm.type.toLowerCase() === '2hs' || norm.type.toLowerCase() === '2hp')));
+        return {
+          damage: damage,
+          delay: norm.delay,
+          procSpell: (norm.proc != null ? norm.proc : '') || (norm.procSpell != null ? norm.procSpell : ''),
+          procSpellDamage: norm.procDamage || 0,
+          procRate: 0,
+          is2H: is2H,
+          elemType: norm.elemType || undefined,
+          elemDamage: (norm.elemDamage != null ? norm.elemDamage : 0) || 0
+        };
+      }
       function rankWeapons() {
         const classId = ($('class').value || '').toLowerCase();
         if (!classId) {
@@ -1661,14 +1706,14 @@
           $('report').textContent = 'WeaponSkillCaps is required to rank weapons. Load weaponSkillCaps.js.';
           return;
         }
+        if (typeof weaponListData === 'undefined' || !weaponListData || typeof weaponListData !== 'object') {
+          $('report').textContent = 'weaponlist.json is required to rank weapons. Ensure it is loaded.';
+          return;
+        }
         const level = parseInt($('level').value, 10) || 60;
         const durationSec = parseInt($('duration').value, 10) || 6000;
         const applyBane = $('apply-bane').checked;
         const dualWieldSkillForm = parseInt($('dual-wield').value, 10) || 0;
-        const hastePercent = parseFloat($('haste').value) || 0;
-        const wornAttack = parseInt($('worn-attack').value, 10) || 0;
-        const spellAttack = parseInt($('spell-attack').value, 10) || 0;
-        const doubleAttackSkill = parseInt($('double-attack').value, 10) || 0;
         const offenseSkill = Math.min(255, Math.max(0, parseInt($('offense-skill').value, 10) || 252));
         const targetAC = parseInt($('target-ac').value, 10) || 550;
         const mobLevel = parseInt($('mob-level').value, 10) || 60;
@@ -1686,13 +1731,13 @@
         const specialAttackType = ($('special-attack-type').value || 'none');
         const specialAttacks = specialAttackType !== 'none';
         const baseOptions = {
-          hastePercent,
+          hastePercent: parseFloat($('haste').value) || 0,
           offenseSkill,
-          wornAttack,
-          spellAttack,
+          wornAttack: parseInt($('worn-attack').value, 10) || 0,
+          spellAttack: parseInt($('spell-attack').value, 10) || 0,
           toHitBonus,
           ambidexterity: $('ambidexterity-aa').checked ? 32 : 0,
-          doubleAttackSkill,
+          doubleAttackSkill: parseInt($('double-attack').value, 10) || 0,
           level,
           targetAC,
           mobLevel,
@@ -1715,33 +1760,43 @@
           bashReuseEffectiveSec: (bashReuseManual && (() => { const v = parseFloat($('bash-reuse-sec').value); return v > 0 && !isNaN(v) ? v : undefined; })()) || undefined,
         };
         const offhandBlockedTypes = { '2hb': 1, '2hs': 1, '2hp': 1, 'archery': 1, 'bow': 1 };
-        const allPresetIds = WEAPON_PRESET_IDS.filter(function (id) {
-          if (id === 'unequipped') return false;
-          const p = WEAPON_PRESETS[id];
-          if (!p || p.damage < 1 || p.delay < 10) return false;
-          if (!classCanUsePreset(id, classId)) return false;
-          const skillKey = skillKeyForCap(p.type, !!(p.is2H || (p.type && offhandBlockedTypes[p.type])));
-          const cap = WeaponSkillCaps.getCapForSimClass(classId, skillKey, level);
-          return cap > 0;
+        var rankWeaponMap = {};
+        var allIds = [];
+        Object.keys(weaponListData).forEach(function (id) {
+          var raw = weaponListData[id];
+          if (!raw || raw.damage < 1 || raw.delay < 1) return;
+          var classes = raw.classes != null ? parseInt(raw.classes, 10) : NaN;
+          if (isNaN(classes)) return;
+          var mask = RANK_CLASS_BITMASK[classId];
+          if (mask == null || (classes & mask) === 0) return;
+          var it = raw.itemtype != null ? parseInt(raw.itemtype, 10) : NaN;
+          if (!isNaN(it) && (it === 5 || it === 6)) return;
+          var norm = normalizeWeaponFromList(id, raw);
+          if (!norm) return;
+          var skillKey = skillKeyForCap(norm.type, !!(norm.is2H || (norm.type && offhandBlockedTypes[norm.type])));
+          if (WeaponSkillCaps.getCapForSimClass(classId, skillKey, level) <= 0) return;
+          rankWeaponMap[id] = norm;
+          allIds.push(id);
         });
         const primaryWeapons = [];
         const secondaryWeapons = [];
-        allPresetIds.forEach(function (id) {
-          const p = WEAPON_PRESETS[id];
-          const is2H = !!(p.is2H || (p.type && offhandBlockedTypes[p.type]));
-          const props = getItemPropsForPreset(id);
-          const primOk = primarySlotAllowed(props.slots, is2H);
-          const secOk = secondarySlotAllowed(props.slots, is2H) && !is2H && !(p.type && offhandBlockedTypes[p.type]);
+        allIds.forEach(function (id) {
+          var norm = rankWeaponMap[id];
+          var is2H = !!(norm.is2H || (norm.type && offhandBlockedTypes[norm.type]));
+          var props = getItemPropsForPreset(id);
+          var primOk = primarySlotAllowed(props.slots, is2H);
+          var secOk = secondarySlotAllowed(props.slots, is2H) && !is2H && !(norm.type && offhandBlockedTypes[norm.type]);
           if (primOk) primaryWeapons.push(id);
           if (secOk) secondaryWeapons.push(id);
         });
         const combinations = [];
         primaryWeapons.forEach(function (primaryId) {
-          const p = WEAPON_PRESETS[primaryId];
-          const is2H = !!(p.is2H || (p.type && offhandBlockedTypes[p.type]));
+          var norm = rankWeaponMap[primaryId];
+          var is2H = !!(norm.is2H || (norm.type && offhandBlockedTypes[norm.type]));
           if (is2H) {
             combinations.push({ primaryId: primaryId, secondaryId: null });
           } else {
+            combinations.push({ primaryId: primaryId, secondaryId: null });
             secondaryWeapons.forEach(function (secondaryId) {
               if (primaryId === secondaryId) return;
               combinations.push({ primaryId: primaryId, secondaryId: secondaryId });
@@ -1755,22 +1810,22 @@
           const end = Math.min(index + chunkSize, combinations.length);
           for (; index < end; index++) {
             const comb = combinations[index];
-            const p1 = WEAPON_PRESETS[comb.primaryId];
+            const p1 = rankWeaponMap[comb.primaryId];
             const is2H = !!(p1.is2H || (p1.type && offhandBlockedTypes[p1.type]));
-            const w1 = presetToWeapon1(p1, applyBane);
+            const w1 = normalizedToWeapon1(p1, applyBane);
             const skillKey = skillKeyForCap(p1.type, is2H);
             const weaponSkillForToHit = WeaponSkillCaps.getCapForSimClass(classId, skillKey, level) || 252;
             let weapon2 = undefined;
             let dualWieldSkill = 0;
             let name2 = '';
             if (comb.secondaryId) {
-              const p2 = WEAPON_PRESETS[comb.secondaryId];
-              let d2 = p2.damage;
+              const p2 = rankWeaponMap[comb.secondaryId];
+              var d2 = p2.damage;
               if (applyBane && p2.baneDamage) d2 += p2.baneDamage;
               weapon2 = {
                 damage: d2,
                 delay: p2.delay,
-                procSpell: p2.proc || '',
+                procSpell: (p2.proc != null ? p2.proc : '') || (p2.procSpell != null ? p2.procSpell : ''),
                 procSpellDamage: p2.procDamage || 0,
                 procRate: 0,
                 elemType: p2.elemType || undefined,
@@ -1797,7 +1852,7 @@
             return;
           }
           results.sort(function (a, b) { return (b.dps || 0) - (a.dps || 0); });
-          const lines = ['=== Weapon combination rank (by DPS) ===', 'Class: ' + (classConfig && classConfig.name ? classConfig.name : classId) + ', Level: ' + level + ', Duration: ' + durationSec + 's', '2H solo or Primary + Secondary.', ''];
+          const lines = ['=== Weapon combination rank (by DPS) ===', 'Class: ' + (classConfig && classConfig.name ? classConfig.name : classId) + ', Level: ' + level + ', Duration: ' + durationSec + 's', 'From weaponlist.json: 2H solo, 1H solo, or Primary + Secondary.', ''];
           const tableRows = results.map(function (row, i) {
             const rank = i + 1;
             const label = (row.label || '').replace(/</g, '&lt;').replace(/"/g, '&quot;');
