@@ -657,7 +657,7 @@
         <p class="hint">When checked, each weapon's bane damage is added to its base damage.</p>
       </details>
       <button type="button" id="btn-run">Run simulation</button>
-      <button type="button" id="btn-rank-weapons" style="display:none;" title="Rank weapons by DPS (Ctrl+Shift+W to show)">Rank weapons</button>
+      <button type="button" id="btn-rank-weapons" style="display:none;" title="Rank weapons by DPS (Shift+Click Run to show)">Rank weapons</button>
     </section>
   </div>
   </div>
@@ -1715,15 +1715,16 @@
         requestAnimationFrame(runNextChunk);
       }
 
-      $('btn-run').addEventListener('click', run);
-      $('btn-rank-weapons').addEventListener('click', rankWeapons);
-      document.addEventListener('keydown', function (e) {
-        if (e.ctrlKey && e.shiftKey && (e.key === 'W' || e.keyCode === 87)) {
+      $('btn-run').addEventListener('click', function (e) {
+        if (e.shiftKey) {
           const btn = $('btn-rank-weapons');
           if (btn) { btn.style.display = btn.style.display === 'none' ? 'block' : 'none'; }
           e.preventDefault();
+          return;
         }
+        run();
       });
+      $('btn-rank-weapons').addEventListener('click', rankWeapons);
 
       function renderSimHistory() {
         const listEl = $('sim-history-list');
