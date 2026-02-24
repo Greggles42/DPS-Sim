@@ -908,6 +908,12 @@
         .then(function (r) { return r.ok ? r.json() : null; })
         .then(function (data) { weaponListData = data && typeof data === 'object' ? data : {}; })
         .catch(function () {});
+      /** Item ID -> raw item from resources/weapon_shortlist.json; used by Rank Weapons. */
+      var weaponShortlistData = {};
+      fetch('resources/weapon_shortlist.json')
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (data) { weaponShortlistData = data && typeof data === 'object' ? data : {}; })
+        .catch(function () {});
 
       // ----- Background usage log (no UI). Set USAGE_LOG_URL to your endpoint to enable.
       // e.g. local: 'http://localhost:8765/log'  or Vercel: 'https://dps-sim.vercel.app/api/log'
@@ -1706,8 +1712,8 @@
           $('report').textContent = 'WeaponSkillCaps is required to rank weapons. Load weaponSkillCaps.js.';
           return;
         }
-        if (typeof weaponListData === 'undefined' || !weaponListData || typeof weaponListData !== 'object') {
-          $('report').textContent = 'weaponlist.json is required to rank weapons. Ensure it is loaded.';
+        if (typeof weaponShortlistData === 'undefined' || !weaponShortlistData || typeof weaponShortlistData !== 'object') {
+          $('report').textContent = 'weapon_shortlist.json is required to rank weapons. Ensure it is loaded.';
           return;
         }
         const level = parseInt($('level').value, 10) || 60;
@@ -1762,8 +1768,8 @@
         const offhandBlockedTypes = { '2hb': 1, '2hs': 1, '2hp': 1, 'archery': 1, 'bow': 1 };
         var rankWeaponMap = {};
         var allIds = [];
-        Object.keys(weaponListData).forEach(function (id) {
-          var raw = weaponListData[id];
+        Object.keys(weaponShortlistData).forEach(function (id) {
+          var raw = weaponShortlistData[id];
           if (!raw || raw.damage < 1 || raw.delay < 1) return;
           var classes = raw.classes != null ? parseInt(raw.classes, 10) : NaN;
           if (isNaN(classes)) return;
@@ -1783,9 +1789,11 @@
         allIds.forEach(function (id) {
           var norm = rankWeaponMap[id];
           var is2H = !!(norm.is2H || (norm.type && offhandBlockedTypes[norm.type]));
-          var props = getItemPropsForPreset(id);
-          var primOk = primarySlotAllowed(props.slots, is2H);
-          var secOk = secondarySlotAllowed(props.slots, is2H) && !is2H && !(norm.type && offhandBlockedTypes[norm.type]);
+          var raw = weaponShortlistData[id];
+          var slots = (raw && raw.slots != null) ? parseInt(raw.slots, 10) : null;
+          if (slots !== slots) slots = null;
+          var primOk = primarySlotAllowed(slots, is2H);
+          var secOk = secondarySlotAllowed(slots, is2H) && !is2H && !(norm.type && offhandBlockedTypes[norm.type]);
           if (primOk) primaryWeapons.push(id);
           if (secOk) secondaryWeapons.push(id);
         });
@@ -1852,7 +1860,7 @@
             return;
           }
           results.sort(function (a, b) { return (b.dps || 0) - (a.dps || 0); });
-          const lines = ['=== Weapon combination rank (by DPS) ===', 'Class: ' + (classConfig && classConfig.name ? classConfig.name : classId) + ', Level: ' + level + ', Duration: ' + durationSec + 's', 'From weaponlist.json: 2H solo, 1H solo, or Primary + Secondary.', ''];
+          const lines = ['=== Weapon combination rank (by DPS) ===', 'Class: ' + (classConfig && classConfig.name ? classConfig.name : classId) + ', Level: ' + level + ', Duration: ' + durationSec + 's', 'From weapon_shortlist.json: 2H solo, 1H solo, or Primary + Secondary.', ''];
           const tableRows = results.map(function (row, i) {
             const rank = i + 1;
             const label = (row.label || '').replace(/</g, '&lt;').replace(/"/g, '&quot;');
