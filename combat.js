@@ -188,7 +188,7 @@
       critChance += 0.275 + dexCap / 150 + overCap;
     }
 
-    if (critChanceMult) critChance += critChance * critChanceMult / 100;
+    if (critChanceMult) critChance += critChanceMult;
     return Math.max(0, Math.min(100, critChance));
   }
 
