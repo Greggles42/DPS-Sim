@@ -657,6 +657,7 @@
         <p class="hint">When checked, each weapon's bane damage is added to its base damage.</p>
       </details>
       <button type="button" id="btn-run">Run simulation</button>
+      <button type="button" id="btn-rank-weapons" style="display:none;" title="Rank weapons by DPS (Ctrl+Shift+W to show)">Rank weapons</button>
     </section>
   </div>
   </div>
@@ -1589,7 +1590,140 @@
         container.setAttribute('aria-hidden', 'false');
       }
 
+      function rankWeapons() {
+        const classId = ($('class').value || '').toLowerCase();
+        if (!classId) {
+          $('report').textContent = 'Select a class to rank weapons.';
+          return;
+        }
+        if (typeof WeaponSkillCaps === 'undefined') {
+          $('report').textContent = 'WeaponSkillCaps is required to rank weapons. Load weaponSkillCaps.js.';
+          return;
+        }
+        const level = parseInt($('level').value, 10) || 60;
+        const durationSec = parseInt($('duration').value, 10) || 6000;
+        const applyBane = $('apply-bane').checked;
+        const hastePercent = parseFloat($('haste').value) || 0;
+        const wornAttack = parseInt($('worn-attack').value, 10) || 0;
+        const spellAttack = parseInt($('spell-attack').value, 10) || 0;
+        const doubleAttackSkill = parseInt($('double-attack').value, 10) || 0;
+        const offenseSkill = Math.min(255, Math.max(0, parseInt($('offense-skill').value, 10) || 252));
+        const targetAC = parseInt($('target-ac').value, 10) || 550;
+        const mobLevel = parseInt($('mob-level').value, 10) || 60;
+        const targetMR = parseInt($('target-mr').value, 10) || 35;
+        const targetFR = parseInt($('target-fr').value, 10) || 35;
+        const targetCR = parseInt($('target-cr').value, 10) || 35;
+        const targetPR = parseInt($('target-pr').value, 10) || 35;
+        const targetDR = parseInt($('target-dr').value, 10) || 35;
+        const str = parseInt($('str').value, 10) || 255;
+        const dex = parseInt($('dex').value, 10) || 255;
+        const fromBehind = document.querySelector('input[name="from-behind"]:checked').value === '1';
+        const critChanceMult = parseInt($('crit-chance-aa').value, 10) || 0;
+        const classConfig = CLASSES[classId] || null;
+        const toHitBonus = (classConfig && classConfig.toHitBonus) ? classConfig.toHitBonus : 0;
+        const specialAttackType = ($('special-attack-type').value || 'none');
+        const specialAttacks = specialAttackType !== 'none';
+        const baseOptions = {
+          weapon2: undefined,
+          hastePercent,
+          offenseSkill,
+          wornAttack,
+          spellAttack,
+          toHitBonus,
+          ambidexterity: $('ambidexterity-aa').checked ? 32 : 0,
+          doubleAttackSkill,
+          dualWieldSkill: 0,
+          level,
+          targetAC,
+          mobLevel,
+          targetMR, targetFR, targetCR, targetPR, targetDR,
+          fightDurationSec: durationSec,
+          dex,
+          str,
+          fromBehind,
+          specialAttacks,
+          specialAttackType: specialAttacks ? specialAttackType : undefined,
+          classId: classId,
+          backstabModPercent: classId === 'rogue' ? (parseInt($('backstab-mod').value, 10) || 0) : undefined,
+          backstabSkill: classId === 'rogue' ? (parseInt($('backstab-skill').value, 10) || 0) : undefined,
+          duelist: classId === 'rogue' && $('duelist').checked,
+          innerFlame: classId === 'monk' && $('innerflame').checked,
+          critChanceMult: critChanceMult || undefined,
+          backstabReuseEffectiveSec: (backstabReuseManual && (() => { const v = parseFloat($('backstab-reuse-sec').value); return v > 0 && !isNaN(v) ? v : undefined; })()) || undefined,
+          flyingKickReuseEffectiveSec: (flyingKickReuseManual && (() => { const v = parseFloat($('flyingkick-reuse-sec').value); return v > 0 && !isNaN(v) ? v : undefined; })()) || undefined,
+          kickReuseEffectiveSec: (kickReuseManual && (() => { const v = parseFloat($('kick-reuse-sec').value); return v > 0 && !isNaN(v) ? v : undefined; })()) || undefined,
+          bashReuseEffectiveSec: (bashReuseManual && (() => { const v = parseFloat($('bash-reuse-sec').value); return v > 0 && !isNaN(v) ? v : undefined; })()) || undefined,
+        };
+        const presetIds = WEAPON_PRESET_IDS.filter(function (id) {
+          if (id === 'unequipped') return false;
+          const p = WEAPON_PRESETS[id];
+          if (!p || p.damage < 1 || p.delay < 10) return false;
+          const skillKey = skillKeyForCap(p.type, !!(p.is2H || (p.type && (p.type.toLowerCase() === '2hb' || p.type.toLowerCase() === '2hs' || p.type.toLowerCase() === '2hp'))));
+          const cap = WeaponSkillCaps.getCapForSimClass(classId, skillKey, level);
+          return cap > 0;
+        });
+        const results = [];
+        let index = 0;
+        function runNextChunk() {
+          const chunkSize = 8;
+          const end = Math.min(index + chunkSize, presetIds.length);
+          for (; index < end; index++) {
+            const presetId = presetIds[index];
+            const p = WEAPON_PRESETS[presetId];
+            let damage = p.damage;
+            if (applyBane && p.baneDamage) damage += p.baneDamage;
+            const is2H = !!(p.is2H || (p.type && (p.type.toLowerCase() === '2hb' || p.type.toLowerCase() === '2hs' || p.type.toLowerCase() === '2hp')));
+            const skillKey = skillKeyForCap(p.type, is2H);
+            const weaponSkillForToHit = WeaponSkillCaps.getCapForSimClass(classId, skillKey, level) || 252;
+            const w1 = {
+              damage: damage,
+              delay: p.delay,
+              procSpell: p.proc || '',
+              procSpellDamage: p.procDamage || 0,
+              procRate: 0,
+              is2H: is2H,
+              elemType: p.elemType || undefined,
+              elemDamage: (p.elemDamage != null ? p.elemDamage : 0) || 0
+            };
+            const options = Object.assign({}, baseOptions, {
+              weapon1: w1,
+              weaponSkillForToHit: weaponSkillForToHit,
+              fistweaving: classId === 'monk' && is2H && $('fistweaving').checked
+            });
+            const r = EQCombat.runFight(options);
+            if (r.error) results.push({ presetId, name: p.name || presetId, totalDamage: 0, dps: 0, error: r.error });
+            else results.push({ presetId, name: p.name || presetId, totalDamage: r.totalDamage, dps: r.totalDamage / durationSec, damage: p.damage, delay: p.delay, type: p.type });
+          }
+          if (index < presetIds.length) {
+            requestAnimationFrame(runNextChunk);
+            return;
+          }
+          results.sort(function (a, b) { return (b.dps || 0) - (a.dps || 0); });
+          const lines = ['=== Weapon rank (by DPS) ===', 'Class: ' + (classConfig && classConfig.name ? classConfig.name : classId) + ', Level: ' + level + ', Duration: ' + durationSec + 's', ''];
+          const tableRows = results.map(function (row, i) {
+            const rank = i + 1;
+            const name = (row.name || row.presetId).replace(/</g, '&lt;').replace(/"/g, '&quot;');
+            const dps = row.dps != null ? row.dps.toFixed(2) : '—';
+            const dmg = row.totalDamage != null ? Math.round(row.totalDamage) : '—';
+            const stats = row.damage != null && row.delay != null ? row.damage + 'd/' + row.delay : '—';
+            const type = (row.type || '').replace(/</g, '&lt;');
+            return '<tr><td>' + rank + '</td><td>' + name + '</td><td>' + stats + '</td><td>' + type + '</td><td>' + dmg + '</td><td>' + dps + '</td></tr>';
+          });
+          $('report').innerHTML = '<pre style="margin:0;">' + lines.join('\n') + '</pre><table class="rank-weapons-table" style="margin-top:0.5rem; border-collapse:collapse; width:100%; font-size:0.9rem;"><thead><tr><th style="text-align:left;">#</th><th style="text-align:left;">Weapon</th><th style="text-align:left;">Dmg/Dly</th><th style="text-align:left;">Type</th><th style="text-align:right;">Total dmg</th><th style="text-align:right;">DPS</th></tr></thead><tbody>' + tableRows.join('') + '</tbody></table>';
+        }
+        $('report').textContent = 'Ranking ' + presetIds.length + ' weapons…';
+        requestAnimationFrame(runNextChunk);
+      }
+
       $('btn-run').addEventListener('click', run);
+      $('btn-rank-weapons').addEventListener('click', rankWeapons);
+      document.addEventListener('keydown', function (e) {
+        if (e.ctrlKey && e.shiftKey && (e.key === 'W' || e.keyCode === 87)) {
+          const btn = $('btn-rank-weapons');
+          if (btn) { btn.style.display = btn.style.display === 'none' ? 'block' : 'none'; }
+          e.preventDefault();
+        }
+      });
 
       function renderSimHistory() {
         const listEl = $('sim-history-list');
