@@ -692,15 +692,7 @@
       </details>
       <button type="button" id="btn-run">Run simulation</button>
       <span class="rank-weapons-row" style="display:none;" id="rank-weapons-wrap">
-        <label for="rank-weapons-expansion" class="small-label">Expansion:</label>
-        <select id="rank-weapons-expansion" title="Only rank weapons from this expansion or earlier">
-          <option value="">All</option>
-          <option value="0">Classic</option>
-          <option value="1">Ruins of Kunark</option>
-          <option value="2">Scars of Velious</option>
-          <option value="3">Shadows of Luclin</option>
-          <option value="4">Planes of Power</option>
-        </select>
+        <label class="checkbox-label"><input type="checkbox" id="rank-weapons-include-pop" title="When checked, weapons from resources/popweapons.json (Planes of Power) are included in ranking"> Include Planes of Power weapons</label>
         <button type="button" id="btn-rank-weapons" title="Rank weapons by DPS (Shift+Click Run to show)">Rank weapons</button>
       </span>
     </section>
@@ -957,6 +949,12 @@
       fetch('resources/weapon_shortlist.json')
         .then(function (r) { return r.ok ? r.json() : null; })
         .then(function (data) { weaponShortlistData = data && typeof data === 'object' ? data : {}; })
+        .catch(function () {});
+      /** Item ID -> raw item from resources/popweapons.json (Planes of Power); used by Rank Weapons when "Include Planes of Power weapons" is checked. */
+      var popWeaponsData = {};
+      fetch('resources/popweapons.json')
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (data) { popWeaponsData = data && typeof data === 'object' ? data : {}; })
         .catch(function () {});
 
       // ----- Background usage log (no UI). Set USAGE_LOG_URL to your endpoint to enable.
@@ -1872,35 +1870,38 @@
           bashReuseEffectiveSec: (bashReuseManual && (() => { const v = parseFloat($('bash-reuse-sec').value); return v > 0 && !isNaN(v) ? v : undefined; })()) || undefined,
         };
         const offhandBlockedTypes = { '2hb': 1, '2hs': 1, '2hp': 1, 'archery': 1, 'bow': 1 };
-        var maxExpansionVal = ($('rank-weapons-expansion') && $('rank-weapons-expansion').value !== '') ? parseInt($('rank-weapons-expansion').value, 10) : NaN;
+        var includePop = ($('rank-weapons-include-pop') && $('rank-weapons-include-pop').checked) === true;
         var rankWeaponMap = {};
         var allIds = [];
-        Object.keys(weaponShortlistData).forEach(function (id) {
-          var raw = weaponShortlistData[id];
-          if (!raw || raw.damage < 1 || raw.delay < 1) return;
-          if (!isNaN(maxExpansionVal)) {
-            var itemMinExp = raw.min_expansion != null ? parseInt(raw.min_expansion, 10) : -1;
-            if (!isNaN(itemMinExp) && itemMinExp !== -1 && itemMinExp > maxExpansionVal) return;
-          }
-          var classes = raw.classes != null ? parseInt(raw.classes, 10) : NaN;
-          if (isNaN(classes)) return;
-          var mask = RANK_CLASS_BITMASK[classId];
-          if (mask == null || (classes & mask) === 0) return;
-          var it = raw.itemtype != null ? parseInt(raw.itemtype, 10) : NaN;
-          if (!isNaN(it) && (it === 5 || it === 6)) return;
-          var norm = normalizeWeaponFromList(id, raw);
-          if (!norm) return;
-          var skillKey = skillKeyForCap(norm.type, !!(norm.is2H || (norm.type && offhandBlockedTypes[norm.type])));
-          if (WeaponSkillCaps.getCapForSimClass(classId, skillKey, level) <= 0) return;
-          rankWeaponMap[id] = norm;
-          allIds.push(id);
-        });
+        function addToRankMap(source) {
+          Object.keys(source).forEach(function (id) {
+            if (rankWeaponMap[id]) return;
+            var raw = source[id];
+            if (!raw || raw.damage < 1 || raw.delay < 1) return;
+            var classes = raw.classes != null ? parseInt(raw.classes, 10) : NaN;
+            if (isNaN(classes)) return;
+            var mask = RANK_CLASS_BITMASK[classId];
+            if (mask == null || (classes & mask) === 0) return;
+            var it = raw.itemtype != null ? parseInt(raw.itemtype, 10) : NaN;
+            if (!isNaN(it) && (it === 5 || it === 6)) return;
+            var norm = normalizeWeaponFromList(id, raw);
+            if (!norm) return;
+            var skillKey = skillKeyForCap(norm.type, !!(norm.is2H || (norm.type && offhandBlockedTypes[norm.type])));
+            if (WeaponSkillCaps.getCapForSimClass(classId, skillKey, level) <= 0) return;
+            rankWeaponMap[id] = norm;
+            allIds.push(id);
+          });
+        }
+        addToRankMap(weaponShortlistData);
+        if (includePop && typeof popWeaponsData === 'object' && popWeaponsData && Object.keys(popWeaponsData).length > 0) {
+          addToRankMap(popWeaponsData);
+        }
         const primaryWeapons = [];
         const secondaryWeapons = [];
         allIds.forEach(function (id) {
           var norm = rankWeaponMap[id];
           var is2H = !!(norm.is2H || (norm.type && offhandBlockedTypes[norm.type]));
-          var raw = weaponShortlistData[id];
+          var raw = weaponShortlistData[id] || (popWeaponsData && popWeaponsData[id]);
           var slots = (raw && raw.slots != null) ? parseInt(raw.slots, 10) : null;
           if (slots !== slots) slots = null;
           var primOk = primarySlotAllowed(slots, is2H);
