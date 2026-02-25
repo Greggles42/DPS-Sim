@@ -692,8 +692,8 @@
       </details>
       <button type="button" id="btn-run">Run simulation</button>
       <span class="rank-weapons-row" style="display:none;" id="rank-weapons-wrap">
-        <label class="checkbox-label"><input type="checkbox" id="rank-weapons-include-pop" title="When checked, weapons from resources/popweapons.json (Planes of Power) are included in ranking"> Include Planes of Power weapons</label>
         <button type="button" id="btn-rank-weapons" title="Rank weapons by DPS (Shift+Click Run to show)">Rank weapons</button>
+        <label class="checkbox-label"><input type="checkbox" id="rank-weapons-include-pop" title="When checked, weapons from resources/popweapons.json (Planes of Power) are included in ranking"> Include PoP weapons</label>
       </span>
     </section>
   </div>
@@ -944,13 +944,19 @@
         .then(function (r) { return r.ok ? r.json() : null; })
         .then(function (data) { weaponListData = data && typeof data === 'object' ? data : {}; })
         .catch(function () {});
-      /** Item ID -> raw item from resources/weapon_shortlist.json; used by Rank Weapons. */
+      /** Item ID -> raw item from resources/weapon_shortlist.json (legacy). */
       var weaponShortlistData = {};
       fetch('resources/weapon_shortlist.json')
         .then(function (r) { return r.ok ? r.json() : null; })
         .then(function (data) { weaponShortlistData = data && typeof data === 'object' ? data : {}; })
         .catch(function () {});
-      /** Item ID -> raw item from resources/popweapons.json (Planes of Power); used by Rank Weapons when "Include Planes of Power weapons" is checked. */
+      /** Item ID -> raw item from resources/luclinweapons.json; default weapon list for Rank Weapons. */
+      var luclinWeaponsData = {};
+      fetch('resources/luclinweapons.json')
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (data) { luclinWeaponsData = data && typeof data === 'object' ? data : {}; })
+        .catch(function () {});
+      /** Item ID -> raw item from resources/popweapons.json (Planes of Power); used by Rank Weapons when "Include PoP weapons" is checked. */
       var popWeaponsData = {};
       fetch('resources/popweapons.json')
         .then(function (r) { return r.ok ? r.json() : null; })
@@ -1810,8 +1816,8 @@
           $('report').textContent = 'WeaponSkillCaps is required to rank weapons. Load weaponSkillCaps.js.';
           return;
         }
-        if (typeof weaponShortlistData === 'undefined' || !weaponShortlistData || typeof weaponShortlistData !== 'object') {
-          $('report').textContent = 'weapon_shortlist.json is required to rank weapons. Ensure it is loaded.';
+        if (typeof luclinWeaponsData === 'undefined' || !luclinWeaponsData || typeof luclinWeaponsData !== 'object') {
+          $('report').textContent = 'luclinweapons.json is required to rank weapons. Ensure it is loaded.';
           return;
         }
         const level = parseInt($('level').value, 10) || 60;
@@ -1892,7 +1898,7 @@
             allIds.push(id);
           });
         }
-        addToRankMap(weaponShortlistData);
+        addToRankMap(luclinWeaponsData);
         if (includePop && typeof popWeaponsData === 'object' && popWeaponsData && Object.keys(popWeaponsData).length > 0) {
           addToRankMap(popWeaponsData);
         }
@@ -1901,7 +1907,7 @@
         allIds.forEach(function (id) {
           var norm = rankWeaponMap[id];
           var is2H = !!(norm.is2H || (norm.type && offhandBlockedTypes[norm.type]));
-          var raw = weaponShortlistData[id] || (popWeaponsData && popWeaponsData[id]);
+          var raw = luclinWeaponsData[id] || (popWeaponsData && popWeaponsData[id]);
           var slots = (raw && raw.slots != null) ? parseInt(raw.slots, 10) : null;
           if (slots !== slots) slots = null;
           var primOk = primarySlotAllowed(slots, is2H);
