@@ -1890,6 +1890,22 @@
         };
         const offhandBlockedTypes = { '2hb': 1, '2hs': 1, '2hp': 1, 'archery': 1, 'bow': 1 };
         var includePop = ($('rank-weapons-include-pop') && $('rank-weapons-include-pop').checked) === true;
+        if (USAGE_LOG_URL) {
+          logUsage({
+            event: 'rank_weapons',
+            v: VERSION,
+            uid: getOrCreateAnonymousUserId(),
+            ts: Date.now(),
+            classId: classId || '',
+            level: level,
+            hastePercent: baseOptions.hastePercent,
+            offenseSkill: baseOptions.offenseSkill,
+            wornAttack: baseOptions.wornAttack,
+            spellAttack: baseOptions.spellAttack,
+            includePop: includePop,
+            targetMob: window.selectedTargetNpc && window.selectedTargetNpc.name ? String(window.selectedTargetNpc.name).replace(/_/g, ' ') : undefined,
+          });
+        }
         var rankWeaponMap = {};
         var allIds = [];
         function addToRankMap(source) {
