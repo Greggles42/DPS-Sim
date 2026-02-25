@@ -1835,26 +1835,56 @@
             }
           }
         });
-        const results = [];
-        let index = 0;
+        var mainhand_dps = {};
+        var offhand_dps = {};
+        var totalSims = primaryWeapons.length + (canDualWield ? secondaryWeapons.length : 0);
+        var refMainId = canDualWield && secondaryWeapons.length > 0 ? primaryWeapons.filter(function (id) {
+          var n = rankWeaponMap[id];
+          return n && !(n.is2H || (n.type && offhandBlockedTypes[n.type]));
+        })[0] : null;
+        var phase = 'mainhand';
+        var simIndex = 0;
+        var lastDisplayedPct = -1;
+        const chunkSize = 6;
+
         function runNextChunk() {
-          const chunkSize = 6;
-          const end = Math.min(index + chunkSize, combinations.length);
-          for (; index < end; index++) {
-            const comb = combinations[index];
-            const p1 = rankWeaponMap[comb.primaryId];
-            const is2H = !!(p1.is2H || (p1.type && offhandBlockedTypes[p1.type]));
-            const w1 = normalizedToWeapon1(p1, applyBane);
-            const skillKey = skillKeyForCap(p1.type, is2H);
-            const weaponSkillForToHit = WeaponSkillCaps.getCapForSimClass(classId, skillKey, level) || 252;
-            let weapon2 = undefined;
-            let dualWieldSkill = 0;
-            let name2 = '';
-            if (comb.secondaryId) {
-              const p2 = rankWeaponMap[comb.secondaryId];
+          var end;
+          if (phase === 'mainhand') {
+            end = Math.min(simIndex + chunkSize, primaryWeapons.length);
+            for (; simIndex < end; simIndex++) {
+              var id = primaryWeapons[simIndex];
+              var p = rankWeaponMap[id];
+              var is2H = !!(p.is2H || (p.type && offhandBlockedTypes[p.type]));
+              var w1 = normalizedToWeapon1(p, applyBane);
+              var skillKey = skillKeyForCap(p.type, is2H);
+              var weaponSkillForToHit = WeaponSkillCaps.getCapForSimClass(classId, skillKey, level) || 252;
+              var options = Object.assign({}, baseOptions, {
+                weapon1: w1,
+                weapon2: undefined,
+                dualWieldSkill: 0,
+                weaponSkillForToHit: weaponSkillForToHit,
+                fistweaving: classId === 'monk' && is2H && $('fistweaving').checked
+              });
+              var r = EQCombat.runFight(options);
+              mainhand_dps[id] = r.error ? 0 : (r.totalDamage / durationSec);
+            }
+            if (simIndex >= primaryWeapons.length) {
+              phase = 'offhand';
+              simIndex = 0;
+            }
+          }
+          if (phase === 'offhand' && canDualWield && refMainId != null) {
+            end = Math.min(simIndex + chunkSize, secondaryWeapons.length);
+            var refNorm = rankWeaponMap[refMainId];
+            var refW1 = normalizedToWeapon1(refNorm, applyBane);
+            var refSkillKey = skillKeyForCap(refNorm.type, false);
+            var refWeaponSkillForToHit = WeaponSkillCaps.getCapForSimClass(classId, refSkillKey, level) || 252;
+            for (; simIndex < end; simIndex++) {
+              var secId = secondaryWeapons[simIndex];
+              var p2 = rankWeaponMap[secId];
               var d2 = p2.damage;
               if (applyBane && p2.baneDamage) d2 += p2.baneDamage;
-              weapon2 = {
+              var w2 = {
                 damage: d2,
                 delay: p2.delay,
                 procSpell: (p2.proc != null ? p2.proc : '') || (p2.procSpell != null ? p2.procSpell : ''),
@@ -1863,40 +1893,57 @@
                 elemType: p2.elemType || undefined,
                 elemDamage: (p2.elemDamage != null ? p2.elemDamage : 0) || 0
               };
-              dualWieldSkill = dualWieldSkillForm;
-              name2 = p2.name || comb.secondaryId;
+              var opts = Object.assign({}, baseOptions, {
+                weapon1: refW1,
+                weapon2: w2,
+                dualWieldSkill: dualWieldSkillForm,
+                weaponSkillForToHit: refWeaponSkillForToHit,
+                fistweaving: false
+              });
+              var r2 = EQCombat.runFight(opts);
+              offhand_dps[secId] = r2.error ? 0 : (r2.weapon2 && r2.weapon2.totalDamage != null ? r2.weapon2.totalDamage / durationSec : 0);
             }
-            const options = Object.assign({}, baseOptions, {
-              weapon1: w1,
-              weapon2: weapon2,
-              dualWieldSkill: dualWieldSkill,
-              weaponSkillForToHit: weaponSkillForToHit,
-              fistweaving: classId === 'monk' && is2H && $('fistweaving').checked
-            });
-            const r = EQCombat.runFight(options);
-            const name1 = p1.name || comb.primaryId;
-            const comboLabel = comb.secondaryId ? (name1 + ' + ' + name2) : name1;
-            if (r.error) results.push({ primaryId: comb.primaryId, secondaryId: comb.secondaryId, label: comboLabel, totalDamage: 0, dps: 0, error: r.error });
-            else results.push({ primaryId: comb.primaryId, secondaryId: comb.secondaryId, label: comboLabel, totalDamage: r.totalDamage, dps: r.totalDamage / durationSec });
+            if (simIndex >= secondaryWeapons.length) phase = 'done';
+          } else if (phase === 'offhand') {
+            phase = 'done';
           }
-          if (index < combinations.length) {
-            var pct = Math.round((index / combinations.length) * 100);
-            $('report').textContent = 'Ranking ' + combinations.length + ' weapon combinations… ' + pct + '% complete (' + index + ' / ' + combinations.length + ')';
+
+          var completedSims = (phase === 'mainhand' ? simIndex : primaryWeapons.length) + (phase === 'offhand' ? simIndex : (phase === 'done' ? secondaryWeapons.length : 0));
+          var pctFloor = Math.floor((completedSims / totalSims) * 100);
+          if (totalSims > 0 && pctFloor > lastDisplayedPct) {
+            lastDisplayedPct = pctFloor;
+            var phaseLabel = phase === 'mainhand' ? 'Measuring mainhand DPS…' : (phase === 'offhand' ? 'Measuring offhand DPS…' : 'Building list…');
+            $('report').textContent = phaseLabel + ' ' + pctFloor + '% complete (' + completedSims + ' / ' + totalSims + ' weapons)';
+          }
+
+          if (phase !== 'done') {
             requestAnimationFrame(runNextChunk);
             return;
           }
-          results.sort(function (a, b) { return (b.dps || 0) - (a.dps || 0); });
-          const lines = ['=== Weapon combination rank (by DPS) ===', 'Class: ' + (classConfig && classConfig.name ? classConfig.name : classId) + ', Level: ' + level + ', Duration: ' + durationSec + 's', 'From weapon_shortlist.json: 2H solo, 1H solo, or Primary + Secondary.', ''];
+
+          var results = combinations.map(function (comb) {
+            var mainDps = mainhand_dps[comb.primaryId] != null ? mainhand_dps[comb.primaryId] : 0;
+            var offDps = comb.secondaryId && (offhand_dps[comb.secondaryId] != null) ? offhand_dps[comb.secondaryId] : 0;
+            var totalDps = mainDps + offDps;
+            var p1 = rankWeaponMap[comb.primaryId];
+            var name1 = p1.name || comb.primaryId;
+            var name2 = comb.secondaryId ? (rankWeaponMap[comb.secondaryId] && rankWeaponMap[comb.secondaryId].name) || comb.secondaryId : '';
+            var label = comb.secondaryId ? (name1 + ' + ' + name2) : name1;
+            return { primaryId: comb.primaryId, secondaryId: comb.secondaryId, label: label, mainhandDps: mainDps, offhandDps: offDps, totalDps: totalDps };
+          });
+          results.sort(function (a, b) { return (b.totalDps || 0) - (a.totalDps || 0); });
+          const lines = ['=== Weapon combination rank (by DPS) ===', 'Class: ' + (classConfig && classConfig.name ? classConfig.name : classId) + ', Level: ' + level + ', Duration: ' + durationSec + 's', 'From weapon_shortlist.json. DPS = mainhand + offhand (additive).', ''];
           const tableRows = results.map(function (row, i) {
             const rank = i + 1;
             const label = (row.label || '').replace(/</g, '&lt;').replace(/"/g, '&quot;');
-            const dps = row.dps != null ? row.dps.toFixed(2) : '—';
-            const dmg = row.totalDamage != null ? Math.round(row.totalDamage) : '—';
-            return '<tr><td>' + rank + '</td><td>' + label + '</td><td>' + dmg + '</td><td>' + dps + '</td></tr>';
+            const mainDpsStr = row.mainhandDps != null ? row.mainhandDps.toFixed(2) : '—';
+            const offDpsStr = row.offhandDps != null ? row.offhandDps.toFixed(2) : '—';
+            const totalDpsStr = row.totalDps != null ? row.totalDps.toFixed(2) : '—';
+            return '<tr><td>' + rank + '</td><td>' + label + '</td><td style="text-align:right;">' + mainDpsStr + '</td><td style="text-align:right;">' + offDpsStr + '</td><td style="text-align:right;">' + totalDpsStr + '</td></tr>';
           });
-          $('report').innerHTML = '<pre style="margin:0;">' + lines.join('\n') + '</pre><table class="rank-weapons-table" style="margin-top:0.5rem; border-collapse:collapse; width:100%; font-size:0.9rem;"><thead><tr><th style="text-align:left;">#</th><th style="text-align:left;">Combination</th><th style="text-align:right;">Total dmg</th><th style="text-align:right;">DPS</th></tr></thead><tbody>' + tableRows.join('') + '</tbody></table>';
+          $('report').innerHTML = '<pre style="margin:0;">' + lines.join('\n') + '</pre><table class="rank-weapons-table" style="margin-top:0.5rem; border-collapse:collapse; width:100%; font-size:0.9rem;"><thead><tr><th style="text-align:left;">#</th><th style="text-align:left;">Combination</th><th style="text-align:right;">Mainhand DPS</th><th style="text-align:right;">Offhand DPS</th><th style="text-align:right;">Total DPS</th></tr></thead><tbody>' + tableRows.join('') + '</tbody></table>';
         }
-        $('report').textContent = 'Ranking ' + combinations.length + ' weapon combinations… 0% complete (0 / ' + combinations.length + ')';
+        $('report').textContent = 'Measuring mainhand DPS… 0% complete (0 / ' + totalSims + ' weapons)';
         requestAnimationFrame(runNextChunk);
       }
 
