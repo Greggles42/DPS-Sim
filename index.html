@@ -2031,16 +2031,83 @@
             return { primaryId: comb.primaryId, secondaryId: comb.secondaryId, label: label, mainhandDps: mainDps, offhandDps: offDps, totalDps: totalDps };
           });
           results.sort(function (a, b) { return (b.totalDps || 0) - (a.totalDps || 0); });
-          const lines = ['=== Weapon combination rank (by DPS) ===', 'Class: ' + (classConfig && classConfig.name ? classConfig.name : classId) + ', Level: ' + level + ', Duration: ' + durationSec + 's', 'From weapon_shortlist.json. DPS = mainhand + offhand (additive).', ''];
-          const tableRows = results.map(function (row, i) {
-            const rank = i + 1;
-            const label = (row.label || '').replace(/</g, '&lt;').replace(/"/g, '&quot;');
-            const mainDpsStr = row.mainhandDps != null ? row.mainhandDps.toFixed(2) : '—';
-            const offDpsStr = row.offhandDps != null ? row.offhandDps.toFixed(2) : '—';
-            const totalDpsStr = row.totalDps != null ? row.totalDps.toFixed(2) : '—';
-            return '<tr><td>' + rank + '</td><td>' + label + '</td><td style="text-align:right;">' + mainDpsStr + '</td><td style="text-align:right;">' + offDpsStr + '</td><td style="text-align:right;">' + totalDpsStr + '</td></tr>';
-          });
-          $('report').innerHTML = '<pre style="margin:0;">' + lines.join('\n') + '</pre><table class="rank-weapons-table" style="margin-top:0.5rem; border-collapse:collapse; width:100%; font-size:0.9rem;"><thead><tr><th style="text-align:left;">#</th><th style="text-align:left;">Combination</th><th style="text-align:right;">Mainhand DPS</th><th style="text-align:right;">Offhand DPS</th><th style="text-align:right;">Total DPS</th></tr></thead><tbody>' + tableRows.join('') + '</tbody></table>';
+
+          var runsCount = Math.max(1, Math.min(1000, parseInt($('runs').value, 10) || 20));
+          var top40 = results.slice(0, 40);
+          function renderRankReport() {
+            results.sort(function (a, b) { return (b.totalDps || 0) - (a.totalDps || 0); });
+            window._lastRankWeaponsResults = results;
+            var subText = top40.length > 0 ? ' Top 40 averaged over ' + runsCount + ' runs.' : '';
+            var lines = ['=== Weapon combination rank (by DPS) ===', 'Class: ' + (classConfig && classConfig.name ? classConfig.name : classId) + ', Level: ' + level + ', Duration: ' + durationSec + 's', 'From luclinweapons.json.' + subText + ' DPS = mainhand + offhand (additive).', ''];
+            var tableRows = results.map(function (row, i) {
+              var rank = i + 1;
+              var label = (row.label || '').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+              var mainDpsStr = row.mainhandDps != null ? row.mainhandDps.toFixed(2) : '—';
+              var offDpsStr = row.offhandDps != null ? row.offhandDps.toFixed(2) : '—';
+              var totalDpsStr = row.totalDps != null ? row.totalDps.toFixed(2) : '—';
+              return '<tr><td>' + rank + '</td><td>' + label + '</td><td style="text-align:right;">' + mainDpsStr + '</td><td style="text-align:right;">' + offDpsStr + '</td><td style="text-align:right;">' + totalDpsStr + '</td></tr>';
+            });
+            $('report').innerHTML = '<pre style="margin:0;">' + lines.join('\n') + '</pre><table class="rank-weapons-table" style="margin-top:0.5rem; border-collapse:collapse; width:100%; font-size:0.9rem;"><thead><tr><th style="text-align:left;">#</th><th style="text-align:left;">Combination</th><th style="text-align:right;">Mainhand DPS</th><th style="text-align:right;">Offhand DPS</th><th style="text-align:right;">Total DPS</th></tr></thead><tbody>' + tableRows.join('') + '</tbody></table><p style="margin-top:0.5rem;"><button type="button" id="btn-rank-export-csv">Export to .csv</button></p>';
+          }
+          if (top40.length === 0) {
+            renderRankReport();
+            return;
+          }
+          $('report').textContent = 'Averaging top 40 results over multiple runs';
+          var avgIndex = 0;
+          function runNextTop40() {
+            if (avgIndex >= top40.length) {
+              renderRankReport();
+              return;
+            }
+            var row = top40[avgIndex];
+            var p1 = rankWeaponMap[row.primaryId];
+            var is2H = !!(p1.is2H || (p1.type && offhandBlockedTypes[p1.type]));
+            var w1 = normalizedToWeapon1(p1, applyBane);
+            var skillKey = skillKeyForCap(p1.type, is2H);
+            var weaponSkillForToHit = WeaponSkillCaps.getCapForSimClass(classId, skillKey, level) || 252;
+            var opts = Object.assign({}, baseOptions, {
+              weapon1: w1,
+              weapon2: undefined,
+              weapon1Type: p1.type || undefined,
+              dualWieldSkill: 0,
+              weaponSkillForToHit: weaponSkillForToHit,
+              fistweaving: classId === 'monk' && is2H && $('fistweaving').checked
+            });
+            if (row.secondaryId) {
+              var p2 = rankWeaponMap[row.secondaryId];
+              var d2 = p2.damage;
+              if (applyBane && p2.baneDamage) d2 += p2.baneDamage;
+              opts.weapon2 = {
+                damage: d2,
+                delay: p2.delay,
+                procSpell: (p2.proc != null ? p2.proc : '') || (p2.procSpell != null ? p2.procSpell : ''),
+                procSpellDamage: p2.procDamage || 0,
+                procRate: 0,
+                elemType: p2.elemType || undefined,
+                elemDamage: (p2.elemDamage != null ? p2.elemDamage : 0) || 0
+              };
+              opts.dualWieldSkill = dualWieldSkillForm;
+            }
+            var reports = [];
+            for (var ri = 0; ri < runsCount; ri++) {
+              opts.seed = runsCount === 1 ? undefined : (Date.now() + ri + avgIndex * 10000);
+              var r = EQCombat.runFight(opts);
+              if (!r.error) reports.push(r);
+            }
+            var n = reports.length;
+            if (n > 0) {
+              var sumTotal = reports.reduce(function (s, r) { return s + r.totalDamage; }, 0);
+              var sumW1 = reports.reduce(function (s, r) { return s + (r.weapon1 && r.weapon1.totalDamage != null ? r.weapon1.totalDamage : 0); }, 0);
+              var sumW2 = reports.reduce(function (s, r) { return s + (r.weapon2 && r.weapon2.totalDamage != null ? r.weapon2.totalDamage : 0); }, 0);
+              row.totalDps = sumTotal / n / durationSec;
+              row.mainhandDps = sumW1 / n / durationSec;
+              row.offhandDps = sumW2 / n / durationSec;
+            }
+            avgIndex++;
+            requestAnimationFrame(runNextTop40);
+          }
+          requestAnimationFrame(runNextTop40);
         }
         $('report').textContent = 'Measuring mainhand DPS… 0% complete (0 / ' + totalSims + ' weapons)';
         requestAnimationFrame(runNextChunk);
@@ -2056,6 +2123,39 @@
         run();
       });
       $('btn-rank-weapons').addEventListener('click', rankWeapons);
+
+      function escapeCsvField(val) {
+        var s = (val != null && val !== undefined) ? String(val) : '';
+        if (/[",\r\n]/.test(s)) return '"' + s.replace(/"/g, '""') + '"';
+        return s;
+      }
+      function exportRankWeaponsToCsv() {
+        var results = window._lastRankWeaponsResults;
+        if (!results || !Array.isArray(results) || results.length === 0) {
+          if (typeof alert !== 'undefined') alert('No rank results to export. Run Rank weapons first.');
+          return;
+        }
+        var header = ['#', 'Combination', 'Mainhand DPS', 'Offhand DPS', 'Total DPS'];
+        var csvRows = [header.map(escapeCsvField).join(',')];
+        results.forEach(function (row, i) {
+          var rank = i + 1;
+          var mainDps = row.mainhandDps != null ? row.mainhandDps.toFixed(2) : '';
+          var offDps = row.offhandDps != null ? row.offhandDps.toFixed(2) : '';
+          var totalDps = row.totalDps != null ? row.totalDps.toFixed(2) : '';
+          csvRows.push([rank, row.label || '', mainDps, offDps, totalDps].map(escapeCsvField).join(','));
+        });
+        var csv = csvRows.join('\r\n');
+        var blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = url;
+        a.download = 'weapon-rank-' + new Date().toISOString().slice(0, 10) + '.csv';
+        a.click();
+        URL.revokeObjectURL(url);
+      }
+      $('report').addEventListener('click', function (e) {
+        if (e.target && e.target.id === 'btn-rank-export-csv') exportRankWeaponsToCsv();
+      });
 
       function renderSimHistory() {
         const listEl = $('sim-history-list');
