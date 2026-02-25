@@ -702,6 +702,7 @@
       <button type="button" id="btn-run">Run simulation</button>
       <span class="rank-weapons-row" id="rank-weapons-wrap">
         <button type="button" id="btn-rank-weapons" title="Rank weapons by DPS (Shift+Click Run to show)">Rank weapons</button>
+        <button type="button" id="btn-rank-export-csv-toolbar" title="Export the weapon rank list to a CSV file (run Rank weapons first)">Export to CSV</button>
         <label class="checkbox-label"><input type="checkbox" id="rank-weapons-include-pop" title="When checked, weapons from resources/popweapons.json (Planes of Power) are included in ranking"> Include PoP weapons</label>
       </span>
     </section>
@@ -2045,6 +2046,8 @@
           var runsCount = Math.max(1, Math.min(1000, parseInt($('runs').value, 10) || 20));
           var top40 = results.slice(0, 40);
           function renderRankReport() {
+            var reportEl = $('report');
+            if (reportEl) reportEl.textContent = 'Generating chart...';
             results.sort(function (a, b) { return (b.totalDps || 0) - (a.totalDps || 0); });
             window._lastRankWeaponsResults = results;
             var subText = top40.length > 0 ? ' Top 40 averaged over ' + runsCount + ' runs.' : '';
@@ -2078,61 +2081,74 @@
             renderRankReport();
             return;
           }
-          $('report').textContent = 'Averaging top 40 results over multiple runs';
+          var totalAveragingRuns = top40.length * runsCount;
+          $('report').textContent = 'Averaging top 40 results over multiple runs (0/' + totalAveragingRuns + ')';
           var avgIndex = 0;
-          function runNextTop40() {
+          var runInCombo = 0;
+          var comboReports = [];
+          var currentOpts = null;
+          function runNextAveragingStep() {
+            var reportEl = $('report');
             if (avgIndex >= top40.length) {
+              if (reportEl) reportEl.textContent = 'Reordering results...';
               renderRankReport();
               return;
             }
             var row = top40[avgIndex];
-            var p1 = rankWeaponMap[row.primaryId];
-            var is2H = !!(p1.is2H || (p1.type && offhandBlockedTypes[p1.type]));
-            var w1 = normalizedToWeapon1(p1, applyBane);
-            var skillKey = skillKeyForCap(p1.type, is2H);
-            var weaponSkillForToHit = WeaponSkillCaps.getCapForSimClass(classId, skillKey, level) || 252;
-            var opts = Object.assign({}, baseOptions, {
-              weapon1: w1,
-              weapon2: undefined,
-              weapon1Type: p1.type || undefined,
-              dualWieldSkill: 0,
-              weaponSkillForToHit: weaponSkillForToHit,
-              fistweaving: classId === 'monk' && is2H && $('fistweaving').checked
-            });
-            if (row.secondaryId) {
-              var p2 = rankWeaponMap[row.secondaryId];
-              var d2 = p2.damage;
-              if (applyBane && p2.baneDamage) d2 += p2.baneDamage;
-              opts.weapon2 = {
-                damage: d2,
-                delay: p2.delay,
-                procSpell: (p2.proc != null ? p2.proc : '') || (p2.procSpell != null ? p2.procSpell : ''),
-                procSpellDamage: p2.procDamage || 0,
-                procRate: 0,
-                elemType: p2.elemType || undefined,
-                elemDamage: (p2.elemDamage != null ? p2.elemDamage : 0) || 0
-              };
-              opts.dualWieldSkill = dualWieldSkillForm;
+            if (currentOpts === null) {
+              var p1 = rankWeaponMap[row.primaryId];
+              var is2H = !!(p1.is2H || (p1.type && offhandBlockedTypes[p1.type]));
+              var w1 = normalizedToWeapon1(p1, applyBane);
+              var skillKey = skillKeyForCap(p1.type, is2H);
+              var weaponSkillForToHit = WeaponSkillCaps.getCapForSimClass(classId, skillKey, level) || 252;
+              currentOpts = Object.assign({}, baseOptions, {
+                weapon1: w1,
+                weapon2: undefined,
+                weapon1Type: p1.type || undefined,
+                dualWieldSkill: 0,
+                weaponSkillForToHit: weaponSkillForToHit,
+                fistweaving: classId === 'monk' && is2H && $('fistweaving').checked
+              });
+              if (row.secondaryId) {
+                var p2 = rankWeaponMap[row.secondaryId];
+                var d2 = p2.damage;
+                if (applyBane && p2.baneDamage) d2 += p2.baneDamage;
+                currentOpts.weapon2 = {
+                  damage: d2,
+                  delay: p2.delay,
+                  procSpell: (p2.proc != null ? p2.proc : '') || (p2.procSpell != null ? p2.procSpell : ''),
+                  procSpellDamage: p2.procDamage || 0,
+                  procRate: 0,
+                  elemType: p2.elemType || undefined,
+                  elemDamage: (p2.elemDamage != null ? p2.elemDamage : 0) || 0
+                };
+                currentOpts.dualWieldSkill = dualWieldSkillForm;
+              }
             }
-            var reports = [];
-            for (var ri = 0; ri < runsCount; ri++) {
-              opts.seed = runsCount === 1 ? undefined : (Date.now() + ri + avgIndex * 10000);
-              var r = EQCombat.runFight(opts);
-              if (!r.error) reports.push(r);
+            currentOpts.seed = runsCount === 1 ? undefined : (Date.now() + runInCombo + avgIndex * 10000);
+            var r = EQCombat.runFight(currentOpts);
+            if (!r.error) comboReports.push(r);
+            runInCombo++;
+            var completedRuns = avgIndex * runsCount + runInCombo;
+            if (reportEl) reportEl.textContent = 'Averaging top 40 results over multiple runs (' + completedRuns + '/' + totalAveragingRuns + ')';
+            if (runInCombo >= runsCount) {
+              var n = comboReports.length;
+              if (n > 0) {
+                var sumTotal = comboReports.reduce(function (s, r) { return s + r.totalDamage; }, 0);
+                var sumW1 = comboReports.reduce(function (s, r) { return s + (r.weapon1 && r.weapon1.totalDamage != null ? r.weapon1.totalDamage : 0); }, 0);
+                var sumW2 = comboReports.reduce(function (s, r) { return s + (r.weapon2 && r.weapon2.totalDamage != null ? r.weapon2.totalDamage : 0); }, 0);
+                row.totalDps = sumTotal / n / durationSec;
+                row.mainhandDps = sumW1 / n / durationSec;
+                row.offhandDps = sumW2 / n / durationSec;
+              }
+              avgIndex++;
+              runInCombo = 0;
+              comboReports = [];
+              currentOpts = null;
             }
-            var n = reports.length;
-            if (n > 0) {
-              var sumTotal = reports.reduce(function (s, r) { return s + r.totalDamage; }, 0);
-              var sumW1 = reports.reduce(function (s, r) { return s + (r.weapon1 && r.weapon1.totalDamage != null ? r.weapon1.totalDamage : 0); }, 0);
-              var sumW2 = reports.reduce(function (s, r) { return s + (r.weapon2 && r.weapon2.totalDamage != null ? r.weapon2.totalDamage : 0); }, 0);
-              row.totalDps = sumTotal / n / durationSec;
-              row.mainhandDps = sumW1 / n / durationSec;
-              row.offhandDps = sumW2 / n / durationSec;
-            }
-            avgIndex++;
-            requestAnimationFrame(runNextTop40);
+            requestAnimationFrame(runNextAveragingStep);
           }
-          requestAnimationFrame(runNextTop40);
+          requestAnimationFrame(runNextAveragingStep);
         }
         $('report').textContent = 'Measuring mainhand DPS… 0% complete (0 / ' + totalSims + ' weapons)';
         requestAnimationFrame(runNextChunk);
@@ -2160,16 +2176,18 @@
           if (typeof alert !== 'undefined') alert('No rank results to export. Run Rank weapons first.');
           return;
         }
-        var header = ['#', 'Combination', 'Mainhand DPS', 'Offhand DPS', 'Total DPS'];
+        var maxDps = results[0].totalDps != null && results[0].totalDps > 0 ? results[0].totalDps : 1;
+        var header = ['Rank', 'Weapon Combination', 'Mainhand DPS', 'Offhand DPS', 'Total DPS', '% of BIS'];
         var csvRows = [header.map(escapeCsvField).join(',')];
         results.forEach(function (row, i) {
           var rank = i + 1;
           var mainDps = row.mainhandDps != null ? row.mainhandDps.toFixed(2) : '';
           var offDps = row.offhandDps != null ? row.offhandDps.toFixed(2) : '';
           var totalDps = row.totalDps != null ? row.totalDps.toFixed(2) : '';
-          csvRows.push([rank, row.label || '', mainDps, offDps, totalDps].map(escapeCsvField).join(','));
+          var pctBis = row.totalDps != null && maxDps > 0 ? (row.totalDps / maxDps * 100).toFixed(1) + '%' : '';
+          csvRows.push([rank, row.label || '', mainDps, offDps, totalDps, pctBis].map(escapeCsvField).join(','));
         });
-        var csv = csvRows.join('\r\n');
+        var csv = '\uFEFF' + csvRows.join('\r\n');
         var blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
         var url = URL.createObjectURL(blob);
         var a = document.createElement('a');
@@ -2181,6 +2199,8 @@
       $('report').addEventListener('click', function (e) {
         if (e.target && e.target.id === 'btn-rank-export-csv') exportRankWeaponsToCsv();
       });
+      var btnRankExportToolbar = $('btn-rank-export-csv-toolbar');
+      if (btnRankExportToolbar) btnRankExportToolbar.addEventListener('click', exportRankWeaponsToCsv);
 
       function renderSimHistory() {
         const listEl = $('sim-history-list');
@@ -2443,6 +2463,7 @@
           return;
         }
         iconEl.onerror = function () { wrap.style.display = 'none'; };
+        // Expected path for default class (monk): resources/class icons/C_monk.gif
         iconEl.src = 'resources/class icons/C_' + classId.toLowerCase() + '.gif';
         iconEl.alt = classId ? (classId.charAt(0).toUpperCase() + classId.slice(1)) : '';
         wrap.style.display = '';
@@ -2450,6 +2471,7 @@
       $('class').addEventListener('change', onClassOrLevelChange);
       $('level').addEventListener('change', onClassOrLevelChange);
       $('level').addEventListener('input', onClassOrLevelChange);
+      updateClassIcon();
       const hasteEl = $('haste');
       if (hasteEl) {
         hasteEl.addEventListener('input', updateSpecialReuseDisplay);
