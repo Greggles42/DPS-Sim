@@ -435,7 +435,7 @@
 <body>
   <div class="banner">
     <div class="banner-left">
-      <h1>Gabbiz's Project Quarm EQ DPS Simulator <span id="app-version" style="font-weight: 400; color: var(--muted); font-size: 0.85rem;">v0.9</span></h1>
+      <h1>Gabbiz's Project Quarm EQ DPS Simulator <span id="app-version" style="font-weight: 400; color: var(--muted); font-size: 0.85rem;">v0.10</span></h1>
       <p class="muted" style="margin:0 0 1rem; color: var(--muted); font-size: 0.9rem;">
         Formulas based on <a href="https://github.com/SecretsOTheP/EQMacEmu/blob/main/zone/attack.cpp" target="_blank" rel="noopener" style="color: var(--accent);">EQMacEmu attack.cpp</a>.
       </p>
@@ -700,7 +700,7 @@
         <p class="hint">When checked, each weapon's bane damage is added to its base damage.</p>
       </details>
       <button type="button" id="btn-run">Run simulation</button>
-      <span class="rank-weapons-row" style="display:none;" id="rank-weapons-wrap">
+      <span class="rank-weapons-row" id="rank-weapons-wrap">
         <button type="button" id="btn-rank-weapons" title="Rank weapons by DPS (Shift+Click Run to show)">Rank weapons</button>
         <label class="checkbox-label"><input type="checkbox" id="rank-weapons-include-pop" title="When checked, weapons from resources/popweapons.json (Planes of Power) are included in ranking"> Include PoP weapons</label>
       </span>
@@ -873,6 +873,7 @@
   <section style="margin-top: 1rem;">
     <h2>Version log</h2>
     <ul style="font-size: 0.9rem; color: var(--muted); margin: 0; padding-left: 1.25rem;">
+      <li><strong>0.10</strong> — Added spell proc resist chances. Added weapon ranking function.</li>
       <li><strong>0.9</strong> — Item and NPC search added to simulation. Improved some backstab performance. Added Inner Flame and Duelist discipline simulations. Proc damage now derived from spell data (spells_en) using EQEmu rules (SE_CurrentHP, max/limit). Target NPC search (npc_types): pick a mob to fill AC, level, and resistances; selected target name appears in the report and sim history.</li>
       <li><strong>0.8</strong> — Added UI improvements, added elemental and bane damage.</li>
       <li><strong>0.7</strong> — Added Ranged Combat simulations.</li>
@@ -997,7 +998,7 @@
       }
 
       // When releasing: 1) Bump VERSION below. 2) Add a new <li> at the top of the Version log section above.
-      const VERSION = '0.9';
+      const VERSION = '0.10';
       const versionEl = $('app-version');
       if (versionEl) versionEl.textContent = 'v' + VERSION;
 
