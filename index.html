@@ -574,6 +574,7 @@
         <input type="number" id="w1-proc-damage" min="0" value="0" placeholder="0">
         <input type="hidden" id="w1-proc-rate" value="0">
         <input type="hidden" id="w1-proc-buff-duration" value="">
+        <input type="hidden" id="w1-proc-spell-id" value="">
         <div class="row">
           <div><label for="w1-elem-type" class="small-label">Elemental type</label><select id="w1-elem-type">
             <option value="">None</option>
@@ -612,6 +613,7 @@
         <input type="number" id="w2-proc-damage" min="0" value="0" placeholder="0">
         <input type="hidden" id="w2-proc-rate" value="0">
         <input type="hidden" id="w2-proc-buff-duration" value="">
+        <input type="hidden" id="w2-proc-spell-id" value="">
         <div class="row">
           <div><label for="w2-elem-type" class="small-label">Elemental type</label><select id="w2-elem-type">
             <option value="">None</option>
@@ -1225,6 +1227,8 @@
         const procRate = procRateEl && procRateEl.value !== '' ? (parseInt(procRateEl.value, 10) || 0) : 0;
         const procBuffDurationEl = $(prefix + '-proc-buff-duration');
         const procBuffDurationTicks = procBuffDurationEl && procBuffDurationEl.value !== '' ? (parseInt(procBuffDurationEl.value, 10) || 0) : undefined;
+        const procSpellIdEl = $(prefix + '-proc-spell-id');
+        const procSpellId = procSpellIdEl && procSpellIdEl.value !== '' ? (parseInt(procSpellIdEl.value, 10) || null) : null;
         const minDmgRaw = $(prefix + '-min');
         const maxDmgRaw = $(prefix + '-max');
         const minDmg = minDmgRaw && minDmgRaw.value !== '' ? parseInt(minDmgRaw.value, 10) : null;
@@ -1238,6 +1242,7 @@
         const baneDamage = baneEl && baneEl.value !== '' ? (parseInt(baneEl.value, 10) || 0) : 0;
         const out = { damage, delay, procSpell: proc, procSpellDamage: procSpellDamage || 0, procRate, minDmg, maxDmg, is2H, baneDamage };
         if (procBuffDurationTicks != null && procBuffDurationTicks > 0) out.procBuffDurationTicks = procBuffDurationTicks;
+        if (procSpellId != null) out.procSpellId = procSpellId;
         if (elemType && elemDamage > 0) { out.elemType = elemType; out.elemDamage = elemDamage; }
         return out;
       }
@@ -1245,6 +1250,24 @@
       function run() {
         const weapon1 = getWeapon('w1');
         const weapon2 = getWeapon('w2');
+        if (weapon1 && weapon1.procSpellId && typeof ItemSearch !== 'undefined' && ItemSearch.getSpellFromLocalData) {
+          var sd1 = ItemSearch.getSpellFromLocalData(weapon1.procSpellId);
+          if (sd1) {
+            if (sd1.resisttype != null) weapon1.procSpellResistType = sd1.resisttype;
+            if (sd1.resistModifier != null) weapon1.procSpellResistModifier = sd1.resistModifier;
+            weapon1.procSpellNoPartialResist = sd1.noPartialResist;
+            weapon1.procSpellMovementEffect = sd1.movementEffect;
+          }
+        }
+        if (weapon2 && weapon2.procSpellId && typeof ItemSearch !== 'undefined' && ItemSearch.getSpellFromLocalData) {
+          var sd2 = ItemSearch.getSpellFromLocalData(weapon2.procSpellId);
+          if (sd2) {
+            if (sd2.resisttype != null) weapon2.procSpellResistType = sd2.resisttype;
+            if (sd2.resistModifier != null) weapon2.procSpellResistModifier = sd2.resistModifier;
+            weapon2.procSpellNoPartialResist = sd2.noPartialResist;
+            weapon2.procSpellMovementEffect = sd2.movementEffect;
+          }
+        }
         if ($('apply-bane').checked) {
           if (weapon1.baneDamage) weapon1.damage += weapon1.baneDamage;
           if (weapon2.baneDamage) weapon2.damage += weapon2.baneDamage;
@@ -1295,9 +1318,21 @@
           weaponSkillForToHit = WeaponSkillCaps.getCapForSimClass(classId, skillKey, level) || undefined;
         }
         if (weaponSkillForToHit <= 0) weaponSkillForToHit = undefined;
+        const w1ProcResist = hasMainHand && weapon1 ? {
+          procSpellResistType: weapon1.procSpellResistType,
+          procSpellResistModifier: weapon1.procSpellResistModifier,
+          procSpellNoPartialResist: weapon1.procSpellNoPartialResist,
+          procSpellMovementEffect: weapon1.procSpellMovementEffect
+        } : {};
+        const w2ProcResist = useWeapon2 && weapon2 ? {
+          procSpellResistType: weapon2.procSpellResistType,
+          procSpellResistModifier: weapon2.procSpellResistModifier,
+          procSpellNoPartialResist: weapon2.procSpellNoPartialResist,
+          procSpellMovementEffect: weapon2.procSpellMovementEffect
+        } : {};
         const options = {
-          weapon1: hasMainHand ? { damage: weapon1.damage, delay: weapon1.delay, procSpell: weapon1.procSpell, procSpellDamage: weapon1.procSpellDamage, procRate: weapon1.procRate, procBuffDurationTicks: weapon1.procBuffDurationTicks, is2H: weapon1.is2H, elemType: weapon1.elemType, elemDamage: weapon1.elemDamage, type: w1WeaponType || undefined } : undefined,
-          weapon2: useWeapon2 ? { damage: weapon2.damage, delay: weapon2.delay, procSpell: weapon2.procSpell, procSpellDamage: weapon2.procSpellDamage, procRate: weapon2.procRate, procBuffDurationTicks: weapon2.procBuffDurationTicks, elemType: weapon2.elemType, elemDamage: weapon2.elemDamage } : undefined,
+          weapon1: hasMainHand ? Object.assign({ damage: weapon1.damage, delay: weapon1.delay, procSpell: weapon1.procSpell, procSpellDamage: weapon1.procSpellDamage, procRate: weapon1.procRate, procBuffDurationTicks: weapon1.procBuffDurationTicks, is2H: weapon1.is2H, elemType: weapon1.elemType, elemDamage: weapon1.elemDamage, type: w1WeaponType || undefined }, w1ProcResist) : undefined,
+          weapon2: useWeapon2 ? Object.assign({ damage: weapon2.damage, delay: weapon2.delay, procSpell: weapon2.procSpell, procSpellDamage: weapon2.procSpellDamage, procRate: weapon2.procRate, procBuffDurationTicks: weapon2.procBuffDurationTicks, elemType: weapon2.elemType, elemDamage: weapon2.elemDamage }, w2ProcResist) : undefined,
           weapon1Type: w1WeaponType || undefined,
           hastePercent,
           offenseSkill,
@@ -2431,6 +2466,8 @@
         $(prefix + '-damage').value = isNaN(dmg) ? '' : dmg;
         $(prefix + '-delay').value = isNaN(dly) ? '' : dly;
         $(prefix + '-proc').value = (weapon.proc != null ? String(weapon.proc) : '') || '';
+        const procSpellIdEl = $(prefix + '-proc-spell-id');
+        if (procSpellIdEl) procSpellIdEl.value = (weapon.procSpellId != null ? String(weapon.procSpellId) : '') || '';
         const procDmgEl = $(prefix + '-proc-damage');
         if (procDmgEl) procDmgEl.value = isNaN(procDmg) ? '' : procDmg;
         const procRateEl = $(prefix + '-proc-rate');

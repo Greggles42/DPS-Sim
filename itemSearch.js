@@ -115,7 +115,32 @@
     var total = fromDirect + totalOnce;
     damage = total > 0 ? total : undefined;
     var buffdurationTicks = (!isInstant && ticks > 0) ? ticks : undefined;
-    return { name: name, damage: damage, buffdurationTicks: buffdurationTicks };
+    var resisttype = spell.resisttype != null ? (typeof spell.resisttype === 'number' ? spell.resisttype : parseInt(String(spell.resisttype), 10)) : 0;
+    if (isNaN(resisttype)) resisttype = 0;
+    var resistModifier = 0;
+    if (spell.ResistDiff != null) {
+      var rd = typeof spell.ResistDiff === 'number' ? spell.ResistDiff : parseInt(String(spell.ResistDiff), 10);
+      if (!isNaN(rd)) resistModifier = rd;
+    }
+    var noPartialResist = !!(spell.no_partial_resist != null && spell.no_partial_resist !== 0 && String(spell.no_partial_resist) !== '0');
+    var SE_Root = 27;
+    var SE_MovementSpeed = 54;
+    var movementEffect = false;
+    for (var j = 1; j <= 12; j++) {
+      var eid2 = spell['effectid' + j];
+      if (eid2 === undefined || eid2 === null) continue;
+      var effId = typeof eid2 === 'number' ? eid2 : parseInt(String(eid2), 10);
+      if (effId === SE_Root || effId === SE_MovementSpeed) { movementEffect = true; break; }
+    }
+    return {
+      name: name,
+      damage: damage,
+      buffdurationTicks: buffdurationTicks,
+      resisttype: resisttype,
+      resistModifier: resistModifier,
+      noPartialResist: noPartialResist,
+      movementEffect: movementEffect
+    };
   }
 
   /**

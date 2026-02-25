@@ -336,6 +336,81 @@
     return procChance > 0 && rng() < procChance;
   }
 
+  // ----- Spell proc resist (EQMacEmu spells.cpp CheckResistSpell / ResistSpell) -----
+  // Resist types: 0 = none (unresistable), 1 = magic (MR), 2 = fire (FR), 3 = cold (CR), 4 = disease (DR), 5 = poison (PR).
+  // Resist modifier (ResistDiff) is spell-based; negative values make the spell land more easily.
+  // DoT procs are resisted only when applied, not on each tick.
+  const RESIST_TYPE_NONE = 0;
+  function getTargetResistBySpellType(options, resistType) {
+    if (resistType == null || resistType === RESIST_TYPE_NONE) return 0;
+    const key = resistType === 1 ? 'targetMR' : resistType === 2 ? 'targetFR' : resistType === 3 ? 'targetCR' : resistType === 4 ? 'targetDR' : resistType === 5 ? 'targetPR' : null;
+    return key != null && options[key] != null ? options[key] : 35;
+  }
+
+  /**
+   * Check if target is immune to this proc (e.g. movement immune vs root/snare).
+   * @param {Object} weapon - weapon with optional procSpellMovementEffect
+   * @param {Object} options - options.targetMovementImmune
+   * @returns {boolean} true if proc should do no damage
+   */
+  function checkProcSpellImmunity(weapon, options) {
+    if (!weapon || !options) return false;
+    if (weapon.procSpellMovementEffect && options.targetMovementImmune) return true;
+    return false;
+  }
+
+  /**
+   * Spell resist roll for procs. Based on EQMacEmu CheckResistSpell.
+   * @param {number} resistType - 0=none, 1=magic, 2=fire, 3=cold, 4=disease, 5=poison
+   * @param {number} targetResist - target's resist value for that type
+   * @param {number} resistModifier - spell ResistDiff (negative = easier to land)
+   * @param {number} casterLevel
+   * @param {number} targetLevel
+   * @param {boolean} noPartialResist - if true, full resist on failed roll (no partial)
+   * @param {number} targetResistChanceBonus - extra % chance to fully resist (e.g. Sanctification)
+   * @param {Function} rng
+   * @returns {number} effectiveness 0–100 (100 = full damage, 0 = full resist, partial = scaled)
+   */
+  function calcProcSpellResist(resistType, targetResist, resistModifier, casterLevel, targetLevel, noPartialResist, targetResistChanceBonus, rng) {
+    if (resistType == null || resistType === RESIST_TYPE_NONE) return 100;
+    if (targetResistChanceBonus > 0 && rng() * 100 < targetResistChanceBonus) return 0;
+    const levelDiff = (targetLevel != null ? targetLevel : 60) - (casterLevel != null ? casterLevel : 60);
+    let tempLevelDiff = levelDiff;
+    if (tempLevelDiff > 15) tempLevelDiff = 15;
+    if (tempLevelDiff < -9) tempLevelDiff = -9;
+    let levelMod = Math.floor((tempLevelDiff * tempLevelDiff) / 2);
+    if (tempLevelDiff < 0) levelMod = -levelMod;
+    let resistChance = targetResist + levelMod + (resistModifier != null ? resistModifier : 0);
+    resistChance = Math.max(0, Math.min(200, resistChance));
+    const roll = Math.floor(rng() * 201);
+    if (roll > resistChance) return 100;
+    if (noPartialResist) return 0;
+    const partialModifier = resistChance > 0 ? Math.floor(150 * (resistChance - roll) / resistChance) : 100;
+    const effectiveness = Math.max(0, Math.min(100, 100 - partialModifier));
+    return effectiveness;
+  }
+
+  /**
+   * Resolve proc spell effectiveness (immunity + resist). DoT is resisted only on application.
+   * @param {Object} weapon - { procSpellResistType?, procSpellResistModifier?, procSpellNoPartialResist?, procSpellMovementEffect? }
+   * @param {Object} options - target resists (targetMR/FR/CR/DR/PR), level, mobLevel, targetResistChanceBonus?, targetMovementImmune?
+   * @param {number} casterLevel
+   * @param {Function} rng
+   * @returns {number} effectiveness 0–100
+   */
+  function getProcSpellEffectiveness(weapon, options, casterLevel, rng) {
+    if (!weapon) return 100;
+    if (checkProcSpellImmunity(weapon, options)) return 0;
+    const resistType = weapon.procSpellResistType != null ? weapon.procSpellResistType : RESIST_TYPE_NONE;
+    if (resistType === RESIST_TYPE_NONE) return 100;
+    const targetResist = getTargetResistBySpellType(options, resistType);
+    const resistModifier = weapon.procSpellResistModifier != null ? weapon.procSpellResistModifier : 0;
+    const targetLevel = options.mobLevel != null ? options.mobLevel : 60;
+    const noPartial = !!(weapon.procSpellNoPartialResist);
+    const resistChanceBonus = options.targetResistChanceBonus != null ? options.targetResistChanceBonus : 0;
+    return calcProcSpellResist(resistType, targetResist, resistModifier, casterLevel, targetLevel, noPartial, resistChanceBonus, rng);
+  }
+
   // ----- Special attacks (Flying Kick, Backstab, Kick, Bash, etc.) -----
   // Per EQMacEmu special_attacks.cpp: Bash (Warrior/Paladin/SK/Cleric), Slam (Ogre/Troll/Barbarian = Bash without shield), Kick (Warrior/Ranger/Beastlord), Flying Kick (Monk), Backstab (Rogue).
   // Flying Kick uses skill/level-based base only; Kick/Bash use GetSkillBaseDamage (skill-based base, not weapon).
@@ -468,6 +543,8 @@
         hitList: [],
         procs: 0,
         procDamageTotal: 0,
+        procResists: 0,
+        procResistDamageLost: 0,
       },
       durationSec: options.fightDurationSec,
       totalDamage: 0,
@@ -516,8 +593,14 @@
       if (procChance > 0 && checkProc(procChance, procRng)) {
         report.ranged.procs++;
         const procDmg = (bow.procSpellDamage != null ? bow.procSpellDamage : 0) || 0;
-        report.ranged.procDamageTotal += procDmg;
-        dmg += procDmg;
+        const effectiveness = getProcSpellEffectiveness(bow, options, level, procRng);
+        const actualProcDmg = Math.floor(procDmg * effectiveness / 100);
+        report.ranged.procDamageTotal += actualProcDmg;
+        dmg += actualProcDmg;
+        if (effectiveness < 100) {
+          report.ranged.procResists++;
+          report.ranged.procResistDamageLost += (procDmg - actualProcDmg);
+        }
       }
       report.ranged.totalDamage += dmg;
       report.totalDamage += dmg;
@@ -598,6 +681,12 @@
     if (r.procDamageTotal != null && r.procDamageTotal > 0) {
       lines.push(`    Proc damage:         ${r.procDamageTotal}`);
       lines.push(`    Proc DPS:            ${(r.procDamageTotal / dur).toFixed(2)}`);
+    }
+    if (r.procResists != null && r.procResists > 0) {
+      lines.push(`    Proc resists:        ${r.procResists}`);
+      if (r.procResistDamageLost != null && r.procResistDamageLost > 0) {
+        lines.push(`    Proc damage lost (resists): ${r.procResistDamageLost}`);
+      }
     }
     lines.push('');
 
@@ -730,8 +819,8 @@
     const procChance2 = Math.min(1, Math.max(0, baseProcChance2 * (100 + procRate2) / 100));
 
     const report = {
-      weapon1: { swings: 0, hits: 0, totalDamage: 0, maxDamage: 0, minDamage: Infinity, hitList: [], procs: 0, procDamageTotal: 0, rounds: 0, single: 0, double: 0, triple: 0 },
-      weapon2: { swings: 0, hits: 0, totalDamage: 0, maxDamage: 0, minDamage: Infinity, hitList: [], procs: 0, procDamageTotal: 0, rounds: 0, single: 0, double: 0, triple: 0 },
+      weapon1: { swings: 0, hits: 0, totalDamage: 0, maxDamage: 0, minDamage: Infinity, hitList: [], procs: 0, procDamageTotal: 0, procResists: 0, procResistDamageLost: 0, rounds: 0, single: 0, double: 0, triple: 0 },
+      weapon2: { swings: 0, hits: 0, totalDamage: 0, maxDamage: 0, minDamage: Infinity, hitList: [], procs: 0, procDamageTotal: 0, procResists: 0, procResistDamageLost: 0, rounds: 0, single: 0, double: 0, triple: 0 },
       durationSec: options.fightDurationSec,
       totalDamage: 0,
       elementalDamageTotal: 0,
@@ -969,8 +1058,9 @@
         if (mainHandHitThisRound && procChance1 > 0 && checkProc(procChance1, procRng)) {
           report.weapon1.procs++;
           const procDmg = (w1.procSpellDamage != null ? w1.procSpellDamage : 0) | 0;
+          const effectiveness = getProcSpellEffectiveness(w1, options, level, procRng);
           if (procBuffTicks1 > 0 && procDmg > 0) {
-            perTick1 = procDmg / procBuffTicks1;
+            perTick1 = (procDmg / procBuffTicks1) * effectiveness / 100;
             if (dotEndMs1 > lastProcMs1) {
               const ticksRan = Math.floor((Math.min(dotEndMs1, tMs) - lastProcMs1) / PROC_TICK_INTERVAL_MS);
               const dotDmg = Math.floor(ticksRan * perTick1);
@@ -981,9 +1071,18 @@
             }
             lastProcMs1 = tMs;
             dotEndMs1 = tMs + procBuffTicks1 * PROC_TICK_INTERVAL_MS;
+            if (effectiveness < 100) {
+              report.weapon1.procResists++;
+              report.weapon1.procResistDamageLost += Math.floor(procDmg * (100 - effectiveness) / 100);
+            }
           } else {
-            report.weapon1.procDamageTotal += procDmg;
-            report.totalDamage += procDmg;
+            const actualDmg = Math.floor(procDmg * effectiveness / 100);
+            report.weapon1.procDamageTotal += actualDmg;
+            report.totalDamage += actualDmg;
+            if (effectiveness < 100) {
+              report.weapon1.procResists++;
+              report.weapon1.procResistDamageLost += (procDmg - actualDmg);
+            }
           }
         }
 
@@ -1097,8 +1196,9 @@
           if (offhandHitThisRound && procChance2 > 0 && checkProc(procChance2, procRng)) {
             report.weapon2.procs++;
             const procDmg = (w2.procSpellDamage != null ? w2.procSpellDamage : 0) | 0;
+            const effectiveness = getProcSpellEffectiveness(w2, options, level, procRng);
             if (procBuffTicks2 > 0 && procDmg > 0) {
-              perTick2 = procDmg / procBuffTicks2;
+              perTick2 = (procDmg / procBuffTicks2) * effectiveness / 100;
               if (dotEndMs2 > lastProcMs2) {
                 const ticksRan = Math.floor((Math.min(dotEndMs2, tMs) - lastProcMs2) / PROC_TICK_INTERVAL_MS);
                 const dotDmg = Math.floor(ticksRan * perTick2);
@@ -1109,9 +1209,18 @@
               }
               lastProcMs2 = tMs;
               dotEndMs2 = tMs + procBuffTicks2 * PROC_TICK_INTERVAL_MS;
+              if (effectiveness < 100) {
+                report.weapon2.procResists++;
+                report.weapon2.procResistDamageLost += Math.floor(procDmg * (100 - effectiveness) / 100);
+              }
             } else {
-              report.weapon2.procDamageTotal += procDmg;
-              report.totalDamage += procDmg;
+              const actualDmg = Math.floor(procDmg * effectiveness / 100);
+              report.weapon2.procDamageTotal += actualDmg;
+              report.totalDamage += actualDmg;
+              if (effectiveness < 100) {
+                report.weapon2.procResists++;
+                report.weapon2.procResistDamageLost += (procDmg - actualDmg);
+              }
             }
           }
           if (attacksThisRound === 1) report.weapon2.single++;
@@ -1285,12 +1394,24 @@
       lines.push(`    Proc damage:         ${w1.procDamageTotal}`);
       lines.push(`    Proc DPS:            ${(w1.procDamageTotal / dur).toFixed(2)}`);
     }
+    if (w1.procResists != null && w1.procResists > 0) {
+      lines.push(`    Proc resists:        ${w1.procResists}`);
+      if (w1.procResistDamageLost != null && w1.procResistDamageLost > 0) {
+        lines.push(`    Proc damage lost (resists): ${w1.procResistDamageLost}`);
+      }
+    }
     if (w2.swings > 0) {
       lines.push(`  ${weapon2Label || 'Weapon 2'}`);
       if (w2.procs != null) lines.push(`    Procs:               ${w2.procs}`);
       if (w2.procDamageTotal != null && w2.procDamageTotal > 0) {
         lines.push(`    Proc damage:         ${w2.procDamageTotal}`);
         lines.push(`    Proc DPS:            ${(w2.procDamageTotal / dur).toFixed(2)}`);
+      }
+      if (w2.procResists != null && w2.procResists > 0) {
+        lines.push(`    Proc resists:        ${w2.procResists}`);
+        if (w2.procResistDamageLost != null && w2.procResistDamageLost > 0) {
+          lines.push(`    Proc damage lost (resists): ${w2.procResistDamageLost}`);
+        }
       }
     }
     if (report.special && (report.special.count > 0 || (report.special.attempts != null && report.special.attempts > 0))) {
