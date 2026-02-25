@@ -1752,6 +1752,12 @@
         const toHitBonus = (classConfig && classConfig.toHitBonus) ? classConfig.toHitBonus : 0;
         const specialAttackType = ($('special-attack-type').value || 'none');
         const specialAttacks = specialAttackType !== 'none';
+        var rankSpecialAttacks = specialAttacks;
+        var rankSpecialAttackType = specialAttackType;
+        if (classId === 'rogue') {
+          rankSpecialAttacks = true;
+          rankSpecialAttackType = 'backstab';
+        }
         const baseOptions = {
           hastePercent: parseFloat($('haste').value) || 0,
           offenseSkill,
@@ -1768,8 +1774,8 @@
           dex,
           str,
           fromBehind,
-          specialAttacks,
-          specialAttackType: specialAttacks ? specialAttackType : undefined,
+          specialAttacks: rankSpecialAttacks,
+          specialAttackType: rankSpecialAttacks ? rankSpecialAttackType : undefined,
           classId: classId,
           backstabModPercent: classId === 'rogue' ? (parseInt($('backstab-mod').value, 10) || 0) : undefined,
           backstabSkill: classId === 'rogue' ? (parseInt($('backstab-skill').value, 10) || 0) : undefined,
