@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>EverQuest DPS Simulator</title>
+  <title>Gabbiz's Project Quarm EQ DPS Simulator</title>
   <style>
     :root {
       --bg: #1a1d23;
@@ -739,7 +739,7 @@
         <p class="hint">When checked, the report tracks damage lost due to wall penalty vs a standard hit.</p>
       </details>
         </div>
-        <div class="char-haste-icon-wrap"><img id="ranged-class-icon" src="class icons/C_ranger.gif" alt="" class="class-icon" aria-hidden="true"></div>
+        <div class="char-haste-icon-wrap"><img id="ranged-class-icon" src="resources/class icons/C_ranger.gif" alt="" class="class-icon" aria-hidden="true"></div>
       </div>
     </section>
 
@@ -2442,7 +2442,7 @@
           return;
         }
         iconEl.onerror = function () { wrap.style.display = 'none'; };
-        iconEl.src = 'class icons/C_' + classId + '.gif';
+        iconEl.src = 'resources/class icons/C_' + classId + '.gif';
         iconEl.alt = classId ? (classId.charAt(0).toUpperCase() + classId.slice(1)) : '';
         wrap.style.display = '';
       }
