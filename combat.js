@@ -544,6 +544,8 @@
         procs: 0,
         procDamageTotal: 0,
         procResists: 0,
+        procFullResists: 0,
+        procPartialResists: 0,
         procResistDamageLost: 0,
       },
       durationSec: options.fightDurationSec,
@@ -597,7 +599,12 @@
         const actualProcDmg = Math.floor(procDmg * effectiveness / 100);
         report.ranged.procDamageTotal += actualProcDmg;
         dmg += actualProcDmg;
-        if (effectiveness < 100) {
+        if (effectiveness === 0) {
+          report.ranged.procFullResists++;
+          report.ranged.procResists++;
+          report.ranged.procResistDamageLost += procDmg;
+        } else if (effectiveness < 100) {
+          report.ranged.procPartialResists++;
           report.ranged.procResists++;
           report.ranged.procResistDamageLost += (procDmg - actualProcDmg);
         }
@@ -678,15 +685,12 @@
     // 6. Procs & Specials
     lines.push('=== Procs & Specials ===', '');
     if (r.procs != null) lines.push(`    Procs:               ${r.procs}`);
-    if (r.procDamageTotal != null && r.procDamageTotal > 0) {
-      lines.push(`    Proc damage:         ${r.procDamageTotal}`);
-      lines.push(`    Proc DPS:            ${(r.procDamageTotal / dur).toFixed(2)}`);
-    }
-    if (r.procResists != null && r.procResists > 0) {
-      lines.push(`    Proc resists:        ${r.procResists}`);
-      if (r.procResistDamageLost != null && r.procResistDamageLost > 0) {
-        lines.push(`    Proc damage lost (resists): ${r.procResistDamageLost}`);
-      }
+    lines.push(`    Proc damage:         ${r.procDamageTotal != null ? r.procDamageTotal : 0}`);
+    lines.push(`    Proc DPS:            ${(r.procDamageTotal != null && dur > 0) ? (r.procDamageTotal / dur).toFixed(2) : '0.00'}`);
+    lines.push(`    Proc full resists:   ${r.procFullResists != null ? r.procFullResists : 0}`);
+    lines.push(`    Proc partial resists: ${r.procPartialResists != null ? r.procPartialResists : 0}`);
+    if (r.procResistDamageLost != null && r.procResistDamageLost > 0) {
+      lines.push(`    Proc damage lost (resists): ${r.procResistDamageLost}`);
     }
     lines.push('');
 
@@ -819,8 +823,8 @@
     const procChance2 = Math.min(1, Math.max(0, baseProcChance2 * (100 + procRate2) / 100));
 
     const report = {
-      weapon1: { swings: 0, hits: 0, totalDamage: 0, maxDamage: 0, minDamage: Infinity, hitList: [], procs: 0, procDamageTotal: 0, procResists: 0, procResistDamageLost: 0, rounds: 0, single: 0, double: 0, triple: 0 },
-      weapon2: { swings: 0, hits: 0, totalDamage: 0, maxDamage: 0, minDamage: Infinity, hitList: [], procs: 0, procDamageTotal: 0, procResists: 0, procResistDamageLost: 0, rounds: 0, single: 0, double: 0, triple: 0 },
+      weapon1: { swings: 0, hits: 0, totalDamage: 0, maxDamage: 0, minDamage: Infinity, hitList: [], procs: 0, procDamageTotal: 0, procResists: 0, procFullResists: 0, procPartialResists: 0, procResistDamageLost: 0, rounds: 0, single: 0, double: 0, triple: 0 },
+      weapon2: { swings: 0, hits: 0, totalDamage: 0, maxDamage: 0, minDamage: Infinity, hitList: [], procs: 0, procDamageTotal: 0, procResists: 0, procFullResists: 0, procPartialResists: 0, procResistDamageLost: 0, rounds: 0, single: 0, double: 0, triple: 0 },
       durationSec: options.fightDurationSec,
       totalDamage: 0,
       elementalDamageTotal: 0,
@@ -1071,7 +1075,12 @@
             }
             lastProcMs1 = tMs;
             dotEndMs1 = tMs + procBuffTicks1 * PROC_TICK_INTERVAL_MS;
-            if (effectiveness < 100) {
+            if (effectiveness === 0) {
+              report.weapon1.procFullResists++;
+              report.weapon1.procResists++;
+              report.weapon1.procResistDamageLost += procDmg;
+            } else if (effectiveness < 100) {
+              report.weapon1.procPartialResists++;
               report.weapon1.procResists++;
               report.weapon1.procResistDamageLost += Math.floor(procDmg * (100 - effectiveness) / 100);
             }
@@ -1079,7 +1088,12 @@
             const actualDmg = Math.floor(procDmg * effectiveness / 100);
             report.weapon1.procDamageTotal += actualDmg;
             report.totalDamage += actualDmg;
-            if (effectiveness < 100) {
+            if (effectiveness === 0) {
+              report.weapon1.procFullResists++;
+              report.weapon1.procResists++;
+              report.weapon1.procResistDamageLost += procDmg;
+            } else if (effectiveness < 100) {
+              report.weapon1.procPartialResists++;
               report.weapon1.procResists++;
               report.weapon1.procResistDamageLost += (procDmg - actualDmg);
             }
@@ -1209,7 +1223,12 @@
               }
               lastProcMs2 = tMs;
               dotEndMs2 = tMs + procBuffTicks2 * PROC_TICK_INTERVAL_MS;
-              if (effectiveness < 100) {
+              if (effectiveness === 0) {
+                report.weapon2.procFullResists++;
+                report.weapon2.procResists++;
+                report.weapon2.procResistDamageLost += procDmg;
+              } else if (effectiveness < 100) {
+                report.weapon2.procPartialResists++;
                 report.weapon2.procResists++;
                 report.weapon2.procResistDamageLost += Math.floor(procDmg * (100 - effectiveness) / 100);
               }
@@ -1217,7 +1236,12 @@
               const actualDmg = Math.floor(procDmg * effectiveness / 100);
               report.weapon2.procDamageTotal += actualDmg;
               report.totalDamage += actualDmg;
-              if (effectiveness < 100) {
+              if (effectiveness === 0) {
+                report.weapon2.procFullResists++;
+                report.weapon2.procResists++;
+                report.weapon2.procResistDamageLost += procDmg;
+              } else if (effectiveness < 100) {
+                report.weapon2.procPartialResists++;
                 report.weapon2.procResists++;
                 report.weapon2.procResistDamageLost += (procDmg - actualDmg);
               }
@@ -1390,28 +1414,22 @@
     lines.push('=== Procs & Specials ===', '');
     lines.push(`  ${weapon1Label || 'Weapon 1'}`);
     if (w1.procs != null) lines.push(`    Procs:               ${w1.procs}`);
-    if (w1.procDamageTotal != null && w1.procDamageTotal > 0) {
-      lines.push(`    Proc damage:         ${w1.procDamageTotal}`);
-      lines.push(`    Proc DPS:            ${(w1.procDamageTotal / dur).toFixed(2)}`);
-    }
-    if (w1.procResists != null && w1.procResists > 0) {
-      lines.push(`    Proc resists:        ${w1.procResists}`);
-      if (w1.procResistDamageLost != null && w1.procResistDamageLost > 0) {
-        lines.push(`    Proc damage lost (resists): ${w1.procResistDamageLost}`);
-      }
+    lines.push(`    Proc damage:         ${w1.procDamageTotal != null ? w1.procDamageTotal : 0}`);
+    lines.push(`    Proc DPS:            ${(w1.procDamageTotal != null && dur > 0) ? (w1.procDamageTotal / dur).toFixed(2) : '0.00'}`);
+    lines.push(`    Proc full resists:   ${w1.procFullResists != null ? w1.procFullResists : 0}`);
+    lines.push(`    Proc partial resists: ${w1.procPartialResists != null ? w1.procPartialResists : 0}`);
+    if (w1.procResistDamageLost != null && w1.procResistDamageLost > 0) {
+      lines.push(`    Proc damage lost (resists): ${w1.procResistDamageLost}`);
     }
     if (w2.swings > 0) {
       lines.push(`  ${weapon2Label || 'Weapon 2'}`);
       if (w2.procs != null) lines.push(`    Procs:               ${w2.procs}`);
-      if (w2.procDamageTotal != null && w2.procDamageTotal > 0) {
-        lines.push(`    Proc damage:         ${w2.procDamageTotal}`);
-        lines.push(`    Proc DPS:            ${(w2.procDamageTotal / dur).toFixed(2)}`);
-      }
-      if (w2.procResists != null && w2.procResists > 0) {
-        lines.push(`    Proc resists:        ${w2.procResists}`);
-        if (w2.procResistDamageLost != null && w2.procResistDamageLost > 0) {
-          lines.push(`    Proc damage lost (resists): ${w2.procResistDamageLost}`);
-        }
+      lines.push(`    Proc damage:         ${w2.procDamageTotal != null ? w2.procDamageTotal : 0}`);
+      lines.push(`    Proc DPS:            ${(w2.procDamageTotal != null && dur > 0) ? (w2.procDamageTotal / dur).toFixed(2) : '0.00'}`);
+      lines.push(`    Proc full resists:   ${w2.procFullResists != null ? w2.procFullResists : 0}`);
+      lines.push(`    Proc partial resists: ${w2.procPartialResists != null ? w2.procPartialResists : 0}`);
+      if (w2.procResistDamageLost != null && w2.procResistDamageLost > 0) {
+        lines.push(`    Proc damage lost (resists): ${w2.procResistDamageLost}`);
       }
     }
     if (report.special && (report.special.count > 0 || (report.special.attempts != null && report.special.attempts > 0))) {
