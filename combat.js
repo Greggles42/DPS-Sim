@@ -188,7 +188,7 @@
       critChance += 0.275 + dexCap / 150 + overCap;
     }
 
-    if (critChanceMult) critChance += critChanceMult;
+    if (critChanceMult) critChance += critChance * critChanceMult / 100;
     return Math.max(0, Math.min(100, critChance));
   }
 
@@ -623,7 +623,8 @@
   /**
    * Run a single fight simulation.
    * @param {Object} options
-   * @param {Object} [options.weapon1] - { damage, delay, procSpell?, procSpellDamage?, procBuffDurationTicks?, is2H? }. procBuffDurationTicks = DoT ticks (6s each); omit/0 = instant proc.
+   * @param {Object} [options.weapon1] - { damage, delay, procSpell?, procSpellDamage?, procBuffDurationTicks?, is2H?, type? }. procBuffDurationTicks = DoT ticks (6s each); omit/0 = instant proc. type = weapon skill type (e.g. '1hp' for backstab requirement).
+   * @param {string} [options.weapon1Type] - main hand weapon type (e.g. '1hp'); used for backstab (rogue requires 1HP in primary).
    * @param {Object} [options.weapon2] - optional offhand (required when weapon1 omitted)
    * @param {number} options.hastePercent - total haste (e.g. 40 for 40%)
    * @param {number} [options.wornAttack=0] - worn ATK (items)
@@ -666,7 +667,7 @@
       : (options.specialAttacks && options.classId && SPECIAL_ATTACKS[options.classId])
         ? SPECIAL_ATTACKS[options.classId]
         : null;
-    const canFireSpecial = specialConfig && (!specialConfig.fromBehindOnly || fromBehind);
+    let canFireSpecial = specialConfig && (!specialConfig.fromBehindOnly || fromBehind);
     const level = options.level != null ? options.level : 60;
     const targetAC = options.targetAC;
     const mobLevel = options.mobLevel != null ? options.mobLevel : 60;
@@ -697,6 +698,10 @@
     const w1 = options.weapon1;
     const w2 = options.weapon2;
     const hasMainHand = !!w1;
+    if (specialType === 'backstab' && options.classId === 'rogue' && canFireSpecial && hasMainHand) {
+      const mainHandType = (options.weapon1Type != null ? String(options.weapon1Type) : (w1.type != null ? String(w1.type) : '')).toLowerCase();
+      if (mainHandType !== '1hp') canFireSpecial = false;
+    }
     const baseDamageCap = getBaseDamageCap(level, options.classId);
     const cappedW1Damage = hasMainHand ? (baseDamageCap != null ? Math.min(w1.damage, baseDamageCap) : w1.damage) : 0;
     const cappedW2Damage = w2 ? (baseDamageCap != null ? Math.min(w2.damage, baseDamageCap) : w2.damage) : 0;

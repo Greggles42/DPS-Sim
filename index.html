@@ -1296,8 +1296,9 @@
         }
         if (weaponSkillForToHit <= 0) weaponSkillForToHit = undefined;
         const options = {
-          weapon1: hasMainHand ? { damage: weapon1.damage, delay: weapon1.delay, procSpell: weapon1.procSpell, procSpellDamage: weapon1.procSpellDamage, procRate: weapon1.procRate, procBuffDurationTicks: weapon1.procBuffDurationTicks, is2H: weapon1.is2H, elemType: weapon1.elemType, elemDamage: weapon1.elemDamage } : undefined,
+          weapon1: hasMainHand ? { damage: weapon1.damage, delay: weapon1.delay, procSpell: weapon1.procSpell, procSpellDamage: weapon1.procSpellDamage, procRate: weapon1.procRate, procBuffDurationTicks: weapon1.procBuffDurationTicks, is2H: weapon1.is2H, elemType: weapon1.elemType, elemDamage: weapon1.elemDamage, type: w1WeaponType || undefined } : undefined,
           weapon2: useWeapon2 ? { damage: weapon2.damage, delay: weapon2.delay, procSpell: weapon2.procSpell, procSpellDamage: weapon2.procSpellDamage, procRate: weapon2.procRate, procBuffDurationTicks: weapon2.procBuffDurationTicks, elemType: weapon2.elemType, elemDamage: weapon2.elemDamage } : undefined,
+          weapon1Type: w1WeaponType || undefined,
           hastePercent,
           offenseSkill,
           wornAttack,
@@ -1867,6 +1868,7 @@
               var options = Object.assign({}, baseOptions, {
                 weapon1: w1,
                 weapon2: undefined,
+                weapon1Type: p.type || undefined,
                 dualWieldSkill: 0,
                 weaponSkillForToHit: weaponSkillForToHit,
                 fistweaving: classId === 'monk' && is2H && $('fistweaving').checked
@@ -1902,6 +1904,7 @@
               var opts = Object.assign({}, baseOptions, {
                 weapon1: refW1,
                 weapon2: w2,
+                weapon1Type: refNorm.type || undefined,
                 dualWieldSkill: dualWieldSkillForm,
                 weaponSkillForToHit: refWeaponSkillForToHit,
                 fistweaving: false
