@@ -401,8 +401,10 @@
   function getProcSpellEffectiveness(weapon, options, casterLevel, rng) {
     if (!weapon) return 100;
     if (checkProcSpellImmunity(weapon, options)) return 0;
-    const resistType = weapon.procSpellResistType != null ? weapon.procSpellResistType : RESIST_TYPE_NONE;
-    if (resistType === RESIST_TYPE_NONE) return 100;
+    // Run resist check on every proc: use spell resist type if set, otherwise default to magic (1) so procs are still resistible.
+    const resistType = weapon.procSpellResistType != null && weapon.procSpellResistType !== RESIST_TYPE_NONE
+      ? weapon.procSpellResistType
+      : 1;
     const targetResist = getTargetResistBySpellType(options, resistType);
     const resistModifier = weapon.procSpellResistModifier != null ? weapon.procSpellResistModifier : 0;
     const targetLevel = options.mobLevel != null ? options.mobLevel : 60;
