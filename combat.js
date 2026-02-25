@@ -601,11 +601,11 @@
         const actualProcDmg = Math.floor(procDmg * effectiveness / 100);
         report.ranged.procDamageTotal += actualProcDmg;
         dmg += actualProcDmg;
-        if (effectiveness === 0) {
+        if (actualProcDmg === 0) {
           report.ranged.procFullResists++;
           report.ranged.procResists++;
           report.ranged.procResistDamageLost += procDmg;
-        } else if (effectiveness < 100) {
+        } else if (actualProcDmg < procDmg) {
           report.ranged.procPartialResists++;
           report.ranged.procResists++;
           report.ranged.procResistDamageLost += (procDmg - actualProcDmg);
@@ -1077,24 +1077,25 @@
             }
             lastProcMs1 = tMs;
             dotEndMs1 = tMs + procBuffTicks1 * PROC_TICK_INTERVAL_MS;
-            if (effectiveness === 0) {
+            const totalDoTDamage = Math.floor(procDmg * effectiveness / 100);
+            if (totalDoTDamage === 0) {
               report.weapon1.procFullResists++;
               report.weapon1.procResists++;
               report.weapon1.procResistDamageLost += procDmg;
-            } else if (effectiveness < 100) {
+            } else if (totalDoTDamage < procDmg) {
               report.weapon1.procPartialResists++;
               report.weapon1.procResists++;
-              report.weapon1.procResistDamageLost += Math.floor(procDmg * (100 - effectiveness) / 100);
+              report.weapon1.procResistDamageLost += (procDmg - totalDoTDamage);
             }
           } else {
             const actualDmg = Math.floor(procDmg * effectiveness / 100);
             report.weapon1.procDamageTotal += actualDmg;
             report.totalDamage += actualDmg;
-            if (effectiveness === 0) {
+            if (actualDmg === 0) {
               report.weapon1.procFullResists++;
               report.weapon1.procResists++;
               report.weapon1.procResistDamageLost += procDmg;
-            } else if (effectiveness < 100) {
+            } else if (actualDmg < procDmg) {
               report.weapon1.procPartialResists++;
               report.weapon1.procResists++;
               report.weapon1.procResistDamageLost += (procDmg - actualDmg);
@@ -1225,24 +1226,25 @@
               }
               lastProcMs2 = tMs;
               dotEndMs2 = tMs + procBuffTicks2 * PROC_TICK_INTERVAL_MS;
-              if (effectiveness === 0) {
+              const totalDoTDamage2 = Math.floor(procDmg * effectiveness / 100);
+              if (totalDoTDamage2 === 0) {
                 report.weapon2.procFullResists++;
                 report.weapon2.procResists++;
                 report.weapon2.procResistDamageLost += procDmg;
-              } else if (effectiveness < 100) {
+              } else if (totalDoTDamage2 < procDmg) {
                 report.weapon2.procPartialResists++;
                 report.weapon2.procResists++;
-                report.weapon2.procResistDamageLost += Math.floor(procDmg * (100 - effectiveness) / 100);
+                report.weapon2.procResistDamageLost += (procDmg - totalDoTDamage2);
               }
             } else {
               const actualDmg = Math.floor(procDmg * effectiveness / 100);
               report.weapon2.procDamageTotal += actualDmg;
               report.totalDamage += actualDmg;
-              if (effectiveness === 0) {
+              if (actualDmg === 0) {
                 report.weapon2.procFullResists++;
                 report.weapon2.procResists++;
                 report.weapon2.procResistDamageLost += procDmg;
-              } else if (effectiveness < 100) {
+              } else if (actualDmg < procDmg) {
                 report.weapon2.procPartialResists++;
                 report.weapon2.procResists++;
                 report.weapon2.procResistDamageLost += (procDmg - actualDmg);
