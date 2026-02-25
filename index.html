@@ -573,7 +573,14 @@
         <label for="w1-proc-damage">Proc spell damage (on proc)</label>
         <input type="number" id="w1-proc-damage" min="0" value="0" placeholder="0">
         <div class="row">
-          <div><label for="w1-proc-spell-resist-type" class="small-label">Proc resist type</label><input type="number" id="w1-proc-spell-resist-type" min="0" max="5" step="1" placeholder="0–5" title="0=none 1=magic 2=fire 3=cold 4=disease 5=poison"></div>
+          <div><label for="w1-proc-spell-resist-type" class="small-label">Proc resist type</label><select id="w1-proc-spell-resist-type" title="Resist type used for proc spell">
+            <option value="0">None</option>
+            <option value="1">Magic</option>
+            <option value="2">Fire</option>
+            <option value="3">Cold</option>
+            <option value="4">Disease</option>
+            <option value="5">Poison</option>
+          </select></div>
           <div><label for="w1-proc-spell-resist-modifier" class="small-label">Proc resist mod</label><input type="number" id="w1-proc-spell-resist-modifier" placeholder="0 or -" title="Spell ResistDiff, negative = easier to land"></div>
         </div>
         <input type="hidden" id="w1-proc-rate" value="0">
@@ -618,7 +625,14 @@
         <label for="w2-proc-damage">Proc spell damage (on proc)</label>
         <input type="number" id="w2-proc-damage" min="0" value="0" placeholder="0">
         <div class="row">
-          <div><label for="w2-proc-spell-resist-type" class="small-label">Proc resist type</label><input type="number" id="w2-proc-spell-resist-type" min="0" max="5" step="1" placeholder="0–5" title="0=none 1=magic 2=fire 3=cold 4=disease 5=poison"></div>
+          <div><label for="w2-proc-spell-resist-type" class="small-label">Proc resist type</label><select id="w2-proc-spell-resist-type" title="Resist type used for proc spell">
+            <option value="0">None</option>
+            <option value="1">Magic</option>
+            <option value="2">Fire</option>
+            <option value="3">Cold</option>
+            <option value="4">Disease</option>
+            <option value="5">Poison</option>
+          </select></div>
           <div><label for="w2-proc-spell-resist-modifier" class="small-label">Proc resist mod</label><input type="number" id="w2-proc-spell-resist-modifier" placeholder="0 or -" title="Spell ResistDiff, negative = easier to land"></div>
         </div>
         <input type="hidden" id="w2-proc-rate" value="0">
