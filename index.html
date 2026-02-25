@@ -206,10 +206,11 @@
     .rank-weapons-chart { margin-top: 1rem; font-size: 0.8rem; }
     .rank-weapons-chart h3 { margin: 0 0 0.5rem 0; font-size: 1rem; }
     .rank-chart-row { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 2px; min-height: 20px; }
+    .rank-chart-header { font-weight: 600; color: var(--muted); margin-bottom: 0.25rem; border-bottom: 1px solid var(--border); padding-bottom: 0.25rem; }
     .rank-chart-label { flex: 0 0 auto; min-width: 200px; max-width: 320px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .rank-chart-dps { flex: 0 0 auto; width: 56px; text-align: right; }
     .rank-chart-pct { flex: 0 0 auto; width: 48px; text-align: right; color: var(--muted); }
-    .rank-chart-bar-wrap { flex: 1 1 auto; min-width: 60px; height: 16px; background: var(--border); border-radius: 2px; overflow: hidden; }
+    .rank-chart-bar-wrap { flex: 0 0 200px; width: 200px; height: 16px; background: var(--border); border-radius: 2px; overflow: hidden; }
     .rank-chart-bar { height: 100%; min-width: 2px; background: var(--accent); border-radius: 2px; transition: width 0.2s ease; }
     .info-icon { display: inline-flex; align-items: center; justify-content: center; width: 1em; height: 1em; margin-left: 0.25rem; font-size: 0.85em; color: var(--accent); cursor: help; border: 1px solid var(--border); border-radius: 50%; }
     .radio-group { display: flex; gap: 1rem; align-items: center; margin-bottom: 0.75rem; flex-wrap: wrap; }
@@ -2066,7 +2067,8 @@
               var barWidth = Math.max(0, Math.min(100, pct));
               return '<div class="rank-chart-row" title="' + labelSafe + '"><span class="rank-chart-label">' + labelSafe + '</span><span class="rank-chart-dps">' + dpsStr + '</span><span class="rank-chart-pct">' + pctStr + '</span><div class="rank-chart-bar-wrap"><div class="rank-chart-bar" style="width:' + barWidth + '%"></div></div></div>';
             });
-            var chartHtml = chartRows.length > 0 ? '<div class="rank-weapons-chart"><h3>Top 40 by DPS (X scale = #1)</h3>' + chartRows.join('') + '</div>' : '';
+            var chartHeader = '<div class="rank-chart-row rank-chart-header"><span class="rank-chart-label">Weapon Combination</span><span class="rank-chart-dps">DPS</span><span class="rank-chart-pct">% of BIS</span><div class="rank-chart-bar-wrap"></div></div>';
+            var chartHtml = chartRows.length > 0 ? '<div class="rank-weapons-chart"><h3>Top 40 by DPS (X scale = #1)</h3>' + chartHeader + chartRows.join('') + '</div>' : '';
             var histContainer = $('histogram-container');
             if (histContainer) histContainer.innerHTML = chartHtml;
             $('report').innerHTML = '<pre style="margin:0;">' + lines.join('\n') + '</pre><table class="rank-weapons-table" style="margin-top:0.5rem; border-collapse:collapse; width:100%; font-size:0.9rem;"><thead><tr><th style="text-align:left;">#</th><th style="text-align:left;">Combination</th><th style="text-align:right;">Mainhand DPS</th><th style="text-align:right;">Offhand DPS</th><th style="text-align:right;">Total DPS</th></tr></thead><tbody>' + tableRows.join('') + '</tbody></table><p style="margin-top:0.5rem;"><button type="button" id="btn-rank-export-csv">Export to .csv</button></p>';
