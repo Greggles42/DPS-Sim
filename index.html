@@ -971,10 +971,13 @@
         .catch(function () {});
       /** Item ID -> raw item from resources/popweapons.json (Planes of Power); used by Rank Weapons when "Include PoP weapons" is checked. */
       var popWeaponsData = {};
-      fetch('resources/popweapons.json')
+      var popWeaponsLoadPromise = fetch('resources/popweapons.json')
         .then(function (r) { return r.ok ? r.json() : null; })
-        .then(function (data) { popWeaponsData = data && typeof data === 'object' ? data : {}; })
-        .catch(function () {});
+        .then(function (data) {
+          popWeaponsData = data && typeof data === 'object' ? data : {};
+          return popWeaponsData;
+        })
+        .catch(function () { popWeaponsData = {}; return popWeaponsData; });
 
       // ----- Background usage log (no UI). Set USAGE_LOG_URL to your endpoint to enable.
       // e.g. local: 'http://localhost:8765/log'  or Vercel: 'https://dps-sim.vercel.app/api/log'
@@ -1819,7 +1822,7 @@
           elemDamage: (norm.elemDamage != null ? norm.elemDamage : 0) || 0
         };
       }
-      function rankWeapons() {
+      async function rankWeapons() {
         const classId = ($('class').value || '').toLowerCase();
         if (!classId) {
           $('report').textContent = 'Select a class to rank weapons.';
@@ -1832,6 +1835,11 @@
         if (typeof luclinWeaponsData === 'undefined' || !luclinWeaponsData || typeof luclinWeaponsData !== 'object') {
           $('report').textContent = 'luclinweapons.json is required to rank weapons. Ensure it is loaded.';
           return;
+        }
+        var includePop = ($('rank-weapons-include-pop') && $('rank-weapons-include-pop').checked) === true;
+        if (includePop) {
+          $('report').textContent = 'Loading PoP weapons…';
+          await popWeaponsLoadPromise;
         }
         const level = parseInt($('level').value, 10) || 60;
         const durationSec = parseInt($('duration').value, 10) || 6000;
@@ -1889,7 +1897,6 @@
           bashReuseEffectiveSec: (bashReuseManual && (() => { const v = parseFloat($('bash-reuse-sec').value); return v > 0 && !isNaN(v) ? v : undefined; })()) || undefined,
         };
         const offhandBlockedTypes = { '2hb': 1, '2hs': 1, '2hp': 1, 'archery': 1, 'bow': 1 };
-        var includePop = ($('rank-weapons-include-pop') && $('rank-weapons-include-pop').checked) === true;
         if (USAGE_LOG_URL) {
           logUsage({
             event: 'rank_weapons',
