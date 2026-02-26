@@ -702,7 +702,7 @@
       <button type="button" id="btn-run">Run simulation</button>
       <span class="rank-weapons-row" id="rank-weapons-wrap">
         <button type="button" id="btn-rank-weapons" title="Rank weapons by DPS (Shift+Click Run to show)">Rank weapons</button>
-        <label class="checkbox-label"><input type="checkbox" id="rank-weapons-include-pop" title="When checked, weapons from resources/popweapons.json (Planes of Power) are included in ranking"> Include PoP weapons</label>
+        <label class="checkbox-label"><input type="checkbox" id="rank-weapons-include-pop" title="When checked, rank from popweapons.json (Planes of Power) instead of luclinweapons.json"> Include PoP weapons</label>
       </span>
     </section>
   </div>
@@ -1832,14 +1832,20 @@
           $('report').textContent = 'WeaponSkillCaps is required to rank weapons. Load weaponSkillCaps.js.';
           return;
         }
-        if (typeof luclinWeaponsData === 'undefined' || !luclinWeaponsData || typeof luclinWeaponsData !== 'object') {
-          $('report').textContent = 'luclinweapons.json is required to rank weapons. Ensure it is loaded.';
-          return;
-        }
         var includePop = ($('rank-weapons-include-pop') && $('rank-weapons-include-pop').checked) === true;
+        if (!includePop) {
+          if (typeof luclinWeaponsData === 'undefined' || !luclinWeaponsData || typeof luclinWeaponsData !== 'object') {
+            $('report').textContent = 'luclinweapons.json is required to rank weapons. Ensure it is loaded.';
+            return;
+          }
+        }
         if (includePop) {
           $('report').textContent = 'Loading PoP weapons…';
           await popWeaponsLoadPromise;
+          if (!popWeaponsData || typeof popWeaponsData !== 'object' || Object.keys(popWeaponsData).length === 0) {
+            $('report').textContent = 'popweapons.json is required to rank PoP weapons. Ensure it is loaded.';
+            return;
+          }
         }
         const level = parseInt($('level').value, 10) || 60;
         const durationSec = parseInt($('duration').value, 10) || 6000;
@@ -1934,16 +1940,17 @@
             allIds.push(id);
           });
         }
-        addToRankMap(luclinWeaponsData);
-        if (includePop && typeof popWeaponsData === 'object' && popWeaponsData && Object.keys(popWeaponsData).length > 0) {
+        if (includePop) {
           addToRankMap(popWeaponsData);
+        } else {
+          addToRankMap(luclinWeaponsData);
         }
         const primaryWeapons = [];
         const secondaryWeapons = [];
         allIds.forEach(function (id) {
           var norm = rankWeaponMap[id];
           var is2H = !!(norm.is2H || (norm.type && offhandBlockedTypes[norm.type]));
-          var raw = luclinWeaponsData[id] || (popWeaponsData && popWeaponsData[id]);
+          var raw = includePop ? (popWeaponsData && popWeaponsData[id]) : (luclinWeaponsData && luclinWeaponsData[id]);
           var slots = (raw && raw.slots != null) ? parseInt(raw.slots, 10) : null;
           if (slots !== slots) slots = null;
           var primOk = primarySlotAllowed(slots, is2H);
@@ -2077,7 +2084,8 @@
             results.sort(function (a, b) { return (b.totalDps || 0) - (a.totalDps || 0); });
             window._lastRankWeaponsResults = results;
             var subText = top40.length > 0 ? ' Top 40 averaged over ' + runsCount + ' runs.' : '';
-            var lines = ['=== Weapon combination rank (by DPS) ===', 'Class: ' + (classConfig && classConfig.name ? classConfig.name : classId) + ', Level: ' + level + ', Duration: ' + durationSec + 's', 'From luclinweapons.json.' + subText + ' DPS = mainhand + offhand (additive).', ''];
+            var sourceLabel = includePop ? 'From popweapons.json.' : 'From luclinweapons.json.';
+            var lines = ['=== Weapon combination rank (by DPS) ===', 'Class: ' + (classConfig && classConfig.name ? classConfig.name : classId) + ', Level: ' + level + ', Duration: ' + durationSec + 's', sourceLabel + subText + ' DPS = mainhand + offhand (additive).', ''];
             var tableRows = results.map(function (row, i) {
               var rank = i + 1;
               var label = (row.label || '').replace(/</g, '&lt;').replace(/"/g, '&quot;');
