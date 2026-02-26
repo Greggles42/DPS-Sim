@@ -963,13 +963,17 @@
         .then(function (r) { return r.ok ? r.json() : null; })
         .then(function (data) { weaponShortlistData = data && typeof data === 'object' ? data : {}; })
         .catch(function () {});
-      /** Item ID -> raw item from resources/luclinweapons.json; default weapon list for Rank Weapons. */
+      /** Both rank weapon lists are loaded at launch; Rank Weapons uses one or the other based on the "Include PoP weapons" checkbox. */
+      /** Item ID -> raw item from resources/luclinweapons.json; used when Include PoP is unchecked. */
       var luclinWeaponsData = {};
-      fetch('resources/luclinweapons.json')
+      var luclinWeaponsLoadPromise = fetch('resources/luclinweapons.json')
         .then(function (r) { return r.ok ? r.json() : null; })
-        .then(function (data) { luclinWeaponsData = data && typeof data === 'object' ? data : {}; })
-        .catch(function () {});
-      /** Item ID -> raw item from resources/popweapons.json (Planes of Power); used by Rank Weapons when "Include PoP weapons" is checked. */
+        .then(function (data) {
+          luclinWeaponsData = data && typeof data === 'object' ? data : {};
+          return luclinWeaponsData;
+        })
+        .catch(function () { luclinWeaponsData = {}; return luclinWeaponsData; });
+      /** Item ID -> raw item from resources/popweapons.json (Planes of Power); used when Include PoP is checked. */
       var popWeaponsData = {};
       var popWeaponsLoadPromise = fetch('resources/popweapons.json')
         .then(function (r) { return r.ok ? r.json() : null; })
@@ -978,6 +982,18 @@
           return popWeaponsData;
         })
         .catch(function () { popWeaponsData = {}; return popWeaponsData; });
+      /** When Rank weapons is run with Include PoP checked, call this to ensure popweapons.json is loaded before ranking. Loads the file now if not already loaded. */
+      function ensurePopWeaponsLoaded() {
+        if (popWeaponsData && typeof popWeaponsData === 'object' && Object.keys(popWeaponsData).length > 0)
+          return Promise.resolve(popWeaponsData);
+        return fetch('resources/popweapons.json')
+          .then(function (r) { return r.ok ? r.json() : null; })
+          .then(function (data) {
+            popWeaponsData = data && typeof data === 'object' ? data : {};
+            return popWeaponsData;
+          })
+          .catch(function () { popWeaponsData = {}; return popWeaponsData; });
+      }
 
       // ----- Background usage log (no UI). Set USAGE_LOG_URL to your endpoint to enable.
       // e.g. local: 'http://localhost:8765/log'  or Vercel: 'https://dps-sim.vercel.app/api/log'
@@ -1841,7 +1857,7 @@
         }
         if (includePop) {
           $('report').textContent = 'Loading PoP weapons…';
-          await popWeaponsLoadPromise;
+          await ensurePopWeaponsLoaded();
           if (!popWeaponsData || typeof popWeaponsData !== 'object' || Object.keys(popWeaponsData).length === 0) {
             $('report').textContent = 'popweapons.json is required to rank PoP weapons. Ensure it is loaded.';
             return;
