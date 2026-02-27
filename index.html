@@ -1810,7 +1810,7 @@
           var et = { 1: 'magic', 2: 'fire', 3: 'cold', 4: 'poison', 5: 'disease' }[parseInt(raw.elemdmgtype, 10)];
           if (et) { elemType = et; elemDamage = parseInt(raw.elemdmgamt, 10) || 0; }
         }
-        return {
+        var result = {
           name: (raw.Name != null ? String(raw.Name) : '') || id,
           damage: dmg,
           delay: dly,
@@ -1822,12 +1822,25 @@
           is2H: is2H,
           type: typeStr
         };
+        if (raw.proceffect != null && typeof ItemSearch !== 'undefined' && ItemSearch.getSpellFromLocalData) {
+          var procSpellId = parseInt(raw.proceffect, 10);
+          if (!isNaN(procSpellId)) {
+            var spellData = ItemSearch.getSpellFromLocalData(procSpellId);
+            if (spellData) {
+              result.proc = spellData.name || '';
+              result.procDamage = (spellData.damage != null && spellData.damage > 0) ? spellData.damage : 0;
+              if (spellData.buffdurationTicks != null && spellData.buffdurationTicks > 0)
+                result.procBuffDurationTicks = spellData.buffdurationTicks;
+            }
+          }
+        }
+        return result;
       }
       function normalizedToWeapon1(norm, applyBane) {
         var damage = norm.damage;
         if (applyBane && norm.baneDamage) damage += norm.baneDamage;
         var is2H = !!(norm.is2H || (norm.type && (norm.type.toLowerCase() === '2hb' || norm.type.toLowerCase() === '2hs' || norm.type.toLowerCase() === '2hp')));
-        return {
+        var w = {
           damage: damage,
           delay: norm.delay,
           procSpell: (norm.proc != null ? norm.proc : '') || (norm.procSpell != null ? norm.procSpell : ''),
@@ -1837,6 +1850,9 @@
           elemType: norm.elemType || undefined,
           elemDamage: (norm.elemDamage != null ? norm.elemDamage : 0) || 0
         };
+        if (norm.procBuffDurationTicks != null && norm.procBuffDurationTicks > 0)
+          w.procBuffDurationTicks = norm.procBuffDurationTicks;
+        return w;
       }
       async function rankWeapons() {
         const classId = ($('class').value || '').toLowerCase();
@@ -2050,6 +2066,8 @@
                 elemType: p2.elemType || undefined,
                 elemDamage: (p2.elemDamage != null ? p2.elemDamage : 0) || 0
               };
+              if (p2.procBuffDurationTicks != null && p2.procBuffDurationTicks > 0)
+                w2.procBuffDurationTicks = p2.procBuffDurationTicks;
               var opts = Object.assign({}, baseOptions, {
                 weapon1: refW1,
                 weapon2: w2,
@@ -2168,6 +2186,8 @@
                 elemType: p2.elemType || undefined,
                 elemDamage: (p2.elemDamage != null ? p2.elemDamage : 0) || 0
               };
+              if (p2.procBuffDurationTicks != null && p2.procBuffDurationTicks > 0)
+                opts.weapon2.procBuffDurationTicks = p2.procBuffDurationTicks;
               opts.dualWieldSkill = dualWieldSkillForm;
             }
             var reports = [];
