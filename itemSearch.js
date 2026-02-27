@@ -119,7 +119,8 @@
           if (formulaNum === FORMULA_110) {
             effectiveBase = baseVal + Math.floor(DEFAULT_PROC_LEVEL_FOR_FORMULA / 5);
           }
-          var perTick = (maxNum != null && !isNaN(maxNum)) ? Math.min(effectiveBase, maxNum) : effectiveBase;
+          // effect_limit_value 0 means no cap in EQ; only apply limit when it is positive
+          var perTick = (maxNum != null && !isNaN(maxNum) && maxNum > 0) ? Math.min(effectiveBase, maxNum) : effectiveBase;
           if (perTick > perTickDamage)
             perTickDamage = perTick;
         }
