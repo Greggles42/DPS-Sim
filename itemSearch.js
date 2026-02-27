@@ -56,6 +56,9 @@
   var SE_CURRENT_HP_ONCE = 79;
   /** EQEmu: buffdurationformula 0 = instant (not a buff). */
   var BUFF_DURATION_FORMULA_INSTANT = 0;
+  /** EQEmu: formula 110 = Base + Level/5 (used for DoT per-tick when spell has formula 110 on effect). Default level for proc scaling when not in fight context. */
+  var FORMULA_110 = 110;
+  var DEFAULT_PROC_LEVEL_FOR_FORMULA = 55;
 
   /**
    * Get spell name and damage from local spell data (spells_en.json / EQEmu spells_new format).
@@ -95,10 +98,12 @@
       var n = typeof v === 'number' ? v : parseInt(v, 10);
       if (isNaN(n) || n >= 0) continue;
       var absVal = -n;
+      var baseVal = absVal;  // keep base for DoT per-tick (limit is a cap, not replacement)
+      var maxNum = null;
       var maxV = spell['max' + i];
       if (maxV === undefined || maxV === null) maxV = spell['effect_limit_value' + i];
       if (maxV !== undefined && maxV !== null) {
-        var maxNum = typeof maxV === 'number' ? maxV : parseInt(String(maxV), 10);
+        maxNum = typeof maxV === 'number' ? maxV : parseInt(String(maxV), 10);
         if (!isNaN(maxNum) && maxNum > absVal) absVal = maxNum;
       }
       if (effectId === SE_CURRENT_HP_ONCE) {
@@ -106,8 +111,18 @@
       } else if (effectId === SE_CURRENT_HP) {
         if (isInstant)
           totalDirect += absVal;
-        else if (absVal > perTickDamage)
-          perTickDamage = absVal;
+        else {
+          // DoT: per-tick damage is base value (with formula 110 = Base + Level/5 if applicable), capped by effect limit
+          var formulaVal = spell['formula' + i];
+          var formulaNum = formulaVal != null ? (typeof formulaVal === 'number' ? formulaVal : parseInt(String(formulaVal), 10)) : 100;
+          var effectiveBase = baseVal;
+          if (formulaNum === FORMULA_110) {
+            effectiveBase = baseVal + Math.floor(DEFAULT_PROC_LEVEL_FOR_FORMULA / 5);
+          }
+          var perTick = (maxNum != null && !isNaN(maxNum)) ? Math.min(effectiveBase, maxNum) : effectiveBase;
+          if (perTick > perTickDamage)
+            perTickDamage = perTick;
+        }
       }
     }
     var damage;
