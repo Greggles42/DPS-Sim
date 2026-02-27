@@ -2120,7 +2120,8 @@
             var subText = top40.length > 0 ? ' Top 40 averaged over ' + runsCount + ' runs.' : '';
             var sourceLabel = includePop ? 'From popweapons.json.' : 'From luclinweapons.json.';
             var lines = ['=== Weapon combination rank (by DPS) ===', 'Class: ' + (classConfig && classConfig.name ? classConfig.name : classId) + ', Level: ' + level + ', Duration: ' + durationSec + 's', sourceLabel + subText + ' DPS = mainhand + offhand (additive).', ''];
-            var tableRows = results.map(function (row, i) {
+            var top400 = results.slice(0, 400);
+            var tableRows = top400.map(function (row, i) {
               var rank = i + 1;
               var label = (row.label || '').replace(/</g, '&lt;').replace(/"/g, '&quot;');
               var mainDpsStr = row.mainhandDps != null ? row.mainhandDps.toFixed(2) : '—';
