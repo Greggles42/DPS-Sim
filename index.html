@@ -549,6 +549,16 @@
         <div id="innerflame-row" style="display: none;">
           <label class="checkbox-label char-checkbox"><input type="checkbox" id="innerflame"> Inner Flame (12s random window: double melee damage)</label>
         </div>
+        <div id="spell-casting-fury-row" style="display: none;">
+          <label class="small-label">Spell Casting Fury (AA)</label>
+          <div class="radio-group">
+            <label><input type="radio" name="spell-casting-fury" value="0" checked> Off</label>
+            <label><input type="radio" name="spell-casting-fury" value="1"> 1 (2% spell crit, +33% dmg)</label>
+            <label><input type="radio" name="spell-casting-fury" value="2"> 2 (4% spell crit, +66% dmg)</label>
+            <label><input type="radio" name="spell-casting-fury" value="3"> 3 (7% spell crit, +100% dmg)</label>
+          </div>
+          <p class="hint">Paladin, Shadowknight, Ranger, Bard, Beastlord. Affects proc spell damage.</p>
+        </div>
       </details>
         </div>
         <div class="char-haste-icon-wrap"><img id="class-icon" src="" alt="" class="class-icon" aria-hidden="true"></div>
@@ -959,13 +969,20 @@
       var weaponListData = {};
       var weaponListLoadPromise = fetch('resources/weaponlist.json')
         .then(function (r) { return r.ok ? r.json() : null; })
-        .then(function (data) { weaponListData = data && typeof data === 'object' ? data : {}; return weaponListData; })
+        .then(function (data) {
+          weaponListData = data && typeof data === 'object' ? data : {};
+          if (weaponListData['9418']) delete weaponListData['9418'];
+          return weaponListData;
+        })
         .catch(function () { return {}; });
       /** Item ID -> raw item from resources/weapon_shortlist.json (legacy). */
       var weaponShortlistData = {};
       fetch('resources/weapon_shortlist.json')
         .then(function (r) { return r.ok ? r.json() : null; })
-        .then(function (data) { weaponShortlistData = data && typeof data === 'object' ? data : {}; })
+        .then(function (data) {
+          weaponShortlistData = data && typeof data === 'object' ? data : {};
+          if (weaponShortlistData['9418']) delete weaponShortlistData['9418'];
+        })
         .catch(function () {});
       /** Both rank weapon lists are loaded at launch; Rank Weapons uses one or the other based on the "Include PoP weapons" checkbox. */
       /** Item ID -> raw item from resources/luclinweapons.json; used when Include PoP is unchecked. */
@@ -974,6 +991,7 @@
         .then(function (r) { return r.ok ? r.json() : null; })
         .then(function (data) {
           luclinWeaponsData = data && typeof data === 'object' ? data : {};
+          if (luclinWeaponsData['9418']) delete luclinWeaponsData['9418'];
           return luclinWeaponsData;
         })
         .catch(function () { luclinWeaponsData = {}; return luclinWeaponsData; });
@@ -983,6 +1001,7 @@
         .then(function (r) { return r.ok ? r.json() : null; })
         .then(function (data) {
           popWeaponsData = data && typeof data === 'object' ? data : {};
+          if (popWeaponsData['9418']) delete popWeaponsData['9418'];
           return popWeaponsData;
         })
         .catch(function () { popWeaponsData = {}; return popWeaponsData; });
@@ -994,6 +1013,7 @@
           .then(function (r) { return r.ok ? r.json() : null; })
           .then(function (data) {
             popWeaponsData = data && typeof data === 'object' ? data : {};
+            if (popWeaponsData['9418']) delete popWeaponsData['9418'];
             return popWeaponsData;
           })
           .catch(function () { popWeaponsData = {}; return popWeaponsData; });
@@ -1448,6 +1468,7 @@
           backstabSkill: classId === 'rogue' ? (parseInt($('backstab-skill').value, 10) || 0) : undefined,
           duelist: classId === 'rogue' && $('duelist').checked,
           innerFlame: classId === 'monk' && $('innerflame').checked,
+          spellCastingFury: (function () { var el = document.querySelector('input[name="spell-casting-fury"]:checked'); return el ? (parseInt(el.value, 10) || 0) : 0; })(),
           fistweaving: hasMainHand && classId === 'monk' && weapon1.is2H && $('fistweaving').checked,
           critChanceMult: critChanceMult || undefined,
           backstabReuseEffectiveSec: (backstabReuseManual && (() => { const v = parseFloat($('backstab-reuse-sec').value); return v > 0 && !isNaN(v) ? v : undefined; })()) || undefined,
@@ -2045,6 +2066,7 @@
           backstabSkill: classId === 'rogue' ? (parseInt($('backstab-skill').value, 10) || 0) : undefined,
           duelist: classId === 'rogue' && $('duelist').checked,
           innerFlame: classId === 'monk' && $('innerflame').checked,
+          spellCastingFury: (function () { var el = document.querySelector('input[name="spell-casting-fury"]:checked'); return el ? (parseInt(el.value, 10) || 0) : 0; })(),
           critChanceMult: critChanceMult || undefined,
           backstabReuseEffectiveSec: (backstabReuseManual && (() => { const v = parseFloat($('backstab-reuse-sec').value); return v > 0 && !isNaN(v) ? v : undefined; })()) || undefined,
           flyingKickReuseEffectiveSec: (flyingKickReuseManual && (() => { const v = parseFloat($('flyingkick-reuse-sec').value); return v > 0 && !isNaN(v) ? v : undefined; })()) || undefined,
@@ -2421,6 +2443,8 @@
           archeryMastery: parseInt(document.querySelector('input[name="archery-mastery"]:checked').value, 10) || 3,
           mobStationary: $('mob-stationary').checked,
           useWalledMobPenalty: $('use-walled-mob-penalty').checked,
+          classId: 'ranger',
+          spellCastingFury: (function () { var el = document.querySelector('input[name="spell-casting-fury"]:checked'); return el ? (parseInt(el.value, 10) || 0) : 0; })(),
         };
         var combinations = [];
         bows.forEach(function (bow) {
@@ -2855,6 +2879,9 @@
         if (rogueRow) rogueRow.style.display = classId === 'rogue' ? '' : 'none';
         const innerflameRow = $('innerflame-row');
         if (innerflameRow) innerflameRow.style.display = classId === 'monk' ? '' : 'none';
+        const scfRow = $('spell-casting-fury-row');
+        const scfClasses = ['paladin', 'shadowknight', 'ranger', 'bard', 'beastlord'];
+        if (scfRow) scfRow.style.display = scfClasses.indexOf(classId) >= 0 ? '' : 'none';
         updateFistweavingVisibility();
         updateWeaponSkillInputs();
         updateClassIcon();

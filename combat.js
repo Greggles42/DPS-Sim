@@ -413,6 +413,26 @@
     return calcProcSpellResist(resistType, targetResist, resistModifier, casterLevel, targetLevel, noPartial, resistChanceBonus, rng);
   }
 
+  /**
+   * Spell Casting Fury (Paladin, Shadowknight, Ranger, Bard, Beastlord): 2/4/7% spell crit, +33/66/100% damage on crit.
+   * Applies to proc spell damage. Returns { apply, critChance, multPercent }.
+   */
+  function getSpellCastingFury(options) {
+    const rank = options.spellCastingFury | 0;
+    if (rank < 1 || rank > 3) return { apply: false, critChance: 0, multPercent: 0 };
+    const classId = (options.classId || '').toLowerCase();
+    const scfClasses = ['paladin', 'shadowknight', 'ranger', 'bard', 'beastlord'];
+    if (scfClasses.indexOf(classId) < 0) return { apply: false, critChance: 0, multPercent: 0 };
+    return { apply: true, critChance: [2, 4, 7][rank - 1], multPercent: [33, 66, 100][rank - 1] };
+  }
+
+  function applySpellCastingFuryProc(damage, options, rng) {
+    const scf = getSpellCastingFury(options);
+    if (!scf.apply || damage <= 0) return damage;
+    if (rng() * 100 >= scf.critChance) return damage;
+    return Math.floor(damage * (100 + scf.multPercent) / 100);
+  }
+
   // ----- Special attacks (Flying Kick, Backstab, Kick, Bash, etc.) -----
   // Per EQMacEmu special_attacks.cpp: Bash (Warrior/Paladin/SK/Cleric), Slam (Ogre/Troll/Barbarian = Bash without shield), Kick (Warrior/Ranger/Beastlord), Flying Kick (Monk), Backstab (Rogue).
   // Flying Kick uses skill/level-based base only; Kick/Bash use GetSkillBaseDamage (skill-based base, not weapon).
@@ -577,7 +597,8 @@
         report.ranged.procs++;
         const procDmg = (bow.procSpellDamage != null ? bow.procSpellDamage : 0) || 0;
         const effectiveness = getProcSpellEffectiveness(bow, options, level, procRng);
-        const actualProcDmg = Math.floor(procDmg * effectiveness / 100);
+        let actualProcDmg = Math.floor(procDmg * effectiveness / 100);
+        actualProcDmg = applySpellCastingFuryProc(actualProcDmg, options, procRng);
         report.ranged.procDamageTotal += actualProcDmg;
         procDamageThisShot = actualProcDmg;
         if (actualProcDmg === 0) {
@@ -765,8 +786,8 @@
    * @param {number} [options.bashReuseEffectiveSec] - effective bash reuse (s), no haste applied
    * @param {number} [options.seed] - optional RNG seed for reproducibility
    * @param {number} [options.critChanceMult] - AA Critical Hit Chance bonus (percent)
-   * @param {boolean} [options.duelist] - rogue only: double melee damage for 12s at a random time in the fight
-   * @param {boolean} [options.innerFlame] - monk only: double melee damage for 12s at a random time in the fight
+   * @param {boolean} [options.duelist] - rogue only: SE_DamageModifier[185] (+100% base damage) for 12s at a random time in the fight
+   * @param {boolean} [options.innerFlame] - monk only: SE_DamageModifier[185] (+100% base damage) for 12s at a random time in the fight
    */
   function runFight(options) {
     const fromBehind = !!options.fromBehind;
@@ -894,6 +915,18 @@
     const duelistEndMs = duelistStartMs + BUFF_12S_MS;
     const innerFlameStartMs = innerFlame ? Math.floor(rng() * Math.max(0, durationMs - BUFF_12S_MS)) : 0;
     const innerFlameEndMs = innerFlameStartMs + BUFF_12S_MS;
+    // SE_DamageModifier[185] for disciplines: Duelist, Inner Flame, etc. Applied to base damage before roll.
+    const SE_MELEE_DAMAGE_MOD_DUELIST_INNERFLAME = 100;
+    // SE_MinDamageModifier[186] for disciplines: Fellstrike, Innerflame, Duelist, Bestial Rage. Min hit = 4 x weapon damage + 1 x damage bonus.
+    const SE_MELEE_MIN_DAMAGE_MOD_DUELIST_INNERFLAME = 400;
+    function applyDisciplineDamageMod(baseDamage, disciplineActive) {
+      if (!disciplineActive || baseDamage <= 0) return baseDamage;
+      return baseDamage + Math.floor(baseDamage * SE_MELEE_DAMAGE_MOD_DUELIST_INNERFLAME / 100);
+    }
+    function getDisciplineMinHit(baseDamage, damageBonus, disciplineActive) {
+      if (!disciplineActive || baseDamage <= 0) return null;
+      return Math.floor(baseDamage * SE_MELEE_MIN_DAMAGE_MOD_DUELIST_INNERFLAME / 100) + (damageBonus || 0);
+    }
     // Special attack reuse: base reuse (or user base override) reduced by haste; or user effective override used as-is
     const hasteMod = 1 + (options.hastePercent || 0) / 100;
     let effectiveSpecialReuseSec = 0;
@@ -946,12 +979,16 @@
           report.special.hits++;
           report.special.count++;
           let baseDmg;
+          let backstabDisciplineMinHit = null;
           const specElemAdder = (specialConfig.useWeaponDamage === false) ? 0 : getElementalBaseAdder(w1, options, rng);
           if (specElemAdder > 0) report.elementalDamageTotal += specElemAdder;
           if (isRogueBackstab) {
             const effectiveSkill = Math.min(255, Math.floor(backstabSkill * (100 + backstabModPct) / 100));
             const backstabOffenseRating = effectiveSkill + strBonus + wornAttack + spellAttack;
-            const backstabBase = Math.floor(((effectiveSkill * 0.02) + 2) * cappedW1Damage) + specElemAdder;
+            const backstabBaseRaw = Math.floor(((effectiveSkill * 0.02) + 2) * cappedW1Damage) + specElemAdder;
+            const duelistBackstabRound = duelist && tMs >= duelistStartMs && tMs < duelistEndMs;
+            backstabDisciplineMinHit = getDisciplineMinHit(backstabBaseRaw, 0, duelistBackstabRound);
+            let backstabBase = applyDisciplineDamageMod(backstabBaseRaw, duelistBackstabRound);
             baseDmg = calcMeleeDamage(backstabBase, backstabOffenseRating, mitigation, rng, 0);
             baseDmg = Math.max(1, baseDmg);
           } else if (specialConfig.useWeaponDamage === false && specialConfig.skillBaseDamage != null) {
@@ -977,6 +1014,7 @@
             const minHit = level >= 60 ? level * 2 : level > 50 ? Math.floor(level * 3 / 2) : level;
             dmg = Math.max(dmg, minHit);
           }
+          if (backstabDisciplineMinHit != null && dmg < backstabDisciplineMinHit) dmg = backstabDisciplineMinHit;
           report.special.totalDamage += dmg;
           report.special.maxDamage = Math.max(report.special.maxDamage, dmg);
           report.special.hitList.push(dmg);
@@ -992,7 +1030,7 @@
       if (tMs >= nextSwing1Ms) {
         const duelistThisRound = duelist && tMs >= duelistStartMs && tMs < duelistEndMs;
         const innerFlameThisRound = innerFlame && tMs >= innerFlameStartMs && tMs < innerFlameEndMs;
-        const duelistMult = (duelistThisRound || innerFlameThisRound) ? 2 : 1;
+        const disciplineActiveMh = duelistThisRound || innerFlameThisRound;
 
         report.weapon1.rounds++;
         nextSwing1Ms = tMs + delay1Ms;
@@ -1004,7 +1042,9 @@
           mainHandHitThisRound = true;
           const mhElemAdder = getElementalBaseAdder(w1, options, rng);
           report.elementalDamageTotal += mhElemAdder;
-          let dmg = calcMeleeDamage(cappedW1Damage + mhElemAdder, offenseRating, mitigation, rng, 0);
+          let mhBase = cappedW1Damage + mhElemAdder;
+          mhBase = applyDisciplineDamageMod(mhBase, disciplineActiveMh);
+          let dmg = calcMeleeDamage(mhBase, offenseRating, mitigation, rng, 0);
           const mult = rollDamageMultiplier(offenseRating, dmg, level, options.classId, false, rng);
           dmg = mult.damage;
           dmg += mainHandDamageBonus;
@@ -1013,8 +1053,9 @@
           const critResult = rollMeleeCrit(dmg, mainHandDamageBonus, level, options.classId, options.dex, options.critChanceMult, false, false, 0, rng);
           dmg = critResult.damage;
           dmg = Math.max(dmg, 1 + mainHandDamageBonus);
-          if (critResult.isCrit) { report.critHits++; report.critDamageGain += (dmg - beforeCrit) * duelistMult; }
-          if (duelistMult > 1) dmg *= duelistMult;
+          if (critResult.isCrit) { report.critHits++; report.critDamageGain += (dmg - beforeCrit); }
+          const mhDisciplineMin = getDisciplineMinHit(cappedW1Damage, mainHandDamageBonus, disciplineActiveMh);
+          if (mhDisciplineMin != null && dmg < mhDisciplineMin) dmg = mhDisciplineMin;
           report.weapon1.swings++;
           report.weapon1.hits++;
           report.weapon1.totalDamage += dmg;
@@ -1033,7 +1074,9 @@
             mainHandHitThisRound = true;
             const mhElemAdder2 = getElementalBaseAdder(w1, options, rng);
             report.elementalDamageTotal += mhElemAdder2;
-            let dmg = calcMeleeDamage(cappedW1Damage + mhElemAdder2, offenseRating, mitigation, rng, 0);
+            let mhBase2 = cappedW1Damage + mhElemAdder2;
+            mhBase2 = applyDisciplineDamageMod(mhBase2, disciplineActiveMh);
+            let dmg = calcMeleeDamage(mhBase2, offenseRating, mitigation, rng, 0);
             const mult = rollDamageMultiplier(offenseRating, dmg, level, options.classId, false, rng);
             dmg = mult.damage;
             dmg += mainHandDamageBonus;
@@ -1042,8 +1085,9 @@
             const critResult = rollMeleeCrit(dmg, mainHandDamageBonus, level, options.classId, options.dex, options.critChanceMult, false, false, 0, rng);
             dmg = critResult.damage;
             dmg = Math.max(dmg, 1 + mainHandDamageBonus);
-            if (critResult.isCrit) { report.critHits++; report.critDamageGain += (dmg - beforeCrit) * duelistMult; }
-            if (duelistMult > 1) dmg *= duelistMult;
+            if (critResult.isCrit) { report.critHits++; report.critDamageGain += (dmg - beforeCrit); }
+            const mhDisciplineMin2 = getDisciplineMinHit(cappedW1Damage, mainHandDamageBonus, disciplineActiveMh);
+            if (mhDisciplineMin2 != null && dmg < mhDisciplineMin2) dmg = mhDisciplineMin2;
             report.weapon1.swings++;
             report.weapon1.hits++;
             report.weapon1.totalDamage += dmg;
@@ -1061,7 +1105,9 @@
               mainHandHitThisRound = true;
               const mhElemAdder3 = getElementalBaseAdder(w1, options, rng);
               report.elementalDamageTotal += mhElemAdder3;
-              let dmg = calcMeleeDamage(cappedW1Damage + mhElemAdder3, offenseRating, mitigation, rng, 0);
+              let mhBase3 = cappedW1Damage + mhElemAdder3;
+              mhBase3 = applyDisciplineDamageMod(mhBase3, disciplineActiveMh);
+              let dmg = calcMeleeDamage(mhBase3, offenseRating, mitigation, rng, 0);
               const mult = rollDamageMultiplier(offenseRating, dmg, level, options.classId, false, rng);
               dmg = mult.damage;
               dmg += mainHandDamageBonus;
@@ -1070,8 +1116,9 @@
               const critResult = rollMeleeCrit(dmg, mainHandDamageBonus, level, options.classId, options.dex, options.critChanceMult, false, false, 0, rng);
               dmg = critResult.damage;
               dmg = Math.max(dmg, 1 + mainHandDamageBonus);
-              if (critResult.isCrit) { report.critHits++; report.critDamageGain += (dmg - beforeCrit) * duelistMult; }
-              if (duelistMult > 1) dmg *= duelistMult;
+              if (critResult.isCrit) { report.critHits++; report.critDamageGain += (dmg - beforeCrit); }
+              const mhDisciplineMin3 = getDisciplineMinHit(cappedW1Damage, mainHandDamageBonus, disciplineActiveMh);
+              if (mhDisciplineMin3 != null && dmg < mhDisciplineMin3) dmg = mhDisciplineMin3;
               report.weapon1.swings++;
               report.weapon1.hits++;
               report.weapon1.totalDamage += dmg;
@@ -1114,7 +1161,8 @@
               report.weapon1.procResistDamageLost += (procDmg - totalDoTDamage);
             }
           } else {
-            const actualDmg = Math.floor(procDmg * effectiveness / 100);
+            let actualDmg = Math.floor(procDmg * effectiveness / 100);
+            actualDmg = applySpellCastingFuryProc(actualDmg, options, procRng);
             report.weapon1.procDamageTotal += actualDmg;
             report.totalDamage += actualDmg;
             if (actualDmg === 0) {
@@ -1183,7 +1231,7 @@
         nextSwing2Ms = tMs + delay2Ms;
         const duelistOhRound = duelist && tMs >= duelistStartMs && tMs < duelistEndMs;
         const innerFlameOhRound = innerFlame && tMs >= innerFlameStartMs && tMs < innerFlameEndMs;
-        const duelistOhMult = (duelistOhRound || innerFlameOhRound) ? 2 : 1;
+        const disciplineActiveOh = duelistOhRound || innerFlameOhRound;
         if (checkDualWield(dualWieldEffective, rng)) {
           report.weapon2.rounds++;
           let attacksThisRound = 1;
@@ -1192,14 +1240,17 @@
             offhandHitThisRound = true;
             const ohElemAdder = getElementalBaseAdder(w2, options, rng);
             report.elementalDamageTotal += ohElemAdder;
-            let dmg = calcMeleeDamage(cappedW2Damage + ohElemAdder, offenseRating, mitigation, rng, 0);
+            let ohBase = cappedW2Damage + ohElemAdder;
+            ohBase = applyDisciplineDamageMod(ohBase, disciplineActiveOh);
+            let dmg = calcMeleeDamage(ohBase, offenseRating, mitigation, rng, 0);
             const mult = rollDamageMultiplier(offenseRating, dmg, level, options.classId, false, rng);
             dmg = mult.damage;
             const beforeCrit = dmg;
             const critResult = rollMeleeCrit(dmg, 0, level, options.classId, options.dex, options.critChanceMult, false, false, 0, rng);
             dmg = critResult.damage;
-            if (critResult.isCrit) { report.critHits++; report.critDamageGain += (dmg - beforeCrit) * duelistOhMult; }
-            if (duelistOhMult > 1) dmg *= duelistOhMult;
+            if (critResult.isCrit) { report.critHits++; report.critDamageGain += (dmg - beforeCrit); }
+            const ohDisciplineMin = getDisciplineMinHit(cappedW2Damage, 0, disciplineActiveOh);
+            if (ohDisciplineMin != null && dmg < ohDisciplineMin) dmg = ohDisciplineMin;
             report.weapon2.swings++;
             report.weapon2.hits++;
             report.weapon2.totalDamage += dmg;
@@ -1216,14 +1267,17 @@
               offhandHitThisRound = true;
               const ohElemAdder2 = getElementalBaseAdder(w2, options, rng);
               report.elementalDamageTotal += ohElemAdder2;
-              let dmg = calcMeleeDamage(cappedW2Damage + ohElemAdder2, offenseRating, mitigation, rng, 0);
+              let ohBase2 = cappedW2Damage + ohElemAdder2;
+              ohBase2 = applyDisciplineDamageMod(ohBase2, disciplineActiveOh);
+              let dmg = calcMeleeDamage(ohBase2, offenseRating, mitigation, rng, 0);
               const mult = rollDamageMultiplier(offenseRating, dmg, level, options.classId, false, rng);
               dmg = mult.damage;
               const beforeCrit = dmg;
               const critResult = rollMeleeCrit(dmg, 0, level, options.classId, options.dex, options.critChanceMult, false, false, 0, rng);
               dmg = critResult.damage;
-              if (critResult.isCrit) { report.critHits++; report.critDamageGain += (dmg - beforeCrit) * duelistOhMult; }
-              if (duelistOhMult > 1) dmg *= duelistOhMult;
+              if (critResult.isCrit) { report.critHits++; report.critDamageGain += (dmg - beforeCrit); }
+              const ohDisciplineMin2 = getDisciplineMinHit(cappedW2Damage, 0, disciplineActiveOh);
+              if (ohDisciplineMin2 != null && dmg < ohDisciplineMin2) dmg = ohDisciplineMin2;
               report.weapon2.swings++;
               report.weapon2.hits++;
               report.weapon2.totalDamage += dmg;
@@ -1263,7 +1317,8 @@
                 report.weapon2.procResistDamageLost += (procDmg - totalDoTDamage2);
               }
             } else {
-              const actualDmg = Math.floor(procDmg * effectiveness / 100);
+              let actualDmg = Math.floor(procDmg * effectiveness / 100);
+              actualDmg = applySpellCastingFuryProc(actualDmg, options, procRng);
               report.weapon2.procDamageTotal += actualDmg;
               report.totalDamage += actualDmg;
               if (actualDmg === 0) {
