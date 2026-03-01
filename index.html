@@ -1178,6 +1178,15 @@
       let w1WeaponType = null;
       let w2WeaponType = null;
       let w1BackstabModPercent = null;
+      let w2BackstabModPercent = null;
+
+      function updateBackstabModFromEquipment() {
+        const backstabModEl = $('backstab-mod');
+        if (!backstabModEl) return;
+        const v1 = (w1BackstabModPercent != null && !isNaN(w1BackstabModPercent)) ? w1BackstabModPercent : 0;
+        const v2 = (w2BackstabModPercent != null && !isNaN(w2BackstabModPercent)) ? w2BackstabModPercent : 0;
+        backstabModEl.value = Math.max(v1, v2);
+      }
 
       function formatSkillLabel(key) {
         if (key === '1hp' || key === '2hp') return 'Piercing';
@@ -1234,7 +1243,7 @@
           const overrideEl = $('w1-is2h-override');
           if (overrideEl) overrideEl.value = (p && (p.is2H || pType2H)) ? '1' : '0';
         }
-        if (prefix === 'w2') { w2WeaponType = (p && p.type) ? p.type : null; w2FromItemSearch = false; if (id === 'unequipped') w2DisplayName = ''; }
+        if (prefix === 'w2') { w2WeaponType = (p && p.type) ? p.type : null; w2FromItemSearch = false; w2BackstabModPercent = null; if (id === 'unequipped') w2DisplayName = ''; }
         if (p) {
           $(prefix + '-damage').value = p.damage;
           $(prefix + '-delay').value = p.delay;
@@ -1258,6 +1267,7 @@
         updateWeaponNameDisplay(prefix);
         updateWeaponIcon(prefix, null);
         if (prefix === 'w1' && id === 'unequipped') updateWeaponNameDisplay('w2');
+        updateBackstabModFromEquipment();
       }
 
       // Class-specific defaults and modifiers (EQMacEmu / attack.cpp style)
@@ -1480,6 +1490,8 @@
               procFullResists: Math.round(reports.reduce((s, r) => s + (r.weapon1.procFullResists || 0), 0) / runs),
               procPartialResists: Math.round(reports.reduce((s, r) => s + (r.weapon1.procPartialResists || 0), 0) / runs),
               procResistDamageLost: Math.round(reports.reduce((s, r) => s + (r.weapon1.procResistDamageLost || 0), 0) / runs),
+              anticipatedProcChancePerRound: reports[0].weapon1.anticipatedProcChancePerRound,
+              anticipatedProcsPerMinute: reports[0].weapon1.anticipatedProcsPerMinute,
               hitStats: w1HitStats.length ? {
                 min: w1Mins.length ? Math.min(...w1Mins) : null,
                 max: Math.max(...reports.map(r => r.weapon1.maxDamage)),
@@ -1504,6 +1516,8 @@
               procFullResists: Math.round(reports.reduce((s, r) => s + (r.weapon2.procFullResists || 0), 0) / runs),
               procPartialResists: Math.round(reports.reduce((s, r) => s + (r.weapon2.procPartialResists || 0), 0) / runs),
               procResistDamageLost: Math.round(reports.reduce((s, r) => s + (r.weapon2.procResistDamageLost || 0), 0) / runs),
+              anticipatedProcChancePerRound: reports[0].weapon2.anticipatedProcChancePerRound,
+              anticipatedProcsPerMinute: reports[0].weapon2.anticipatedProcsPerMinute,
               hitStats: w2HitStats.length ? {
                 min: w2Mins.length ? Math.min(...w2Mins) : null,
                 max: reports.some(r => r.weapon2.hits > 0) ? Math.max(...reports.map(r => r.weapon2.maxDamage)) : null,
@@ -2415,6 +2429,8 @@
               procFullResists: Math.round(reports.reduce((s, r) => s + (r.ranged.procFullResists || 0), 0) / runs),
               procPartialResists: Math.round(reports.reduce((s, r) => s + (r.ranged.procPartialResists || 0), 0) / runs),
               procResistDamageLost: Math.round(reports.reduce((s, r) => s + (r.ranged.procResistDamageLost || 0), 0) / runs),
+              anticipatedProcChancePerShot: r0.ranged.anticipatedProcChancePerShot,
+              anticipatedProcsPerMinute: r0.ranged.anticipatedProcsPerMinute,
             },
             durationSec: r0.durationSec,
             totalDamage: Math.round(reports.reduce((s, r) => s + r.totalDamage, 0) / runs),
@@ -2622,7 +2638,8 @@
       updateWeaponNameDisplay('w2');
       updateWeapon2Disabled();
       function clearItemSearchOnManualEdit(prefix) {
-        if (prefix === 'w1') { w1FromItemSearch = false; w1BackstabModPercent = null; } else w2FromItemSearch = false;
+        if (prefix === 'w1') { w1FromItemSearch = false; w1BackstabModPercent = null; } else { w2FromItemSearch = false; w2BackstabModPercent = null; }
+        updateBackstabModFromEquipment();
       }
       [$('w1-damage'), $('w1-delay')].forEach(function (el) { if (el) el.addEventListener('input', function () { clearItemSearchOnManualEdit('w1'); updateWeaponNameDisplay('w1'); }); });
       [$('w2-damage'), $('w2-delay')].forEach(function (el) { if (el) el.addEventListener('input', function () { clearItemSearchOnManualEdit('w2'); updateWeaponNameDisplay('w2'); }); });
@@ -2804,17 +2821,20 @@
         if (elemDamageEl) elemDamageEl.value = isNaN(elemDmg) ? '' : elemDmg;
         const baneEl = $(prefix + '-bane');
         if (baneEl) baneEl.value = isNaN(bane) ? '' : bane;
-        const backstabModEl = $('backstab-mod');
-        if (prefix === 'w1' && backstabModEl && weapon.backstabModPercent != null && !isNaN(Number(weapon.backstabModPercent))) {
-          backstabModEl.value = Number(weapon.backstabModPercent);
-        }
-        updateWeaponIcon(prefix, weapon.icon);
         var normType = (weapon.type != null && weapon.type !== '') ? String(weapon.type).trim().toLowerCase() : null;
+        var isPiercing = normType === '1hp' || normType === '2hp';
+        var backstabModVal = (weapon.backstabModPercent != null && !isNaN(Number(weapon.backstabModPercent))) ? Number(weapon.backstabModPercent) : null;
+        if (prefix === 'w1') {
+          w1BackstabModPercent = (isPiercing && backstabModVal != null) ? backstabModVal : null;
+        } else {
+          w2BackstabModPercent = (isPiercing && backstabModVal != null) ? backstabModVal : null;
+        }
+        updateBackstabModFromEquipment();
+        updateWeaponIcon(prefix, weapon.icon);
         if (prefix === 'w1') {
           w1DisplayName = (weapon.name || '').trim() || 'Custom';
           w1FromItemSearch = true;
           w1WeaponType = normType;
-          w1BackstabModPercent = (weapon.backstabModPercent != null && !isNaN(Number(weapon.backstabModPercent))) ? Number(weapon.backstabModPercent) : null;
         } else {
           w2DisplayName = (weapon.name || '').trim() || 'Custom';
           w2FromItemSearch = true;

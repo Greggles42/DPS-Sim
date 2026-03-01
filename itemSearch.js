@@ -522,10 +522,10 @@
 
     /* Skillmod type 8 = backstab; skillmodvalue is the backstab skill % modifier */
     var backstabModPercent = null;
-    var skillmodTypeRaw = get(item, ['skillmodType', 'skillmod_type', 'SkillmodType']);
+    var skillmodTypeRaw = get(item, ['skillmodType', 'skillmod_type', 'SkillmodType', 'skillmodtype']);
     var skillmodType = (typeof skillmodTypeRaw === 'number') ? skillmodTypeRaw : parseInt(skillmodTypeRaw, 10);
     if (skillmodType === 8) {
-      var skillmodValRaw = get(item, ['skillmodValue', 'skillmod_value', 'SkillmodValue']);
+      var skillmodValRaw = get(item, ['skillmodValue', 'skillmod_value', 'SkillmodValue', 'skillmodvalue']);
       var skillmodVal = (typeof skillmodValRaw === 'number') ? skillmodValRaw : parseInt(skillmodValRaw, 10);
       if (!isNaN(skillmodVal)) backstabModPercent = skillmodVal;
     }

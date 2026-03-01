@@ -561,6 +561,10 @@
       offenseRating: offenseRating,
       displayedAttack: Math.floor((offenseRating + toHit) * 1000 / 744),
     };
+    if (procChance > 0 && delayMs > 0) {
+      report.ranged.anticipatedProcChancePerShot = procChance;
+      report.ranged.anticipatedProcsPerMinute = procChance * (60 * 1000 / delayMs);
+    }
 
     const durationMs = Math.floor(options.fightDurationSec * 1000);
     let nextRangedAtMs = 0;
@@ -686,6 +690,8 @@
 
     // 6. Procs & Specials
     lines.push('=== Procs & Specials ===', '');
+    if (r.anticipatedProcsPerMinute != null) lines.push(`    Anticipated procs per minute: ${r.anticipatedProcsPerMinute.toFixed(2)}`);
+    if (r.anticipatedProcChancePerShot != null) lines.push(`    Anticipated proc chance per shot: ${(r.anticipatedProcChancePerShot * 100).toFixed(2)}%`);
     if (r.procs != null) lines.push(`    Procs:               ${r.procs}`);
     lines.push(`    Proc damage:         ${r.procDamageTotal != null ? r.procDamageTotal : 0}`);
     lines.push(`    Proc DPS:            ${(r.procDamageTotal != null && dur > 0) ? (r.procDamageTotal / dur).toFixed(2) : '0.00'}`);
@@ -824,6 +830,8 @@
     const procChance1 = Math.min(1, Math.max(0, baseProcChance1 * (100 + procRate1) / 100));
     const procChance2 = Math.min(1, Math.max(0, baseProcChance2 * (100 + procRate2) / 100));
 
+    const roundsPerMinW1 = (delay1Ms > 0 && hasMainHand) ? (60 * 1000 / delay1Ms) : 0;
+    const roundsPerMinW2 = (delay2Ms > 0 && w2) ? (60 * 1000 / delay2Ms) : 0;
     const report = {
       weapon1: { swings: 0, hits: 0, totalDamage: 0, maxDamage: 0, minDamage: Infinity, hitList: [], procs: 0, procDamageTotal: 0, procResists: 0, procFullResists: 0, procPartialResists: 0, procResistDamageLost: 0, rounds: 0, single: 0, double: 0, triple: 0 },
       weapon2: { swings: 0, hits: 0, totalDamage: 0, maxDamage: 0, minDamage: Infinity, hitList: [], procs: 0, procDamageTotal: 0, procResists: 0, procFullResists: 0, procPartialResists: 0, procResistDamageLost: 0, rounds: 0, single: 0, double: 0, triple: 0 },
@@ -855,6 +863,14 @@
       } : null,
       fistweaving: (options.classId === 'monk' && hasMainHand && w1.is2H && options.fistweaving) ? { rounds: 0, swings: 0, hits: 0, totalDamage: 0, maxDamage: 0, single: 0, double: 0 } : null,
     };
+    if (hasMainHand && w1.procSpell) {
+      report.weapon1.anticipatedProcChancePerRound = procChance1;
+      report.weapon1.anticipatedProcsPerMinute = roundsPerMinW1 > 0 ? procChance1 * roundsPerMinW1 : null;
+    }
+    if (w2 && w2.procSpell) {
+      report.weapon2.anticipatedProcChancePerRound = procChance2;
+      report.weapon2.anticipatedProcsPerMinute = roundsPerMinW2 > 0 ? procChance2 * roundsPerMinW2 : null;
+    }
 
     const durationMs = Math.floor(options.fightDurationSec * 1000);
     const procBuffTicks1 = (hasMainHand && w1.procBuffDurationTicks != null && w1.procBuffDurationTicks > 0) ? w1.procBuffDurationTicks : 0;
@@ -1417,6 +1433,8 @@
     // 6. Procs & Specials
     lines.push('=== Procs & Specials ===', '');
     lines.push(`  ${weapon1Label || 'Weapon 1'}`);
+    if (w1.anticipatedProcsPerMinute != null) lines.push(`    Anticipated procs per minute: ${w1.anticipatedProcsPerMinute.toFixed(2)}`);
+    if (w1.anticipatedProcChancePerRound != null) lines.push(`    Anticipated proc chance per round: ${(w1.anticipatedProcChancePerRound * 100).toFixed(2)}%`);
     if (w1.procs != null) lines.push(`    Procs:               ${w1.procs}`);
     lines.push(`    Proc damage:         ${w1.procDamageTotal != null ? w1.procDamageTotal : 0}`);
     lines.push(`    Proc DPS:            ${(w1.procDamageTotal != null && dur > 0) ? (w1.procDamageTotal / dur).toFixed(2) : '0.00'}`);
@@ -1427,6 +1445,8 @@
     }
     if (w2.swings > 0) {
       lines.push(`  ${weapon2Label || 'Weapon 2'}`);
+      if (w2.anticipatedProcsPerMinute != null) lines.push(`    Anticipated procs per minute: ${w2.anticipatedProcsPerMinute.toFixed(2)}`);
+      if (w2.anticipatedProcChancePerRound != null) lines.push(`    Anticipated proc chance per round: ${(w2.anticipatedProcChancePerRound * 100).toFixed(2)}%`);
       if (w2.procs != null) lines.push(`    Procs:               ${w2.procs}`);
       lines.push(`    Proc damage:         ${w2.procDamageTotal != null ? w2.procDamageTotal : 0}`);
       lines.push(`    Proc DPS:            ${(w2.procDamageTotal != null && dur > 0) ? (w2.procDamageTotal / dur).toFixed(2) : '0.00'}`);
