@@ -833,6 +833,10 @@
         <p class="hint">When checked, ranged weapon bane damage is added to base damage.</p>
       </details>
       <button type="button" id="btn-run-ranged">Run simulation</button>
+      <span class="rank-weapons-row" id="rank-ranged-weapons-wrap" style="margin-left: 0.5rem;">
+        <button type="button" id="btn-rank-ranged-weapons" title="Rank bow + arrow combinations by DPS (ranger, bows and arrows only)">Rank weapons</button>
+        <label class="checkbox-label"><input type="checkbox" id="rank-ranged-include-pop" title="When checked, rank bows from popweapons.json instead of luclinweapons.json"> Include PoP weapons</label>
+      </span>
     </section>
   </div>
   </div>
@@ -951,12 +955,12 @@
         .then(function (r) { return r.ok ? r.json() : null; })
         .then(function (data) { procRatesByItemId = data && typeof data === 'object' ? data : {}; })
         .catch(function () {});
-      /** Item ID -> raw item from resources/weaponlist.json; used when "Use ItemSearch API" is unchecked. */
+      /** Item ID -> raw item from resources/weaponlist.json; used when "Use ItemSearch API" is unchecked and for ranged rank arrows. */
       var weaponListData = {};
-      fetch('resources/weaponlist.json')
+      var weaponListLoadPromise = fetch('resources/weaponlist.json')
         .then(function (r) { return r.ok ? r.json() : null; })
-        .then(function (data) { weaponListData = data && typeof data === 'object' ? data : {}; })
-        .catch(function () {});
+        .then(function (data) { weaponListData = data && typeof data === 'object' ? data : {}; return weaponListData; })
+        .catch(function () { return {}; });
       /** Item ID -> raw item from resources/weapon_shortlist.json (legacy). */
       var weaponShortlistData = {};
       fetch('resources/weapon_shortlist.json')
@@ -1809,6 +1813,89 @@
       }
       /** EQ itemtype number -> skill type (melee only). Used when building rank list from weaponlist.json. */
       var RANK_ITEM_TYPE_NUM_TO_TYPE = { 0: '1hs', 1: '2hs', 2: '1hp', 3: '1hb', 4: '2hb', 7: 'h2h', 35: '2hp', 45: 'h2h' };
+      /** Build normalized bow (itemtype 5) for ranged rank. Ranger usable only. Excludes crossbows by name. */
+      function normalizeBowFromList(id, raw) {
+        if (!raw || typeof raw !== 'object') return null;
+        var it = raw.itemtype != null ? parseInt(raw.itemtype, 10) : NaN;
+        if (it !== 5) return null;
+        var nameStr = (raw.Name != null ? String(raw.Name) : '') || (raw.lore != null ? String(raw.lore) : '') || id;
+        if (/crossbow/i.test(nameStr)) return null;
+        var classes = raw.classes != null ? parseInt(raw.classes, 10) : NaN;
+        if (!isNaN(classes) && (classes & 8) === 0) return null;
+        var dmg = parseInt(raw.damage, 10); var dly = parseInt(raw.delay, 10);
+        if (isNaN(dmg) || dmg < 1 || isNaN(dly) || dly < 1) return null;
+        var item = { id: id, Name: raw.Name, name: raw.Name, damage: raw.damage, delay: raw.delay, itemtype: raw.itemtype, slots: raw.slots, classes: raw.classes, lore: raw.lore, proceffect: raw.proceffect, procrate: raw.procrate, elemdmgtype: raw.elemdmgtype, elemdmgamt: raw.elemdmgamt, banedmgamt: raw.banedmgamt, eleDmgType: raw.elemdmgtype, eleDmgAmt: raw.elemdmgamt, baneDmgAmt: raw.banedmgamt };
+        var norm = (typeof ItemSearch !== 'undefined' && ItemSearch.normalizeItemForWeapon) ? ItemSearch.normalizeItemForWeapon(item) : null;
+        if (norm && norm.damage >= 1 && norm.delay >= 1) {
+          if ((norm.procSpellId != null || raw.proceffect != null) && (!norm.proc || norm.procDamage == null || norm.procDamage === 0) && typeof ItemSearch !== 'undefined' && ItemSearch.getSpellFromLocalData) {
+            var procSpellId = norm.procSpellId != null ? norm.procSpellId : parseInt(raw.proceffect, 10);
+            if (!isNaN(procSpellId) && procSpellId > 0) {
+              var spellData = ItemSearch.getSpellFromLocalData(procSpellId);
+              if (spellData) {
+                norm.proc = spellData.name || '';
+                norm.procDamage = (spellData.damage != null && spellData.damage > 0) ? spellData.damage : 0;
+                if (spellData.buffdurationTicks != null && spellData.buffdurationTicks > 0)
+                  norm.procBuffDurationTicks = spellData.buffdurationTicks;
+              }
+            }
+          }
+          return norm;
+        }
+        var elemType = ''; var elemDamage = 0;
+        if (raw.elemdmgtype != null && raw.elemdmgamt != null) {
+          var et = { 1: 'magic', 2: 'fire', 3: 'cold', 4: 'poison', 5: 'disease' }[parseInt(raw.elemdmgtype, 10)];
+          if (et) { elemType = et; elemDamage = parseInt(raw.elemdmgamt, 10) || 0; }
+        }
+        var result = {
+          name: nameStr,
+          damage: dmg,
+          delay: dly,
+          proc: '',
+          procDamage: 0,
+          procRate: (raw.procrate != null && !Number.isNaN(Number(raw.procrate))) ? Number(raw.procrate) : 0,
+          elemType: elemType || undefined,
+          elemDamage: elemDamage,
+          baneDamage: (raw.banedmgamt != null ? parseInt(raw.banedmgamt, 10) : 0) || 0,
+          type: 'bow'
+        };
+        if (raw.proceffect != null && typeof ItemSearch !== 'undefined' && ItemSearch.getSpellFromLocalData) {
+          var procSpellId = parseInt(raw.proceffect, 10);
+          if (!isNaN(procSpellId)) {
+            var spellData = ItemSearch.getSpellFromLocalData(procSpellId);
+            if (spellData) {
+              result.proc = spellData.name || '';
+              result.procDamage = (spellData.damage != null && spellData.damage > 0) ? spellData.damage : 0;
+              if (spellData.buffdurationTicks != null && spellData.buffdurationTicks > 0)
+                result.procBuffDurationTicks = spellData.buffdurationTicks;
+            }
+          }
+        }
+        return result;
+      }
+      /** Build normalized arrow (itemtype 27, name contains Arrow) for ranged rank. Ranger usable only. */
+      function normalizeArrowFromList(id, raw) {
+        if (!raw || typeof raw !== 'object') return null;
+        var it = raw.itemtype != null ? parseInt(raw.itemtype, 10) : NaN;
+        if (it !== 27) return null;
+        var nameStr = (raw.Name != null ? String(raw.Name) : '') || (raw.lore != null ? String(raw.lore) : '') || '';
+        if (!/arrow/i.test(nameStr)) return null;
+        var classes = raw.classes != null ? parseInt(raw.classes, 10) : NaN;
+        if (!isNaN(classes) && classes !== 0 && (classes & 8) === 0) return null;
+        var dmg = parseInt(raw.damage, 10);
+        if (isNaN(dmg) || dmg < 0) return null;
+        var elemType = ''; var elemDamage = 0;
+        if (raw.elemdmgtype != null && raw.elemdmgamt != null) {
+          var et = { 1: 'magic', 2: 'fire', 3: 'cold', 4: 'poison', 5: 'disease' }[parseInt(raw.elemdmgtype, 10)];
+          if (et) { elemType = et; elemDamage = parseInt(raw.elemdmgamt, 10) || 0; }
+        }
+        return {
+          id: id,
+          name: nameStr || id,
+          damage: dmg,
+          elemType: elemType || undefined,
+          elemDamage: elemDamage
+        };
+      }
       function normalizeWeaponFromList(id, raw) {
         if (!raw || typeof raw !== 'object') return null;
         var dmg = parseInt(raw.damage, 10); var dly = parseInt(raw.delay, 10);
@@ -2265,6 +2352,215 @@
         requestAnimationFrame(runNextChunk);
       }
 
+      async function rankRangedWeapons() {
+        if (typeof WeaponSkillCaps === 'undefined') {
+          $('report').textContent = 'WeaponSkillCaps is required to rank weapons. Load weaponSkillCaps.js.';
+          return;
+        }
+        var includePop = ($('rank-ranged-include-pop') && $('rank-ranged-include-pop').checked) === true;
+        if (!includePop) {
+          if (typeof luclinWeaponsData === 'undefined' || !luclinWeaponsData || typeof luclinWeaponsData !== 'object') {
+            $('report').textContent = 'luclinweapons.json is required. Ensure it is loaded.';
+            return;
+          }
+        }
+        if (includePop) {
+          $('report').textContent = 'Loading PoP weapons…';
+          await ensurePopWeaponsLoaded();
+          if (!popWeaponsData || typeof popWeaponsData !== 'object' || Object.keys(popWeaponsData).length === 0) {
+            $('report').textContent = 'popweapons.json is required to rank PoP bows. Ensure it is loaded.';
+            return;
+          }
+        }
+        $('report').textContent = 'Loading weapon list for arrows…';
+        await weaponListLoadPromise;
+        if (!weaponListData || typeof weaponListData !== 'object' || Object.keys(weaponListData).length === 0) {
+          $('report').textContent = 'weaponlist.json is required for arrows. Ensure it is loaded.';
+          return;
+        }
+        var bowSource = includePop ? popWeaponsData : luclinWeaponsData;
+        var bows = [];
+        Object.keys(bowSource).forEach(function (id) {
+          var raw = bowSource[id];
+          var norm = normalizeBowFromList(id, raw);
+          if (norm) bows.push({ id: id, name: norm.name, damage: norm.damage, delay: norm.delay, proc: norm.proc, procDamage: norm.procDamage, procRate: norm.procRate, elemType: norm.elemType, elemDamage: norm.elemDamage, baneDamage: norm.baneDamage, procBuffDurationTicks: norm.procBuffDurationTicks });
+        });
+        var arrows = [];
+        Object.keys(weaponListData).forEach(function (id) {
+          var raw = weaponListData[id];
+          var norm = normalizeArrowFromList(id, raw);
+          if (norm) arrows.push(norm);
+        });
+        if (bows.length === 0) {
+          $('report').textContent = 'No ranger-usable bows found in ' + (includePop ? 'popweapons.json' : 'luclinweapons.json') + '.';
+          return;
+        }
+        if (arrows.length === 0) {
+          $('report').textContent = 'No ranger-usable arrows found in weaponlist.json (itemtype 27, name contains "Arrow").';
+          return;
+        }
+        var level = parseInt($('ranged-level').value, 10) || 60;
+        var durationSec = parseInt($('ranged-duration').value, 10) || 6000;
+        var applyBane = $('ranged-apply-bane').checked;
+        var baseOptions = {
+          hastePercent: parseFloat($('ranged-haste').value, 10) || 0,
+          level: level,
+          targetAC: parseInt($('ranged-target-ac').value, 10) || 300,
+          mobLevel: parseInt($('ranged-mob-level').value, 10) || 60,
+          targetMR: parseInt($('ranged-target-mr').value, 10) || 35,
+          targetFR: parseInt($('ranged-target-fr').value, 10) || 35,
+          targetCR: parseInt($('ranged-target-cr').value, 10) || 35,
+          targetPR: parseInt($('ranged-target-pr').value, 10) || 35,
+          targetDR: parseInt($('ranged-target-dr').value, 10) || 35,
+          fightDurationSec: durationSec,
+          offenseSkill: 252,
+          wornAttack: parseInt($('ranged-worn-attack').value, 10) || 0,
+          spellAttack: parseInt($('ranged-spell-attack').value, 10) || 0,
+          str: 255,
+          dex: 255,
+          archeryMastery: parseInt(document.querySelector('input[name="archery-mastery"]:checked').value, 10) || 3,
+          mobStationary: $('mob-stationary').checked,
+          useWalledMobPenalty: $('use-walled-mob-penalty').checked,
+        };
+        var combinations = [];
+        bows.forEach(function (bow) {
+          arrows.forEach(function (arrow) {
+            combinations.push({ bow: bow, arrow: arrow });
+          });
+        });
+        var totalSims = combinations.length;
+        var comboDps = {};
+        var simIndex = 0;
+        var lastDisplayedPct = -1;
+        var chunkSize = 10;
+        function runNextChunk() {
+          var end = Math.min(simIndex + chunkSize, combinations.length);
+          for (; simIndex < end; simIndex++) {
+            var comb = combinations[simIndex];
+            var bow = comb.bow;
+            var arrow = comb.arrow;
+            var bowDamage = bow.damage;
+            if (applyBane && bow.baneDamage) bowDamage += bow.baneDamage;
+            var rangedWeapon = {
+              damage: bowDamage,
+              delay: bow.delay,
+              procSpell: (bow.proc != null ? bow.proc : '') || '',
+              procSpellDamage: bow.procDamage || 0,
+              procRate: (bow.procRate != null && !Number.isNaN(Number(bow.procRate))) ? Number(bow.procRate) : 0,
+              elemType: bow.elemType || undefined,
+              elemDamage: (bow.elemDamage != null ? bow.elemDamage : 0) || 0
+            };
+            if (bow.procBuffDurationTicks != null && bow.procBuffDurationTicks > 0)
+              rangedWeapon.procBuffDurationTicks = bow.procBuffDurationTicks;
+            var arrowObj = {
+              damage: arrow.damage,
+              elemType: arrow.elemType || undefined,
+              elemDamage: (arrow.elemDamage != null ? arrow.elemDamage : 0) || 0
+            };
+            var opts = Object.assign({}, baseOptions, { rangedWeapon: rangedWeapon, arrow: arrowObj });
+            var r = EQCombat.runRangedFight(opts);
+            var key = bow.id + '_' + arrow.id;
+            comboDps[key] = r.error ? 0 : (r.totalDamage / durationSec);
+          }
+          var pctFloor = totalSims > 0 ? Math.floor((simIndex / totalSims) * 100) : 100;
+          if (pctFloor > lastDisplayedPct) {
+            lastDisplayedPct = pctFloor;
+            $('report').textContent = 'Measuring bow + arrow DPS… ' + pctFloor + '% complete (' + simIndex + ' / ' + totalSims + ' combinations)';
+          }
+          if (simIndex < combinations.length) {
+            requestAnimationFrame(runNextChunk);
+            return;
+          }
+          var results = combinations.map(function (comb) {
+            var key = comb.bow.id + '_' + comb.arrow.id;
+            var dps = comboDps[key] != null ? comboDps[key] : 0;
+            var label = (comb.bow.name || comb.bow.id) + ' + ' + (comb.arrow.name || comb.arrow.id);
+            return { bowId: comb.bow.id, arrowId: comb.arrow.id, label: label, mainhandDps: 0, offhandDps: 0, totalDps: dps };
+          });
+          results.sort(function (a, b) { return (b.totalDps || 0) - (a.totalDps || 0); });
+          var runsCount = Math.max(1, Math.min(1000, parseInt($('ranged-runs').value, 10) || 20));
+          var top40 = results.slice(0, 40);
+          function renderRankReport() {
+            results.sort(function (a, b) { return (b.totalDps || 0) - (a.totalDps || 0); });
+            window._lastRankWeaponsResults = results;
+            var subText = top40.length > 0 ? ' Top 40 averaged over ' + runsCount + ' runs.' : '';
+            var sourceLabel = includePop ? 'Bows from popweapons.json.' : 'Bows from luclinweapons.json. Arrows from weaponlist.json.';
+            var lines = ['=== Ranged (bow + arrow) rank (by DPS) ===', 'Class: Ranger, Level: ' + level + ', Duration: ' + durationSec + 's', sourceLabel + subText, ''];
+            var maxDps = results[0] && results[0].totalDps > 0 ? results[0].totalDps : 1;
+            var tableRows = results.slice(0, 400).map(function (row, i) {
+              var rank = i + 1;
+              var pctDiff = row.totalDps != null && maxDps > 0 ? (row.totalDps / maxDps * 100) : 0;
+              var label = (row.label || '').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+              var totalDpsStr = row.totalDps != null ? row.totalDps.toFixed(2) : '—';
+              return '<tr><td>' + rank + '</td><td>' + label + '</td><td style="text-align:right;">—</td><td style="text-align:right;">—</td><td style="text-align:right;">' + totalDpsStr + '</td></tr>';
+            });
+            var chartRows = results.slice(0, 40).map(function (row, i) {
+              var pct = row.totalDps != null && maxDps > 0 ? (row.totalDps / maxDps * 100) : 0;
+              var labelSafe = (row.label || '').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+              var dpsStr = row.totalDps != null ? row.totalDps.toFixed(2) : '—';
+              var pctStr = (i === 0) ? '100%' : (pct.toFixed(1) + '%');
+              var barWidth = Math.max(0, Math.min(100, pct));
+              return '<div class="rank-chart-row" title="' + labelSafe + '"><span class="rank-chart-label">' + labelSafe + '</span><span class="rank-chart-dps">' + dpsStr + '</span><span class="rank-chart-pct">' + pctStr + '</span><div class="rank-chart-bar-wrap"><div class="rank-chart-bar" style="width:' + barWidth + '%"></div></div></div>';
+            });
+            var chartHeader = '<div class="rank-chart-row rank-chart-header"><span class="rank-chart-label">Bow + Arrow</span><span class="rank-chart-dps">DPS</span><span class="rank-chart-pct">% of BIS</span><div class="rank-chart-bar-wrap"></div></div>';
+            var chartHtml = chartRows.length > 0 ? '<div class="rank-weapons-chart"><h3>Top 40 by DPS (X scale = #1)</h3>' + chartHeader + chartRows.join('') + '</div>' : '';
+            var histContainer = $('histogram-container');
+            if (histContainer) histContainer.innerHTML = chartHtml;
+            $('report').innerHTML = '<pre style="margin:0;">' + lines.join('\n') + '</pre><table class="rank-weapons-table" style="margin-top:0.5rem; border-collapse:collapse; width:100%; font-size:0.9rem;"><thead><tr><th style="text-align:left;">#</th><th style="text-align:left;">Bow + Arrow</th><th style="text-align:right;">Mainhand DPS</th><th style="text-align:right;">Offhand DPS</th><th style="text-align:right;">Total DPS</th></tr></thead><tbody>' + tableRows.join('') + '</tbody></table>';
+          }
+          if (top40.length === 0) {
+            renderRankReport();
+            return;
+          }
+          $('report').textContent = 'Averaging top 40 results over multiple runs';
+          var avgIndex = 0;
+          function runNextTop40() {
+            var reportEl = $('report');
+            if (avgIndex >= top40.length) {
+              if (reportEl) reportEl.textContent = 'Reordering results...';
+              renderRankReport();
+              return;
+            }
+            if (reportEl) reportEl.textContent = 'Averaging top 40 results over multiple runs';
+            var row = top40[avgIndex];
+            var bow = bows.filter(function (b) { return b.id === row.bowId; })[0];
+            var arrow = arrows.filter(function (a) { return a.id === row.arrowId; })[0];
+            if (!bow || !arrow) { avgIndex++; requestAnimationFrame(runNextTop40); return; }
+            var bowDamage = bow.damage;
+            if (applyBane && bow.baneDamage) bowDamage += bow.baneDamage;
+            var rangedWeapon = {
+              damage: bowDamage,
+              delay: bow.delay,
+              procSpell: (bow.proc != null ? bow.proc : '') || '',
+              procSpellDamage: bow.procDamage || 0,
+              procRate: (bow.procRate != null && !Number.isNaN(Number(bow.procRate))) ? Number(bow.procRate) : 0,
+              elemType: bow.elemType || undefined,
+              elemDamage: (bow.elemDamage != null ? bow.elemDamage : 0) || 0
+            };
+            if (bow.procBuffDurationTicks != null && bow.procBuffDurationTicks > 0)
+              rangedWeapon.procBuffDurationTicks = bow.procBuffDurationTicks;
+            var arrowObj = { damage: arrow.damage, elemType: arrow.elemType || undefined, elemDamage: (arrow.elemDamage != null ? arrow.elemDamage : 0) || 0 };
+            var opts = Object.assign({}, baseOptions, { rangedWeapon: rangedWeapon, arrow: arrowObj });
+            var reports = [];
+            for (var ri = 0; ri < runsCount; ri++) {
+              opts.seed = runsCount === 1 ? undefined : (Date.now() + ri + avgIndex * 10000);
+              var r = EQCombat.runRangedFight(opts);
+              if (!r.error) reports.push(r);
+            }
+            var n = reports.length;
+            if (n > 0) {
+              var sumTotal = reports.reduce(function (s, r) { return s + r.totalDamage; }, 0);
+              row.totalDps = sumTotal / n / durationSec;
+            }
+            avgIndex++;
+            requestAnimationFrame(runNextTop40);
+          }
+          requestAnimationFrame(runNextTop40);
+        }
+        $('report').textContent = 'Measuring bow + arrow DPS… 0% complete (0 / ' + totalSims + ' combinations)';
+        requestAnimationFrame(runNextChunk);
+      }
+
       $('btn-run').addEventListener('click', function (e) {
         if (e.shiftKey) {
           const wrap = $('rank-weapons-wrap');
@@ -2275,6 +2571,8 @@
         run();
       });
       $('btn-rank-weapons').addEventListener('click', rankWeapons);
+      var btnRankRanged = $('btn-rank-ranged-weapons');
+      if (btnRankRanged) btnRankRanged.addEventListener('click', rankRangedWeapons);
 
       function escapeCsvField(val) {
         var s = (val != null && val !== undefined) ? String(val) : '';
