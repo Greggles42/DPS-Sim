@@ -571,9 +571,35 @@
 
     while (nextRangedAtMs < durationMs) {
       report.ranged.swings++;
+      // Proc is attempted every swing (even on miss)
+      let procDamageThisShot = 0;
+      if (procChance > 0 && checkProc(procChance, procRng)) {
+        report.ranged.procs++;
+        const procDmg = (bow.procSpellDamage != null ? bow.procSpellDamage : 0) || 0;
+        const effectiveness = getProcSpellEffectiveness(bow, options, level, procRng);
+        const actualProcDmg = Math.floor(procDmg * effectiveness / 100);
+        report.ranged.procDamageTotal += actualProcDmg;
+        procDamageThisShot = actualProcDmg;
+        if (actualProcDmg === 0) {
+          report.ranged.procFullResists++;
+          report.ranged.procResists++;
+          report.ranged.procResistDamageLost += procDmg;
+        } else if (actualProcDmg < procDmg) {
+          report.ranged.procPartialResists++;
+          report.ranged.procResists++;
+          report.ranged.procResistDamageLost += (procDmg - actualProcDmg);
+        }
+      }
       const hit = rollHit(toHit, avoidance, rng, true);
       if (!hit) {
         nextRangedAtMs += delayMs;
+        if (procDamageThisShot > 0) {
+          report.ranged.totalDamage += procDamageThisShot;
+          report.totalDamage += procDamageThisShot;
+          report.ranged.maxDamage = Math.max(report.ranged.maxDamage, procDamageThisShot);
+          if (procDamageThisShot < report.ranged.minDamage) report.ranged.minDamage = procDamageThisShot;
+          report.ranged.hitList.push(procDamageThisShot);
+        }
         continue;
       }
       report.ranged.hits++;
@@ -598,23 +624,7 @@
         report.wallPenaltyDamageLost += (dmg - actualDamage);
         dmg = actualDamage;
       }
-      if (procChance > 0 && checkProc(procChance, procRng)) {
-        report.ranged.procs++;
-        const procDmg = (bow.procSpellDamage != null ? bow.procSpellDamage : 0) || 0;
-        const effectiveness = getProcSpellEffectiveness(bow, options, level, procRng);
-        const actualProcDmg = Math.floor(procDmg * effectiveness / 100);
-        report.ranged.procDamageTotal += actualProcDmg;
-        dmg += actualProcDmg;
-        if (actualProcDmg === 0) {
-          report.ranged.procFullResists++;
-          report.ranged.procResists++;
-          report.ranged.procResistDamageLost += procDmg;
-        } else if (actualProcDmg < procDmg) {
-          report.ranged.procPartialResists++;
-          report.ranged.procResists++;
-          report.ranged.procResistDamageLost += (procDmg - actualProcDmg);
-        }
-      }
+      dmg += procDamageThisShot;
       report.ranged.totalDamage += dmg;
       report.totalDamage += dmg;
       report.ranged.maxDamage = Math.max(report.ranged.maxDamage, dmg);
@@ -1077,7 +1087,7 @@
         }
 
         // Proc once per round (only if at least one hit landed)
-        if (mainHandHitThisRound && procChance1 > 0 && checkProc(procChance1, procRng)) {
+        if (procChance1 > 0 && checkProc(procChance1, procRng)) {
           report.weapon1.procs++;
           const procDmg = (w1.procSpellDamage != null ? w1.procSpellDamage : 0) | 0;
           const effectiveness = getProcSpellEffectiveness(w1, options, level, procRng);
@@ -1226,7 +1236,7 @@
             }
           }
           // Proc once per round (only if at least one hit landed)
-          if (offhandHitThisRound && procChance2 > 0 && checkProc(procChance2, procRng)) {
+          if ( procChance2 > 0 && checkProc(procChance2, procRng)) {
             report.weapon2.procs++;
             const procDmg = (w2.procSpellDamage != null ? w2.procSpellDamage : 0) | 0;
             const effectiveness = getProcSpellEffectiveness(w2, options, level, procRng);

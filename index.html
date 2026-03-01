@@ -1815,7 +1815,21 @@
         if (isNaN(dmg) || dmg < 1 || isNaN(dly) || dly < 1) return null;
         var item = { id: id, Name: raw.Name, name: raw.Name, damage: raw.damage, delay: raw.delay, itemtype: raw.itemtype, slots: raw.slots, classes: raw.classes, lore: raw.lore, proceffect: raw.proceffect, procrate: raw.procrate, elemdmgtype: raw.elemdmgtype, elemdmgamt: raw.elemdmgamt, banedmgamt: raw.banedmgamt, eleDmgType: raw.elemdmgtype, eleDmgAmt: raw.elemdmgamt, baneDmgAmt: raw.banedmgamt };
         var norm = (typeof ItemSearch !== 'undefined' && ItemSearch.normalizeItemForWeapon) ? ItemSearch.normalizeItemForWeapon(item) : null;
-        if (norm && norm.damage >= 1 && norm.delay >= 1) return norm;
+        if (norm && norm.damage >= 1 && norm.delay >= 1) {
+          if ((norm.procSpellId != null || raw.proceffect != null) && (!norm.proc || norm.procDamage == null || norm.procDamage === 0) && typeof ItemSearch !== 'undefined' && ItemSearch.getSpellFromLocalData) {
+            var procSpellId = norm.procSpellId != null ? norm.procSpellId : parseInt(raw.proceffect, 10);
+            if (!isNaN(procSpellId) && procSpellId > 0) {
+              var spellData = ItemSearch.getSpellFromLocalData(procSpellId);
+              if (spellData) {
+                norm.proc = spellData.name || '';
+                norm.procDamage = (spellData.damage != null && spellData.damage > 0) ? spellData.damage : 0;
+                if (spellData.buffdurationTicks != null && spellData.buffdurationTicks > 0)
+                  norm.procBuffDurationTicks = spellData.buffdurationTicks;
+              }
+            }
+          }
+          return norm;
+        }
         var it = raw.itemtype != null ? parseInt(raw.itemtype, 10) : NaN;
         var typeStr = !isNaN(it) && RANK_ITEM_TYPE_NUM_TO_TYPE[it] ? RANK_ITEM_TYPE_NUM_TO_TYPE[it] : '1hb';
         var is2H = (typeStr === '2hb' || typeStr === '2hs' || typeStr === '2hp');
@@ -1830,6 +1844,7 @@
           delay: dly,
           proc: '',
           procDamage: 0,
+          procRate: (raw.procrate != null && !Number.isNaN(Number(raw.procrate))) ? Number(raw.procrate) : 0,
           elemType: elemType || undefined,
           elemDamage: elemDamage,
           baneDamage: (raw.banedmgamt != null ? parseInt(raw.banedmgamt, 10) : 0) || 0,
@@ -1854,12 +1869,13 @@
         var damage = norm.damage;
         if (applyBane && norm.baneDamage) damage += norm.baneDamage;
         var is2H = !!(norm.is2H || (norm.type && (norm.type.toLowerCase() === '2hb' || norm.type.toLowerCase() === '2hs' || norm.type.toLowerCase() === '2hp')));
+        var procRate = (norm.procRate != null && !Number.isNaN(Number(norm.procRate))) ? Number(norm.procRate) : 0;
         var w = {
           damage: damage,
           delay: norm.delay,
           procSpell: (norm.proc != null ? norm.proc : '') || (norm.procSpell != null ? norm.procSpell : ''),
           procSpellDamage: norm.procDamage || 0,
-          procRate: 0,
+          procRate: procRate,
           is2H: is2H,
           elemType: norm.elemType || undefined,
           elemDamage: (norm.elemDamage != null ? norm.elemDamage : 0) || 0
@@ -2076,7 +2092,7 @@
                 delay: p2.delay,
                 procSpell: (p2.proc != null ? p2.proc : '') || (p2.procSpell != null ? p2.procSpell : ''),
                 procSpellDamage: p2.procDamage || 0,
-                procRate: 0,
+                procRate: (p2.procRate != null && !Number.isNaN(Number(p2.procRate))) ? Number(p2.procRate) : 0,
                 elemType: p2.elemType || undefined,
                 elemDamage: (p2.elemDamage != null ? p2.elemDamage : 0) || 0
               };
@@ -2197,7 +2213,7 @@
                 delay: p2.delay,
                 procSpell: (p2.proc != null ? p2.proc : '') || (p2.procSpell != null ? p2.procSpell : ''),
                 procSpellDamage: p2.procDamage || 0,
-                procRate: 0,
+                procRate: (p2.procRate != null && !Number.isNaN(Number(p2.procRate))) ? Number(p2.procRate) : 0,
                 elemType: p2.elemType || undefined,
                 elemDamage: (p2.elemDamage != null ? p2.elemDamage : 0) || 0
               };
