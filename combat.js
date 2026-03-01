@@ -428,9 +428,9 @@
 
   function applySpellCastingFuryProc(damage, options, rng) {
     const scf = getSpellCastingFury(options);
-    if (!scf.apply || damage <= 0) return damage;
-    if (rng() * 100 >= scf.critChance) return damage;
-    return Math.floor(damage * (100 + scf.multPercent) / 100);
+    if (!scf.apply || damage <= 0) return { damage: damage, isCrit: false };
+    if (rng() * 100 >= scf.critChance) return { damage: damage, isCrit: false };
+    return { damage: Math.floor(damage * (100 + scf.multPercent) / 100), isCrit: true };
   }
 
   // ----- Special attacks (Flying Kick, Backstab, Kick, Bash, etc.) -----
@@ -569,6 +569,8 @@
         procFullResists: 0,
         procPartialResists: 0,
         procResistDamageLost: 0,
+        spellProcCrits: 0,
+        maxSpellProcCritDmg: 0,
       },
       durationSec: options.fightDurationSec,
       totalDamage: 0,
@@ -598,7 +600,12 @@
         const procDmg = (bow.procSpellDamage != null ? bow.procSpellDamage : 0) || 0;
         const effectiveness = getProcSpellEffectiveness(bow, options, level, procRng);
         let actualProcDmg = Math.floor(procDmg * effectiveness / 100);
-        actualProcDmg = applySpellCastingFuryProc(actualProcDmg, options, procRng);
+        const scfResult = applySpellCastingFuryProc(actualProcDmg, options, procRng);
+        actualProcDmg = scfResult.damage;
+        if (scfResult.isCrit) {
+          report.ranged.spellProcCrits++;
+          report.ranged.maxSpellProcCritDmg = Math.max(report.ranged.maxSpellProcCritDmg || 0, actualProcDmg);
+        }
         report.ranged.procDamageTotal += actualProcDmg;
         procDamageThisShot = actualProcDmg;
         if (actualProcDmg === 0) {
@@ -731,6 +738,8 @@
     if (r.procResistDamageLost != null && r.procResistDamageLost > 0) {
       lines.push(`    Proc damage lost (resists): ${r.procResistDamageLost}`);
     }
+    if (r.spellProcCrits != null) lines.push(`    Proc spell crits (SCF):  ${r.spellProcCrits}`);
+    if (r.maxSpellProcCritDmg != null && r.maxSpellProcCritDmg > 0) lines.push(`    Max spell proc crit dmg:  ${r.maxSpellProcCritDmg}`);
     lines.push('');
 
     // 7. Final Totals
@@ -864,8 +873,8 @@
     const roundsPerMinW1 = (delay1Ms > 0 && hasMainHand) ? (60 * 1000 / delay1Ms) : 0;
     const roundsPerMinW2 = (delay2Ms > 0 && w2) ? (60 * 1000 / delay2Ms) : 0;
     const report = {
-      weapon1: { swings: 0, hits: 0, totalDamage: 0, maxDamage: 0, minDamage: Infinity, hitList: [], procs: 0, procDamageTotal: 0, procResists: 0, procFullResists: 0, procPartialResists: 0, procResistDamageLost: 0, rounds: 0, single: 0, double: 0, triple: 0 },
-      weapon2: { swings: 0, hits: 0, totalDamage: 0, maxDamage: 0, minDamage: Infinity, hitList: [], procs: 0, procDamageTotal: 0, procResists: 0, procFullResists: 0, procPartialResists: 0, procResistDamageLost: 0, rounds: 0, single: 0, double: 0, triple: 0 },
+      weapon1: { swings: 0, hits: 0, totalDamage: 0, maxDamage: 0, minDamage: Infinity, hitList: [], procs: 0, procDamageTotal: 0, procResists: 0, procFullResists: 0, procPartialResists: 0, procResistDamageLost: 0, spellProcCrits: 0, maxSpellProcCritDmg: 0, rounds: 0, single: 0, double: 0, triple: 0 },
+      weapon2: { swings: 0, hits: 0, totalDamage: 0, maxDamage: 0, minDamage: Infinity, hitList: [], procs: 0, procDamageTotal: 0, procResists: 0, procFullResists: 0, procPartialResists: 0, procResistDamageLost: 0, spellProcCrits: 0, maxSpellProcCritDmg: 0, rounds: 0, single: 0, double: 0, triple: 0 },
       durationSec: options.fightDurationSec,
       totalDamage: 0,
       elementalDamageTotal: 0,
@@ -1162,7 +1171,12 @@
             }
           } else {
             let actualDmg = Math.floor(procDmg * effectiveness / 100);
-            actualDmg = applySpellCastingFuryProc(actualDmg, options, procRng);
+            const scfResult1 = applySpellCastingFuryProc(actualDmg, options, procRng);
+            actualDmg = scfResult1.damage;
+            if (scfResult1.isCrit) {
+              report.weapon1.spellProcCrits++;
+              report.weapon1.maxSpellProcCritDmg = Math.max(report.weapon1.maxSpellProcCritDmg || 0, actualDmg);
+            }
             report.weapon1.procDamageTotal += actualDmg;
             report.totalDamage += actualDmg;
             if (actualDmg === 0) {
@@ -1318,7 +1332,12 @@
               }
             } else {
               let actualDmg = Math.floor(procDmg * effectiveness / 100);
-              actualDmg = applySpellCastingFuryProc(actualDmg, options, procRng);
+              const scfResult2 = applySpellCastingFuryProc(actualDmg, options, procRng);
+              actualDmg = scfResult2.damage;
+              if (scfResult2.isCrit) {
+                report.weapon2.spellProcCrits++;
+                report.weapon2.maxSpellProcCritDmg = Math.max(report.weapon2.maxSpellProcCritDmg || 0, actualDmg);
+              }
               report.weapon2.procDamageTotal += actualDmg;
               report.totalDamage += actualDmg;
               if (actualDmg === 0) {
@@ -1508,6 +1527,8 @@
     if (w1.procResistDamageLost != null && w1.procResistDamageLost > 0) {
       lines.push(`    Proc damage lost (resists): ${w1.procResistDamageLost}`);
     }
+    if (w1.spellProcCrits != null) lines.push(`    Proc spell crits (SCF):  ${w1.spellProcCrits}`);
+    if (w1.maxSpellProcCritDmg != null && w1.maxSpellProcCritDmg > 0) lines.push(`    Max spell proc crit dmg:  ${w1.maxSpellProcCritDmg}`);
     if (w2.swings > 0) {
       lines.push(`  ${weapon2Label || 'Weapon 2'}`);
       if (w2.anticipatedProcsPerMinute != null) lines.push(`    Anticipated procs per minute: ${w2.anticipatedProcsPerMinute.toFixed(2)}`);
@@ -1520,6 +1541,8 @@
       if (w2.procResistDamageLost != null && w2.procResistDamageLost > 0) {
         lines.push(`    Proc damage lost (resists): ${w2.procResistDamageLost}`);
       }
+      if (w2.spellProcCrits != null) lines.push(`    Proc spell crits (SCF):  ${w2.spellProcCrits}`);
+      if (w2.maxSpellProcCritDmg != null && w2.maxSpellProcCritDmg > 0) lines.push(`    Max spell proc crit dmg:  ${w2.maxSpellProcCritDmg}`);
     }
     if (report.special && (report.special.count > 0 || (report.special.attempts != null && report.special.attempts > 0))) {
       const sp = report.special;

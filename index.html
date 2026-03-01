@@ -1515,6 +1515,8 @@
               procFullResists: Math.round(reports.reduce((s, r) => s + (r.weapon1.procFullResists || 0), 0) / runs),
               procPartialResists: Math.round(reports.reduce((s, r) => s + (r.weapon1.procPartialResists || 0), 0) / runs),
               procResistDamageLost: Math.round(reports.reduce((s, r) => s + (r.weapon1.procResistDamageLost || 0), 0) / runs),
+              spellProcCrits: Math.round(reports.reduce((s, r) => s + (r.weapon1.spellProcCrits || 0), 0) / runs),
+              maxSpellProcCritDmg: reports.length ? Math.max(...reports.map(function (r) { return r.weapon1.maxSpellProcCritDmg || 0; })) : 0,
               anticipatedProcChancePerRound: reports[0].weapon1.anticipatedProcChancePerRound,
               anticipatedProcsPerMinute: reports[0].weapon1.anticipatedProcsPerMinute,
               hitStats: w1HitStats.length ? {
@@ -1541,6 +1543,8 @@
               procFullResists: Math.round(reports.reduce((s, r) => s + (r.weapon2.procFullResists || 0), 0) / runs),
               procPartialResists: Math.round(reports.reduce((s, r) => s + (r.weapon2.procPartialResists || 0), 0) / runs),
               procResistDamageLost: Math.round(reports.reduce((s, r) => s + (r.weapon2.procResistDamageLost || 0), 0) / runs),
+              spellProcCrits: Math.round(reports.reduce((s, r) => s + (r.weapon2.spellProcCrits || 0), 0) / runs),
+              maxSpellProcCritDmg: reports.length ? Math.max(...reports.map(function (r) { return r.weapon2.maxSpellProcCritDmg || 0; })) : 0,
               anticipatedProcChancePerRound: reports[0].weapon2.anticipatedProcChancePerRound,
               anticipatedProcsPerMinute: reports[0].weapon2.anticipatedProcsPerMinute,
               hitStats: w2HitStats.length ? {
@@ -2767,6 +2771,8 @@
               procFullResists: Math.round(reports.reduce((s, r) => s + (r.ranged.procFullResists || 0), 0) / runs),
               procPartialResists: Math.round(reports.reduce((s, r) => s + (r.ranged.procPartialResists || 0), 0) / runs),
               procResistDamageLost: Math.round(reports.reduce((s, r) => s + (r.ranged.procResistDamageLost || 0), 0) / runs),
+              spellProcCrits: Math.round(reports.reduce((s, r) => s + (r.ranged.spellProcCrits || 0), 0) / runs),
+              maxSpellProcCritDmg: reports.length ? Math.max(...reports.map(function (r) { return r.ranged.maxSpellProcCritDmg || 0; })) : 0,
               anticipatedProcChancePerShot: r0.ranged.anticipatedProcChancePerShot,
               anticipatedProcsPerMinute: r0.ranged.anticipatedProcsPerMinute,
             },
