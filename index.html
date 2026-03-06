@@ -2256,7 +2256,6 @@
         });
         var mainhand_dps = {};
         var offhand_dps = {};
-        var rankViewMode = (window._rankWeaponsReportViewMode === 'slot') ? 'slot' : 'combinations';
         var totalSims = primaryWeapons.length + (canDualWield ? secondaryWeapons.length : 0);
         var refMainId = canDualWield && secondaryWeapons.length > 0 ? primaryWeapons.filter(function (id) {
           var n = rankWeaponMap[id];
@@ -2361,32 +2360,42 @@
           var runsCount = Math.max(1, Math.min(1000, parseInt($('runs').value, 10) || 20));
           var top40 = results.slice(0, 40);
           function renderRankReport() {
+            var currentMode = (window._rankWeaponsReportViewMode === 'slot') ? 'slot' : 'combinations';
             clearRankStatusDots();
             var reportEl = $('report');
             if (reportEl) reportEl.textContent = 'Generating chart...';
             results.sort(function (a, b) { return (b.totalDps || 0) - (a.totalDps || 0); });
             window._lastRankWeaponsResults = results;
-            window._rankWeaponsReportViewMode = rankViewMode;
+            window._rankWeaponsReportViewMode = currentMode;
             var viewToggleBtn = $('btn-rank-view-toggle');
             if (viewToggleBtn) {
               viewToggleBtn.style.display = '';
               viewToggleBtn.textContent = 'Combos/Slots';
-              viewToggleBtn.title = 'Toggle rank view (current: ' + (rankViewMode === 'slot' ? 'Slot Ranking' : 'Combinations') + ')';
+              viewToggleBtn.title = 'Toggle rank view (current: ' + (currentMode === 'slot' ? 'Slot Ranking' : 'Combinations') + ')';
             }
             var subText = top40.length > 0 ? ' Top 40 averaged over ' + runsCount + ' runs.' : '';
             var sourceLabel = includePop ? 'From popweapons.json.' : 'From luclinweapons.json.';
             if (ignoreNoDrop) sourceLabel += ' No Drop items excluded (nodrop = 0).';
             sourceLabel += ' Items requiring level above character level excluded (reqlevel).';
             sourceLabel += ' Items unusable by all races excluded (races = 0).';
-            var heading = rankViewMode === 'slot' ? '=== Weapon slot rank (by DPS) ===' : '=== Weapon combination rank (by DPS) ===';
-            var modeDesc = rankViewMode === 'slot' ? ' Slot Ranking mode shows best single-slot options.' : ' DPS = mainhand + offhand (additive).';
+            var heading = currentMode === 'slot' ? '=== Weapon slot rank (by DPS) ===' : '=== Weapon combination rank (by DPS) ===';
+            var modeDesc = currentMode === 'slot' ? ' Slot Ranking mode shows best single-slot options.' : ' DPS = mainhand + offhand (additive).';
             var lines = [heading, 'Class: ' + (classConfig && classConfig.name ? classConfig.name : classId) + ', Level: ' + level + ', Duration: ' + durationSec + 's', sourceLabel + subText + modeDesc, ''];
             function formatDps(v) { return v != null ? Number(v).toFixed(2) : '—'; }
+            function dedupeBestById(rows) {
+              var bestById = {};
+              (rows || []).forEach(function (row) {
+                if (!row || row.id == null) return;
+                var k = String(row.id);
+                if (!bestById[k] || (row.dps || 0) > (bestById[k].dps || 0)) bestById[k] = row;
+              });
+              return Object.keys(bestById).map(function (k) { return bestById[k]; }).sort(function (a, b) { return (b.dps || 0) - (a.dps || 0); });
+            }
             function renderSlotTable(title, rows, labelHeader, showWhenEmpty) {
               if (!rows || rows.length === 0) {
                 return showWhenEmpty ? ('<h3 style="margin:0.75rem 0 0.35rem;">' + title + '</h3><div class="hint" style="margin:0 0 0.5rem;">No eligible items found.</div>') : '';
               }
-              var bodyRows = rows.slice(0, 100).map(function (row, i) {
+              var bodyRows = rows.slice(0, 40).map(function (row, i) {
                 var label = (row.label || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
                 var dpsStr = formatDps(row.dps);
                 return '<tr><td>' + (i + 1) + '</td><td>' + label + '</td><td style="text-align:right;">' + dpsStr + '</td></tr>';
@@ -2416,22 +2425,24 @@
             var chartHeader = '<div class="rank-chart-row rank-chart-header"><span class="rank-chart-label">Weapon Combination</span><span class="rank-chart-dps">DPS</span><span class="rank-chart-pct">% of BIS</span><div class="rank-chart-bar-wrap"></div></div>';
             var chartHtml = chartRows.length > 0 ? '<div class="rank-weapons-chart"><h3>Top 40 by DPS (X scale = #1)</h3>' + chartHeader + chartRows.join('') + '</div>' : '';
             var histContainer = $('histogram-container');
-            if (rankViewMode === 'slot') {
+            if (currentMode === 'slot') {
               var mainhandSlotRows = primaryWeapons.map(function (id) {
                 var w = rankWeaponMap[id];
                 var is2H = !!(w && (w.is2H || (w.type && offhandBlockedTypes[w.type])));
                 return { id: id, label: (w && w.name) || id, dps: mainhand_dps[id] != null ? mainhand_dps[id] : 0, is2H: is2H };
-              }).sort(function (a, b) { return (b.dps || 0) - (a.dps || 0); });
-              var oneHandMainRows = mainhandSlotRows.filter(function (r) { return !r.is2H; });
-              var twoHandMainRows = mainhandSlotRows.filter(function (r) { return r.is2H; });
+              });
+              mainhandSlotRows = dedupeBestById(mainhandSlotRows);
+              var oneHandMainRows = dedupeBestById(mainhandSlotRows.filter(function (r) { return !r.is2H; }));
+              var twoHandMainRows = dedupeBestById(mainhandSlotRows.filter(function (r) { return r.is2H; }));
               var offhandRows = secondaryWeapons.map(function (id) {
                 var w = rankWeaponMap[id];
                 return { id: id, label: (w && w.name) || id, dps: offhand_dps[id] != null ? offhand_dps[id] : 0 };
-              }).sort(function (a, b) { return (b.dps || 0) - (a.dps || 0); });
+              });
+              offhandRows = dedupeBestById(offhandRows);
               var slotTables = '';
-              slotTables += renderSlotTable('Best Mainhand (1H) - Top 100', oneHandMainRows, 'Mainhand weapon');
-              if (classCanUse2H || twoHandMainRows.length > 0) slotTables += renderSlotTable('Best Mainhand (2H) - Top 100', twoHandMainRows, '2H weapon', true);
-              if (canDualWield) slotTables += renderSlotTable('Best Offhand - Top 100', offhandRows, 'Offhand weapon');
+              slotTables += renderSlotTable('Best Mainhand (1H) - Top 40', oneHandMainRows, 'Mainhand weapon');
+              if (canDualWield) slotTables += renderSlotTable('Best Offhand - Top 40', offhandRows, 'Offhand weapon');
+              if (classCanUse2H || twoHandMainRows.length > 0) slotTables += renderSlotTable('Best Mainhand (2H) - Top 40', twoHandMainRows, '2H weapon', true);
               if (histContainer) histContainer.innerHTML = '';
               $('report').innerHTML = '<pre style="margin:0; white-space:pre-wrap; overflow-wrap:anywhere; word-break:break-word;">' + lines.join('\n') + '</pre>' + slotTables;
             } else {
