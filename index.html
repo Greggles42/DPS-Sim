@@ -950,20 +950,28 @@
   <script>
     (function () {
       var localSpellData = null;
+      var spellDataLoadPromise = null;
+      function ensureLocalSpellDataLoaded() {
+        if (localSpellData && typeof localSpellData === 'object') return Promise.resolve(localSpellData);
+        if (spellDataLoadPromise) return spellDataLoadPromise;
+        spellDataLoadPromise = fetch('resources/spells_en.json')
+          .then(function (r) { return r.ok ? r.json() : null; })
+          .then(function (data) {
+            localSpellData = (data && typeof data === 'object') ? data : null;
+            if (data && typeof ItemSearch !== 'undefined' && ItemSearch.setSpellData) ItemSearch.setSpellData(data);
+            return localSpellData;
+          })
+          .catch(function () { return null; });
+        return spellDataLoadPromise;
+      }
       if (typeof ItemSearch !== 'undefined') {
         if (typeof ITEM_SEARCH_CONFIG !== 'undefined') {
           ItemSearch.setConfig(ITEM_SEARCH_CONFIG);
         } else {
           ItemSearch.setConfig({ proxyUrl: '/api/item-search' });
         }
-        fetch('resources/spells_en.json')
-          .then(function (r) { return r.ok ? r.json() : null; })
-          .then(function (data) {
-            localSpellData = (data && typeof data === 'object') ? data : null;
-            if (data && typeof ItemSearch !== 'undefined' && ItemSearch.setSpellData) ItemSearch.setSpellData(data);
-          })
-          .catch(function () {});
       }
+      ensureLocalSpellDataLoaded();
       const $ = (id) => document.getElementById(id);
       var npcTypesList = [];
       fetch('resources/npc_types.json')
@@ -2294,6 +2302,7 @@
             return;
           }
         }
+        await ensureLocalSpellDataLoaded();
         const level = parseInt($('level').value, 10) || 60;
         const durationSec = parseInt($('duration').value, 10) || 6000;
         const applyBane = $('apply-bane').checked;
