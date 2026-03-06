@@ -684,6 +684,7 @@
         <input type="text" id="target-npc-search" placeholder="Search by name (e.g. grimling, dragon)..." autocomplete="off">
         <div id="target-npc-search-list" class="item-search-list" role="listbox"></div>
       </div>
+      <p class="hint">If no specific target is selected from search, a generic target is used based on character level (target level = character level; AC scales linearly from 5 at level 1 to 200 at level 60).</p>
       <label>Attacking from</label>
       <div class="radio-group">
         <label><input type="radio" name="from-behind" value="0"><span class="radio-option-main">Front</span> <span class="radio-option-note">(use avoidance)</span></label>
@@ -3115,6 +3116,7 @@
         updateFistweavingVisibility();
         updateWeaponSkillInputs();
         updateClassIcon();
+        applyGenericTargetIfNoneSelected();
         updateItemSearchDebug();
       }
       function updateClassIcon() {
@@ -3138,8 +3140,8 @@
       $('level').addEventListener('input', onClassOrLevelChange);
       var rangedLevelEl = $('ranged-level');
       if (rangedLevelEl) {
-        rangedLevelEl.addEventListener('change', function () { updateItemSearchDebug(); });
-        rangedLevelEl.addEventListener('input', function () { updateItemSearchDebug(); });
+        rangedLevelEl.addEventListener('change', function () { applyGenericTargetIfNoneSelected(); updateItemSearchDebug(); });
+        rangedLevelEl.addEventListener('input', function () { applyGenericTargetIfNoneSelected(); updateItemSearchDebug(); });
       }
       updateClassIcon();
       ['worn-haste', 'spell-haste'].forEach(function (id) {
@@ -3750,6 +3752,28 @@
         }
         return count ? section : '';
       }
+      function getGenericTargetAcFromLevel(level) {
+        var lvl = parseInt(level, 10);
+        if (isNaN(lvl)) lvl = 60;
+        lvl = Math.max(1, Math.min(60, lvl));
+        if (lvl <= 1) return 5;
+        if (lvl >= 60) return 200;
+        var t = (lvl - 1) / (60 - 1);
+        return Math.round(5 + t * (200 - 5));
+      }
+      function applyGenericTargetIfNoneSelected() {
+        if (window.selectedTargetNpc && typeof window.selectedTargetNpc === 'object') return;
+        var meleeLevel = parseInt($('level').value, 10) || 60;
+        var rangedLevel = parseInt($('ranged-level').value, 10) || meleeLevel || 60;
+        var set = function (id, val) {
+          var el = $(id);
+          if (el && val !== undefined && val !== null) el.value = val;
+        };
+        set('mob-level', meleeLevel);
+        set('target-ac', getGenericTargetAcFromLevel(meleeLevel));
+        set('ranged-mob-level', rangedLevel);
+        set('ranged-target-ac', getGenericTargetAcFromLevel(rangedLevel));
+      }
       function attachTargetNpcButtons(listEl, npcTypesList, npcNameForDisplay, inputEl, closeDropdown) {
         if (!listEl) return;
         listEl.querySelectorAll('.item-search-item[data-npc-id]').forEach(function (btn) {
@@ -3816,6 +3840,10 @@
           return (name != null ? String(name) : '').replace(/_/g, ' ');
         }
         inputEl.addEventListener('input', function () {
+          if ((inputEl.value || '').trim() === '') {
+            window.selectedTargetNpc = null;
+            applyGenericTargetIfNoneSelected();
+          }
           var q = (inputEl.value || '').trim().replace(/_/g, ' ').toLowerCase();
           if (q.length < minChars) {
             var recentHtml = renderTargetNpcRecentSection(npcTypesList, npcNameForDisplay);
@@ -3868,6 +3896,10 @@
           return (name != null ? String(name) : '').replace(/_/g, ' ');
         }
         inputEl.addEventListener('input', function () {
+          if ((inputEl.value || '').trim() === '') {
+            window.selectedTargetNpc = null;
+            applyGenericTargetIfNoneSelected();
+          }
           var q = (inputEl.value || '').trim().replace(/_/g, ' ').toLowerCase();
           if (q.length < minChars) {
             var recentHtml = renderTargetNpcRecentSection(npcTypesList, npcNameForDisplay);
@@ -3907,6 +3939,8 @@
           if (e.key === 'Escape') { closeRangedTargetNpcDropdown(); inputEl.blur(); }
         });
       })();
+
+      applyGenericTargetIfNoneSelected();
 
       document.addEventListener('click', function (e) {
         if (e.target.closest('.item-search-wrap')) return;
