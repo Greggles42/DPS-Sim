@@ -863,7 +863,7 @@
     <div class="report-header-row" style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.75rem;">
       <h2 style="margin: 0;">Report</h2>
       <span style="display: flex; gap: 0.5rem;">
-        <button type="button" id="btn-rank-view-toggle" class="sim-history-clear-btn" style="display:none;" title="Switch rank report view mode">Combinations</button>
+        <button type="button" id="btn-rank-view-toggle" class="sim-history-clear-btn" style="display:none;" title="Switch rank report view mode">Combos/Slots</button>
         <button type="button" id="btn-rank-export-csv" class="sim-history-clear-btn" title="Export weapon rank list to CSV (run Rank weapons first)">Export to .csv</button>
         <button type="button" id="export-report-txt" class="sim-history-clear-btn" title="Download current report as a .txt file">Export to .txt</button>
       </span>
@@ -2370,8 +2370,8 @@
             var viewToggleBtn = $('btn-rank-view-toggle');
             if (viewToggleBtn) {
               viewToggleBtn.style.display = '';
-              viewToggleBtn.textContent = (rankViewMode === 'slot') ? 'Slot Ranking' : 'Combinations';
-              viewToggleBtn.title = 'Switch between Combinations and Slot Ranking';
+              viewToggleBtn.textContent = 'Combos/Slots';
+              viewToggleBtn.title = 'Toggle rank view (current: ' + (rankViewMode === 'slot' ? 'Slot Ranking' : 'Combinations') + ')';
             }
             var subText = top40.length > 0 ? ' Top 40 averaged over ' + runsCount + ' runs.' : '';
             var sourceLabel = includePop ? 'From popweapons.json.' : 'From luclinweapons.json.';
