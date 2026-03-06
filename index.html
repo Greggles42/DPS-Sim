@@ -1595,6 +1595,13 @@
               : null,
           };
         }
+        window._lastSimRunExport = {
+          mode: 'melee',
+          runs: runs,
+          reports: reports,
+          averaged: report,
+          createdAt: Date.now(),
+        };
 
         const w1Name = (w1FromItemSearch && w1DisplayName ? w1DisplayName : (weapon1.damage + 'd/' + weapon1.delay));
         const w2Name = useWeapon2 ? (w2FromItemSearch && w2DisplayName ? w2DisplayName : (weapon2.damage + 'd/' + weapon2.delay)) : '—';
@@ -2633,8 +2640,107 @@
         a.click();
         URL.revokeObjectURL(url);
       }
+      function exportSimulationRunsToCsv() {
+        var payload = window._lastSimRunExport;
+        if (!payload || !Array.isArray(payload.reports) || payload.reports.length === 0 || !payload.averaged) {
+          if (typeof alert !== 'undefined') alert('No simulation runs to export. Run a simulation first.');
+          return;
+        }
+        function asNum(v) {
+          if (v == null) return '';
+          var n = Number(v);
+          return Number.isFinite(n) ? n : '';
+        }
+        function flattenMelee(reportObj, runLabel) {
+          var w1 = reportObj.weapon1 || {};
+          var w2 = reportObj.weapon2 || {};
+          var dur = asNum(reportObj.durationSec);
+          var totalDamage = asNum(reportObj.totalDamage);
+          var w1Total = asNum(w1.totalDamage);
+          var w2Total = asNum(w2.totalDamage);
+          return {
+            mode: 'melee',
+            run: runLabel,
+            durationSec: dur,
+            totalDamage: totalDamage,
+            totalDps: (dur > 0 && totalDamage !== '') ? (totalDamage / dur) : '',
+            critHits: asNum(reportObj.critHits),
+            critDamageGain: asNum(reportObj.critDamageGain),
+            weapon1Swings: asNum(w1.swings),
+            weapon1Hits: asNum(w1.hits),
+            weapon1Damage: w1Total,
+            weapon1Dps: (dur > 0 && w1Total !== '') ? (w1Total / dur) : '',
+            weapon1Procs: asNum(w1.procs),
+            weapon1ProcDamage: asNum(w1.procDamageTotal),
+            weapon1SpellProcCrits: asNum(w1.spellProcCrits),
+            weapon1MaxSpellProcCritDmg: asNum(w1.maxSpellProcCritDmg),
+            weapon2Swings: asNum(w2.swings),
+            weapon2Hits: asNum(w2.hits),
+            weapon2Damage: w2Total,
+            weapon2Dps: (dur > 0 && w2Total !== '') ? (w2Total / dur) : '',
+            weapon2Procs: asNum(w2.procs),
+            weapon2ProcDamage: asNum(w2.procDamageTotal),
+            weapon2SpellProcCrits: asNum(w2.spellProcCrits),
+            weapon2MaxSpellProcCritDmg: asNum(w2.maxSpellProcCritDmg),
+          };
+        }
+        function flattenRanged(reportObj, runLabel) {
+          var rg = reportObj.ranged || {};
+          var dur = asNum(reportObj.durationSec);
+          var totalDamage = asNum(reportObj.totalDamage);
+          var rangedTotal = asNum(rg.totalDamage);
+          return {
+            mode: 'ranged',
+            run: runLabel,
+            durationSec: dur,
+            totalDamage: totalDamage,
+            totalDps: (dur > 0 && totalDamage !== '') ? (totalDamage / dur) : '',
+            critHits: asNum(reportObj.critHits),
+            critDamageGain: asNum(reportObj.critDamageGain),
+            rangedSwings: asNum(rg.swings),
+            rangedHits: asNum(rg.hits),
+            rangedDamage: rangedTotal,
+            rangedDps: (dur > 0 && rangedTotal !== '') ? (rangedTotal / dur) : '',
+            rangedProcs: asNum(rg.procs),
+            rangedProcDamage: asNum(rg.procDamageTotal),
+            rangedSpellProcCrits: asNum(rg.spellProcCrits),
+            rangedMaxSpellProcCritDmg: asNum(rg.maxSpellProcCritDmg),
+          };
+        }
+        var flatten = payload.mode === 'ranged' ? flattenRanged : flattenMelee;
+        var rows = [];
+        rows.push(flatten(payload.averaged, 'AVG'));
+        payload.reports.forEach(function (r, i) {
+          rows.push(flatten(r, String(i + 1)));
+        });
+        if (!rows.length) {
+          if (typeof alert !== 'undefined') alert('No simulation rows to export.');
+          return;
+        }
+        var header = Object.keys(rows[0]);
+        var csvRows = [header.map(escapeCsvField).join(',')];
+        rows.forEach(function (row) {
+          csvRows.push(header.map(function (k) { return escapeCsvField(row[k]); }).join(','));
+        });
+        var csv = '\uFEFF' + csvRows.join('\r\n');
+        var blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = url;
+        a.download = 'sim-runs-' + (payload.mode || 'melee') + '-' + new Date().toISOString().slice(0, 10) + '.csv';
+        a.click();
+        URL.revokeObjectURL(url);
+      }
       var btnRankExportCsv = $('btn-rank-export-csv');
-      if (btnRankExportCsv) btnRankExportCsv.addEventListener('click', exportRankWeaponsToCsv);
+      if (btnRankExportCsv) {
+        btnRankExportCsv.addEventListener('click', function (e) {
+          if (e && e.shiftKey) {
+            exportSimulationRunsToCsv();
+            return;
+          }
+          exportRankWeaponsToCsv();
+        });
+      }
       function renderSimHistory() {
         const listEl = $('sim-history-list');
         if (!listEl) return;
@@ -2787,6 +2893,13 @@
             displayedAttack: r0.displayedAttack,
           };
         }
+        window._lastSimRunExport = {
+          mode: 'ranged',
+          runs: runs,
+          reports: reports,
+          averaged: report,
+          createdAt: Date.now(),
+        };
         let rangedReportText = EQCombat.formatRangedReport(report, runs);
         if (window.selectedTargetNpc && window.selectedTargetNpc.name) {
           rangedReportText = '  Target: ' + String(window.selectedTargetNpc.name).replace(/_/g, ' ') + '\n\n' + rangedReportText;
