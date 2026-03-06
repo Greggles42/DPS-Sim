@@ -2436,10 +2436,10 @@
             var name1 = p1.name || comb.primaryId;
             var name2 = comb.secondaryId ? (rankWeaponMap[comb.secondaryId] && rankWeaponMap[comb.secondaryId].name) || comb.secondaryId : '';
             var label = comb.secondaryId ? (name1 + ' + ' + name2) : name1;
-            var p2 = comb.secondaryId ? rankWeaponMap[comb.secondaryId] : null;
-            var bs1 = getBackstabModPercentForNorm(p1);
-            var bs2 = getBackstabModPercentForNorm(p2);
-            var backstabModApplied = classId === 'rogue' ? Math.max(bs1, bs2) : 0;
+            var bs1 = classId === 'rogue' ? getBackstabModPercentForNorm(p1) : 0;
+            var primaryType = (p1 && p1.type != null ? String(p1.type) : '').toLowerCase();
+            var backstabContributes = classId === 'rogue' && fromBehind && rankSpecialAttacks && rankSpecialAttackType === 'backstab' && primaryType === '1hp' && bs1 > 0;
+            var backstabModApplied = backstabContributes ? bs1 : 0;
             return { primaryId: comb.primaryId, secondaryId: comb.secondaryId, label: label, mainhandDps: mainDps, offhandDps: offDps, totalDps: totalDps, backstabModApplied: backstabModApplied };
           });
           results.sort(function (a, b) { return (b.totalDps || 0) - (a.totalDps || 0); });
@@ -2520,14 +2520,17 @@
               var mainhandSlotRows = primaryWeapons.map(function (id) {
                 var w = rankWeaponMap[id];
                 var is2H = !!(w && (w.is2H || (w.type && offhandBlockedTypes[w.type])));
-                return { id: id, label: (w && w.name) || id, dps: mainhand_dps[id] != null ? mainhand_dps[id] : 0, is2H: is2H, backstabModApplied: classId === 'rogue' ? getBackstabModPercentForNorm(w) : 0 };
+                var bs1 = classId === 'rogue' ? getBackstabModPercentForNorm(w) : 0;
+                var primaryType = (w && w.type != null ? String(w.type) : '').toLowerCase();
+                var backstabContributes = classId === 'rogue' && fromBehind && rankSpecialAttacks && rankSpecialAttackType === 'backstab' && primaryType === '1hp' && bs1 > 0;
+                return { id: id, label: (w && w.name) || id, dps: mainhand_dps[id] != null ? mainhand_dps[id] : 0, is2H: is2H, backstabModApplied: backstabContributes ? bs1 : 0 };
               });
               mainhandSlotRows = dedupeBestById(mainhandSlotRows);
               var oneHandMainRows = dedupeBestById(mainhandSlotRows.filter(function (r) { return !r.is2H; }));
               var twoHandMainRows = dedupeBestById(mainhandSlotRows.filter(function (r) { return r.is2H; }));
               var offhandRows = secondaryWeapons.map(function (id) {
                 var w = rankWeaponMap[id];
-                return { id: id, label: (w && w.name) || id, dps: offhand_dps[id] != null ? offhand_dps[id] : 0, backstabModApplied: classId === 'rogue' ? getBackstabModPercentForNorm(w) : 0 };
+                return { id: id, label: (w && w.name) || id, dps: offhand_dps[id] != null ? offhand_dps[id] : 0, backstabModApplied: 0 };
               });
               offhandRows = dedupeBestById(offhandRows);
               var slotTables = '';
