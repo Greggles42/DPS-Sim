@@ -3206,33 +3206,59 @@
         try { localStorage.setItem(ITEM_SEARCH_RECENT_ARROW_KEY, JSON.stringify(recent)); } catch (e) {}
       }
 
+      const itemSearchDebugSlots = { W1: null, W2: null, 'Ranged weapon': null, Arrow: null };
       function updateItemSearchDebug(slotLabel, weapon) {
         const el = $('item-search-debug-content');
         if (!el) return;
-        if (!weapon) {
+        if (slotLabel) itemSearchDebugSlots[slotLabel] = weapon || null;
+        function formatSlotDebug(label, w) {
+          if (!w) return 'Slot: ' + label + '\nName: —';
+          const apiType = w.itemTypeNum != null ? w.itemTypeNum : '(not set)';
+          const mapped = (w.type != null && w.type !== '') ? w.type : '(undefined)';
+          const slots = w.slots != null ? w.slots : '(not set)';
+          const procName = (w.proc != null ? String(w.proc) : '') || '—';
+          const proceffect = w.procSpellId != null ? w.procSpellId : '—';
+          const procDmg = w.procDamage != null && !isNaN(Number(w.procDamage)) ? w.procDamage : '—';
+          const procRate = w.procRate != null && !isNaN(Number(w.procRate)) ? Number(w.procRate) : 0;
+          const procLevel = w.procLevel != null && !isNaN(Number(w.procLevel)) && Number(w.procLevel) > 0 ? Number(w.procLevel) : null;
+          const isOffhand = label === 'W2';
+          const levelEl = (label === 'Ranged weapon') ? $('ranged-level') : $('level');
+          const currentLevel = levelEl ? (parseInt(levelEl.value, 10) || 60) : 60;
+          const levelAllowsProc = procLevel == null || currentLevel >= procLevel;
+          let procChanceLine = 'Proc rate: ' + procRate + '%';
+          let modifiedProcChanceLine = 'Modified proc chance: —';
+          if (typeof EQCombat !== 'undefined' && EQCombat.getProcChancePerSwing && EQCombat.effectiveDelayDecisec && w.delay != null && w.delay > 0) {
+            const hasteInput = (label === 'Ranged weapon') ? $('ranged-haste') : $('haste');
+            const haste = hasteInput ? (parseInt(hasteInput.value, 10) || 99) : 99;
+            const dexInput = (label === 'Ranged weapon') ? $('ranged-dex') : $('dex');
+            const dex = dexInput ? (parseInt(dexInput.value, 10) || 255) : 255;
+            const dualWieldPct = isOffhand ? (parseInt($('dual-wield').value, 10) || 100) : 100;
+            const effDelay = EQCombat.effectiveDelayDecisec(w.delay, haste);
+            const baseChance = EQCombat.getProcChancePerSwing(effDelay, isOffhand, dualWieldPct, dex);
+            const modifiedChance = Math.min(1, Math.max(0, baseChance * (100 + procRate) / 100));
+            const gatedChance = levelAllowsProc ? modifiedChance : 0;
+            modifiedProcChanceLine = 'Modified proc chance: ' + (gatedChance * 100).toFixed(2) + '% (base ' + (baseChance * 100).toFixed(2) + '% × (100 + ' + procRate + ') / 100' + (levelAllowsProc ? '' : '; blocked by proclevel') + ')';
+          }
+          return 'Slot: ' + label + '\nName: ' + (w.name || '—') + '\nAPI itemType: ' + apiType + '\nMapped type: ' + mapped + '\nSlots bitmask: ' + slots + '\nProc spell name: ' + procName + '\nProceffect: ' + proceffect + '\nProc spell damage: ' + procDmg + '\nProc level: ' + (procLevel != null ? procLevel : '—') + '\nCharacter level check: ' + currentLevel + (levelAllowsProc ? ' (can proc)' : ' (cannot proc)') + '\n' + procChanceLine + '\n' + modifiedProcChanceLine;
+        }
+        const parts = [];
+        const hasAny = !!(itemSearchDebugSlots.W1 || itemSearchDebugSlots.W2 || itemSearchDebugSlots['Ranged weapon'] || itemSearchDebugSlots.Arrow);
+        if (!hasAny) {
           el.textContent = 'Select an item from search to see API itemType and mapped type.';
           return;
         }
-        const apiType = weapon.itemTypeNum != null ? weapon.itemTypeNum : '(not set)';
-        const mapped = (weapon.type != null && weapon.type !== '') ? weapon.type : '(undefined)';
-        const slots = weapon.slots != null ? weapon.slots : '(not set)';
-        const procName = (weapon.proc != null ? String(weapon.proc) : '') || '—';
-        const proceffect = weapon.procSpellId != null ? weapon.procSpellId : '—';
-        const procDmg = weapon.procDamage != null && !isNaN(Number(weapon.procDamage)) ? weapon.procDamage : '—';
-        const procRate = weapon.procRate != null && !isNaN(Number(weapon.procRate)) ? Number(weapon.procRate) : 0;
-        let procChanceLine = 'Proc rate: ' + procRate + '%';
-        let modifiedProcChanceLine = 'Modified proc chance: —';
-        if (typeof EQCombat !== 'undefined' && EQCombat.getProcChancePerSwing && EQCombat.effectiveDelayDecisec && weapon.delay != null && weapon.delay > 0) {
-          const haste = parseInt($('haste').value, 10) || 99;
-          const dex = parseInt($('dex').value, 10) || 255;
-          const isOffhand = slotLabel === 'W2';
-          const dualWieldPct = isOffhand ? (parseInt($('dual-wield').value, 10) || 100) : 100;
-          const effDelay = EQCombat.effectiveDelayDecisec(weapon.delay, haste);
-          const baseChance = EQCombat.getProcChancePerSwing(effDelay, isOffhand, dualWieldPct, dex);
-          const modifiedChance = Math.min(1, Math.max(0, baseChance * (100 + procRate) / 100));
-          modifiedProcChanceLine = 'Modified proc chance: ' + (modifiedChance * 100).toFixed(2) + '% (base ' + (baseChance * 100).toFixed(2) + '% × (100 + ' + procRate + ') / 100)';
+        parts.push(formatSlotDebug('W1', itemSearchDebugSlots.W1));
+        parts.push('');
+        parts.push(formatSlotDebug('W2', itemSearchDebugSlots.W2));
+        if (itemSearchDebugSlots['Ranged weapon']) {
+          parts.push('');
+          parts.push(formatSlotDebug('Ranged weapon', itemSearchDebugSlots['Ranged weapon']));
         }
-        el.textContent = 'Slot: ' + slotLabel + '\nName: ' + (weapon.name || '—') + '\nAPI itemType: ' + apiType + '\nMapped type: ' + mapped + '\nSlots bitmask: ' + slots + '\nProc spell name: ' + procName + '\nProceffect: ' + proceffect + '\nProc spell damage: ' + procDmg + '\n' + procChanceLine + '\n' + modifiedProcChanceLine;
+        if (itemSearchDebugSlots.Arrow) {
+          parts.push('');
+          parts.push(formatSlotDebug('Arrow', itemSearchDebugSlots.Arrow));
+        }
+        el.textContent = parts.join('\n');
       }
 
       /** Populate weapon form fields from selected item (JSON/normalized weapon: damage, delay, proc, procDamage, elemType, elemDamage, baneDamage). */
