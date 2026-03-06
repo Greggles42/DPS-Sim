@@ -750,13 +750,13 @@
     lines.push('=== Offense & To-Hit Model ===', '');
     if (report.calculatedToHit != null) lines.push(`  Calculated to-hit:     ${report.calculatedToHit}`);
     if (report.offenseRating != null) lines.push(`  Offense rating:        ${report.offenseRating}  (used for damage)`);
+    if (report.displayedAttack != null) lines.push(`  Displayed ATK:         ${report.displayedAttack}`);
+    lines.push('  ATK formula:           (offense rating + toHit) * 1000 / 744');
     if (report.rawHastePercent != null || report.effectiveHastePercent != null) {
       const raw = report.rawHastePercent != null ? Number(report.rawHastePercent).toFixed(1) : '—';
       const eff = report.effectiveHastePercent != null ? Number(report.effectiveHastePercent).toFixed(1) : '—';
       lines.push(`  Haste (raw / effective): ${raw}% / ${eff}%`);
     }
-    if (report.displayedAttack != null) lines.push(`  Displayed ATK:         ${report.displayedAttack}`);
-    lines.push('  ATK formula:           (offense rating + toHit) * 1000 / 744');
     lines.push('');
 
     // 3. Weapon Overview (Ranged)
@@ -1511,11 +1511,6 @@
     if (report.calculatedToHit != null) lines.push(`  Calculated to-hit:     ${report.calculatedToHit}`);
     if (report.offenseSkill != null) lines.push(`  Offense skill:         ${report.offenseSkill}  (0–255, used for to-hit only)`);
     if (report.offenseRating != null) lines.push(`  Offense rating:        ${report.offenseRating}  (used for damage)`);
-    if (report.rawHastePercent != null || report.effectiveHastePercent != null) {
-      const raw = report.rawHastePercent != null ? Number(report.rawHastePercent).toFixed(1) : '—';
-      const eff = report.effectiveHastePercent != null ? Number(report.effectiveHastePercent).toFixed(1) : '—';
-      lines.push(`  Haste (raw / effective): ${raw}% / ${eff}%`);
-    }
     if (report.offenseRatingFromStr != null) lines.push(`    From STR:            ${report.offenseRatingFromStr}`);
     if (report.offenseRating != null && report.offenseRatingFromStr != null) {
       const other = report.offenseRating - report.offenseRatingFromStr;
@@ -1523,6 +1518,11 @@
     }
     if (report.displayedAttack != null) lines.push(`  Displayed ATK:         ${report.displayedAttack}`);
     lines.push('  ATK formula:           (offense rating + toHit) * 1000 / 744');
+    if (report.rawHastePercent != null || report.effectiveHastePercent != null) {
+      const raw = report.rawHastePercent != null ? Number(report.rawHastePercent).toFixed(1) : '—';
+      const eff = report.effectiveHastePercent != null ? Number(report.effectiveHastePercent).toFixed(1) : '—';
+      lines.push(`  Haste (raw / effective): ${raw}% / ${eff}%`);
+    }
     lines.push('');
 
     // 3. Weapon Overview
