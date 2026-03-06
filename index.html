@@ -1281,6 +1281,35 @@
         const v2 = (w2BackstabModPercent != null && !isNaN(w2BackstabModPercent)) ? w2BackstabModPercent : 0;
         backstabModEl.value = Math.max(v1, v2);
       }
+      function refreshBackstabModsFromCurrentWeapons() {
+        function resolveSlotMod(prefix) {
+          var currentType = (prefix === 'w1' ? w1WeaponType : w2WeaponType);
+          var t = (currentType != null ? String(currentType) : '').toLowerCase();
+          if (t !== '1hp' && t !== '2hp') return null;
+          var current = (prefix === 'w1' ? w1BackstabModPercent : w2BackstabModPercent);
+          if (current != null && !isNaN(Number(current)) && Number(current) > 0) return Number(current);
+          var presetEl = $(prefix + '-preset');
+          var presetId = presetEl && presetEl.value ? String(presetEl.value) : '';
+          if (presetId && presetId !== 'unequipped') {
+            var raw = (weaponListData && weaponListData[presetId]) || (luclinWeaponsData && luclinWeaponsData[presetId]) || (popWeaponsData && popWeaponsData[presetId]) || (procRatesByItemId && procRatesByItemId[presetId]) || null;
+            var modFromRaw = getBackstabModPercentFromRawItem(raw);
+            if (modFromRaw != null && modFromRaw > 0) return modFromRaw;
+          }
+          if (typeof itemSearchDebugSlots !== 'undefined' && itemSearchDebugSlots) {
+            var slotKey = prefix === 'w1' ? 'W1' : 'W2';
+            var slot = itemSearchDebugSlots[slotKey];
+            if (slot && slot.backstabModPercent != null && !isNaN(Number(slot.backstabModPercent)) && Number(slot.backstabModPercent) > 0) {
+              return Number(slot.backstabModPercent);
+            }
+          }
+          return null;
+        }
+        var refreshedW1 = resolveSlotMod('w1');
+        var refreshedW2 = resolveSlotMod('w2');
+        w1BackstabModPercent = (refreshedW1 != null ? refreshedW1 : null);
+        w2BackstabModPercent = (refreshedW2 != null ? refreshedW2 : null);
+        updateBackstabModFromEquipment();
+      }
 
       function formatSkillLabel(key) {
         if (key === '1hp' || key === '2hp') return 'Piercing';
@@ -1456,6 +1485,7 @@
       function run() {
         var rankViewToggle = $('btn-rank-view-toggle');
         if (rankViewToggle) rankViewToggle.style.display = 'none';
+        refreshBackstabModsFromCurrentWeapons();
         const weapon1 = getWeapon('w1');
         const weapon2 = getWeapon('w2');
         if (weapon1 && weapon1.procSpellId && typeof ItemSearch !== 'undefined' && ItemSearch.getSpellFromLocalData) {
@@ -1974,15 +2004,15 @@
         if (!isNaN(classes) && (classes & 8) === 0) return null;
         var dmg = parseInt(raw.damage, 10); var dly = parseInt(raw.delay, 10);
         if (isNaN(dmg) || dmg < 1 || isNaN(dly) || dly < 1) return null;
-        var item = { id: id, Name: raw.Name, name: raw.Name, damage: raw.damage, delay: raw.delay, itemtype: raw.itemtype, slots: raw.slots, classes: raw.classes, lore: raw.lore, proceffect: raw.proceffect, procrate: raw.procrate, proclevel: raw.proclevel, elemdmgtype: raw.elemdmgtype, elemdmgamt: raw.elemdmgamt, banedmgamt: raw.banedmgamt, eleDmgType: raw.elemdmgtype, eleDmgAmt: raw.elemdmgamt, baneDmgAmt: raw.banedmgamt };
+        var item = { id: id, Name: raw.Name, name: raw.Name, damage: raw.damage, delay: raw.delay, itemtype: raw.itemtype, slots: raw.slots, classes: raw.classes, lore: raw.lore, proceffect: raw.proceffect, procrate: raw.procrate, proclevel: raw.proclevel, elemdmgtype: raw.elemdmgtype, elemdmgamt: raw.elemdmgamt, banedmgamt: raw.banedmgamt, eleDmgType: raw.elemdmgtype, eleDmgAmt: raw.elemdmgamt, baneDmgAmt: raw.banedmgamt, skillmodtype: raw.skillmodtype, skillmodvalue: raw.skillmodvalue, skillmodType: raw.skillmodType, skillmodValue: raw.skillmodValue };
         var norm = (typeof ItemSearch !== 'undefined' && ItemSearch.normalizeItemForWeapon) ? ItemSearch.normalizeItemForWeapon(item) : null;
         if (norm && norm.damage >= 1 && norm.delay >= 1) {
-          var normProcLevel = raw.proclevel != null ? parseInt(raw.proclevel, 10) : NaN;
-          norm.procLevel = (!isNaN(normProcLevel) && normProcLevel > 0) ? normProcLevel : undefined;
           if (norm.backstabModPercent == null) {
             var normBackstab = getBackstabModPercentFromRawItem(raw);
             if (normBackstab != null) norm.backstabModPercent = normBackstab;
           }
+          var normProcLevel = raw.proclevel != null ? parseInt(raw.proclevel, 10) : NaN;
+          norm.procLevel = (!isNaN(normProcLevel) && normProcLevel > 0) ? normProcLevel : undefined;
           if ((norm.procSpellId != null || raw.proceffect != null) && (!norm.proc || norm.procDamage == null || norm.procDamage === 0) && typeof ItemSearch !== 'undefined' && ItemSearch.getSpellFromLocalData) {
             var procSpellId = norm.procSpellId != null ? norm.procSpellId : parseInt(raw.proceffect, 10);
             if (!isNaN(procSpellId) && procSpellId > 0) {
@@ -2057,9 +2087,13 @@
         if (!raw || typeof raw !== 'object') return null;
         var dmg = parseInt(raw.damage, 10); var dly = parseInt(raw.delay, 10);
         if (isNaN(dmg) || dmg < 1 || isNaN(dly) || dly < 1) return null;
-        var item = { id: id, Name: raw.Name, name: raw.Name, damage: raw.damage, delay: raw.delay, itemtype: raw.itemtype, slots: raw.slots, classes: raw.classes, lore: raw.lore, proceffect: raw.proceffect, procrate: raw.procrate, proclevel: raw.proclevel, elemdmgtype: raw.elemdmgtype, elemdmgamt: raw.elemdmgamt, banedmgamt: raw.banedmgamt, eleDmgType: raw.elemdmgtype, eleDmgAmt: raw.elemdmgamt, baneDmgAmt: raw.banedmgamt };
+        var item = { id: id, Name: raw.Name, name: raw.Name, damage: raw.damage, delay: raw.delay, itemtype: raw.itemtype, slots: raw.slots, classes: raw.classes, lore: raw.lore, proceffect: raw.proceffect, procrate: raw.procrate, proclevel: raw.proclevel, elemdmgtype: raw.elemdmgtype, elemdmgamt: raw.elemdmgamt, banedmgamt: raw.banedmgamt, eleDmgType: raw.elemdmgtype, eleDmgAmt: raw.elemdmgamt, baneDmgAmt: raw.banedmgamt, skillmodtype: raw.skillmodtype, skillmodvalue: raw.skillmodvalue, skillmodType: raw.skillmodType, skillmodValue: raw.skillmodValue };
         var norm = (typeof ItemSearch !== 'undefined' && ItemSearch.normalizeItemForWeapon) ? ItemSearch.normalizeItemForWeapon(item) : null;
         if (norm && norm.damage >= 1 && norm.delay >= 1) {
+          if (norm.backstabModPercent == null) {
+            var normBackstab = getBackstabModPercentFromRawItem(raw);
+            if (normBackstab != null) norm.backstabModPercent = normBackstab;
+          }
           var normProcLevel = raw.proclevel != null ? parseInt(raw.proclevel, 10) : NaN;
           norm.procLevel = (!isNaN(normProcLevel) && normProcLevel > 0) ? normProcLevel : undefined;
           if ((norm.procSpellId != null || raw.proceffect != null) && (!norm.proc || norm.procDamage == null || norm.procDamage === 0) && typeof ItemSearch !== 'undefined' && ItemSearch.getSpellFromLocalData) {
