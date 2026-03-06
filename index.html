@@ -897,6 +897,7 @@
   <section style="margin-top: 1rem;">
     <h2>Version log</h2>
     <ul style="font-size: 0.9rem; color: var(--muted); margin: 0; padding-left: 1.25rem;">
+      <li><strong>0.11</strong> — Implemented haste caps. Split worn and spell haste out into individual components. Improved damage calculation and backstab should be much more accurate. Items with required levels are filtered out from weapon list if your character level is too low. Automatically scale generic target info based on character level. Removed some PoP items from the luclin weapons list.</li>
       <li><strong>0.10</strong> — Added spell proc resist chances. Added weapon ranking function.</li>
       <li><strong>0.9</strong> — Item and NPC search added to simulation. Improved some backstab performance. Added Inner Flame and Duelist discipline simulations. Proc damage now derived from spell data (spells_en) using EQEmu rules (SE_CurrentHP, max/limit). Target NPC search (npc_types): pick a mob to fill AC, level, and resistances; selected target name appears in the report and sim history.</li>
       <li><strong>0.8</strong> — Added UI improvements, added elemental and bane damage.</li>
@@ -1051,7 +1052,7 @@
       }
 
       // When releasing: 1) Bump VERSION below. 2) Add a new <li> at the top of the Version log section above.
-      const VERSION = '0.10';
+      const VERSION = '0.11';
       const versionEl = $('app-version');
       if (versionEl) versionEl.textContent = 'v' + VERSION;
 
@@ -2362,7 +2363,6 @@
             if (ignoreNoDrop) sourceLabel += ' No Drop items excluded (nodrop = 0).';
             sourceLabel += ' Items requiring level above character level excluded (reqlevel).';
             sourceLabel += ' Items unusable by all races excluded (races = 0).';
-            sourceLabel += ' Fist of Steel excluded.';
             var lines = ['=== Weapon combination rank (by DPS) ===', 'Class: ' + (classConfig && classConfig.name ? classConfig.name : classId) + ', Level: ' + level + ', Duration: ' + durationSec + 's', sourceLabel + subText + ' DPS = mainhand + offhand (additive).', ''];
             var top400 = results.slice(0, 400);
             var tableRows = top400.map(function (row, i) {
