@@ -152,6 +152,29 @@
     return getWeaponSkillCap(spec || SkillCapsSpec, classId, skillKey, level);
   }
 
+  /**
+   * Get combat skill cap (Offense, Dual Wield, Double Attack) for class/level.
+   * Uses the same level progression rule as weapon skills (5 * level + 5),
+   * clamped by the class max cap.
+   * @param {string} combatSkillKey - "offense" | "dualWield" | "doubleAttack"
+   * @param {number|string} classId - class index 0..14, "WAR", or "warrior"
+   * @param {number} level - 1..60
+   * @param {Object} [spec] - defaults to SkillCapsSpec
+   * @returns {number}
+   */
+  function getCombatSkillCap(combatSkillKey, classId, level, spec) {
+    spec = spec || SkillCapsSpec;
+    const clsIndex = resolveClassIndex(spec, classId);
+    if (clsIndex < 0) return 0;
+    const maxArr = CombatSkillCaps[combatSkillKey];
+    if (!maxArr) return 0;
+    const max = maxArr[clsIndex] != null ? maxArr[clsIndex] : 0;
+    if (max <= 0) return 0;
+    const lvl = Math.max(spec.meta.levelMin, Math.min(spec.meta.levelMax, level));
+    const perLevel = lvl * spec.meta.perLevel.mul + spec.meta.perLevel.add;
+    return Math.min(max, perLevel);
+  }
+
   global.WeaponSkillCaps = {
     SkillCapsSpec: SkillCapsSpec,
     CombatSkillCaps: CombatSkillCaps,
@@ -159,6 +182,7 @@
     getWeaponSkillCap: getWeaponSkillCap,
     buildWeaponSkillCapTable: buildWeaponSkillCapTable,
     getCapForSimClass: getCapForSimClass,
+    getCombatSkillCap: getCombatSkillCap,
     resolveClassIndex: resolveClassIndex,
     SIM_CLASS_TO_INDEX: SIM_CLASS_TO_INDEX
   };

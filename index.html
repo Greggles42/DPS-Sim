@@ -2345,7 +2345,7 @@
             var chartHtml = chartRows.length > 0 ? '<div class="rank-weapons-chart"><h3>Top 40 by DPS (X scale = #1)</h3>' + chartHeader + chartRows.join('') + '</div>' : '';
             var histContainer = $('histogram-container');
             if (histContainer) histContainer.innerHTML = chartHtml;
-            $('report').innerHTML = '<pre style="margin:0;">' + lines.join('\n') + '</pre><table class="rank-weapons-table" style="margin-top:0.5rem; border-collapse:collapse; width:100%; font-size:0.9rem;"><thead><tr><th style="text-align:left;">#</th><th style="text-align:left;">Combination</th><th style="text-align:right;">Mainhand DPS</th><th style="text-align:right;">Offhand DPS</th><th style="text-align:right;">Total DPS</th></tr></thead><tbody>' + tableRows.join('') + '</tbody></table>';
+            $('report').innerHTML = '<pre style="margin:0; white-space:pre-wrap; overflow-wrap:anywhere; word-break:break-word;">' + lines.join('\n') + '</pre><table class="rank-weapons-table" style="margin-top:0.5rem; border-collapse:collapse; width:100%; font-size:0.9rem;"><thead><tr><th style="text-align:left;">#</th><th style="text-align:left;">Combination</th><th style="text-align:right;">Mainhand DPS</th><th style="text-align:right;">Offhand DPS</th><th style="text-align:right;">Total DPS</th></tr></thead><tbody>' + tableRows.join('') + '</tbody></table>';
           }
           if (top40.length === 0) {
             renderRankReport();
@@ -3022,9 +3022,16 @@
           if (idx >= 0) {
             const combat = WeaponSkillCaps.CombatSkillCaps;
             const setCap = function (id, val) { var el = $(id); if (el) el.value = (val > 0) ? val : ''; };
-            setCap('offense-skill', combat.offense[idx]);
-            setCap('double-attack', combat.doubleAttack[idx]);
-            setCap('dual-wield', combat.dualWield[idx]);
+            const level = parseInt($('level').value, 10) || 60;
+            if (typeof WeaponSkillCaps.getCombatSkillCap === 'function') {
+              setCap('offense-skill', WeaponSkillCaps.getCombatSkillCap('offense', classId, level));
+              setCap('double-attack', WeaponSkillCaps.getCombatSkillCap('doubleAttack', classId, level));
+              setCap('dual-wield', WeaponSkillCaps.getCombatSkillCap('dualWield', classId, level));
+            } else {
+              setCap('offense-skill', combat.offense[idx]);
+              setCap('double-attack', combat.doubleAttack[idx]);
+              setCap('dual-wield', combat.dualWield[idx]);
+            }
             const def = WeaponSkillCaps.DefensiveSkillCaps;
             setCap('defense-skill', def.defense[idx]);
             setCap('dodge-skill', def.dodge[idx]);
