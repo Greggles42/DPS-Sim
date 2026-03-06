@@ -2601,8 +2601,14 @@
             var modeDesc = currentMode === 'slot' ? ' Slot Ranking mode shows best single-slot options.' : ' DPS = mainhand + offhand (additive).';
             if (classId === 'rogue') modeDesc += ' [BS+X%] marker indicates an item backstab modifier factored into that result.';
             var targetName = (window.selectedTargetNpc && window.selectedTargetNpc.name) ? String(window.selectedTargetNpc.name).replace(/_/g, ' ') : 'Generic Mob';
-            var targetLine = 'Target: ' + targetName + ', Level: ' + mobLevel + ', AC: ' + targetAC;
-            var lines = [heading, 'Class: ' + (classConfig && classConfig.name ? classConfig.name : classId) + ', Level: ' + level + ', Duration: ' + durationSec + 's', targetLine, sourceLabel + subText + modeDesc, ''];
+            var effectiveHastePct = (typeof EQCombat !== 'undefined' && typeof EQCombat.getEffectiveHastePercent === 'function')
+              ? EQCombat.getEffectiveHastePercent(baseOptions.hastePercent, level)
+              : baseOptions.hastePercent;
+            var strBonusForReport = str >= 75 ? Math.floor((2 * str - 150) / 3) : 0;
+            var netAttackPreWeaponWorn = offenseSkill + strBonusForReport + (baseOptions.wornAttack || 0) + (baseOptions.spellAttack || 0);
+            var targetLine = 'Target: ' + targetName + ', Level: ' + mobLevel + ', AC: ' + targetAC + ', Resists (MR/FR/CR/PR/DR): ' + targetMR + '/' + targetFR + '/' + targetCR + '/' + targetPR + '/' + targetDR;
+            var classLine = 'Class: ' + (classConfig && classConfig.name ? classConfig.name : classId) + ', Level: ' + level + ', Duration: ' + durationSec + 's, Effective haste: ' + effectiveHastePct + '%, Net ATK (pre-weapon worn): ' + netAttackPreWeaponWorn;
+            var lines = [heading, classLine, targetLine, sourceLabel + subText + modeDesc, ''];
             function formatDps(v) { return v != null ? Number(v).toFixed(2) : '—'; }
             function dedupeBestById(rows) {
               var bestById = {};
