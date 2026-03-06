@@ -603,6 +603,7 @@
           <div><label for="w1-proc-spell-resist-modifier" class="small-label">Proc resist mod</label><input type="number" id="w1-proc-spell-resist-modifier" placeholder="0 or -" title="Spell ResistDiff, negative = easier to land"></div>
         </div>
         <input type="hidden" id="w1-proc-rate" value="0">
+        <input type="hidden" id="w1-proc-level" value="">
         <input type="hidden" id="w1-proc-buff-duration" value="">
         <input type="hidden" id="w1-proc-spell-id" value="">
         <input type="hidden" id="w1-proc-spell-no-partial" value="">
@@ -655,6 +656,7 @@
           <div><label for="w2-proc-spell-resist-modifier" class="small-label">Proc resist mod</label><input type="number" id="w2-proc-spell-resist-modifier" placeholder="0 or -" title="Spell ResistDiff, negative = easier to land"></div>
         </div>
         <input type="hidden" id="w2-proc-rate" value="0">
+        <input type="hidden" id="w2-proc-level" value="">
         <input type="hidden" id="w2-proc-buff-duration" value="">
         <input type="hidden" id="w2-proc-spell-id" value="">
         <input type="hidden" id="w2-proc-spell-no-partial" value="">
@@ -772,6 +774,7 @@
         <input type="text" id="ranged-proc" placeholder="e.g. Flaming Arrows">
         <label for="ranged-proc-damage">Proc spell damage (on proc)</label>
         <input type="number" id="ranged-proc-damage" min="0" value="0" placeholder="0">
+        <input type="hidden" id="ranged-proc-level" value="">
         <div class="row">
           <div><label for="ranged-elem-type" class="small-label">Elemental type</label><select id="ranged-elem-type">
             <option value="">None</option>
@@ -1322,6 +1325,8 @@
         const procSpellDamage = procDamageEl && procDamageEl.value !== '' ? parseInt(procDamageEl.value, 10) : 0;
         const procRateEl = $(prefix + '-proc-rate');
         const procRate = procRateEl && procRateEl.value !== '' ? (parseInt(procRateEl.value, 10) || 0) : 0;
+        const procLevelEl = $(prefix + '-proc-level');
+        const procLevel = procLevelEl && procLevelEl.value !== '' ? (parseInt(procLevelEl.value, 10) || 0) : undefined;
         const procBuffDurationEl = $(prefix + '-proc-buff-duration');
         const procBuffDurationTicks = procBuffDurationEl && procBuffDurationEl.value !== '' ? (parseInt(procBuffDurationEl.value, 10) || 0) : undefined;
         const procSpellIdEl = $(prefix + '-proc-spell-id');
@@ -1348,6 +1353,7 @@
         const baneEl = $(prefix + '-bane');
         const baneDamage = baneEl && baneEl.value !== '' ? (parseInt(baneEl.value, 10) || 0) : 0;
         const out = { damage, delay, procSpell: proc, procSpellDamage: procSpellDamage || 0, procRate, minDmg, maxDmg, is2H, baneDamage };
+        if (procLevel != null && procLevel > 0) out.procLevel = procLevel;
         if (procBuffDurationTicks != null && procBuffDurationTicks > 0) out.procBuffDurationTicks = procBuffDurationTicks;
         if (procSpellId != null) out.procSpellId = procSpellId;
         if (procSpellResistType != null) out.procSpellResistType = procSpellResistType;
@@ -1442,8 +1448,8 @@
           procSpellMovementEffect: weapon2.procSpellMovementEffect
         } : {};
         const options = {
-          weapon1: hasMainHand ? Object.assign({ damage: weapon1.damage, delay: weapon1.delay, procSpell: weapon1.procSpell, procSpellDamage: weapon1.procSpellDamage, procRate: weapon1.procRate, procBuffDurationTicks: weapon1.procBuffDurationTicks, is2H: weapon1.is2H, elemType: weapon1.elemType, elemDamage: weapon1.elemDamage, type: w1WeaponType || undefined }, w1ProcResist) : undefined,
-          weapon2: useWeapon2 ? Object.assign({ damage: weapon2.damage, delay: weapon2.delay, procSpell: weapon2.procSpell, procSpellDamage: weapon2.procSpellDamage, procRate: weapon2.procRate, procBuffDurationTicks: weapon2.procBuffDurationTicks, elemType: weapon2.elemType, elemDamage: weapon2.elemDamage }, w2ProcResist) : undefined,
+          weapon1: hasMainHand ? Object.assign({ damage: weapon1.damage, delay: weapon1.delay, procSpell: weapon1.procSpell, procSpellDamage: weapon1.procSpellDamage, procRate: weapon1.procRate, procLevel: weapon1.procLevel, procBuffDurationTicks: weapon1.procBuffDurationTicks, is2H: weapon1.is2H, elemType: weapon1.elemType, elemDamage: weapon1.elemDamage, type: w1WeaponType || undefined }, w1ProcResist) : undefined,
+          weapon2: useWeapon2 ? Object.assign({ damage: weapon2.damage, delay: weapon2.delay, procSpell: weapon2.procSpell, procSpellDamage: weapon2.procSpellDamage, procRate: weapon2.procRate, procLevel: weapon2.procLevel, procBuffDurationTicks: weapon2.procBuffDurationTicks, elemType: weapon2.elemType, elemDamage: weapon2.elemDamage }, w2ProcResist) : undefined,
           weapon1Type: w1WeaponType || undefined,
           hastePercent,
           offenseSkill,
@@ -1857,9 +1863,11 @@
         if (!isNaN(classes) && (classes & 8) === 0) return null;
         var dmg = parseInt(raw.damage, 10); var dly = parseInt(raw.delay, 10);
         if (isNaN(dmg) || dmg < 1 || isNaN(dly) || dly < 1) return null;
-        var item = { id: id, Name: raw.Name, name: raw.Name, damage: raw.damage, delay: raw.delay, itemtype: raw.itemtype, slots: raw.slots, classes: raw.classes, lore: raw.lore, proceffect: raw.proceffect, procrate: raw.procrate, elemdmgtype: raw.elemdmgtype, elemdmgamt: raw.elemdmgamt, banedmgamt: raw.banedmgamt, eleDmgType: raw.elemdmgtype, eleDmgAmt: raw.elemdmgamt, baneDmgAmt: raw.banedmgamt };
+        var item = { id: id, Name: raw.Name, name: raw.Name, damage: raw.damage, delay: raw.delay, itemtype: raw.itemtype, slots: raw.slots, classes: raw.classes, lore: raw.lore, proceffect: raw.proceffect, procrate: raw.procrate, proclevel: raw.proclevel, elemdmgtype: raw.elemdmgtype, elemdmgamt: raw.elemdmgamt, banedmgamt: raw.banedmgamt, eleDmgType: raw.elemdmgtype, eleDmgAmt: raw.elemdmgamt, baneDmgAmt: raw.banedmgamt };
         var norm = (typeof ItemSearch !== 'undefined' && ItemSearch.normalizeItemForWeapon) ? ItemSearch.normalizeItemForWeapon(item) : null;
         if (norm && norm.damage >= 1 && norm.delay >= 1) {
+          var normProcLevel = raw.proclevel != null ? parseInt(raw.proclevel, 10) : NaN;
+          if (!isNaN(normProcLevel) && normProcLevel > 0 && (norm.procLevel == null || isNaN(Number(norm.procLevel)))) norm.procLevel = normProcLevel;
           if ((norm.procSpellId != null || raw.proceffect != null) && (!norm.proc || norm.procDamage == null || norm.procDamage === 0) && typeof ItemSearch !== 'undefined' && ItemSearch.getSpellFromLocalData) {
             var procSpellId = norm.procSpellId != null ? norm.procSpellId : parseInt(raw.proceffect, 10);
             if (!isNaN(procSpellId) && procSpellId > 0) {
@@ -1886,6 +1894,7 @@
           proc: '',
           procDamage: 0,
           procRate: (raw.procrate != null && !Number.isNaN(Number(raw.procrate))) ? Number(raw.procrate) : 0,
+          procLevel: (raw.proclevel != null && !Number.isNaN(Number(raw.proclevel)) && Number(raw.proclevel) > 0) ? Number(raw.proclevel) : undefined,
           elemType: elemType || undefined,
           elemDamage: elemDamage,
           baneDamage: (raw.banedmgamt != null ? parseInt(raw.banedmgamt, 10) : 0) || 0,
@@ -1933,9 +1942,11 @@
         if (!raw || typeof raw !== 'object') return null;
         var dmg = parseInt(raw.damage, 10); var dly = parseInt(raw.delay, 10);
         if (isNaN(dmg) || dmg < 1 || isNaN(dly) || dly < 1) return null;
-        var item = { id: id, Name: raw.Name, name: raw.Name, damage: raw.damage, delay: raw.delay, itemtype: raw.itemtype, slots: raw.slots, classes: raw.classes, lore: raw.lore, proceffect: raw.proceffect, procrate: raw.procrate, elemdmgtype: raw.elemdmgtype, elemdmgamt: raw.elemdmgamt, banedmgamt: raw.banedmgamt, eleDmgType: raw.elemdmgtype, eleDmgAmt: raw.elemdmgamt, baneDmgAmt: raw.banedmgamt };
+        var item = { id: id, Name: raw.Name, name: raw.Name, damage: raw.damage, delay: raw.delay, itemtype: raw.itemtype, slots: raw.slots, classes: raw.classes, lore: raw.lore, proceffect: raw.proceffect, procrate: raw.procrate, proclevel: raw.proclevel, elemdmgtype: raw.elemdmgtype, elemdmgamt: raw.elemdmgamt, banedmgamt: raw.banedmgamt, eleDmgType: raw.elemdmgtype, eleDmgAmt: raw.elemdmgamt, baneDmgAmt: raw.banedmgamt };
         var norm = (typeof ItemSearch !== 'undefined' && ItemSearch.normalizeItemForWeapon) ? ItemSearch.normalizeItemForWeapon(item) : null;
         if (norm && norm.damage >= 1 && norm.delay >= 1) {
+          var normProcLevel = raw.proclevel != null ? parseInt(raw.proclevel, 10) : NaN;
+          if (!isNaN(normProcLevel) && normProcLevel > 0 && (norm.procLevel == null || isNaN(Number(norm.procLevel)))) norm.procLevel = normProcLevel;
           if ((norm.procSpellId != null || raw.proceffect != null) && (!norm.proc || norm.procDamage == null || norm.procDamage === 0) && typeof ItemSearch !== 'undefined' && ItemSearch.getSpellFromLocalData) {
             var procSpellId = norm.procSpellId != null ? norm.procSpellId : parseInt(raw.proceffect, 10);
             if (!isNaN(procSpellId) && procSpellId > 0) {
@@ -1965,6 +1976,7 @@
           proc: '',
           procDamage: 0,
           procRate: (raw.procrate != null && !Number.isNaN(Number(raw.procrate))) ? Number(raw.procrate) : 0,
+          procLevel: (raw.proclevel != null && !Number.isNaN(Number(raw.proclevel)) && Number(raw.proclevel) > 0) ? Number(raw.proclevel) : undefined,
           elemType: elemType || undefined,
           elemDamage: elemDamage,
           baneDamage: (raw.banedmgamt != null ? parseInt(raw.banedmgamt, 10) : 0) || 0,
@@ -1996,6 +2008,7 @@
           procSpell: (norm.proc != null ? norm.proc : '') || (norm.procSpell != null ? norm.procSpell : ''),
           procSpellDamage: norm.procDamage || 0,
           procRate: procRate,
+          procLevel: (norm.procLevel != null && !Number.isNaN(Number(norm.procLevel)) && Number(norm.procLevel) > 0) ? Number(norm.procLevel) : undefined,
           is2H: is2H,
           elemType: norm.elemType || undefined,
           elemDamage: (norm.elemDamage != null ? norm.elemDamage : 0) || 0
@@ -2217,6 +2230,7 @@
                 procSpell: (p2.proc != null ? p2.proc : '') || (p2.procSpell != null ? p2.procSpell : ''),
                 procSpellDamage: p2.procDamage || 0,
                 procRate: (p2.procRate != null && !Number.isNaN(Number(p2.procRate))) ? Number(p2.procRate) : 0,
+                procLevel: (p2.procLevel != null && !Number.isNaN(Number(p2.procLevel)) && Number(p2.procLevel) > 0) ? Number(p2.procLevel) : undefined,
                 elemType: p2.elemType || undefined,
                 elemDamage: (p2.elemDamage != null ? p2.elemDamage : 0) || 0
               };
@@ -2339,6 +2353,7 @@
                 procSpell: (p2.proc != null ? p2.proc : '') || (p2.procSpell != null ? p2.procSpell : ''),
                 procSpellDamage: p2.procDamage || 0,
                 procRate: (p2.procRate != null && !Number.isNaN(Number(p2.procRate))) ? Number(p2.procRate) : 0,
+                procLevel: (p2.procLevel != null && !Number.isNaN(Number(p2.procLevel)) && Number(p2.procLevel) > 0) ? Number(p2.procLevel) : undefined,
                 elemType: p2.elemType || undefined,
                 elemDamage: (p2.elemDamage != null ? p2.elemDamage : 0) || 0
               };
@@ -2421,7 +2436,7 @@
         Object.keys(bowSource).forEach(function (id) {
           var raw = bowSource[id];
           var norm = normalizeBowFromList(id, raw);
-          if (norm) bows.push({ id: id, name: norm.name, damage: norm.damage, delay: norm.delay, proc: norm.proc, procDamage: norm.procDamage, procRate: norm.procRate, elemType: norm.elemType, elemDamage: norm.elemDamage, baneDamage: norm.baneDamage, procBuffDurationTicks: norm.procBuffDurationTicks });
+          if (norm) bows.push({ id: id, name: norm.name, damage: norm.damage, delay: norm.delay, proc: norm.proc, procDamage: norm.procDamage, procRate: norm.procRate, procLevel: norm.procLevel, elemType: norm.elemType, elemDamage: norm.elemDamage, baneDamage: norm.baneDamage, procBuffDurationTicks: norm.procBuffDurationTicks });
         });
         var arrows = [];
         Object.keys(weaponListData).forEach(function (id) {
@@ -2487,6 +2502,7 @@
               procSpell: (bow.proc != null ? bow.proc : '') || '',
               procSpellDamage: bow.procDamage || 0,
               procRate: (bow.procRate != null && !Number.isNaN(Number(bow.procRate))) ? Number(bow.procRate) : 0,
+              procLevel: (bow.procLevel != null && !Number.isNaN(Number(bow.procLevel)) && Number(bow.procLevel) > 0) ? Number(bow.procLevel) : undefined,
               elemType: bow.elemType || undefined,
               elemDamage: (bow.elemDamage != null ? bow.elemDamage : 0) || 0
             };
@@ -2574,6 +2590,7 @@
               procSpell: (bow.proc != null ? bow.proc : '') || '',
               procSpellDamage: bow.procDamage || 0,
               procRate: (bow.procRate != null && !Number.isNaN(Number(bow.procRate))) ? Number(bow.procRate) : 0,
+              procLevel: (bow.procLevel != null && !Number.isNaN(Number(bow.procLevel)) && Number(bow.procLevel) > 0) ? Number(bow.procLevel) : undefined,
               elemType: bow.elemType || undefined,
               elemDamage: (bow.elemDamage != null ? bow.elemDamage : 0) || 0
             };
@@ -2821,6 +2838,7 @@
           delay: delay,
           procSpell: ($('ranged-proc').value || '').trim() || undefined,
           procSpellDamage: parseInt($('ranged-proc-damage').value, 10) || 0,
+          procLevel: parseInt($('ranged-proc-level').value, 10) || undefined,
         };
         const rangedElemType = ($('ranged-elem-type').value || '').trim();
         const rangedElemDamage = parseInt($('ranged-elem-damage').value, 10) || 0;
@@ -3237,6 +3255,8 @@
         if (procDmgEl) procDmgEl.value = isNaN(procDmg) ? '' : procDmg;
         const procRateEl = $(prefix + '-proc-rate');
         if (procRateEl) procRateEl.value = (weapon.procRate != null && !isNaN(Number(weapon.procRate))) ? Number(weapon.procRate) : '0';
+        const procLevelEl = $(prefix + '-proc-level');
+        if (procLevelEl) procLevelEl.value = (weapon.procLevel != null && !isNaN(Number(weapon.procLevel)) && Number(weapon.procLevel) > 0) ? String(Number(weapon.procLevel)) : '';
         if (weapon.procSpellId != null && typeof ItemSearch !== 'undefined') {
           var spellFromLocal = ItemSearch.getSpellFromLocalData ? ItemSearch.getSpellFromLocalData(weapon.procSpellId) : null;
           if (spellFromLocal && spellFromLocal.name) {
@@ -3327,6 +3347,7 @@
         $('ranged-delay').value = isNaN(dly) ? '' : dly;
         $('ranged-proc').value = (weapon.proc != null ? String(weapon.proc) : '') || '';
         $('ranged-proc-damage').value = (weapon.procDamage != null && !isNaN(Number(weapon.procDamage)) ? Number(weapon.procDamage) : 0) || '';
+        $('ranged-proc-level').value = (weapon.procLevel != null && !isNaN(Number(weapon.procLevel)) && Number(weapon.procLevel) > 0) ? String(Number(weapon.procLevel)) : '';
         $('ranged-elem-type').value = (weapon.elemType != null ? String(weapon.elemType) : '') || '';
         $('ranged-elem-damage').value = (weapon.elemDamage != null && !isNaN(Number(weapon.elemDamage)) ? Number(weapon.elemDamage) : 0) || '';
         $('ranged-bane').value = (weapon.baneDamage != null && !isNaN(Number(weapon.baneDamage)) ? Number(weapon.baneDamage) : 0) || '';
@@ -3410,7 +3431,7 @@
           let s = '<div class="item-search-section">Recent</div>';
           recent.forEach(function (w) {
             const label = renderItemLabel(w);
-            s += '<button type="button" class="item-search-item" data-item-id="' + (w.itemId != null ? String(w.itemId) : '') + '" data-name="' + (w.name || '').replace(/"/g, '&quot;') + '" data-damage="' + (w.damage != null ? w.damage : '') + '" data-delay="' + (w.delay != null ? w.delay : '') + '" data-weapon-type="' + (w.type || '').replace(/"/g, '&quot;') + '" data-item-type-num="' + (w.itemTypeNum != null ? String(w.itemTypeNum) : '') + '" data-slots="' + (w.slots != null ? String(w.slots) : '') + '" data-classes="' + (w.classes != null ? String(w.classes) : '') + '" data-proc="' + (w.proc || '').replace(/"/g, '&quot;') + '" data-procdamage="' + (w.procDamage != null ? w.procDamage : '') + '" data-proc-rate="' + (w.procRate != null ? w.procRate : '0') + '" data-proc-spell-id="' + (w.procSpellId != null ? w.procSpellId : '') + '" data-elemtype="' + (w.elemType || '').replace(/"/g, '&quot;') + '" data-elemdamage="' + (w.elemDamage != null ? w.elemDamage : '') + '" data-bane="' + (w.baneDamage != null ? w.baneDamage : '') + '" data-backstab-mod="' + (w.backstabModPercent != null ? String(w.backstabModPercent) : '') + '" data-icon="' + (w.icon != null && w.icon > 0 ? w.icon : '') + '" data-is2h="' + (w.is2H ? '1' : '0') + '" data-offhand-blocked="' + (w.offhandBlocked ? '1' : '0') + '"><span>' + (w.name || '').replace(/</g, '&lt;') + '</span><div class="item-search-item-detail">' + label.replace(/</g, '&lt;') + '</div></button>';
+            s += '<button type="button" class="item-search-item" data-item-id="' + (w.itemId != null ? String(w.itemId) : '') + '" data-name="' + (w.name || '').replace(/"/g, '&quot;') + '" data-damage="' + (w.damage != null ? w.damage : '') + '" data-delay="' + (w.delay != null ? w.delay : '') + '" data-weapon-type="' + (w.type || '').replace(/"/g, '&quot;') + '" data-item-type-num="' + (w.itemTypeNum != null ? String(w.itemTypeNum) : '') + '" data-slots="' + (w.slots != null ? String(w.slots) : '') + '" data-classes="' + (w.classes != null ? String(w.classes) : '') + '" data-proc="' + (w.proc || '').replace(/"/g, '&quot;') + '" data-procdamage="' + (w.procDamage != null ? w.procDamage : '') + '" data-proc-rate="' + (w.procRate != null ? w.procRate : '0') + '" data-proc-level="' + (w.procLevel != null ? w.procLevel : '') + '" data-proc-spell-id="' + (w.procSpellId != null ? w.procSpellId : '') + '" data-elemtype="' + (w.elemType || '').replace(/"/g, '&quot;') + '" data-elemdamage="' + (w.elemDamage != null ? w.elemDamage : '') + '" data-bane="' + (w.baneDamage != null ? w.baneDamage : '') + '" data-backstab-mod="' + (w.backstabModPercent != null ? String(w.backstabModPercent) : '') + '" data-icon="' + (w.icon != null && w.icon > 0 ? w.icon : '') + '" data-is2h="' + (w.is2H ? '1' : '0') + '" data-offhand-blocked="' + (w.offhandBlocked ? '1' : '0') + '"><span>' + (w.name || '').replace(/</g, '&lt;') + '</span><div class="item-search-item-detail">' + label.replace(/</g, '&lt;') + '</div></button>';
           });
           return s;
         }
@@ -3423,7 +3444,7 @@
           } else {
             results.forEach(function (w) {
               const label = renderItemLabel(w);
-              s += '<button type="button" class="item-search-item item-search-item-result" data-item-id="' + (w.itemId != null ? String(w.itemId) : '') + '" data-name="' + (w.name || '').replace(/"/g, '&quot;') + '" data-damage="' + (w.damage != null ? w.damage : '') + '" data-delay="' + (w.delay != null ? w.delay : '') + '" data-weapon-type="' + (w.type || '').replace(/"/g, '&quot;') + '" data-item-type-num="' + (w.itemTypeNum != null ? String(w.itemTypeNum) : '') + '" data-slots="' + (w.slots != null ? String(w.slots) : '') + '" data-classes="' + (w.classes != null ? String(w.classes) : '') + '" data-proc="' + (w.proc || '').replace(/"/g, '&quot;') + '" data-procdamage="' + (w.procDamage != null ? w.procDamage : '') + '" data-proc-rate="' + (w.procRate != null ? w.procRate : '0') + '" data-proc-spell-id="' + (w.procSpellId != null ? w.procSpellId : '') + '" data-elemtype="' + (w.elemType || '').replace(/"/g, '&quot;') + '" data-elemdamage="' + (w.elemDamage != null ? w.elemDamage : '') + '" data-bane="' + (w.baneDamage != null ? w.baneDamage : '') + '" data-backstab-mod="' + (w.backstabModPercent != null ? String(w.backstabModPercent) : '') + '" data-icon="' + (w.icon != null && w.icon > 0 ? w.icon : '') + '" data-is2h="' + (w.is2H ? '1' : '0') + '" data-offhand-blocked="' + (w.offhandBlocked ? '1' : '0') + '"><span>' + (w.name || '').replace(/</g, '&lt;') + '</span><div class="item-search-item-detail">' + label.replace(/</g, '&lt;') + '</div></button>';
+              s += '<button type="button" class="item-search-item item-search-item-result" data-item-id="' + (w.itemId != null ? String(w.itemId) : '') + '" data-name="' + (w.name || '').replace(/"/g, '&quot;') + '" data-damage="' + (w.damage != null ? w.damage : '') + '" data-delay="' + (w.delay != null ? w.delay : '') + '" data-weapon-type="' + (w.type || '').replace(/"/g, '&quot;') + '" data-item-type-num="' + (w.itemTypeNum != null ? String(w.itemTypeNum) : '') + '" data-slots="' + (w.slots != null ? String(w.slots) : '') + '" data-classes="' + (w.classes != null ? String(w.classes) : '') + '" data-proc="' + (w.proc || '').replace(/"/g, '&quot;') + '" data-procdamage="' + (w.procDamage != null ? w.procDamage : '') + '" data-proc-rate="' + (w.procRate != null ? w.procRate : '0') + '" data-proc-level="' + (w.procLevel != null ? w.procLevel : '') + '" data-proc-spell-id="' + (w.procSpellId != null ? w.procSpellId : '') + '" data-elemtype="' + (w.elemType || '').replace(/"/g, '&quot;') + '" data-elemdamage="' + (w.elemDamage != null ? w.elemDamage : '') + '" data-bane="' + (w.baneDamage != null ? w.baneDamage : '') + '" data-backstab-mod="' + (w.backstabModPercent != null ? String(w.backstabModPercent) : '') + '" data-icon="' + (w.icon != null && w.icon > 0 ? w.icon : '') + '" data-is2h="' + (w.is2H ? '1' : '0') + '" data-offhand-blocked="' + (w.offhandBlocked ? '1' : '0') + '"><span>' + (w.name || '').replace(/</g, '&lt;') + '</span><div class="item-search-item-detail">' + label.replace(/</g, '&lt;') + '</div></button>';
             });
           }
           return s;
@@ -3453,6 +3474,7 @@
               proc: (btn.getAttribute('data-proc') || '').trim(),
               procDamage: num(btn.getAttribute('data-procdamage')),
               procRate: num(btn.getAttribute('data-proc-rate')),
+              procLevel: numOrNull(btn.getAttribute('data-proc-level')),
               procSpellId: numOrNull(btn.getAttribute('data-proc-spell-id')),
               elemType: (btn.getAttribute('data-elemtype') || '').trim(),
               elemDamage: num(btn.getAttribute('data-elemdamage')),
@@ -3467,6 +3489,8 @@
               var entry = procRatesByItemId[w.itemId];
               var pr = entry.procrate != null ? Number(entry.procrate) : (entry.procRate != null ? Number(entry.procRate) : null);
               if (pr != null && !isNaN(pr)) w.procRate = pr;
+              var pl = entry.proclevel != null ? Number(entry.proclevel) : (entry.procLevel != null ? Number(entry.procLevel) : null);
+              if (pl != null && !isNaN(pl) && pl > 0) w.procLevel = pl;
             }
             const inputEl = $(prefix + '-item-search');
             if (prefix === 'ranged-weapon') {

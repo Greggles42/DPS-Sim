@@ -336,6 +336,14 @@
     return procChance > 0 && rng() < procChance;
   }
 
+  // Item proc level gate: if character level is below proclevel, proc cannot fire.
+  function canTriggerProcAtLevel(weapon, level) {
+    if (!weapon) return false;
+    const req = weapon.procLevel != null ? parseInt(weapon.procLevel, 10) : NaN;
+    if (Number.isNaN(req) || req <= 0) return true;
+    return (level != null ? level : 60) >= req;
+  }
+
   // ----- Spell proc resist (EQMacEmu spells.cpp CheckResistSpell / ResistSpell) -----
   // Resist types: 0 = none (unresistable), 1 = magic (MR), 2 = fire (FR), 3 = cold (CR), 4 = disease (DR), 5 = poison (PR).
   // Resist modifier (ResistDiff) is spell-based; negative values make the spell land more easily.
@@ -546,7 +554,7 @@
     const delayDecisec = effectiveDelayDecisec(bow.delay, options.hastePercent);
     const delayMs = delayDecisec * DECISEC_TO_MS;
     // Ranged procs use same chance as primary (main hand): (base + dex factor) * weapon_speed; no offhand penalty. Apply proc rate modifier.
-    const baseRangedProcChance = (bow.procSpell != null && bow.procSpell !== '')
+    const baseRangedProcChance = (bow.procSpell != null && bow.procSpell !== '' && canTriggerProcAtLevel(bow, level))
       ? getProcChancePerSwing(delayDecisec, false, 0, options.dex || 150)
       : 0;
     const rangedProcRate = (bow.procRate != null && !Number.isNaN(Number(bow.procRate))) ? Number(bow.procRate) : 0;
@@ -859,10 +867,10 @@
     const delay1Ms = hasMainHand ? effectiveDelayMs(w1.delay, options.hastePercent) : Infinity;
     const delay2Ms = w2 ? effectiveDelayMs(w2.delay, options.hastePercent) : 0;
 
-    const baseProcChance1 = hasMainHand && w1.procSpell != null
+    const baseProcChance1 = hasMainHand && w1.procSpell != null && canTriggerProcAtLevel(w1, level)
       ? getProcChancePerSwing(delay1, false, dualWieldPct, options.dex || 150)
       : 0;
-    const baseProcChance2 = w2 && w2.procSpell != null
+    const baseProcChance2 = w2 && w2.procSpell != null && canTriggerProcAtLevel(w2, level)
       ? getProcChancePerSwing(delay2, true, dualWieldPct, options.dex || 150)
       : 0;
     const procRate1 = (w1.procRate != null && !Number.isNaN(Number(w1.procRate))) ? Number(w1.procRate) : 0;
