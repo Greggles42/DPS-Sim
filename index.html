@@ -949,6 +949,7 @@
   </script>
   <script>
     (function () {
+      var localSpellData = null;
       if (typeof ItemSearch !== 'undefined') {
         if (typeof ITEM_SEARCH_CONFIG !== 'undefined') {
           ItemSearch.setConfig(ITEM_SEARCH_CONFIG);
@@ -958,6 +959,7 @@
         fetch('resources/spells_en.json')
           .then(function (r) { return r.ok ? r.json() : null; })
           .then(function (data) {
+            localSpellData = (data && typeof data === 'object') ? data : null;
             if (data && typeof ItemSearch !== 'undefined' && ItemSearch.setSpellData) ItemSearch.setSpellData(data);
           })
           .catch(function () {});
@@ -1263,6 +1265,8 @@
       let w2WeaponType = null;
       let w1BackstabModPercent = null;
       let w2BackstabModPercent = null;
+      let w1WornAttackBonus = null;
+      let w2WornAttackBonus = null;
 
       function getBackstabModPercentFromRawItem(raw) {
         if (!raw || typeof raw !== 'object') return null;
@@ -1280,6 +1284,42 @@
         var isPiercing = (t === '1hp' || t === '2hp');
         if (!isPiercing) return 0;
         var v = norm.backstabModPercent;
+        if (v == null || isNaN(Number(v))) return 0;
+        v = Number(v);
+        return v > 0 ? v : 0;
+      }
+      function getSpellAttackBonusFromLocalSpellData(spellId) {
+        if (!localSpellData || spellId == null || spellId === '') return 0;
+        var id = String(spellId);
+        var spell = localSpellData[id];
+        if (!spell || typeof spell !== 'object') return 0;
+        var best = 0;
+        for (var i = 1; i <= 12; i++) {
+          var eidRaw = spell['effectid' + i];
+          if (eidRaw == null) continue;
+          var eid = (typeof eidRaw === 'number') ? eidRaw : parseInt(String(eidRaw), 10);
+          // EQEmu spell effect 2 = ATK.
+          if (eid !== 2) continue;
+          var baseRaw = spell['effect_base_value' + i];
+          var base = (typeof baseRaw === 'number') ? baseRaw : parseInt(String(baseRaw), 10);
+          if (isNaN(base) || base <= 0) continue;
+          if (base > best) best = base;
+        }
+        return best > 0 ? best : 0;
+      }
+      function getWornAttackBonusFromRawItem(raw) {
+        if (!raw || typeof raw !== 'object') return 0;
+        var directAttackRaw = raw.attack != null ? raw.attack : (raw.atk != null ? raw.atk : raw.aatk);
+        var directAttack = (typeof directAttackRaw === 'number') ? directAttackRaw : parseInt(String(directAttackRaw), 10);
+        if (isNaN(directAttack) || directAttack < 0) directAttack = 0;
+        var wornEffectRaw = raw.worneffect != null ? raw.worneffect : raw.wornEffect;
+        var wornEffectId = (typeof wornEffectRaw === 'number') ? wornEffectRaw : parseInt(String(wornEffectRaw), 10);
+        var spellAttack = (!isNaN(wornEffectId) && wornEffectId > 0) ? getSpellAttackBonusFromLocalSpellData(wornEffectId) : 0;
+        return Math.max(0, directAttack) + Math.max(0, spellAttack);
+      }
+      function getWornAttackBonusForNorm(norm) {
+        if (!norm) return 0;
+        var v = norm.wornAttackBonus;
         if (v == null || isNaN(Number(v))) return 0;
         v = Number(v);
         return v > 0 ? v : 0;
@@ -1320,6 +1360,32 @@
         w1BackstabModPercent = (refreshedW1 != null ? refreshedW1 : null);
         w2BackstabModPercent = (refreshedW2 != null ? refreshedW2 : null);
         updateBackstabModFromEquipment();
+      }
+      function refreshWornAttackFromCurrentWeapons() {
+        function resolveSlotAtk(prefix) {
+          var current = (prefix === 'w1' ? w1WornAttackBonus : w2WornAttackBonus);
+          if (current != null && !isNaN(Number(current)) && Number(current) > 0) return Number(current);
+          var presetEl = $(prefix + '-preset');
+          var presetId = presetEl && presetEl.value ? String(presetEl.value) : '';
+          if (presetId && presetId !== 'unequipped') {
+            var raw = (weaponListData && weaponListData[presetId]) || (luclinWeaponsData && luclinWeaponsData[presetId]) || (popWeaponsData && popWeaponsData[presetId]) || null;
+            var atkFromRaw = getWornAttackBonusFromRawItem(raw);
+            if (atkFromRaw > 0) return atkFromRaw;
+          }
+          if (typeof itemSearchDebugSlots !== 'undefined' && itemSearchDebugSlots) {
+            var slotKey = prefix === 'w1' ? 'W1' : 'W2';
+            var slot = itemSearchDebugSlots[slotKey];
+            if (slot && slot.itemId != null) {
+              var atkFromItem = getItemWornAttackById(slot.itemId);
+              if (atkFromItem > 0) return atkFromItem;
+            }
+          }
+          return null;
+        }
+        var refreshedW1 = resolveSlotAtk('w1');
+        var refreshedW2 = resolveSlotAtk('w2');
+        w1WornAttackBonus = (refreshedW1 != null ? refreshedW1 : null);
+        w2WornAttackBonus = (refreshedW2 != null ? refreshedW2 : null);
       }
 
       function formatSkillLabel(key) {
@@ -1377,6 +1443,8 @@
           var p1Piercing = p1Type === '1hp' || p1Type === '2hp';
           var p1Backstab = getBackstabModPercentFromRawItem(raw);
           w1BackstabModPercent = (p1Piercing && p1Backstab != null) ? p1Backstab : null;
+          var p1WornAtk = getWornAttackBonusFromRawItem(raw);
+          w1WornAttackBonus = p1WornAtk > 0 ? p1WornAtk : null;
           if (id === 'unequipped') w1DisplayName = '';
           const overrideEl = $('w1-is2h-override');
           if (overrideEl) overrideEl.value = (p && (p.is2H || pType2H)) ? '1' : '0';
@@ -1388,6 +1456,8 @@
           var p2Piercing = p2Type === '1hp' || p2Type === '2hp';
           var p2Backstab = getBackstabModPercentFromRawItem(raw);
           w2BackstabModPercent = (p2Piercing && p2Backstab != null) ? p2Backstab : null;
+          var p2WornAtk = getWornAttackBonusFromRawItem(raw);
+          w2WornAttackBonus = p2WornAtk > 0 ? p2WornAtk : null;
           if (id === 'unequipped') w2DisplayName = '';
         }
         if (p) {
@@ -1497,6 +1567,7 @@
         var rankViewToggle = $('btn-rank-view-toggle');
         if (rankViewToggle) rankViewToggle.style.display = 'none';
         refreshBackstabModsFromCurrentWeapons();
+        refreshWornAttackFromCurrentWeapons();
         const weapon1 = getWeapon('w1');
         const weapon2 = getWeapon('w2');
         if (weapon1 && weapon1.procSpellId && typeof ItemSearch !== 'undefined' && ItemSearch.getSpellFromLocalData) {
@@ -1583,13 +1654,15 @@
           (w1BackstabModPercent != null && !isNaN(Number(w1BackstabModPercent))) ? Number(w1BackstabModPercent) : 0,
           (w2BackstabModPercent != null && !isNaN(Number(w2BackstabModPercent))) ? Number(w2BackstabModPercent) : 0
         ) : 0;
+        var equippedWornAttackBonus = Math.max(0, (w1WornAttackBonus != null && !isNaN(Number(w1WornAttackBonus))) ? Number(w1WornAttackBonus) : 0)
+          + Math.max(0, (w2WornAttackBonus != null && !isNaN(Number(w2WornAttackBonus))) ? Number(w2WornAttackBonus) : 0);
         const options = {
           weapon1: hasMainHand ? Object.assign({ damage: weapon1.damage, delay: weapon1.delay, procSpell: weapon1.procSpell, procSpellDamage: weapon1.procSpellDamage, procRate: weapon1.procRate, procLevel: weapon1.procLevel, procBuffDurationTicks: weapon1.procBuffDurationTicks, is2H: weapon1.is2H, elemType: weapon1.elemType, elemDamage: weapon1.elemDamage, type: w1WeaponType || undefined }, w1ProcResist) : undefined,
           weapon2: useWeapon2 ? Object.assign({ damage: weapon2.damage, delay: weapon2.delay, procSpell: weapon2.procSpell, procSpellDamage: weapon2.procSpellDamage, procRate: weapon2.procRate, procLevel: weapon2.procLevel, procBuffDurationTicks: weapon2.procBuffDurationTicks, elemType: weapon2.elemType, elemDamage: weapon2.elemDamage }, w2ProcResist) : undefined,
           weapon1Type: w1WeaponType || undefined,
           hastePercent,
           offenseSkill,
-          wornAttack,
+          wornAttack: (wornAttack || 0) + equippedWornAttackBonus,
           spellAttack,
           toHitBonus,
           ambidexterity: $('ambidexterity-aa').checked ? 32 : 0,
@@ -1756,11 +1829,13 @@
 
         const w1Name = (w1FromItemSearch && w1DisplayName ? w1DisplayName : (weapon1.damage + 'd/' + weapon1.delay));
         const w2Name = useWeapon2 ? (w2FromItemSearch && w2DisplayName ? w2DisplayName : (weapon2.damage + 'd/' + weapon2.delay)) : '—';
-        const w1Label = hasMainHand ? `Weapon 1: ${w1Name} (${weapon1.damage}d / ${weapon1.delay} delay${weapon1.procSpell ? ' / ' + weapon1.procSpell : ''})` : 'Main hand (unequipped)';
-        const w2Label = useWeapon2
-          ? `Weapon 2: ${w2Name} (${weapon2.damage}d / ${weapon2.delay} delay${weapon2.procSpell ? ' / ' + weapon2.procSpell : ''})`
+        const w1AtkMarker = (w1WornAttackBonus != null && w1WornAttackBonus > 0) ? (' [ATK +' + w1WornAttackBonus + ']') : '';
+        const w2AtkMarker = (w2WornAttackBonus != null && w2WornAttackBonus > 0) ? (' [ATK +' + w2WornAttackBonus + ']') : '';
+        const w1LabelWithAtk = hasMainHand ? (`Weapon 1: ${w1Name}${w1AtkMarker} (${weapon1.damage}d / ${weapon1.delay} delay${weapon1.procSpell ? ' / ' + weapon1.procSpell : ''})`) : 'Main hand (unequipped)';
+        const w2LabelWithAtk = useWeapon2
+          ? (`Weapon 2: ${w2Name}${w2AtkMarker} (${weapon2.damage}d / ${weapon2.delay} delay${weapon2.procSpell ? ' / ' + weapon2.procSpell : ''})`)
           : 'Weapon 2';
-        let reportText = EQCombat.formatReport(report, w1Label, w2Label, runs);
+        let reportText = EQCombat.formatReport(report, w1LabelWithAtk, w2LabelWithAtk, runs);
         if (window.selectedTargetNpc && window.selectedTargetNpc.name) {
           reportText = '  Target: ' + String(window.selectedTargetNpc.name).replace(/_/g, ' ') + '\n\n' + reportText;
         }
@@ -1776,7 +1851,7 @@
 
         const histContainer = $('histogram-container');
         if (reports.length > 0) {
-          renderHistogram(histContainer, reports[0], w1Label, w2Label);
+          renderHistogram(histContainer, reports[0], w1LabelWithAtk, w2LabelWithAtk);
         } else {
           histContainer.innerHTML = '';
         }
@@ -1961,6 +2036,13 @@
         var pl = raw.proclevel != null ? Number(raw.proclevel) : (raw.procLevel != null ? Number(raw.procLevel) : null);
         return (pl != null && !isNaN(pl) && pl > 0) ? pl : null;
       }
+      function getItemWornAttackById(itemId) {
+        if (itemId == null || itemId === '') return 0;
+        var id = String(itemId);
+        var raw = (weaponListData && weaponListData[id]) || (luclinWeaponsData && luclinWeaponsData[id]) || (popWeaponsData && popWeaponsData[id]) || null;
+        if (!raw || typeof raw !== 'object') return 0;
+        return getWornAttackBonusFromRawItem(raw);
+      }
       function isLoreItem(props) { return props.lore && props.lore.indexOf('*') >= 0; }
       function primarySlotAllowed(slots, is2H) {
         if (slots != null) return (slots & SLOT_PRIMARY_BIT) !== 0;
@@ -2021,6 +2103,10 @@
           if (norm.backstabModPercent == null) {
             var normBackstab = getBackstabModPercentFromRawItem(raw);
             if (normBackstab != null) norm.backstabModPercent = normBackstab;
+          }
+          if (norm.wornAttackBonus == null) {
+            var normWornAttack = getWornAttackBonusFromRawItem(raw);
+            if (normWornAttack > 0) norm.wornAttackBonus = normWornAttack;
           }
           var normProcLevel = raw.proclevel != null ? parseInt(raw.proclevel, 10) : NaN;
           norm.procLevel = (!isNaN(normProcLevel) && normProcLevel > 0) ? normProcLevel : undefined;
@@ -2141,6 +2227,7 @@
           elemDamage: elemDamage,
           baneDamage: (raw.banedmgamt != null ? parseInt(raw.banedmgamt, 10) : 0) || 0,
           backstabModPercent: getBackstabModPercentFromRawItem(raw),
+          wornAttackBonus: getWornAttackBonusFromRawItem(raw),
           is2H: is2H,
           type: typeStr
         };
@@ -2387,6 +2474,7 @@
                 weapon1Type: p.type || undefined,
                 dualWieldSkill: 0,
                 weaponSkillForToHit: weaponSkillForToHit,
+                wornAttack: (baseOptions.wornAttack || 0) + getWornAttackBonusForNorm(p),
                 backstabModPercent: classId === 'rogue' ? Math.max(formBackstabModPercent, getBackstabModPercentForNorm(p)) : undefined,
                 fistweaving: classId === 'monk' && is2H && $('fistweaving').checked
               });
@@ -2427,6 +2515,7 @@
                 weapon1Type: refNorm.type || undefined,
                 dualWieldSkill: dualWieldSkillForm,
                 weaponSkillForToHit: refWeaponSkillForToHit,
+                wornAttack: (baseOptions.wornAttack || 0) + getWornAttackBonusForNorm(refNorm) + getWornAttackBonusForNorm(p2),
                 backstabModPercent: classId === 'rogue' ? Math.max(formBackstabModPercent, getBackstabModPercentForNorm(refNorm), getBackstabModPercentForNorm(p2)) : undefined,
                 fistweaving: false
               });
@@ -2458,12 +2547,17 @@
             var p1 = rankWeaponMap[comb.primaryId];
             var name1 = p1.name || comb.primaryId;
             var name2 = comb.secondaryId ? (rankWeaponMap[comb.secondaryId] && rankWeaponMap[comb.secondaryId].name) || comb.secondaryId : '';
+            var p2 = comb.secondaryId ? rankWeaponMap[comb.secondaryId] : null;
+            var atk1 = getWornAttackBonusForNorm(p1);
+            var atk2 = getWornAttackBonusForNorm(p2);
+            var name1WithAtk = atk1 > 0 ? (name1 + ' [ATK +' + atk1 + ']') : name1;
+            var name2WithAtk = atk2 > 0 ? (name2 + ' [ATK +' + atk2 + ']') : name2;
             var bs1 = classId === 'rogue' ? getBackstabModPercentForNorm(p1) : 0;
             var primaryType = (p1 && p1.type != null ? String(p1.type) : '').toLowerCase();
             var backstabContributes = classId === 'rogue' && fromBehind && rankSpecialAttacks && rankSpecialAttackType === 'backstab' && primaryType === '1hp' && bs1 > 0;
             var backstabModApplied = backstabContributes ? bs1 : 0;
-            var primaryLabel = backstabModApplied > 0 ? (name1 + ' [BS+' + backstabModApplied + '%]') : name1;
-            var label = comb.secondaryId ? (primaryLabel + ' + ' + name2) : primaryLabel;
+            var primaryLabel = backstabModApplied > 0 ? (name1WithAtk + ' [BS+' + backstabModApplied + '%]') : name1WithAtk;
+            var label = comb.secondaryId ? (primaryLabel + ' + ' + name2WithAtk) : primaryLabel;
             return { primaryId: comb.primaryId, secondaryId: comb.secondaryId, label: label, mainhandDps: mainDps, offhandDps: offDps, totalDps: totalDps, backstabModApplied: backstabModApplied };
           });
           results.sort(function (a, b) { return (b.totalDps || 0) - (a.totalDps || 0); });
@@ -2510,8 +2604,9 @@
                 return showWhenEmpty ? ('<h3 style="margin:0.75rem 0 0.35rem;">' + title + '</h3><div class="hint" style="margin:0 0 0.5rem;">No eligible items found.</div>') : '';
               }
               var bodyRows = rows.slice(0, 40).map(function (row, i) {
+                var atkMarker = row.wornAttackBonus > 0 ? (' [ATK +' + row.wornAttackBonus + ']') : '';
                 var marker = row.backstabModApplied > 0 ? (' [BS+' + row.backstabModApplied + '%]') : '';
-                var label = ((row.label || '') + marker).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+                var label = ((row.label || '') + atkMarker + marker).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
                 var dpsStr = formatDps(row.dps);
                 return '<tr><td>' + (i + 1) + '</td><td>' + label + '</td><td style="text-align:right;">' + dpsStr + '</td></tr>';
               }).join('');
@@ -2547,14 +2642,16 @@
                 var bs1 = classId === 'rogue' ? getBackstabModPercentForNorm(w) : 0;
                 var primaryType = (w && w.type != null ? String(w.type) : '').toLowerCase();
                 var backstabContributes = classId === 'rogue' && fromBehind && rankSpecialAttacks && rankSpecialAttackType === 'backstab' && primaryType === '1hp' && bs1 > 0;
-                return { id: id, label: (w && w.name) || id, dps: mainhand_dps[id] != null ? mainhand_dps[id] : 0, is2H: is2H, backstabModApplied: backstabContributes ? bs1 : 0 };
+                var atkBonus = getWornAttackBonusForNorm(w);
+                return { id: id, label: (w && w.name) || id, dps: mainhand_dps[id] != null ? mainhand_dps[id] : 0, is2H: is2H, backstabModApplied: backstabContributes ? bs1 : 0, wornAttackBonus: atkBonus };
               });
               mainhandSlotRows = dedupeBestById(mainhandSlotRows);
               var oneHandMainRows = dedupeBestById(mainhandSlotRows.filter(function (r) { return !r.is2H; }));
               var twoHandMainRows = dedupeBestById(mainhandSlotRows.filter(function (r) { return r.is2H; }));
               var offhandRows = secondaryWeapons.map(function (id) {
                 var w = rankWeaponMap[id];
-                return { id: id, label: (w && w.name) || id, dps: offhand_dps[id] != null ? offhand_dps[id] : 0, backstabModApplied: 0 };
+                var atkBonus = getWornAttackBonusForNorm(w);
+                return { id: id, label: (w && w.name) || id, dps: offhand_dps[id] != null ? offhand_dps[id] : 0, backstabModApplied: 0, wornAttackBonus: atkBonus };
               });
               offhandRows = dedupeBestById(offhandRows);
               var slotTables = '';
@@ -2595,6 +2692,7 @@
               weapon1Type: p1.type || undefined,
               dualWieldSkill: 0,
               weaponSkillForToHit: weaponSkillForToHit,
+              wornAttack: (baseOptions.wornAttack || 0) + getWornAttackBonusForNorm(p1),
               backstabModPercent: classId === 'rogue' ? Math.max(formBackstabModPercent, getBackstabModPercentForNorm(p1)) : undefined,
               fistweaving: classId === 'monk' && is2H && $('fistweaving').checked
             });
@@ -2615,6 +2713,7 @@
               if (p2.procBuffDurationTicks != null && p2.procBuffDurationTicks > 0)
                 opts.weapon2.procBuffDurationTicks = p2.procBuffDurationTicks;
               opts.dualWieldSkill = dualWieldSkillForm;
+              opts.wornAttack = (baseOptions.wornAttack || 0) + getWornAttackBonusForNorm(p1) + getWornAttackBonusForNorm(p2);
               opts.backstabModPercent = classId === 'rogue' ? Math.max(formBackstabModPercent, getBackstabModPercentForNorm(p1), getBackstabModPercentForNorm(p2)) : undefined;
             }
             var reports = [];
@@ -3413,7 +3512,7 @@
       updateWeaponNameDisplay('w2');
       updateWeapon2Disabled();
       function clearItemSearchOnManualEdit(prefix) {
-        if (prefix === 'w1') { w1FromItemSearch = false; w1BackstabModPercent = null; } else { w2FromItemSearch = false; w2BackstabModPercent = null; }
+        if (prefix === 'w1') { w1FromItemSearch = false; w1BackstabModPercent = null; w1WornAttackBonus = null; } else { w2FromItemSearch = false; w2BackstabModPercent = null; w2WornAttackBonus = null; }
         updateBackstabModFromEquipment();
       }
       [$('w1-damage'), $('w1-delay')].forEach(function (el) { if (el) el.addEventListener('input', function () { clearItemSearchOnManualEdit('w1'); updateWeaponNameDisplay('w1'); }); });
@@ -3630,10 +3729,17 @@
         var normType = (weapon.type != null && weapon.type !== '') ? String(weapon.type).trim().toLowerCase() : null;
         var isPiercing = normType === '1hp' || normType === '2hp';
         var backstabModVal = (weapon.backstabModPercent != null && !isNaN(Number(weapon.backstabModPercent))) ? Number(weapon.backstabModPercent) : null;
+        var wornAttackVal = (weapon.wornAttackBonus != null && !isNaN(Number(weapon.wornAttackBonus))) ? Number(weapon.wornAttackBonus) : null;
+        if ((wornAttackVal == null || wornAttackVal <= 0) && weapon.itemId != null) {
+          var resolvedWornAtk = getItemWornAttackById(weapon.itemId);
+          wornAttackVal = resolvedWornAtk > 0 ? resolvedWornAtk : null;
+        }
         if (prefix === 'w1') {
           w1BackstabModPercent = (isPiercing && backstabModVal != null) ? backstabModVal : null;
+          w1WornAttackBonus = wornAttackVal != null ? wornAttackVal : null;
         } else {
           w2BackstabModPercent = (isPiercing && backstabModVal != null) ? backstabModVal : null;
+          w2WornAttackBonus = wornAttackVal != null ? wornAttackVal : null;
         }
         updateBackstabModFromEquipment();
         updateWeaponIcon(prefix, weapon.icon);

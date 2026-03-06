@@ -1613,6 +1613,7 @@
     if (w1.spellProcCrits != null) lines.push(`    Proc spell crits (SCF):  ${w1.spellProcCrits}`);
     if (w1.maxSpellProcCritDmg != null && w1.maxSpellProcCritDmg > 0) lines.push(`    Max spell proc crit dmg:  ${w1.maxSpellProcCritDmg}`);
     if (w2.swings > 0) {
+      lines.push('');
       lines.push(`  ${weapon2Label || 'Weapon 2'}`);
       if (w2.anticipatedProcsPerMinute != null) lines.push(`    Anticipated procs per minute: ${w2.anticipatedProcsPerMinute.toFixed(2)}`);
       if (w2.anticipatedProcChancePerRound != null) lines.push(`    Anticipated proc chance per round: ${(w2.anticipatedProcChancePerRound * 100).toFixed(2)}%`);
@@ -1631,6 +1632,7 @@
       if (w2.maxSpellProcCritDmg != null && w2.maxSpellProcCritDmg > 0) lines.push(`    Max spell proc crit dmg:  ${w2.maxSpellProcCritDmg}`);
     }
     if (report.special && (report.special.count > 0 || (report.special.attempts != null && report.special.attempts > 0))) {
+      lines.push('');
       const sp = report.special;
       const a = sp.attempts != null ? sp.attempts : 0;
       const h = sp.hits != null ? sp.hits : sp.count;
