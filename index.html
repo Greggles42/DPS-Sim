@@ -480,7 +480,8 @@
           <option value="beastlord">Beastlord</option>
         </select></div>
         <div class="char-field char-field-num"><label for="level">Level</label><input type="number" id="level" min="1" max="65" value="60" placeholder="60"></div>
-        <div class="char-field char-field-num"><label for="haste">Haste % <span class="info-icon" title="Worn + Spell + v3 Haste">&#8505;</span></label><input type="number" id="haste" min="0" value="99" placeholder="99"></div>
+        <div class="char-field char-field-num"><label for="worn-haste">Worn haste % <span class="info-icon" title="Item haste; capped to 10% at level 1-25, uncapped at level 26+">&#8505;</span></label><input type="number" id="worn-haste" min="0" value="0" placeholder="0"></div>
+        <div class="char-field char-field-num"><label for="spell-haste">Spell haste % <span class="info-icon" title="Spell haste component">&#8505;</span></label><input type="number" id="spell-haste" min="0" value="99" placeholder="99"></div>
         <div class="char-field char-field-num"><label for="worn-attack">Worn ATK</label><input type="number" id="worn-attack" min="0" value="0" placeholder="0"></div>
         <div class="char-field char-field-num"><label for="spell-attack">Spell ATK</label><input type="number" id="spell-attack" min="0" value="0" placeholder="0"></div>
       </div>
@@ -732,7 +733,8 @@
           <option value="ranger" selected>Ranger</option>
         </select></div>
         <div class="char-field char-field-num"><label for="ranged-level">Level</label><input type="number" id="ranged-level" min="1" max="65" value="60" placeholder="60"></div>
-        <div class="char-field char-field-num"><label for="ranged-haste">Haste % <span class="info-icon" title="Worn + Spell + v3 Haste">&#8505;</span></label><input type="number" id="ranged-haste" min="0" value="99" placeholder="99"></div>
+        <div class="char-field char-field-num"><label for="ranged-worn-haste">Worn haste % <span class="info-icon" title="Item haste; capped to 10% at level 1-25, uncapped at level 26+">&#8505;</span></label><input type="number" id="ranged-worn-haste" min="0" value="0" placeholder="0"></div>
+        <div class="char-field char-field-num"><label for="ranged-spell-haste">Spell haste % <span class="info-icon" title="Spell haste component">&#8505;</span></label><input type="number" id="ranged-spell-haste" min="0" value="99" placeholder="99"></div>
         <div class="char-field char-field-num"><label for="ranged-worn-attack">Worn ATK</label><input type="number" id="ranged-worn-attack" min="0" value="0" placeholder="0"></div>
         <div class="char-field char-field-num"><label for="ranged-spell-attack">Spell ATK</label><input type="number" id="ranged-spell-attack" min="0" value="0" placeholder="0"></div>
       </div>
@@ -1057,6 +1059,37 @@
 
       const SPECIAL_BASE_REUSE_SEC = 8;
       const BACKSTAB_BASE_REUSE_SEC = 10;
+      function parsePercentInput(elId) {
+        var el = $(elId);
+        if (!el) return 0;
+        var n = Number(el.value);
+        if (Number.isNaN(n)) return 0;
+        return n < 0 ? 0 : n;
+      }
+      function getCappedWornHastePercent(level, wornHastePercent) {
+        var lvl = level != null ? (parseInt(level, 10) || 60) : 60;
+        var worn = !Number.isNaN(Number(wornHastePercent)) ? Number(wornHastePercent) : 0;
+        if (worn < 0) worn = 0;
+        return lvl > 25 ? worn : Math.min(10, worn);
+      }
+      function getTotalHastePercent(level, wornHastePercent, spellHastePercent) {
+        var wornCapped = getCappedWornHastePercent(level, wornHastePercent);
+        var spell = !Number.isNaN(Number(spellHastePercent)) ? Number(spellHastePercent) : 0;
+        if (spell < 0) spell = 0;
+        return wornCapped + spell;
+      }
+      function getMeleeTotalHastePercent() {
+        var level = parseInt($('level').value, 10) || 60;
+        var worn = parsePercentInput('worn-haste');
+        var spell = parsePercentInput('spell-haste');
+        return getTotalHastePercent(level, worn, spell);
+      }
+      function getRangedTotalHastePercent() {
+        var level = parseInt($('ranged-level').value, 10) || 60;
+        var worn = parsePercentInput('ranged-worn-haste');
+        var spell = parsePercentInput('ranged-spell-haste');
+        return getTotalHastePercent(level, worn, spell);
+      }
       let backstabReuseManual = false;
       let flyingKickReuseManual = false;
       let kickReuseManual = false;
@@ -1064,7 +1097,11 @@
       function updateSpecialReuseDisplay() {
         const classId = ($('class').value || '').toLowerCase();
         const type = ($('special-attack-type').value || 'none');
-        const hastePercent = parseFloat($('haste').value) || 0;
+        const level = parseInt($('level').value, 10) || 60;
+        const rawHastePercent = getMeleeTotalHastePercent();
+        const hastePercent = (typeof EQCombat !== 'undefined' && typeof EQCombat.getEffectiveHastePercent === 'function')
+          ? EQCombat.getEffectiveHastePercent(rawHastePercent, level)
+          : rawHastePercent;
         const hasteMod = 1 + hastePercent / 100;
         const eff8 = SPECIAL_BASE_REUSE_SEC / hasteMod;
         const effBackstab = BACKSTAB_BASE_REUSE_SEC / hasteMod;
@@ -1411,7 +1448,7 @@
           return;
         }
 
-        const hastePercent = parseFloat($('haste').value) || 0;
+        const hastePercent = getMeleeTotalHastePercent();
         const wornAttack = parseInt($('worn-attack').value, 10) || 0;
         const spellAttack = parseInt($('spell-attack').value, 10) || 0;
         let doubleAttackSkill = parseInt($('double-attack').value, 10) || 0;
@@ -1581,6 +1618,8 @@
               } : {},
             },
             durationSec,
+            rawHastePercent: reports[0].rawHastePercent != null ? reports[0].rawHastePercent : 0,
+            effectiveHastePercent: reports[0].effectiveHastePercent != null ? reports[0].effectiveHastePercent : 0,
             totalDamage: Math.round(reports.reduce((s, r) => s + r.totalDamage, 0) / runs),
             damageBonus: reports[0].damageBonus != null ? reports[0].damageBonus : 0,
             damageBonusTotal: Math.round(reports.reduce((s, r) => s + (r.damageBonusTotal || 0), 0) / runs),
@@ -2096,7 +2135,7 @@
           rankSpecialAttackType = 'backstab';
         }
         const baseOptions = {
-          hastePercent: parseFloat($('haste').value) || 0,
+          hastePercent: getMeleeTotalHastePercent(),
           offenseSkill,
           wornAttack: parseInt($('worn-attack').value, 10) || 0,
           spellAttack: parseInt($('spell-attack').value, 10) || 0,
@@ -2493,7 +2532,7 @@
         var durationSec = parseInt($('ranged-duration').value, 10) || 6000;
         var applyBane = $('ranged-apply-bane').checked;
         var baseOptions = {
-          hastePercent: parseFloat($('ranged-haste').value, 10) || 0,
+          hastePercent: getRangedTotalHastePercent(),
           level: level,
           targetAC: parseInt($('ranged-target-ac').value, 10) || 300,
           mobLevel: parseInt($('ranged-mob-level').value, 10) || 60,
@@ -2887,7 +2926,7 @@
         const options = {
           rangedWeapon,
           arrow,
-          hastePercent: parseFloat($('ranged-haste').value, 10) || 0,
+          hastePercent: getRangedTotalHastePercent(),
           level: parseInt($('ranged-level').value, 10) || 60,
           targetAC: parseInt($('ranged-target-ac').value, 10) || 300,
           mobLevel: parseInt($('ranged-mob-level').value, 10) || 60,
@@ -2946,6 +2985,8 @@
               procLevelCurrent: r0.ranged.procLevelCurrent != null ? r0.ranged.procLevelCurrent : null,
             },
             durationSec: r0.durationSec,
+            rawHastePercent: r0.rawHastePercent != null ? r0.rawHastePercent : 0,
+            effectiveHastePercent: r0.effectiveHastePercent != null ? r0.effectiveHastePercent : 0,
             totalDamage: Math.round(reports.reduce((s, r) => s + r.totalDamage, 0) / runs),
             critHits: Math.round(reports.reduce((s, r) => s + (r.critHits || 0), 0) / runs),
             critDamageGain: Math.round(reports.reduce((s, r) => s + (r.critDamageGain || 0), 0) / runs),
@@ -3101,11 +3142,12 @@
         rangedLevelEl.addEventListener('input', function () { updateItemSearchDebug(); });
       }
       updateClassIcon();
-      const hasteEl = $('haste');
-      if (hasteEl) {
-        hasteEl.addEventListener('input', updateSpecialReuseDisplay);
-        hasteEl.addEventListener('change', updateSpecialReuseDisplay);
-      }
+      ['worn-haste', 'spell-haste'].forEach(function (id) {
+        var el = $(id);
+        if (!el) return;
+        el.addEventListener('input', updateSpecialReuseDisplay);
+        el.addEventListener('change', updateSpecialReuseDisplay);
+      });
       function onSpecialReuseInput(id, kind) {
         const el = document.getElementById(id);
         if (!el) return;
@@ -3282,8 +3324,10 @@
           let procChanceLine = 'Proc rate: ' + procRate + '%';
           let modifiedProcChanceLine = 'Modified proc chance: —';
           if (typeof EQCombat !== 'undefined' && EQCombat.getProcChancePerSwing && EQCombat.effectiveDelayDecisec && w.delay != null && w.delay > 0) {
-            const hasteInput = (label === 'Ranged weapon') ? $('ranged-haste') : $('haste');
-            const haste = hasteInput ? (parseInt(hasteInput.value, 10) || 99) : 99;
+            const rawHaste = (label === 'Ranged weapon') ? getRangedTotalHastePercent() : getMeleeTotalHastePercent();
+            const haste = (typeof EQCombat.getEffectiveHastePercent === 'function')
+              ? EQCombat.getEffectiveHastePercent(rawHaste, currentLevel)
+              : rawHaste;
             const dexInput = (label === 'Ranged weapon') ? $('ranged-dex') : $('dex');
             const dex = dexInput ? (parseInt(dexInput.value, 10) || 255) : 255;
             const dualWieldPct = isOffhand ? (parseInt($('dual-wield').value, 10) || 100) : 100;

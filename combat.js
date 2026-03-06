@@ -308,6 +308,30 @@
   // All inputs (delay, fightDurationSec, cooldownDecisec) stay in deciseconds; internal timers use milliseconds.
   const DECISEC_TO_MS = 100; // 1 decisec = 100 ms
   const MIN_DELAY_DECISEC = 4; // minimum effective delay after haste (0.4 sec)
+  const DEFAULT_CHARACTER_HASTE_CAP_60_BONUS = 100; // RuleI(Character, HasteCap)
+  function getHasteCapTotal(level, hasteCap60Bonus) {
+    const lvl = level != null ? level : 60;
+    const cap60Bonus = (hasteCap60Bonus != null && !Number.isNaN(Number(hasteCap60Bonus)))
+      ? Number(hasteCap60Bonus)
+      : DEFAULT_CHARACTER_HASTE_CAP_60_BONUS;
+    let cap = 100;
+    if (lvl > 59) cap += cap60Bonus;
+    else if (lvl > 50) cap += 85;
+    else cap += lvl + 25;
+    return cap;
+  }
+  function getEffectiveHastePercent(hastePercent, level, hasteCap60Bonus) {
+    const raw = !Number.isNaN(Number(hastePercent)) ? Number(hastePercent) : 0;
+    // Mob::GetHaste(): if spellbonuses.haste < 0, return 100 + spellbonuses.haste (slow path).
+    if (raw < 0) return raw;
+    // UI provides aggregate haste%. With no v1/v2/item/v3 split, cap to maximum final total:
+    // GetHasteCap() pre-v3 cap + v3 cap (10 at <=50, 25 at >=51).
+    const lvl = level != null ? level : 60;
+    const capTotal = getHasteCapTotal(lvl, hasteCap60Bonus);
+    const v3Cap = lvl > 50 ? 25 : 10;
+    const maxBonus = (capTotal - 100) + v3Cap;
+    return Math.min(raw, maxBonus);
+  }
   function effectiveDelayDecisec(delay, hastePercent) {
     const hasteMod = 1 + (hastePercent || 0) / 100;
     return Math.max(MIN_DELAY_DECISEC, delay / hasteMod);
@@ -530,6 +554,7 @@
     const rng = createRng(options.seed);
     const procRng = createRng(options.seed != null ? options.seed + 9999 : undefined);
     const level = options.level != null ? options.level : 60;
+    const effectiveHastePercent = getEffectiveHastePercent(options.hastePercent, level, options.hasteCap60Bonus);
     const targetAC = options.targetAC != null ? options.targetAC : 300;
     const mobLevel = options.mobLevel != null ? options.mobLevel : 60;
     const avoidance = options.avoidance != null ? options.avoidance : getAvoidanceNPC(mobLevel);
@@ -556,7 +581,7 @@
     }
     const mobStationary = !!options.mobStationary;
 
-    const delayDecisec = effectiveDelayDecisec(bow.delay, options.hastePercent);
+    const delayDecisec = effectiveDelayDecisec(bow.delay, effectiveHastePercent);
     const delayMs = delayDecisec * DECISEC_TO_MS;
     // Ranged procs use same chance as primary (main hand): (base + dex factor) * weapon_speed; no offhand penalty. Apply proc rate modifier.
     const baseRangedProcChance = (bow.procSpell != null && bow.procSpell !== '' && canTriggerProcAtLevel(bow, level))
@@ -589,6 +614,8 @@
         procLevelCurrent: level,
       },
       durationSec: options.fightDurationSec,
+      rawHastePercent: !Number.isNaN(Number(options.hastePercent)) ? Number(options.hastePercent) : 0,
+      effectiveHastePercent: effectiveHastePercent,
       totalDamage: 0,
       elementalDamageTotal: 0,
       critHits: 0,
@@ -723,6 +750,11 @@
     lines.push('=== Offense & To-Hit Model ===', '');
     if (report.calculatedToHit != null) lines.push(`  Calculated to-hit:     ${report.calculatedToHit}`);
     if (report.offenseRating != null) lines.push(`  Offense rating:        ${report.offenseRating}  (used for damage)`);
+    if (report.rawHastePercent != null || report.effectiveHastePercent != null) {
+      const raw = report.rawHastePercent != null ? Number(report.rawHastePercent).toFixed(1) : '—';
+      const eff = report.effectiveHastePercent != null ? Number(report.effectiveHastePercent).toFixed(1) : '—';
+      lines.push(`  Haste (raw / effective): ${raw}% / ${eff}%`);
+    }
     if (report.displayedAttack != null) lines.push(`  Displayed ATK:         ${report.displayedAttack}`);
     lines.push('  ATK formula:           (offense rating + toHit) * 1000 / 744');
     lines.push('');
@@ -834,6 +866,7 @@
         : null;
     let canFireSpecial = specialConfig && (!specialConfig.fromBehindOnly || fromBehind);
     const level = options.level != null ? options.level : 60;
+    const effectiveHastePercent = getEffectiveHastePercent(options.hastePercent, level, options.hasteCap60Bonus);
     const targetAC = options.targetAC;
     const mobLevel = options.mobLevel != null ? options.mobLevel : 60;
     // ---- Avoidance and mitigation: applied on EVERY swing ----
@@ -878,10 +911,10 @@
       return { error: 'Offhand-only mode requires Weapon 2 with damage, delay, and dual wield skill.' };
     }
 
-    const delay1 = hasMainHand ? effectiveDelayDecisec(w1.delay, options.hastePercent) : 0;
-    const delay2 = w2 ? effectiveDelayDecisec(w2.delay, options.hastePercent) : 0;
-    const delay1Ms = hasMainHand ? effectiveDelayMs(w1.delay, options.hastePercent) : Infinity;
-    const delay2Ms = w2 ? effectiveDelayMs(w2.delay, options.hastePercent) : 0;
+    const delay1 = hasMainHand ? effectiveDelayDecisec(w1.delay, effectiveHastePercent) : 0;
+    const delay2 = w2 ? effectiveDelayDecisec(w2.delay, effectiveHastePercent) : 0;
+    const delay1Ms = hasMainHand ? effectiveDelayMs(w1.delay, effectiveHastePercent) : Infinity;
+    const delay2Ms = w2 ? effectiveDelayMs(w2.delay, effectiveHastePercent) : 0;
 
     const baseProcChance1 = hasMainHand && w1.procSpell != null && canTriggerProcAtLevel(w1, level)
       ? getProcChancePerSwing(delay1, false, dualWieldPct, options.dex || 150)
@@ -900,6 +933,8 @@
       weapon1: { swings: 0, hits: 0, totalDamage: 0, maxDamage: 0, minDamage: Infinity, hitList: [], procs: 0, procDamageTotal: 0, procResists: 0, procFullResists: 0, procPartialResists: 0, procResistDamageLost: 0, spellProcCrits: 0, maxSpellProcCritDmg: 0, rounds: 0, single: 0, double: 0, triple: 0 },
       weapon2: { swings: 0, hits: 0, totalDamage: 0, maxDamage: 0, minDamage: Infinity, hitList: [], procs: 0, procDamageTotal: 0, procResists: 0, procFullResists: 0, procPartialResists: 0, procResistDamageLost: 0, spellProcCrits: 0, maxSpellProcCritDmg: 0, rounds: 0, single: 0, double: 0, triple: 0 },
       durationSec: options.fightDurationSec,
+      rawHastePercent: !Number.isNaN(Number(options.hastePercent)) ? Number(options.hastePercent) : 0,
+      effectiveHastePercent: effectiveHastePercent,
       totalDamage: 0,
       elementalDamageTotal: 0,
       damageBonus: mainHandDamageBonus,
@@ -977,7 +1012,7 @@
       return Math.floor(baseDamage * SE_MELEE_MIN_DAMAGE_MOD_DUELIST_INNERFLAME / 100) + (damageBonus || 0);
     }
     // Special attack reuse: base reuse (or user base override) reduced by haste; or user effective override used as-is
-    const hasteMod = 1 + (options.hastePercent || 0) / 100;
+    const hasteMod = 1 + (effectiveHastePercent || 0) / 100;
     let effectiveSpecialReuseSec = 0;
     if (specialConfig) {
       if (specialType === 'backstab' && options.backstabReuseEffectiveSec != null && options.backstabReuseEffectiveSec > 0) {
@@ -1476,6 +1511,11 @@
     if (report.calculatedToHit != null) lines.push(`  Calculated to-hit:     ${report.calculatedToHit}`);
     if (report.offenseSkill != null) lines.push(`  Offense skill:         ${report.offenseSkill}  (0–255, used for to-hit only)`);
     if (report.offenseRating != null) lines.push(`  Offense rating:        ${report.offenseRating}  (used for damage)`);
+    if (report.rawHastePercent != null || report.effectiveHastePercent != null) {
+      const raw = report.rawHastePercent != null ? Number(report.rawHastePercent).toFixed(1) : '—';
+      const eff = report.effectiveHastePercent != null ? Number(report.effectiveHastePercent).toFixed(1) : '—';
+      lines.push(`  Haste (raw / effective): ${raw}% / ${eff}%`);
+    }
     if (report.offenseRatingFromStr != null) lines.push(`    From STR:            ${report.offenseRatingFromStr}`);
     if (report.offenseRating != null && report.offenseRatingFromStr != null) {
       const other = report.offenseRating - report.offenseRatingFromStr;
@@ -1665,6 +1705,7 @@
     getDualWieldEffective,
     checkDualWield,
     effectiveDelayDecisec,
+    getEffectiveHastePercent,
     getProcChancePerSwing,
     runFight,
     formatReport,
