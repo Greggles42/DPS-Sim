@@ -713,6 +713,7 @@
       <span class="rank-weapons-row" id="rank-weapons-wrap">
         <button type="button" id="btn-rank-weapons" title="Rank weapons by DPS (Shift+Click Run to show)">Rank weapons</button>
         <label class="checkbox-label"><input type="checkbox" id="rank-weapons-include-pop" title="When checked, rank from popweapons.json (Planes of Power) instead of luclinweapons.json"> Include PoP weapons</label>
+        <label class="checkbox-label"><input type="checkbox" id="rank-weapons-ignore-nodrop" title="When checked, excludes items with nodrop = 0 from rank results"> Ignore No Drop items</label>
       </span>
     </section>
   </div>
@@ -2014,6 +2015,7 @@
           return;
         }
         var includePop = ($('rank-weapons-include-pop') && $('rank-weapons-include-pop').checked) === true;
+        var ignoreNoDrop = ($('rank-weapons-ignore-nodrop') && $('rank-weapons-ignore-nodrop').checked) === true;
         if (!includePop) {
           if (typeof luclinWeaponsData === 'undefined' || !luclinWeaponsData || typeof luclinWeaponsData !== 'object') {
             $('report').textContent = 'luclinweapons.json is required to rank weapons. Ensure it is loaded.';
@@ -2108,6 +2110,8 @@
             if (rankWeaponMap[id]) return;
             var raw = source[id];
             if (!raw || raw.damage < 1 || raw.delay < 1) return;
+            var nodrop = raw.nodrop != null ? parseInt(raw.nodrop, 10) : NaN;
+            if (ignoreNoDrop && !isNaN(nodrop) && nodrop === 0) return;
             var classes = raw.classes != null ? parseInt(raw.classes, 10) : NaN;
             if (isNaN(classes)) return;
             var mask = RANK_CLASS_BITMASK[classId];
@@ -2269,6 +2273,7 @@
             window._lastRankWeaponsResults = results;
             var subText = top40.length > 0 ? ' Top 40 averaged over ' + runsCount + ' runs.' : '';
             var sourceLabel = includePop ? 'From popweapons.json.' : 'From luclinweapons.json.';
+            if (ignoreNoDrop) sourceLabel += ' No Drop items excluded (nodrop = 0).';
             var lines = ['=== Weapon combination rank (by DPS) ===', 'Class: ' + (classConfig && classConfig.name ? classConfig.name : classId) + ', Level: ' + level + ', Duration: ' + durationSec + 's', sourceLabel + subText + ' DPS = mainhand + offhand (additive).', ''];
             var top400 = results.slice(0, 400);
             var tableRows = top400.map(function (row, i) {
