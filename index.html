@@ -2149,6 +2149,8 @@
             if (rankWeaponMap[id]) return;
             var raw = source[id];
             if (!raw || raw.damage < 1 || raw.delay < 1) return;
+            var itemName = raw.Name != null ? String(raw.Name).trim().toLowerCase() : '';
+            if (itemName === 'fist of steel') return;
             var reqlevel = raw.reqlevel != null ? parseInt(raw.reqlevel, 10) : NaN;
             if (!isNaN(reqlevel) && reqlevel > 0 && level < reqlevel) return;
             var races = raw.races != null ? parseInt(raw.races, 10) : NaN;
@@ -2320,6 +2322,7 @@
             if (ignoreNoDrop) sourceLabel += ' No Drop items excluded (nodrop = 0).';
             sourceLabel += ' Items requiring level above character level excluded (reqlevel).';
             sourceLabel += ' Items unusable by all races excluded (races = 0).';
+            sourceLabel += ' Fist of Steel excluded.';
             var lines = ['=== Weapon combination rank (by DPS) ===', 'Class: ' + (classConfig && classConfig.name ? classConfig.name : classId) + ', Level: ' + level + ', Duration: ' + durationSec + 's', sourceLabel + subText + ' DPS = mainhand + offhand (additive).', ''];
             var top400 = results.slice(0, 400);
             var tableRows = top400.map(function (row, i) {
