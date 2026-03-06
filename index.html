@@ -3224,10 +3224,11 @@
         try { localStorage.setItem(ITEM_SEARCH_RECENT_ARROW_KEY, JSON.stringify(recent)); } catch (e) {}
       }
 
-      const itemSearchDebugSlots = { W1: null, W2: null, 'Ranged weapon': null, Arrow: null };
+      var itemSearchDebugSlots = null;
       function updateItemSearchDebug(slotLabel, weapon) {
         const el = $('item-search-debug-content');
         if (!el) return;
+        if (!itemSearchDebugSlots) itemSearchDebugSlots = { W1: null, W2: null, 'Ranged weapon': null, Arrow: null };
         if (slotLabel) itemSearchDebugSlots[slotLabel] = weapon || null;
         function formatSlotDebug(label, w) {
           if (!w) return 'Slot: ' + label + '\nName: —';
