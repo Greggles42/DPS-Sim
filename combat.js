@@ -167,7 +167,7 @@
       let roll = Math.floor(rng() * (baseBonus + 1)) + 100;
       if (roll > params.maxExtra) roll = params.maxExtra;
       damage = Math.floor(damage * roll / 100);
-      if (level >= 55 && damage > 1 && !isArchery && classId === 'warrior') damage++;
+      if (level >= 55 && damage > 1 && !isArchery && isWarriorClass(classId)) damage++;
       return { damage: damage < 1 ? 1 : damage, isCrit: roll > 100 };
     }
     return { damage: damage < 1 ? 1 : damage, isCrit: false };
