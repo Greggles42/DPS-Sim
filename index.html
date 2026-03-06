@@ -1221,6 +1221,17 @@
         if (ta !== tb) return ta - tb;
         return (pa.name || '').localeCompare(pb.name || '');
       });
+      const CUSTOM_MONK_WEAPONS = [
+        {
+          id: 'custom-epic-fists',
+          Name: 'Epic Fists',
+          damage: 9,
+          delay: 16,
+          itemtype: 7,
+          classes: 64,
+          slots: 24576
+        }
+      ];
 
       function weaponOptionLabel(id) {
         const p = WEAPON_PRESETS[id];
@@ -2304,6 +2315,18 @@
           addToRankMap(popWeaponsData);
         } else {
           addToRankMap(luclinWeaponsData);
+        }
+        if (classId === 'monk') {
+          CUSTOM_MONK_WEAPONS.forEach(function (item) {
+            if (!item || !item.id) return;
+            if (rankWeaponMap[item.id]) return;
+            var norm = normalizeWeaponFromList(item.id, item);
+            if (!norm) return;
+            var skillKey = skillKeyForCap(norm.type, !!(norm.is2H || (norm.type && offhandBlockedTypes[norm.type])));
+            if (WeaponSkillCaps.getCapForSimClass(classId, skillKey, level) <= 0) return;
+            rankWeaponMap[item.id] = norm;
+            allIds.push(item.id);
+          });
         }
         const primaryWeapons = [];
         const secondaryWeapons = [];
@@ -3839,6 +3862,14 @@
           if (withId.id !== withId.id) withId.id = id;
           raw.push(withId);
         }
+        CUSTOM_MONK_WEAPONS.forEach(function (item) {
+          if (!item) return;
+          var name = (item.Name != null ? String(item.Name) : '').toLowerCase();
+          if (q && name.indexOf(q) < 0) return;
+          var classes = item.classes != null ? parseInt(item.classes, 10) : null;
+          if (mask && classes != null && !isNaN(classes) && (classes & mask) === 0) return;
+          raw.push(Object.assign({}, item));
+        });
         if (typeof ItemSearch === 'undefined' || !ItemSearch.normalizeItemForWeapon) return Promise.resolve(raw);
         var results = raw.map(function (item) { return ItemSearch.normalizeItemForWeapon(item); }).filter(Boolean);
         return Promise.resolve(results);
