@@ -2149,6 +2149,10 @@
             if (rankWeaponMap[id]) return;
             var raw = source[id];
             if (!raw || raw.damage < 1 || raw.delay < 1) return;
+            var reqlevel = raw.reqlevel != null ? parseInt(raw.reqlevel, 10) : NaN;
+            if (!isNaN(reqlevel) && reqlevel > 0 && level < reqlevel) return;
+            var races = raw.races != null ? parseInt(raw.races, 10) : NaN;
+            if (!isNaN(races) && races === 0) return;
             var nodrop = raw.nodrop != null ? parseInt(raw.nodrop, 10) : NaN;
             if (ignoreNoDrop && !isNaN(nodrop) && nodrop === 0) return;
             var classes = raw.classes != null ? parseInt(raw.classes, 10) : NaN;
@@ -2314,6 +2318,8 @@
             var subText = top40.length > 0 ? ' Top 40 averaged over ' + runsCount + ' runs.' : '';
             var sourceLabel = includePop ? 'From popweapons.json.' : 'From luclinweapons.json.';
             if (ignoreNoDrop) sourceLabel += ' No Drop items excluded (nodrop = 0).';
+            sourceLabel += ' Items requiring level above character level excluded (reqlevel).';
+            sourceLabel += ' Items unusable by all races excluded (races = 0).';
             var lines = ['=== Weapon combination rank (by DPS) ===', 'Class: ' + (classConfig && classConfig.name ? classConfig.name : classId) + ', Level: ' + level + ', Duration: ' + durationSec + 's', sourceLabel + subText + ' DPS = mainhand + offhand (additive).', ''];
             var top400 = results.slice(0, 400);
             var tableRows = top400.map(function (row, i) {
@@ -2461,6 +2467,8 @@
         var bows = [];
         Object.keys(bowSource).forEach(function (id) {
           var raw = bowSource[id];
+          var races = raw && raw.races != null ? parseInt(raw.races, 10) : NaN;
+          if (!isNaN(races) && races === 0) return;
           var norm = normalizeBowFromList(id, raw);
           if (norm) bows.push({ id: id, name: norm.name, damage: norm.damage, delay: norm.delay, proc: norm.proc, procDamage: norm.procDamage, procRate: norm.procRate, procLevel: norm.procLevel, elemType: norm.elemType, elemDamage: norm.elemDamage, baneDamage: norm.baneDamage, procBuffDurationTicks: norm.procBuffDurationTicks });
         });
