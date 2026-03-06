@@ -1662,6 +1662,9 @@
       if (sp.backstabSkill != null) {
         const effectiveSkill = Math.min(255, Math.floor(sp.backstabSkill * (100 + (sp.backstabModPercent || 0)) / 100));
         lines.push(`    Effective backstab skill: ${effectiveSkill}`);
+        if ((sp.backstabModPercent || 0) > 0) {
+          lines.push(`    Backstab weapon modifier applied: +${sp.backstabModPercent}%`);
+        }
       }
     }
     if (report.fistweaving && report.fistweaving.rounds > 0) {

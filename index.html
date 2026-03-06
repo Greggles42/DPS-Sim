@@ -538,8 +538,8 @@
         <div id="rogue-backstab-mod-row" style="display: none;">
           <div class="char-secondary-row">
             <div class="char-field char-field-num"><label for="backstab-skill" class="small-label">Backstab skill</label><input type="number" id="backstab-skill" min="0" value="225" placeholder="225"></div>
-            <div class="char-field char-field-num"><label for="backstab-mod" class="small-label">Backstab mod %</label><input type="number" id="backstab-mod" min="0" value="0" placeholder="0"></div>
           </div>
+          <input type="hidden" id="backstab-mod" value="0">
           <div class="char-checkbox-row">
             <label class="checkbox-label char-checkbox"><input type="checkbox" id="duelist"> Duelist (12s random window: double melee damage)</label>
           </div>
@@ -981,6 +981,7 @@
         .then(function (data) {
           weaponListData = data && typeof data === 'object' ? data : {};
           if (weaponListData['9418']) delete weaponListData['9418'];
+          if (weaponListData['32002']) delete weaponListData['32002'];
           return weaponListData;
         })
         .catch(function () { return {}; });
@@ -991,6 +992,7 @@
         .then(function (data) {
           weaponShortlistData = data && typeof data === 'object' ? data : {};
           if (weaponShortlistData['9418']) delete weaponShortlistData['9418'];
+          if (weaponShortlistData['32002']) delete weaponShortlistData['32002'];
         })
         .catch(function () {});
       /** Both rank weapon lists are loaded at launch; Rank Weapons uses one or the other based on the "Include PoP weapons" checkbox. */
@@ -1001,6 +1003,7 @@
         .then(function (data) {
           luclinWeaponsData = data && typeof data === 'object' ? data : {};
           if (luclinWeaponsData['9418']) delete luclinWeaponsData['9418'];
+          if (luclinWeaponsData['32002']) delete luclinWeaponsData['32002'];
           return luclinWeaponsData;
         })
         .catch(function () { luclinWeaponsData = {}; return luclinWeaponsData; });
@@ -1011,6 +1014,7 @@
         .then(function (data) {
           popWeaponsData = data && typeof data === 'object' ? data : {};
           if (popWeaponsData['9418']) delete popWeaponsData['9418'];
+          if (popWeaponsData['32002']) delete popWeaponsData['32002'];
           return popWeaponsData;
         })
         .catch(function () { popWeaponsData = {}; return popWeaponsData; });
@@ -1023,6 +1027,7 @@
           .then(function (data) {
             popWeaponsData = data && typeof data === 'object' ? data : {};
             if (popWeaponsData['9418']) delete popWeaponsData['9418'];
+            if (popWeaponsData['32002']) delete popWeaponsData['32002'];
             return popWeaponsData;
           })
           .catch(function () { popWeaponsData = {}; return popWeaponsData; });
@@ -1248,6 +1253,27 @@
       let w1BackstabModPercent = null;
       let w2BackstabModPercent = null;
 
+      function getBackstabModPercentFromRawItem(raw) {
+        if (!raw || typeof raw !== 'object') return null;
+        var tRaw = raw.skillmodtype != null ? raw.skillmodtype : raw.skillmodType;
+        var vRaw = raw.skillmodvalue != null ? raw.skillmodvalue : raw.skillmodValue;
+        var t = (typeof tRaw === 'number') ? tRaw : parseInt(tRaw, 10);
+        if (t !== 8) return null;
+        var v = (typeof vRaw === 'number') ? vRaw : parseInt(vRaw, 10);
+        if (isNaN(v) || v <= 0) return null;
+        return v;
+      }
+      function getBackstabModPercentForNorm(norm) {
+        if (!norm) return 0;
+        var t = (norm.type != null ? String(norm.type) : '').toLowerCase();
+        var isPiercing = (t === '1hp' || t === '2hp');
+        if (!isPiercing) return 0;
+        var v = norm.backstabModPercent;
+        if (v == null || isNaN(Number(v))) return 0;
+        v = Number(v);
+        return v > 0 ? v : 0;
+      }
+
       function updateBackstabModFromEquipment() {
         const backstabModEl = $('backstab-mod');
         if (!backstabModEl) return;
@@ -1307,12 +1333,23 @@
         if (prefix === 'w1') {
           w1WeaponType = (p && p.type) ? p.type : null;
           w1FromItemSearch = false;
-          w1BackstabModPercent = null;
+          var p1Type = ((p && p.type) ? String(p.type) : '').toLowerCase();
+          var p1Piercing = p1Type === '1hp' || p1Type === '2hp';
+          var p1Backstab = getBackstabModPercentFromRawItem(raw);
+          w1BackstabModPercent = (p1Piercing && p1Backstab != null) ? p1Backstab : null;
           if (id === 'unequipped') w1DisplayName = '';
           const overrideEl = $('w1-is2h-override');
           if (overrideEl) overrideEl.value = (p && (p.is2H || pType2H)) ? '1' : '0';
         }
-        if (prefix === 'w2') { w2WeaponType = (p && p.type) ? p.type : null; w2FromItemSearch = false; w2BackstabModPercent = null; if (id === 'unequipped') w2DisplayName = ''; }
+        if (prefix === 'w2') {
+          w2WeaponType = (p && p.type) ? p.type : null;
+          w2FromItemSearch = false;
+          var p2Type = ((p && p.type) ? String(p.type) : '').toLowerCase();
+          var p2Piercing = p2Type === '1hp' || p2Type === '2hp';
+          var p2Backstab = getBackstabModPercentFromRawItem(raw);
+          w2BackstabModPercent = (p2Piercing && p2Backstab != null) ? p2Backstab : null;
+          if (id === 'unequipped') w2DisplayName = '';
+        }
         if (p) {
           $(prefix + '-damage').value = p.damage;
           $(prefix + '-delay').value = p.delay;
@@ -1501,6 +1538,10 @@
           procSpellNoPartialResist: weapon2.procSpellNoPartialResist,
           procSpellMovementEffect: weapon2.procSpellMovementEffect
         } : {};
+        var equippedBackstabModPercent = classId === 'rogue' ? Math.max(
+          (w1BackstabModPercent != null && !isNaN(Number(w1BackstabModPercent))) ? Number(w1BackstabModPercent) : 0,
+          (w2BackstabModPercent != null && !isNaN(Number(w2BackstabModPercent))) ? Number(w2BackstabModPercent) : 0
+        ) : 0;
         const options = {
           weapon1: hasMainHand ? Object.assign({ damage: weapon1.damage, delay: weapon1.delay, procSpell: weapon1.procSpell, procSpellDamage: weapon1.procSpellDamage, procRate: weapon1.procRate, procLevel: weapon1.procLevel, procBuffDurationTicks: weapon1.procBuffDurationTicks, is2H: weapon1.is2H, elemType: weapon1.elemType, elemDamage: weapon1.elemDamage, type: w1WeaponType || undefined }, w1ProcResist) : undefined,
           weapon2: useWeapon2 ? Object.assign({ damage: weapon2.damage, delay: weapon2.delay, procSpell: weapon2.procSpell, procSpellDamage: weapon2.procSpellDamage, procRate: weapon2.procRate, procLevel: weapon2.procLevel, procBuffDurationTicks: weapon2.procBuffDurationTicks, elemType: weapon2.elemType, elemDamage: weapon2.elemDamage }, w2ProcResist) : undefined,
@@ -1525,7 +1566,7 @@
           specialAttackType: specialAttacks ? specialAttackType : undefined,
           classId: classId || undefined,
           weaponSkillForToHit: weaponSkillForToHit,
-          backstabModPercent: classId === 'rogue' ? (parseInt($('backstab-mod').value, 10) || 0) : undefined,
+          backstabModPercent: classId === 'rogue' ? (equippedBackstabModPercent || 0) : undefined,
           backstabSkill: classId === 'rogue' ? (parseInt($('backstab-skill').value, 10) || 0) : undefined,
           duelist: classId === 'rogue' && $('duelist').checked,
           innerFlame: classId === 'monk' && $('innerflame').checked,
@@ -1938,6 +1979,10 @@
         if (norm && norm.damage >= 1 && norm.delay >= 1) {
           var normProcLevel = raw.proclevel != null ? parseInt(raw.proclevel, 10) : NaN;
           norm.procLevel = (!isNaN(normProcLevel) && normProcLevel > 0) ? normProcLevel : undefined;
+          if (norm.backstabModPercent == null) {
+            var normBackstab = getBackstabModPercentFromRawItem(raw);
+            if (normBackstab != null) norm.backstabModPercent = normBackstab;
+          }
           if ((norm.procSpellId != null || raw.proceffect != null) && (!norm.proc || norm.procDamage == null || norm.procDamage === 0) && typeof ItemSearch !== 'undefined' && ItemSearch.getSpellFromLocalData) {
             var procSpellId = norm.procSpellId != null ? norm.procSpellId : parseInt(raw.proceffect, 10);
             if (!isNaN(procSpellId) && procSpellId > 0) {
@@ -2050,6 +2095,7 @@
           elemType: elemType || undefined,
           elemDamage: elemDamage,
           baneDamage: (raw.banedmgamt != null ? parseInt(raw.banedmgamt, 10) : 0) || 0,
+          backstabModPercent: getBackstabModPercentFromRawItem(raw),
           is2H: is2H,
           type: typeStr
         };
@@ -2162,7 +2208,7 @@
           specialAttacks: rankSpecialAttacks,
           specialAttackType: rankSpecialAttacks ? rankSpecialAttackType : undefined,
           classId: classId,
-          backstabModPercent: classId === 'rogue' ? (parseInt($('backstab-mod').value, 10) || 0) : undefined,
+          backstabModPercent: classId === 'rogue' ? 0 : undefined,
           backstabSkill: classId === 'rogue' ? (parseInt($('backstab-skill').value, 10) || 0) : undefined,
           duelist: classId === 'rogue' && $('duelist').checked,
           innerFlame: classId === 'monk' && $('innerflame').checked,
@@ -2173,6 +2219,7 @@
           kickReuseEffectiveSec: (kickReuseManual && (() => { const v = parseFloat($('kick-reuse-sec').value); return v > 0 && !isNaN(v) ? v : undefined; })()) || undefined,
           bashReuseEffectiveSec: (bashReuseManual && (() => { const v = parseFloat($('bash-reuse-sec').value); return v > 0 && !isNaN(v) ? v : undefined; })()) || undefined,
         };
+        var formBackstabModPercent = 0;
         const offhandBlockedTypes = { '2hb': 1, '2hs': 1, '2hp': 1, 'archery': 1, 'bow': 1 };
         if (USAGE_LOG_URL) {
           logUsage({
@@ -2283,6 +2330,7 @@
                 weapon1Type: p.type || undefined,
                 dualWieldSkill: 0,
                 weaponSkillForToHit: weaponSkillForToHit,
+                backstabModPercent: classId === 'rogue' ? Math.max(formBackstabModPercent, getBackstabModPercentForNorm(p)) : undefined,
                 fistweaving: classId === 'monk' && is2H && $('fistweaving').checked
               });
               var r = EQCombat.runFight(options);
@@ -2322,6 +2370,7 @@
                 weapon1Type: refNorm.type || undefined,
                 dualWieldSkill: dualWieldSkillForm,
                 weaponSkillForToHit: refWeaponSkillForToHit,
+                backstabModPercent: classId === 'rogue' ? Math.max(formBackstabModPercent, getBackstabModPercentForNorm(refNorm), getBackstabModPercentForNorm(p2)) : undefined,
                 fistweaving: false
               });
               var r2 = EQCombat.runFight(opts);
@@ -2353,7 +2402,11 @@
             var name1 = p1.name || comb.primaryId;
             var name2 = comb.secondaryId ? (rankWeaponMap[comb.secondaryId] && rankWeaponMap[comb.secondaryId].name) || comb.secondaryId : '';
             var label = comb.secondaryId ? (name1 + ' + ' + name2) : name1;
-            return { primaryId: comb.primaryId, secondaryId: comb.secondaryId, label: label, mainhandDps: mainDps, offhandDps: offDps, totalDps: totalDps };
+            var p2 = comb.secondaryId ? rankWeaponMap[comb.secondaryId] : null;
+            var bs1 = getBackstabModPercentForNorm(p1);
+            var bs2 = getBackstabModPercentForNorm(p2);
+            var backstabModApplied = classId === 'rogue' ? Math.max(bs1, bs2) : 0;
+            return { primaryId: comb.primaryId, secondaryId: comb.secondaryId, label: label, mainhandDps: mainDps, offhandDps: offDps, totalDps: totalDps, backstabModApplied: backstabModApplied };
           });
           results.sort(function (a, b) { return (b.totalDps || 0) - (a.totalDps || 0); });
 
@@ -2380,6 +2433,7 @@
             sourceLabel += ' Items unusable by all races excluded (races = 0).';
             var heading = currentMode === 'slot' ? '=== Weapon slot rank (by DPS) ===' : '=== Weapon combination rank (by DPS) ===';
             var modeDesc = currentMode === 'slot' ? ' Slot Ranking mode shows best single-slot options.' : ' DPS = mainhand + offhand (additive).';
+            if (classId === 'rogue') modeDesc += ' [BS+X%] marker indicates an item backstab modifier factored into that result.';
             var lines = [heading, 'Class: ' + (classConfig && classConfig.name ? classConfig.name : classId) + ', Level: ' + level + ', Duration: ' + durationSec + 's', sourceLabel + subText + modeDesc, ''];
             function formatDps(v) { return v != null ? Number(v).toFixed(2) : '—'; }
             function dedupeBestById(rows) {
@@ -2396,7 +2450,8 @@
                 return showWhenEmpty ? ('<h3 style="margin:0.75rem 0 0.35rem;">' + title + '</h3><div class="hint" style="margin:0 0 0.5rem;">No eligible items found.</div>') : '';
               }
               var bodyRows = rows.slice(0, 40).map(function (row, i) {
-                var label = (row.label || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+                var marker = row.backstabModApplied > 0 ? (' [BS+' + row.backstabModApplied + '%]') : '';
+                var label = ((row.label || '') + marker).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
                 var dpsStr = formatDps(row.dps);
                 return '<tr><td>' + (i + 1) + '</td><td>' + label + '</td><td style="text-align:right;">' + dpsStr + '</td></tr>';
               }).join('');
@@ -2405,7 +2460,8 @@
             var top400 = results.slice(0, 400);
             var tableRows = top400.map(function (row, i) {
               var rank = i + 1;
-              var label = (row.label || '').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+              var marker = row.backstabModApplied > 0 ? (' [BS+' + row.backstabModApplied + '%]') : '';
+              var label = ((row.label || '') + marker).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
               var mainDpsStr = row.mainhandDps != null ? row.mainhandDps.toFixed(2) : '—';
               var offDpsStr = row.offhandDps != null ? row.offhandDps.toFixed(2) : '—';
               var totalDpsStr = row.totalDps != null ? row.totalDps.toFixed(2) : '—';
@@ -2416,7 +2472,8 @@
               var dps = row.totalDps != null ? row.totalDps : 0;
               var pct = maxDps > 0 ? (dps / maxDps * 100) : 0;
               var pctDiff = maxDps > 0 ? (dps / maxDps * 100) : 0;
-              var labelSafe = (row.label || '').replace(/</g, '&lt;').replace(/"/g, '&quot;').replace(/&/g, '&amp;');
+              var marker = row.backstabModApplied > 0 ? (' [BS+' + row.backstabModApplied + '%]') : '';
+              var labelSafe = ((row.label || '') + marker).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
               var dpsStr = row.totalDps != null ? row.totalDps.toFixed(2) : '—';
               var pctStr = (i === 0) ? '100%' : (pctDiff.toFixed(1) + '%');
               var barWidth = Math.max(0, Math.min(100, pct));
@@ -2429,14 +2486,14 @@
               var mainhandSlotRows = primaryWeapons.map(function (id) {
                 var w = rankWeaponMap[id];
                 var is2H = !!(w && (w.is2H || (w.type && offhandBlockedTypes[w.type])));
-                return { id: id, label: (w && w.name) || id, dps: mainhand_dps[id] != null ? mainhand_dps[id] : 0, is2H: is2H };
+                return { id: id, label: (w && w.name) || id, dps: mainhand_dps[id] != null ? mainhand_dps[id] : 0, is2H: is2H, backstabModApplied: classId === 'rogue' ? getBackstabModPercentForNorm(w) : 0 };
               });
               mainhandSlotRows = dedupeBestById(mainhandSlotRows);
               var oneHandMainRows = dedupeBestById(mainhandSlotRows.filter(function (r) { return !r.is2H; }));
               var twoHandMainRows = dedupeBestById(mainhandSlotRows.filter(function (r) { return r.is2H; }));
               var offhandRows = secondaryWeapons.map(function (id) {
                 var w = rankWeaponMap[id];
-                return { id: id, label: (w && w.name) || id, dps: offhand_dps[id] != null ? offhand_dps[id] : 0 };
+                return { id: id, label: (w && w.name) || id, dps: offhand_dps[id] != null ? offhand_dps[id] : 0, backstabModApplied: classId === 'rogue' ? getBackstabModPercentForNorm(w) : 0 };
               });
               offhandRows = dedupeBestById(offhandRows);
               var slotTables = '';
@@ -2477,6 +2534,7 @@
               weapon1Type: p1.type || undefined,
               dualWieldSkill: 0,
               weaponSkillForToHit: weaponSkillForToHit,
+              backstabModPercent: classId === 'rogue' ? Math.max(formBackstabModPercent, getBackstabModPercentForNorm(p1)) : undefined,
               fistweaving: classId === 'monk' && is2H && $('fistweaving').checked
             });
             if (row.secondaryId) {
@@ -2496,6 +2554,7 @@
               if (p2.procBuffDurationTicks != null && p2.procBuffDurationTicks > 0)
                 opts.weapon2.procBuffDurationTicks = p2.procBuffDurationTicks;
               opts.dualWieldSkill = dualWieldSkillForm;
+              opts.backstabModPercent = classId === 'rogue' ? Math.max(formBackstabModPercent, getBackstabModPercentForNorm(p1), getBackstabModPercentForNorm(p2)) : undefined;
             }
             var reports = [];
             for (var ri = 0; ri < runsCount; ri++) {
