@@ -1262,7 +1262,7 @@
 
       function applyWeaponPreset(prefix, id) {
         const p = id ? WEAPON_PRESETS[id] : null;
-        const raw = id ? ((typeof weaponListData !== 'undefined' && weaponListData && weaponListData[id]) || (typeof procRatesByItemId !== 'undefined' && procRatesByItemId && procRatesByItemId[id])) : null;
+        const raw = id ? ((typeof weaponListData !== 'undefined' && weaponListData && weaponListData[id]) || (typeof luclinWeaponsData !== 'undefined' && luclinWeaponsData && luclinWeaponsData[id]) || (typeof popWeaponsData !== 'undefined' && popWeaponsData && popWeaponsData[id]) || (typeof procRatesByItemId !== 'undefined' && procRatesByItemId && procRatesByItemId[id])) : null;
         const pType2H = p && p.type && (p.type.toLowerCase() === '2hb' || p.type.toLowerCase() === '2hs' || p.type.toLowerCase() === '2hp' || p.type.toLowerCase() === 'bow');
         if (prefix === 'w1') {
           w1WeaponType = (p && p.type) ? p.type : null;
@@ -1538,6 +1538,9 @@
               maxSpellProcCritDmg: reports.length ? Math.max(...reports.map(function (r) { return r.weapon1.maxSpellProcCritDmg || 0; })) : 0,
               anticipatedProcChancePerRound: reports[0].weapon1.anticipatedProcChancePerRound,
               anticipatedProcsPerMinute: reports[0].weapon1.anticipatedProcsPerMinute,
+              procLevelBlocked: !!reports[0].weapon1.procLevelBlocked,
+              procLevelRequired: reports[0].weapon1.procLevelRequired != null ? reports[0].weapon1.procLevelRequired : null,
+              procLevelCurrent: reports[0].weapon1.procLevelCurrent != null ? reports[0].weapon1.procLevelCurrent : null,
               hitStats: w1HitStats.length ? {
                 min: w1Mins.length ? Math.min(...w1Mins) : null,
                 max: Math.max(...reports.map(r => r.weapon1.maxDamage)),
@@ -1566,6 +1569,9 @@
               maxSpellProcCritDmg: reports.length ? Math.max(...reports.map(function (r) { return r.weapon2.maxSpellProcCritDmg || 0; })) : 0,
               anticipatedProcChancePerRound: reports[0].weapon2.anticipatedProcChancePerRound,
               anticipatedProcsPerMinute: reports[0].weapon2.anticipatedProcsPerMinute,
+              procLevelBlocked: !!reports[0].weapon2.procLevelBlocked,
+              procLevelRequired: reports[0].weapon2.procLevelRequired != null ? reports[0].weapon2.procLevelRequired : null,
+              procLevelCurrent: reports[0].weapon2.procLevelCurrent != null ? reports[0].weapon2.procLevelCurrent : null,
               hitStats: w2HitStats.length ? {
                 min: w2Mins.length ? Math.min(...w2Mins) : null,
                 max: reports.some(r => r.weapon2.hits > 0) ? Math.max(...reports.map(r => r.weapon2.maxDamage)) : null,
@@ -1820,6 +1826,14 @@
         var slots = raw.slots != null ? parseInt(raw.slots, 10) : null;
         if (slots !== slots) slots = null;
         return { lore: lore, slots: slots };
+      }
+      function getItemProcLevelById(itemId) {
+        if (itemId == null || itemId === '') return null;
+        var id = String(itemId);
+        var raw = (weaponListData && weaponListData[id]) || (luclinWeaponsData && luclinWeaponsData[id]) || (popWeaponsData && popWeaponsData[id]) || (procRatesByItemId && procRatesByItemId[id]) || null;
+        if (!raw || typeof raw !== 'object') return null;
+        var pl = raw.proclevel != null ? Number(raw.proclevel) : (raw.procLevel != null ? Number(raw.procLevel) : null);
+        return (pl != null && !isNaN(pl) && pl > 0) ? pl : null;
       }
       function isLoreItem(props) { return props.lore && props.lore.indexOf('*') >= 0; }
       function primarySlotAllowed(slots, is2H) {
@@ -2916,6 +2930,9 @@
               maxSpellProcCritDmg: reports.length ? Math.max(...reports.map(function (r) { return r.ranged.maxSpellProcCritDmg || 0; })) : 0,
               anticipatedProcChancePerShot: r0.ranged.anticipatedProcChancePerShot,
               anticipatedProcsPerMinute: r0.ranged.anticipatedProcsPerMinute,
+              procLevelBlocked: !!r0.ranged.procLevelBlocked,
+              procLevelRequired: r0.ranged.procLevelRequired != null ? r0.ranged.procLevelRequired : null,
+              procLevelCurrent: r0.ranged.procLevelCurrent != null ? r0.ranged.procLevelCurrent : null,
             },
             durationSec: r0.durationSec,
             totalDamage: Math.round(reports.reduce((s, r) => s + r.totalDamage, 0) / runs),
@@ -3536,6 +3553,10 @@
               if (pr != null && !isNaN(pr)) w.procRate = pr;
               var pl = entry.proclevel != null ? Number(entry.proclevel) : (entry.procLevel != null ? Number(entry.procLevel) : null);
               if (pl != null && !isNaN(pl) && pl > 0) w.procLevel = pl;
+            }
+            if (w.itemId != null) {
+              var itemProcLevel = getItemProcLevelById(w.itemId);
+              if (itemProcLevel != null) w.procLevel = itemProcLevel;
             }
             const inputEl = $(prefix + '-item-search');
             if (prefix === 'ranged-weapon') {

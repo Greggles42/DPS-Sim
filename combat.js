@@ -343,6 +343,11 @@
     if (Number.isNaN(req) || req <= 0) return true;
     return (level != null ? level : 60) >= req;
   }
+  function getProcLevelRequirement(weapon) {
+    if (!weapon) return null;
+    const req = weapon.procLevel != null ? parseInt(weapon.procLevel, 10) : NaN;
+    return (!Number.isNaN(req) && req > 0) ? req : null;
+  }
 
   // ----- Spell proc resist (EQMacEmu spells.cpp CheckResistSpell / ResistSpell) -----
   // Resist types: 0 = none (unresistable), 1 = magic (MR), 2 = fire (FR), 3 = cold (CR), 4 = disease (DR), 5 = poison (PR).
@@ -579,6 +584,9 @@
         procResistDamageLost: 0,
         spellProcCrits: 0,
         maxSpellProcCritDmg: 0,
+        procLevelBlocked: false,
+        procLevelRequired: null,
+        procLevelCurrent: level,
       },
       durationSec: options.fightDurationSec,
       totalDamage: 0,
@@ -591,6 +599,11 @@
       offenseRating: offenseRating,
       displayedAttack: Math.floor((offenseRating + toHit) * 1000 / 744),
     };
+    const rangedProcLevelReq = getProcLevelRequirement(bow);
+    if (bow.procSpell != null && bow.procSpell !== '' && rangedProcLevelReq != null && level < rangedProcLevelReq) {
+      report.ranged.procLevelBlocked = true;
+      report.ranged.procLevelRequired = rangedProcLevelReq;
+    }
     if (procChance > 0 && delayMs > 0) {
       report.ranged.anticipatedProcChancePerShot = procChance;
       report.ranged.anticipatedProcsPerMinute = procChance * (60 * 1000 / delayMs);
@@ -743,6 +756,9 @@
     lines.push(`    Proc DPS:            ${(r.procDamageTotal != null && dur > 0) ? (r.procDamageTotal / dur).toFixed(2) : '0.00'}`);
     lines.push(`    Proc full resists:   ${r.procFullResists != null ? r.procFullResists : 0}`);
     lines.push(`    Proc partial resists: ${r.procPartialResists != null ? r.procPartialResists : 0}`);
+    if (r.procLevelBlocked) {
+      lines.push(`    Proc gated by level: yes (level ${r.procLevelCurrent != null ? r.procLevelCurrent : '-'} < required ${r.procLevelRequired != null ? r.procLevelRequired : '-'})`);
+    }
     if (r.procResistDamageLost != null && r.procResistDamageLost > 0) {
       lines.push(`    Proc damage lost (resists): ${r.procResistDamageLost}`);
     }
@@ -911,6 +927,22 @@
       } : null,
       fistweaving: (options.classId === 'monk' && hasMainHand && w1.is2H && options.fistweaving) ? { rounds: 0, swings: 0, hits: 0, totalDamage: 0, maxDamage: 0, single: 0, double: 0 } : null,
     };
+    report.weapon1.procLevelBlocked = false;
+    report.weapon1.procLevelRequired = null;
+    report.weapon1.procLevelCurrent = level;
+    report.weapon2.procLevelBlocked = false;
+    report.weapon2.procLevelRequired = null;
+    report.weapon2.procLevelCurrent = level;
+    const w1ProcLevelReq = getProcLevelRequirement(w1);
+    if (hasMainHand && w1.procSpell != null && w1ProcLevelReq != null && level < w1ProcLevelReq) {
+      report.weapon1.procLevelBlocked = true;
+      report.weapon1.procLevelRequired = w1ProcLevelReq;
+    }
+    const w2ProcLevelReq = getProcLevelRequirement(w2);
+    if (w2 && w2.procSpell != null && w2ProcLevelReq != null && level < w2ProcLevelReq) {
+      report.weapon2.procLevelBlocked = true;
+      report.weapon2.procLevelRequired = w2ProcLevelReq;
+    }
     if (hasMainHand && w1.procSpell) {
       report.weapon1.anticipatedProcChancePerRound = procChance1;
       report.weapon1.anticipatedProcsPerMinute = roundsPerMinW1 > 0 ? procChance1 * roundsPerMinW1 : null;
@@ -1532,6 +1564,9 @@
     lines.push(`    Proc DPS:            ${(w1.procDamageTotal != null && dur > 0) ? (w1.procDamageTotal / dur).toFixed(2) : '0.00'}`);
     lines.push(`    Proc full resists:   ${w1.procFullResists != null ? w1.procFullResists : 0}`);
     lines.push(`    Proc partial resists: ${w1.procPartialResists != null ? w1.procPartialResists : 0}`);
+    if (w1.procLevelBlocked) {
+      lines.push(`    Proc gated by level: yes (level ${w1.procLevelCurrent != null ? w1.procLevelCurrent : '-'} < required ${w1.procLevelRequired != null ? w1.procLevelRequired : '-'})`);
+    }
     if (w1.procResistDamageLost != null && w1.procResistDamageLost > 0) {
       lines.push(`    Proc damage lost (resists): ${w1.procResistDamageLost}`);
     }
@@ -1546,6 +1581,9 @@
       lines.push(`    Proc DPS:            ${(w2.procDamageTotal != null && dur > 0) ? (w2.procDamageTotal / dur).toFixed(2) : '0.00'}`);
       lines.push(`    Proc full resists:   ${w2.procFullResists != null ? w2.procFullResists : 0}`);
       lines.push(`    Proc partial resists: ${w2.procPartialResists != null ? w2.procPartialResists : 0}`);
+      if (w2.procLevelBlocked) {
+        lines.push(`    Proc gated by level: yes (level ${w2.procLevelCurrent != null ? w2.procLevelCurrent : '-'} < required ${w2.procLevelRequired != null ? w2.procLevelRequired : '-'})`);
+      }
       if (w2.procResistDamageLost != null && w2.procResistDamageLost > 0) {
         lines.push(`    Proc damage lost (resists): ${w2.procResistDamageLost}`);
       }
