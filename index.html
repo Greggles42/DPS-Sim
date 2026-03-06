@@ -1262,6 +1262,7 @@
 
       function applyWeaponPreset(prefix, id) {
         const p = id ? WEAPON_PRESETS[id] : null;
+        const raw = id ? ((typeof weaponListData !== 'undefined' && weaponListData && weaponListData[id]) || (typeof procRatesByItemId !== 'undefined' && procRatesByItemId && procRatesByItemId[id])) : null;
         const pType2H = p && p.type && (p.type.toLowerCase() === '2hb' || p.type.toLowerCase() === '2hs' || p.type.toLowerCase() === '2hp' || p.type.toLowerCase() === 'bow');
         if (prefix === 'w1') {
           w1WeaponType = (p && p.type) ? p.type : null;
@@ -1278,6 +1279,16 @@
           $(prefix + '-proc').value = p.proc || '';
           const procDmgEl = $(prefix + '-proc-damage');
           if (procDmgEl) procDmgEl.value = (p.procDamage != null ? p.procDamage : 0) || '';
+          const procRateEl = $(prefix + '-proc-rate');
+          if (procRateEl) {
+            const pr = raw && raw.procrate != null ? Number(raw.procrate) : (raw && raw.procRate != null ? Number(raw.procRate) : 0);
+            procRateEl.value = (!isNaN(pr) && pr != null) ? String(pr) : '0';
+          }
+          const procLevelEl = $(prefix + '-proc-level');
+          if (procLevelEl) {
+            const pl = raw && raw.proclevel != null ? Number(raw.proclevel) : (raw && raw.procLevel != null ? Number(raw.procLevel) : null);
+            procLevelEl.value = (pl != null && !isNaN(pl) && pl > 0) ? String(pl) : '';
+          }
           const elemTypeEl = $(prefix + '-elem-type');
           if (elemTypeEl) elemTypeEl.value = p.elemType || '';
           const elemDamageEl = $(prefix + '-elem-damage');
@@ -1296,6 +1307,7 @@
         updateWeaponIcon(prefix, null);
         if (prefix === 'w1' && id === 'unequipped') updateWeaponNameDisplay('w2');
         updateBackstabModFromEquipment();
+        updateItemSearchDebug();
       }
 
       // Class-specific defaults and modifiers (EQMacEmu / attack.cpp style)
@@ -1867,7 +1879,7 @@
         var norm = (typeof ItemSearch !== 'undefined' && ItemSearch.normalizeItemForWeapon) ? ItemSearch.normalizeItemForWeapon(item) : null;
         if (norm && norm.damage >= 1 && norm.delay >= 1) {
           var normProcLevel = raw.proclevel != null ? parseInt(raw.proclevel, 10) : NaN;
-          if (!isNaN(normProcLevel) && normProcLevel > 0 && (norm.procLevel == null || isNaN(Number(norm.procLevel)))) norm.procLevel = normProcLevel;
+          norm.procLevel = (!isNaN(normProcLevel) && normProcLevel > 0) ? normProcLevel : undefined;
           if ((norm.procSpellId != null || raw.proceffect != null) && (!norm.proc || norm.procDamage == null || norm.procDamage === 0) && typeof ItemSearch !== 'undefined' && ItemSearch.getSpellFromLocalData) {
             var procSpellId = norm.procSpellId != null ? norm.procSpellId : parseInt(raw.proceffect, 10);
             if (!isNaN(procSpellId) && procSpellId > 0) {
@@ -1946,7 +1958,7 @@
         var norm = (typeof ItemSearch !== 'undefined' && ItemSearch.normalizeItemForWeapon) ? ItemSearch.normalizeItemForWeapon(item) : null;
         if (norm && norm.damage >= 1 && norm.delay >= 1) {
           var normProcLevel = raw.proclevel != null ? parseInt(raw.proclevel, 10) : NaN;
-          if (!isNaN(normProcLevel) && normProcLevel > 0 && (norm.procLevel == null || isNaN(Number(norm.procLevel)))) norm.procLevel = normProcLevel;
+          norm.procLevel = (!isNaN(normProcLevel) && normProcLevel > 0) ? normProcLevel : undefined;
           if ((norm.procSpellId != null || raw.proceffect != null) && (!norm.proc || norm.procDamage == null || norm.procDamage === 0) && typeof ItemSearch !== 'undefined' && ItemSearch.getSpellFromLocalData) {
             var procSpellId = norm.procSpellId != null ? norm.procSpellId : parseInt(raw.proceffect, 10);
             if (!isNaN(procSpellId) && procSpellId > 0) {
@@ -3027,6 +3039,7 @@
         updateFistweavingVisibility();
         updateWeaponSkillInputs();
         updateClassIcon();
+        updateItemSearchDebug();
       }
       function updateClassIcon() {
         const classId = ($('class').value || '').toLowerCase();
@@ -3047,6 +3060,11 @@
       $('class').addEventListener('change', onClassOrLevelChange);
       $('level').addEventListener('change', onClassOrLevelChange);
       $('level').addEventListener('input', onClassOrLevelChange);
+      var rangedLevelEl = $('ranged-level');
+      if (rangedLevelEl) {
+        rangedLevelEl.addEventListener('change', function () { updateItemSearchDebug(); });
+        rangedLevelEl.addEventListener('input', function () { updateItemSearchDebug(); });
+      }
       updateClassIcon();
       const hasteEl = $('haste');
       if (hasteEl) {
