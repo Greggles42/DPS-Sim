@@ -2435,11 +2435,12 @@
             var p1 = rankWeaponMap[comb.primaryId];
             var name1 = p1.name || comb.primaryId;
             var name2 = comb.secondaryId ? (rankWeaponMap[comb.secondaryId] && rankWeaponMap[comb.secondaryId].name) || comb.secondaryId : '';
-            var label = comb.secondaryId ? (name1 + ' + ' + name2) : name1;
             var bs1 = classId === 'rogue' ? getBackstabModPercentForNorm(p1) : 0;
             var primaryType = (p1 && p1.type != null ? String(p1.type) : '').toLowerCase();
             var backstabContributes = classId === 'rogue' && fromBehind && rankSpecialAttacks && rankSpecialAttackType === 'backstab' && primaryType === '1hp' && bs1 > 0;
             var backstabModApplied = backstabContributes ? bs1 : 0;
+            var primaryLabel = backstabModApplied > 0 ? (name1 + ' [BS+' + backstabModApplied + '%]') : name1;
+            var label = comb.secondaryId ? (primaryLabel + ' + ' + name2) : primaryLabel;
             return { primaryId: comb.primaryId, secondaryId: comb.secondaryId, label: label, mainhandDps: mainDps, offhandDps: offDps, totalDps: totalDps, backstabModApplied: backstabModApplied };
           });
           results.sort(function (a, b) { return (b.totalDps || 0) - (a.totalDps || 0); });
@@ -2468,7 +2469,9 @@
             var heading = currentMode === 'slot' ? '=== Weapon slot rank (by DPS) ===' : '=== Weapon combination rank (by DPS) ===';
             var modeDesc = currentMode === 'slot' ? ' Slot Ranking mode shows best single-slot options.' : ' DPS = mainhand + offhand (additive).';
             if (classId === 'rogue') modeDesc += ' [BS+X%] marker indicates an item backstab modifier factored into that result.';
-            var lines = [heading, 'Class: ' + (classConfig && classConfig.name ? classConfig.name : classId) + ', Level: ' + level + ', Duration: ' + durationSec + 's', sourceLabel + subText + modeDesc, ''];
+            var targetName = (window.selectedTargetNpc && window.selectedTargetNpc.name) ? String(window.selectedTargetNpc.name).replace(/_/g, ' ') : 'Generic Mob';
+            var targetLine = 'Target: ' + targetName + ', Level: ' + mobLevel + ', AC: ' + targetAC;
+            var lines = [heading, 'Class: ' + (classConfig && classConfig.name ? classConfig.name : classId) + ', Level: ' + level + ', Duration: ' + durationSec + 's', targetLine, sourceLabel + subText + modeDesc, ''];
             function formatDps(v) { return v != null ? Number(v).toFixed(2) : '—'; }
             function dedupeBestById(rows) {
               var bestById = {};
@@ -2494,8 +2497,7 @@
             var top400 = results.slice(0, 400);
             var tableRows = top400.map(function (row, i) {
               var rank = i + 1;
-              var marker = row.backstabModApplied > 0 ? (' [BS+' + row.backstabModApplied + '%]') : '';
-              var label = ((row.label || '') + marker).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+              var label = (row.label || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
               var mainDpsStr = row.mainhandDps != null ? row.mainhandDps.toFixed(2) : '—';
               var offDpsStr = row.offhandDps != null ? row.offhandDps.toFixed(2) : '—';
               var totalDpsStr = row.totalDps != null ? row.totalDps.toFixed(2) : '—';
@@ -2506,8 +2508,7 @@
               var dps = row.totalDps != null ? row.totalDps : 0;
               var pct = maxDps > 0 ? (dps / maxDps * 100) : 0;
               var pctDiff = maxDps > 0 ? (dps / maxDps * 100) : 0;
-              var marker = row.backstabModApplied > 0 ? (' [BS+' + row.backstabModApplied + '%]') : '';
-              var labelSafe = ((row.label || '') + marker).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+              var labelSafe = (row.label || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
               var dpsStr = row.totalDps != null ? row.totalDps.toFixed(2) : '—';
               var pctStr = (i === 0) ? '100%' : (pctDiff.toFixed(1) + '%');
               var barWidth = Math.max(0, Math.min(100, pct));
