@@ -548,7 +548,7 @@
           <label class="checkbox-label char-checkbox"><input type="checkbox" id="fistweaving"> Fistweaving</label>
         </div>
         <div id="innerflame-row" style="display: none;">
-          <label class="checkbox-label char-checkbox"><input type="checkbox" id="innerflame"> Inner Flame (12s random window: double melee damage)</label>
+          <label class="checkbox-label char-checkbox"><input type="checkbox" id="innerflame"> Inner Flame (12s random window: bonus melee damage)</label>
         </div>
         <div id="spell-casting-fury-row" style="display: none;">
           <label class="small-label">Spell Casting Fury (AA)</label>
@@ -3055,9 +3055,9 @@
         const classId = ($('class').value || '').toLowerCase();
         const level = parseInt($('level').value, 10) || 60;
         const ambidextrousClasses = ['warrior', 'rogue', 'monk', 'bard', 'beastlord'];
-        if (level === 60 && ambidextrousClasses.includes(classId)) {
-          $('ambidexterity-aa').checked = true;
-        }
+        const ambiEl = $('ambidexterity-aa');
+        if (!ambiEl) return;
+        ambiEl.checked = (level === 60 && ambidextrousClasses.includes(classId));
       }
       function onClassOrLevelChange() {
         const classId = ($('class').value || '').toLowerCase();
