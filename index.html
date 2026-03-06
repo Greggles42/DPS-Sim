@@ -863,6 +863,7 @@
     <div class="report-header-row" style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.75rem;">
       <h2 style="margin: 0;">Report</h2>
       <span style="display: flex; gap: 0.5rem;">
+        <button type="button" id="btn-rank-view-toggle" class="sim-history-clear-btn" style="display:none;" title="Switch rank report view mode">Combinations</button>
         <button type="button" id="btn-rank-export-csv" class="sim-history-clear-btn" title="Export weapon rank list to CSV (run Rank weapons first)">Export to .csv</button>
         <button type="button" id="export-report-txt" class="sim-history-clear-btn" title="Download current report as a .txt file">Export to .txt</button>
       </span>
@@ -1416,6 +1417,8 @@
       }
 
       function run() {
+        var rankViewToggle = $('btn-rank-view-toggle');
+        if (rankViewToggle) rankViewToggle.style.display = 'none';
         const weapon1 = getWeapon('w1');
         const weapon2 = getWeapon('w2');
         if (weapon1 && weapon1.procSpellId && typeof ItemSearch !== 'undefined' && ItemSearch.getSpellFromLocalData) {
@@ -2127,6 +2130,10 @@
         const fromBehind = document.querySelector('input[name="from-behind"]:checked').value === '1';
         const critChanceMult = parseInt($('crit-chance-aa').value, 10) || 0;
         const classConfig = CLASSES[classId] || null;
+        const classCanUse2H = typeof WeaponSkillCaps !== 'undefined' && (
+          (WeaponSkillCaps.getCapForSimClass(classId, '2hb', level) > 0) ||
+          (WeaponSkillCaps.getCapForSimClass(classId, '2hs', level) > 0)
+        );
         const toHitBonus = (classConfig && classConfig.toHitBonus) ? classConfig.toHitBonus : 0;
         const specialAttackType = ($('special-attack-type').value || 'none');
         const specialAttacks = specialAttackType !== 'none';
@@ -2249,6 +2256,7 @@
         });
         var mainhand_dps = {};
         var offhand_dps = {};
+        var rankViewMode = (window._rankWeaponsReportViewMode === 'slot') ? 'slot' : 'combinations';
         var totalSims = primaryWeapons.length + (canDualWield ? secondaryWeapons.length : 0);
         var refMainId = canDualWield && secondaryWeapons.length > 0 ? primaryWeapons.filter(function (id) {
           var n = rankWeaponMap[id];
@@ -2358,12 +2366,33 @@
             if (reportEl) reportEl.textContent = 'Generating chart...';
             results.sort(function (a, b) { return (b.totalDps || 0) - (a.totalDps || 0); });
             window._lastRankWeaponsResults = results;
+            window._rankWeaponsReportViewMode = rankViewMode;
+            var viewToggleBtn = $('btn-rank-view-toggle');
+            if (viewToggleBtn) {
+              viewToggleBtn.style.display = '';
+              viewToggleBtn.textContent = (rankViewMode === 'slot') ? 'Slot Ranking' : 'Combinations';
+              viewToggleBtn.title = 'Switch between Combinations and Slot Ranking';
+            }
             var subText = top40.length > 0 ? ' Top 40 averaged over ' + runsCount + ' runs.' : '';
             var sourceLabel = includePop ? 'From popweapons.json.' : 'From luclinweapons.json.';
             if (ignoreNoDrop) sourceLabel += ' No Drop items excluded (nodrop = 0).';
             sourceLabel += ' Items requiring level above character level excluded (reqlevel).';
             sourceLabel += ' Items unusable by all races excluded (races = 0).';
-            var lines = ['=== Weapon combination rank (by DPS) ===', 'Class: ' + (classConfig && classConfig.name ? classConfig.name : classId) + ', Level: ' + level + ', Duration: ' + durationSec + 's', sourceLabel + subText + ' DPS = mainhand + offhand (additive).', ''];
+            var heading = rankViewMode === 'slot' ? '=== Weapon slot rank (by DPS) ===' : '=== Weapon combination rank (by DPS) ===';
+            var modeDesc = rankViewMode === 'slot' ? ' Slot Ranking mode shows best single-slot options.' : ' DPS = mainhand + offhand (additive).';
+            var lines = [heading, 'Class: ' + (classConfig && classConfig.name ? classConfig.name : classId) + ', Level: ' + level + ', Duration: ' + durationSec + 's', sourceLabel + subText + modeDesc, ''];
+            function formatDps(v) { return v != null ? Number(v).toFixed(2) : '—'; }
+            function renderSlotTable(title, rows, labelHeader, showWhenEmpty) {
+              if (!rows || rows.length === 0) {
+                return showWhenEmpty ? ('<h3 style="margin:0.75rem 0 0.35rem;">' + title + '</h3><div class="hint" style="margin:0 0 0.5rem;">No eligible items found.</div>') : '';
+              }
+              var bodyRows = rows.slice(0, 100).map(function (row, i) {
+                var label = (row.label || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+                var dpsStr = formatDps(row.dps);
+                return '<tr><td>' + (i + 1) + '</td><td>' + label + '</td><td style="text-align:right;">' + dpsStr + '</td></tr>';
+              }).join('');
+              return '<h3 style="margin:0.75rem 0 0.35rem;">' + title + '</h3><table class="rank-weapons-table" style="margin-top:0.25rem; border-collapse:collapse; width:100%; font-size:0.9rem;"><thead><tr><th style="text-align:left;">#</th><th style="text-align:left;">' + labelHeader + '</th><th style="text-align:right;">DPS</th></tr></thead><tbody>' + bodyRows + '</tbody></table>';
+            }
             var top400 = results.slice(0, 400);
             var tableRows = top400.map(function (row, i) {
               var rank = i + 1;
@@ -2387,9 +2416,30 @@
             var chartHeader = '<div class="rank-chart-row rank-chart-header"><span class="rank-chart-label">Weapon Combination</span><span class="rank-chart-dps">DPS</span><span class="rank-chart-pct">% of BIS</span><div class="rank-chart-bar-wrap"></div></div>';
             var chartHtml = chartRows.length > 0 ? '<div class="rank-weapons-chart"><h3>Top 40 by DPS (X scale = #1)</h3>' + chartHeader + chartRows.join('') + '</div>' : '';
             var histContainer = $('histogram-container');
-            if (histContainer) histContainer.innerHTML = chartHtml;
-            $('report').innerHTML = '<pre style="margin:0; white-space:pre-wrap; overflow-wrap:anywhere; word-break:break-word;">' + lines.join('\n') + '</pre><table class="rank-weapons-table" style="margin-top:0.5rem; border-collapse:collapse; width:100%; font-size:0.9rem;"><thead><tr><th style="text-align:left;">#</th><th style="text-align:left;">Combination</th><th style="text-align:right;">Mainhand DPS</th><th style="text-align:right;">Offhand DPS</th><th style="text-align:right;">Total DPS</th></tr></thead><tbody>' + tableRows.join('') + '</tbody></table>';
+            if (rankViewMode === 'slot') {
+              var mainhandSlotRows = primaryWeapons.map(function (id) {
+                var w = rankWeaponMap[id];
+                var is2H = !!(w && (w.is2H || (w.type && offhandBlockedTypes[w.type])));
+                return { id: id, label: (w && w.name) || id, dps: mainhand_dps[id] != null ? mainhand_dps[id] : 0, is2H: is2H };
+              }).sort(function (a, b) { return (b.dps || 0) - (a.dps || 0); });
+              var oneHandMainRows = mainhandSlotRows.filter(function (r) { return !r.is2H; });
+              var twoHandMainRows = mainhandSlotRows.filter(function (r) { return r.is2H; });
+              var offhandRows = secondaryWeapons.map(function (id) {
+                var w = rankWeaponMap[id];
+                return { id: id, label: (w && w.name) || id, dps: offhand_dps[id] != null ? offhand_dps[id] : 0 };
+              }).sort(function (a, b) { return (b.dps || 0) - (a.dps || 0); });
+              var slotTables = '';
+              slotTables += renderSlotTable('Best Mainhand (1H) - Top 100', oneHandMainRows, 'Mainhand weapon');
+              if (classCanUse2H || twoHandMainRows.length > 0) slotTables += renderSlotTable('Best Mainhand (2H) - Top 100', twoHandMainRows, '2H weapon', true);
+              if (canDualWield) slotTables += renderSlotTable('Best Offhand - Top 100', offhandRows, 'Offhand weapon');
+              if (histContainer) histContainer.innerHTML = '';
+              $('report').innerHTML = '<pre style="margin:0; white-space:pre-wrap; overflow-wrap:anywhere; word-break:break-word;">' + lines.join('\n') + '</pre>' + slotTables;
+            } else {
+              if (histContainer) histContainer.innerHTML = chartHtml;
+              $('report').innerHTML = '<pre style="margin:0; white-space:pre-wrap; overflow-wrap:anywhere; word-break:break-word;">' + lines.join('\n') + '</pre><table class="rank-weapons-table" style="margin-top:0.5rem; border-collapse:collapse; width:100%; font-size:0.9rem;"><thead><tr><th style="text-align:left;">#</th><th style="text-align:left;">Combination</th><th style="text-align:right;">Mainhand DPS</th><th style="text-align:right;">Offhand DPS</th><th style="text-align:right;">Total DPS</th></tr></thead><tbody>' + tableRows.join('') + '</tbody></table>';
+            }
           }
+          window._renderRankWeaponsReportView = renderRankReport;
           if (top40.length === 0) {
             renderRankReport();
             return;
@@ -2481,6 +2531,8 @@
       }
 
       async function rankRangedWeapons() {
+        var rankViewToggle = $('btn-rank-view-toggle');
+        if (rankViewToggle) rankViewToggle.style.display = 'none';
         if (typeof WeaponSkillCaps === 'undefined') {
           $('report').textContent = 'WeaponSkillCaps is required to rank weapons. Load weaponSkillCaps.js.';
           return;
@@ -2705,6 +2757,16 @@
         run();
       });
       $('btn-rank-weapons').addEventListener('click', rankWeapons);
+      var btnRankViewToggle = $('btn-rank-view-toggle');
+      if (btnRankViewToggle) {
+        btnRankViewToggle.addEventListener('click', function () {
+          var current = window._rankWeaponsReportViewMode === 'slot' ? 'slot' : 'combinations';
+          window._rankWeaponsReportViewMode = current === 'slot' ? 'combinations' : 'slot';
+          if (typeof window._renderRankWeaponsReportView === 'function') {
+            window._renderRankWeaponsReportView();
+          }
+        });
+      }
       var btnRankRanged = $('btn-rank-ranged-weapons');
       if (btnRankRanged) btnRankRanged.addEventListener('click', rankRangedWeapons);
 
@@ -2900,6 +2962,8 @@
       $('tab-ranged').addEventListener('click', function () { showTab('ranged'); });
 
       function runRanged() {
+        var rankViewToggle = $('btn-rank-view-toggle');
+        if (rankViewToggle) rankViewToggle.style.display = 'none';
         let damage = parseInt($('ranged-damage').value, 10) || 12;
         const delay = parseInt($('ranged-delay').value, 10) || 40;
         if (damage < 1 || delay < 10) {
