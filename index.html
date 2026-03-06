@@ -1293,7 +1293,7 @@
         var id = String(spellId);
         var spell = localSpellData[id];
         if (!spell || typeof spell !== 'object') return 0;
-        var best = 0;
+        var total = 0;
         for (var i = 1; i <= 12; i++) {
           var eidRaw = spell['effectid' + i];
           if (eidRaw == null) continue;
@@ -1303,9 +1303,10 @@
           var baseRaw = spell['effect_base_value' + i];
           var base = (typeof baseRaw === 'number') ? baseRaw : parseInt(String(baseRaw), 10);
           if (isNaN(base) || base <= 0) continue;
-          if (base > best) best = base;
+          // Use the corresponding effect_base_valueN for each effectidN that equals 2.
+          total += base;
         }
-        return best > 0 ? best : 0;
+        return total > 0 ? total : 0;
       }
       function getWornAttackBonusFromRawItem(raw) {
         if (!raw || typeof raw !== 'object') return 0;
