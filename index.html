@@ -1014,6 +1014,33 @@
           luclinWeaponsData = data && typeof data === 'object' ? data : {};
           if (luclinWeaponsData['9418']) delete luclinWeaponsData['9418'];
           if (luclinWeaponsData['32002']) delete luclinWeaponsData['32002'];
+          // PoP-classified items excluded from Luclin list.
+          if (luclinWeaponsData['9784']) delete luclinWeaponsData['9784'];   // Honed Blade of the Ykesha
+          if (luclinWeaponsData['22891']) delete luclinWeaponsData['22891']; // Troubadour's Mace
+          if (luclinWeaponsData['22979']) delete luclinWeaponsData['22979']; // Falchion of Storms
+          if (luclinWeaponsData['23543']) delete luclinWeaponsData['23543']; // Fearful Honed Blade of the Ykesha
+          if (luclinWeaponsData['23554']) delete luclinWeaponsData['23554']; // Hateful Honed Blade of the Ykesha
+          if (luclinWeaponsData['23565']) delete luclinWeaponsData['23565']; // Vengeful Honed Blade of the Ykesha
+          if (luclinWeaponsData['24581']) delete luclinWeaponsData['24581']; // Engraved Shard of Bone
+          if (luclinWeaponsData['24583']) delete luclinWeaponsData['24583']; // Gladiators Jereed
+          if (luclinWeaponsData['24588']) delete luclinWeaponsData['24588']; // Greycloud Dirk
+          if (luclinWeaponsData['24593']) delete luclinWeaponsData['24593']; // Calamitous Hilted Fang
+          if (luclinWeaponsData['24693']) delete luclinWeaponsData['24693']; // Battle Drummer's Main-Gauche
+          // Requested no-drop exclusions.
+          if (luclinWeaponsData['10687']) delete luclinWeaponsData['10687']; // Long Sword of Ethereal Energy
+          if (luclinWeaponsData['22964']) delete luclinWeaponsData['22964']; // Curved Claws
+          if (luclinWeaponsData['22965']) delete luclinWeaponsData['22965']; // Defenders Lightblade
+          if (luclinWeaponsData['23544']) delete luclinWeaponsData['23544']; // Fearful Glyphed Falchion
+          if (luclinWeaponsData['23549']) delete luclinWeaponsData['23549']; // Fearful Reshapen Sharkbone Hammer
+          if (luclinWeaponsData['23556']) delete luclinWeaponsData['23556']; // Hateful Acrylia-Bladed Wakizashi
+          if (luclinWeaponsData['23557']) delete luclinWeaponsData['23557']; // Hateful Polished Obsidian Shard
+          if (luclinWeaponsData['23568']) delete luclinWeaponsData['23568']; // Vengeful Polished Obsidian Shard
+          if (luclinWeaponsData['23548']) delete luclinWeaponsData['23548']; // Fearful Lacquered Black Mace
+          if (luclinWeaponsData['23555']) delete luclinWeaponsData['23555']; // Hateful Glyphed Falchion
+          if (luclinWeaponsData['23559']) delete luclinWeaponsData['23559']; // Hateful Lacquered Black Mace
+          if (luclinWeaponsData['23560']) delete luclinWeaponsData['23560']; // Hateful Reshapen Sharkbone Hammer
+          if (luclinWeaponsData['23566']) delete luclinWeaponsData['23566']; // Vengeful Glyphed Falchion
+          if (luclinWeaponsData['24567']) delete luclinWeaponsData['24567']; // Malarian Wing Blade
           return luclinWeaponsData;
         })
         .catch(function () { luclinWeaponsData = {}; return luclinWeaponsData; });
@@ -1237,6 +1264,7 @@
           Name: 'Epic Fists',
           damage: 9,
           delay: 16,
+          reqlevel: 46,
           itemtype: 7,
           classes: 64,
           slots: 24576
