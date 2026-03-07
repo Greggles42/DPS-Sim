@@ -2404,6 +2404,8 @@
             if (!isNaN(it) && (it === 5 || it === 6)) return;
             var norm = normalizeWeaponFromList(id, raw);
             if (!norm) return;
+            var loreStr = raw.lore != null ? String(raw.lore) : '';
+            norm.isLore = loreStr.indexOf('*') >= 0;
             var skillKey = skillKeyForCap(norm.type, !!(norm.is2H || (norm.type && offhandBlockedTypes[norm.type])));
             if (WeaponSkillCaps.getCapForSimClass(classId, skillKey, level) <= 0) return;
             rankWeaponMap[id] = norm;
@@ -2451,7 +2453,7 @@
             combinations.push({ primaryId: primaryId, secondaryId: null });
             if (canDualWield) {
               secondaryWeapons.forEach(function (secondaryId) {
-                if (primaryId === secondaryId) return;
+                if (primaryId === secondaryId && norm && norm.isLore) return;
                 combinations.push({ primaryId: primaryId, secondaryId: secondaryId });
               });
             }
