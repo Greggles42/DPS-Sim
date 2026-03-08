@@ -1692,7 +1692,7 @@
           if (baneEl) baneEl.value = (p.baneDamage != null ? p.baneDamage : 0) || '';
           const baneRaceEl = $(prefix + '-bane-race');
           if (baneRaceEl) {
-            const br = raw && raw.banedamagerace != null ? Number(raw.banedamagerace) : (raw && raw.baneDamageRace != null ? Number(raw.baneDamageRace) : null);
+            const br = raw && raw.banedamagerace != null ? Number(raw.banedamagerace) : (raw && raw.banedmgrace != null ? Number(raw.banedmgrace) : (raw && raw.baneDamageRace != null ? Number(raw.baneDamageRace) : null));
             baneRaceEl.value = (br != null && !isNaN(br)) ? String(br) : '';
           }
           if (prefix === 'w1' && (p.is2H || pType2H)) {
@@ -2293,7 +2293,7 @@
         var id = String(itemId);
         var raw = (weaponListData && weaponListData[id]) || (luclinWeaponsData && luclinWeaponsData[id]) || (popWeaponsData && popWeaponsData[id]) || null;
         if (!raw || typeof raw !== 'object') return null;
-        var rr = raw.banedamagerace != null ? raw.banedamagerace : (raw.baneDamageRace != null ? raw.baneDamageRace : null);
+        var rr = raw.banedamagerace != null ? raw.banedamagerace : (raw.banedmgrace != null ? raw.banedmgrace : (raw.baneDamageRace != null ? raw.baneDamageRace : null));
         if (rr == null || rr === '') return null;
         var n = parseInt(rr, 10);
         return isNaN(n) ? null : n;
@@ -2352,7 +2352,7 @@
         if (!isNaN(classes) && (classes & 8) === 0) return null;
         var dmg = parseInt(raw.damage, 10); var dly = parseInt(raw.delay, 10);
         if (isNaN(dmg) || dmg < 1 || isNaN(dly) || dly < 1) return null;
-        var item = { id: id, Name: raw.Name, name: raw.Name, damage: raw.damage, delay: raw.delay, itemtype: raw.itemtype, slots: raw.slots, classes: raw.classes, lore: raw.lore, proceffect: raw.proceffect, procrate: raw.procrate, proclevel: raw.proclevel, elemdmgtype: raw.elemdmgtype, elemdmgamt: raw.elemdmgamt, banedmgamt: raw.banedmgamt, eleDmgType: raw.elemdmgtype, eleDmgAmt: raw.elemdmgamt, baneDmgAmt: raw.banedmgamt, skillmodtype: raw.skillmodtype, skillmodvalue: raw.skillmodvalue, skillmodType: raw.skillmodType, skillmodValue: raw.skillmodValue };
+        var item = { id: id, Name: raw.Name, name: raw.Name, damage: raw.damage, delay: raw.delay, itemtype: raw.itemtype, slots: raw.slots, classes: raw.classes, lore: raw.lore, proceffect: raw.proceffect, procrate: raw.procrate, proclevel: raw.proclevel, elemdmgtype: raw.elemdmgtype, elemdmgamt: raw.elemdmgamt, banedmgamt: raw.banedmgamt, banedmgrace: raw.banedmgrace, eleDmgType: raw.elemdmgtype, eleDmgAmt: raw.elemdmgamt, baneDmgAmt: raw.banedmgamt, baneDmgRace: raw.banedmgrace, skillmodtype: raw.skillmodtype, skillmodvalue: raw.skillmodvalue, skillmodType: raw.skillmodType, skillmodValue: raw.skillmodValue };
         var norm = (typeof ItemSearch !== 'undefined' && ItemSearch.normalizeItemForWeapon) ? ItemSearch.normalizeItemForWeapon(item) : null;
         if (norm && norm.damage >= 1 && norm.delay >= 1) {
           if (norm.backstabModPercent == null) {
@@ -2395,6 +2395,7 @@
           elemType: elemType || undefined,
           elemDamage: elemDamage,
           baneDamage: (raw.banedmgamt != null ? parseInt(raw.banedmgamt, 10) : 0) || 0,
+          baneDamageRace: (raw.banedmgrace != null ? parseInt(raw.banedmgrace, 10) : 0) || 0,
           type: 'bow'
         };
         if (raw.proceffect != null && typeof ItemSearch !== 'undefined' && ItemSearch.getSpellFromLocalData) {
@@ -2439,7 +2440,7 @@
         if (!raw || typeof raw !== 'object') return null;
         var dmg = parseInt(raw.damage, 10); var dly = parseInt(raw.delay, 10);
         if (isNaN(dmg) || dmg < 1 || isNaN(dly) || dly < 1) return null;
-        var item = { id: id, Name: raw.Name, name: raw.Name, damage: raw.damage, delay: raw.delay, itemtype: raw.itemtype, slots: raw.slots, classes: raw.classes, lore: raw.lore, proceffect: raw.proceffect, procrate: raw.procrate, proclevel: raw.proclevel, elemdmgtype: raw.elemdmgtype, elemdmgamt: raw.elemdmgamt, banedmgamt: raw.banedmgamt, eleDmgType: raw.elemdmgtype, eleDmgAmt: raw.elemdmgamt, baneDmgAmt: raw.banedmgamt, skillmodtype: raw.skillmodtype, skillmodvalue: raw.skillmodvalue, skillmodType: raw.skillmodType, skillmodValue: raw.skillmodValue };
+        var item = { id: id, Name: raw.Name, name: raw.Name, damage: raw.damage, delay: raw.delay, itemtype: raw.itemtype, slots: raw.slots, classes: raw.classes, lore: raw.lore, proceffect: raw.proceffect, procrate: raw.procrate, proclevel: raw.proclevel, elemdmgtype: raw.elemdmgtype, elemdmgamt: raw.elemdmgamt, banedmgamt: raw.banedmgamt, banedmgrace: raw.banedmgrace, eleDmgType: raw.elemdmgtype, eleDmgAmt: raw.elemdmgamt, baneDmgAmt: raw.banedmgamt, baneDmgRace: raw.banedmgrace, skillmodtype: raw.skillmodtype, skillmodvalue: raw.skillmodvalue, skillmodType: raw.skillmodType, skillmodValue: raw.skillmodValue };
         var norm = (typeof ItemSearch !== 'undefined' && ItemSearch.normalizeItemForWeapon) ? ItemSearch.normalizeItemForWeapon(item) : null;
         if (norm && norm.damage >= 1 && norm.delay >= 1) {
           if (norm.backstabModPercent == null) {
@@ -2481,6 +2482,7 @@
           elemType: elemType || undefined,
           elemDamage: elemDamage,
           baneDamage: (raw.banedmgamt != null ? parseInt(raw.banedmgamt, 10) : 0) || 0,
+          baneDamageRace: (raw.banedmgrace != null ? parseInt(raw.banedmgrace, 10) : 0) || 0,
           backstabModPercent: getBackstabModPercentFromRawItem(raw),
           wornAttackBonus: getWornAttackBonusFromRawItem(raw),
           is2H: is2H,
@@ -3515,14 +3517,20 @@
         if (lvl < 1) lvl = 1;
         if (lvl > 60) lvl = 60;
         var wornHaste = 0;
+        var str = 255;
+        var dex = 255;
         if (lvl >= 10 && lvl <= 39) wornHaste = 22;
         else if (lvl >= 40 && lvl <= 59) wornHaste = 34;
         else if (lvl === 60) wornHaste = 41;
+        if (lvl >= 1 && lvl <= 39) { str = 100; dex = 100; }
+        else if (lvl >= 40 && lvl <= 59) { str = 150; dex = 150; }
         return {
           level: lvl,
           wornHaste: wornHaste,
           spellHaste: lvl === 60 ? 85 : 0,
-          spellAttack: lvl === 60 ? 150 : 0
+          spellAttack: lvl === 60 ? 150 : 0,
+          str: str,
+          dex: dex
         };
       }
       function easyClassHasSpellCastingFury(classId) {
@@ -3543,7 +3551,9 @@
           'Applied assumptions for ' + classLabel + ' (Level ' + a.level + '):',
           '- Worn haste: ' + a.wornHaste + '%',
           '- Spell haste: ' + a.spellHaste + '%',
-          '- Spell attack: ' + a.spellAttack
+          '- Spell attack: ' + a.spellAttack,
+          '- STR: ' + a.str,
+          '- DEX: ' + a.dex
         ];
         if (a.level === 60) {
           lines.push('- Ambidexterity: On');
@@ -3588,6 +3598,10 @@
         if (spellHaste) spellHaste.value = String(assumptions.spellHaste);
         var spellAttack = $('spell-attack');
         if (spellAttack) spellAttack.value = String(assumptions.spellAttack);
+        var strEl = $('str');
+        if (strEl) strEl.value = String(assumptions.str);
+        var dexEl = $('dex');
+        if (dexEl) dexEl.value = String(assumptions.dex);
         var ambi = $('ambidexterity-aa');
         if (ambi) ambi.checked = assumptions.level === 60;
         var critChance = $('crit-chance-aa');
