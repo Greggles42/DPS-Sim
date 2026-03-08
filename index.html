@@ -522,9 +522,6 @@
   <div class="banner">
     <div class="banner-left">
       <h1>Gabbiz's Project Quarm EQ DPS Simulator <span id="app-version" style="font-weight: 400; color: var(--muted); font-size: 0.85rem;">v0.10</span></h1>
-      <p class="muted" style="margin:0 0 1rem; color: var(--muted); font-size: 0.9rem;">
-        Formulas based on <a href="https://github.com/SecretsOTheP/EQMacEmu/blob/main/zone/attack.cpp" target="_blank" rel="noopener" style="color: var(--accent);">EQMacEmu attack.cpp</a>.
-      </p>
     </div>
     <div id="dps-display" title="Total DPS from last run">
       <div class="dps-label">Total DPS</div>
@@ -1099,6 +1096,10 @@
       <div id="submit-issue-message" class="submit-issue-message" role="status"></div>
     </div>
   </div>
+
+  <p class="muted" style="margin-top: 1.5rem; font-size: 0.85rem;">
+    Formulas based on <a href="https://github.com/SecretsOTheP/EQMacEmu/blob/main/zone/attack.cpp" target="_blank" rel="noopener" style="color: var(--accent);">EQMacEmu attack.cpp</a>.
+  </p>
 
   <script src="combat.js"></script>
   <script src="weaponSkillCaps.js"></script>
@@ -3528,11 +3529,17 @@
         updateEasyAssumptionsFromLevel(currentLevel, classId);
       }
       function syncAdvancedFromEasyBasics() {
+        var easyHaste = $('easy-worn-haste');
+        var preservedEasyHaste = easyHaste ? easyHaste.value : null;
         var easyLevel = $('easy-level'); var levelEl = $('level');
         if (easyLevel && levelEl) { levelEl.value = easyLevel.value; levelEl.dispatchEvent(new Event('input')); levelEl.dispatchEvent(new Event('change')); }
+        if (easyHaste && preservedEasyHaste != null) {
+          easyHaste.value = preservedEasyHaste;
+          var easyReadout = $('easy-worn-haste-value');
+          if (easyReadout) easyReadout.textContent = String(parseInt(preservedEasyHaste, 10) || 0) + '%';
+        }
         var levelForAssumptions = easyLevel ? (parseInt(easyLevel.value, 10) || 1) : 1;
         var assumptions = getEasyAssumptionsByLevel(levelForAssumptions);
-        var easyHaste = $('easy-worn-haste');
         var wornHaste = $('worn-haste');
         if (easyHaste && wornHaste) wornHaste.value = easyHaste.value;
         var spellHaste = $('spell-haste');
