@@ -519,6 +519,9 @@
     var elemDamage = num(get(item, ['eleDmgAmt', 'elemDamage', 'elem_damage', 'elementalDamage', 'ElementalDamage', 'elemental_damage']));
 
     var baneDamage = num(get(item, ['baneDmgAmt', 'baneDamage', 'bane_damage', 'BaneDamage', 'bane']));
+    var baneDamageRaceRaw = get(item, ['baneDamageRace', 'banedamagerace', 'bane_damage_race', 'BaneDamageRace']);
+    var baneDamageRace = (baneDamageRaceRaw != null && baneDamageRaceRaw !== '') ? parseInt(baneDamageRaceRaw, 10) : null;
+    if (isNaN(baneDamageRace)) baneDamageRace = null;
 
     /* Skillmod type 8 = backstab; skillmodvalue is the backstab skill % modifier */
     var backstabModPercent = null;
@@ -575,6 +578,7 @@
       elemType: elemType || '',
       elemDamage: elemDamage,
       baneDamage: baneDamage,
+      baneDamageRace: baneDamageRace,
       icon: icon > 0 ? icon : null,
       slots: slots,
       classes: itemClasses,
