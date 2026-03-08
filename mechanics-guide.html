@@ -95,7 +95,7 @@
         Every weapon starts from <strong>base damage</strong> and <strong>delay</strong>. Delay is in deciseconds
         (<code>40 = 4.0s</code>).
       </p>
-      <div class="formula">effectiveDelay = max(4, delay / (1 + hastePercent / 100))</div>
+      <div class="formula">effectiveDelayDecisec = max(4, delayDecisec / (1 + effectiveHastePercent / 100))</div>
       <p class="muted">
         Faster effective delay means more swings per minute and generally more DPS.
       </p>
@@ -103,13 +103,33 @@
 
     <div class="card">
       <h2>2) Haste</h2>
-      <p>
-        The UI combines worn + spell haste. In the sim, positive haste is capped by level rules before being used for delay.
-      </p>
-      <div class="formula">effectiveHastePercent = min(rawHastePercent, maxBonusByLevel)</div>
-      <p>
-        Haste affects attack frequency, not hit chance directly.
-      </p>
+      <p>Actual haste rules used by the simulator:</p>
+      <ol>
+        <li>
+          <strong>UI worn-haste cap by low level:</strong>
+          <div class="formula">wornHasteUsed = (level &lt;= 25) ? min(wornHasteInput, 10) : wornHasteInput</div>
+        </li>
+        <li>
+          <strong>Raw haste passed into combat:</strong>
+          <div class="formula">rawHaste = wornHasteUsed + spellHasteInput</div>
+        </li>
+        <li>
+          <strong>Positive haste cap by level (combat logic):</strong>
+          <div class="formula">capTotal = 100 + (level &gt; 59 ? 100 : (level &gt; 50 ? 85 : level + 25))</div>
+          <div class="formula">v3Cap = (level &gt; 50 ? 25 : 10)</div>
+          <div class="formula">maxBonus = (capTotal - 100) + v3Cap</div>
+          <div class="formula">effectiveHastePercent = (rawHaste &lt; 0) ? rawHaste : min(rawHaste, maxBonus)</div>
+        </li>
+        <li>
+          <strong>Delay conversion with minimum delay floor:</strong>
+          <div class="formula">effectiveDelayDecisec = max(4, delayDecisec / (1 + effectiveHastePercent / 100))</div>
+          <p class="muted">Actual result examples:</p>
+          <div class="formula">delay=40, effectiveHaste=0%  -> effectiveDelay=40 decisec (4.00s)</div>
+          <div class="formula">delay=40, effectiveHaste=41% -> effectiveDelay=28.37 decisec (2.84s)</div>
+          <div class="formula">delay=10, effectiveHaste=200% -> computed 3.33 decisec, clamped to 4 decisec (0.40s floor)</div>
+        </li>
+      </ol>
+      <p>Haste changes attack frequency, not hit chance directly.</p>
     </div>
 
     <div class="card">
