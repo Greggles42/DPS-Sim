@@ -3491,24 +3491,26 @@
         var radio = document.querySelector('input[name="spell-casting-fury"][value="' + wanted + '"]');
         if (radio) radio.checked = true;
       }
-      function updateEasyAssumptionsFromLevel(level) {
+      function updateEasyAssumptionsFromLevel(level, classId) {
         var a = getEasyAssumptionsByLevel(level);
+        var selectedClassId = (classId || (($('class') && $('class').value) || '')).toLowerCase();
+        var classLabel = selectedClassId ? titleCaseClassName(selectedClassId) : 'Unknown';
         var assumptions = $('easy-assumptions');
         if (!assumptions) return;
-        assumptions.value = [
-          'Worn haste by level:',
-          '- Level 10-39: 22%',
-          '- Level 40-59: 34%',
-          '- Level 60: 41%',
-          '',
-          'Current level assumptions (' + a.level + '):',
-          '- Worn haste default: ' + a.wornHaste + '%',
+        var lines = [
+          'Applied assumptions for ' + classLabel + ' (Level ' + a.level + '):',
+          '- Worn haste: ' + a.wornHaste + '%',
           '- Spell haste: ' + a.spellHaste + '%',
-          '- Spell attack: ' + a.spellAttack,
-          '- Ambidexterity: ' + (a.level === 60 ? 'On' : 'Off'),
-          '- Combat Fury 3 (6% crit): ' + (a.level === 60 ? 'On' : 'Off'),
-          '- Spell Casting Fury: class-based at level 60'
-        ].join('\n');
+          '- Spell attack: ' + a.spellAttack
+        ];
+        if (a.level === 60) {
+          lines.push('- Ambidexterity: On');
+          lines.push('- Combat Fury 3: On (6% crit chance)');
+          if (easyClassHasSpellCastingFury(selectedClassId)) {
+            lines.push('- Spell Casting Fury: Rank 3');
+          }
+        }
+        assumptions.value = lines.join('\n');
       }
       function syncEasyFromAdvancedBasics() {
         var levelSrc = $('level'); var easyLevel = $('easy-level');
@@ -3522,7 +3524,8 @@
         var wornSrc = $('worn-haste');
         if (wornSrc) wornSrc.value = String(defaults.wornHaste);
         syncEasyClassSelection();
-        updateEasyAssumptionsFromLevel(currentLevel);
+        var classId = (($('class') && $('class').value) || '').toLowerCase();
+        updateEasyAssumptionsFromLevel(currentLevel, classId);
       }
       function syncAdvancedFromEasyBasics() {
         var easyLevel = $('easy-level'); var levelEl = $('level');
@@ -3686,7 +3689,8 @@
           if (easyHasteEl) easyHasteEl.value = String(assumptions.wornHaste);
           var readout = $('easy-worn-haste-value');
           if (readout) readout.textContent = String(assumptions.wornHaste) + '%';
-          updateEasyAssumptionsFromLevel(lvl);
+          var classId = (($('class') && $('class').value) || '').toLowerCase();
+          updateEasyAssumptionsFromLevel(lvl, classId);
           syncAdvancedFromEasyBasics();
         });
         var easyHaste = $('easy-worn-haste');
@@ -3701,7 +3705,7 @@
         if (easyW1Icon) easyW1Icon.addEventListener('click', function () { if (easyW1Icon.classList.contains('is-empty')) return; applyWeaponPreset('w1', 'unequipped'); updateWeapon2Disabled(); syncEasyWeaponSummaries(); });
         if (easyW2Icon) easyW2Icon.addEventListener('click', function () { if (easyW2Icon.classList.contains('is-empty')) return; applyWeaponPreset('w2', 'unequipped'); syncEasyWeaponSummaries(); });
         var assumptions = $('easy-assumptions');
-        if (assumptions && !assumptions.value) updateEasyAssumptionsFromLevel(parseInt(($('easy-level') && $('easy-level').value) || '1', 10) || 1);
+        if (assumptions && !assumptions.value) updateEasyAssumptionsFromLevel(parseInt(($('easy-level') && $('easy-level').value) || '1', 10) || 1, (($('class') && $('class').value) || '').toLowerCase());
         window.setEasyAssumptions = function (list) {
           var el = $('easy-assumptions'); if (!el) return;
           if (Array.isArray(list)) { el.value = list.map(function (line) { return '- ' + String(line); }).join('\n'); return; }
