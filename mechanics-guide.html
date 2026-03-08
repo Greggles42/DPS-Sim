@@ -181,7 +181,62 @@
     </div>
 
     <div class="card">
-      <h2>7) What ATK and AC Usually Do (Prioritization)</h2>
+      <h2>7) Elemental Damage on Weapons</h2>
+      <p>
+        Elemental weapon damage is treated as an extra base-damage adder before the melee damage roll.
+        It is first reduced by target resist for that element (MR/FR/CR/PR/DR).
+      </p>
+      <div class="formula">if resist &gt; 200: elementalDamage = 0</div>
+      <div class="formula">roll = randomInt(1, 201) - resist</div>
+      <div class="formula">if roll &lt; 1: elementalDamage = 0; if 1..99: elementalDamage = floor(weaponElem * roll/100); else elementalDamage = weaponElem</div>
+      <p>
+        Then this adder is included in swing base damage:
+      </p>
+      <div class="formula">baseDamageForSwing = weaponBaseDamage + elementalDamage(+ bane if enabled)</div>
+      <p class="muted">
+        High target resists can heavily suppress elemental contribution; this is why elemental-heavy weapons can vary by target profile.
+      </p>
+    </div>
+
+    <div class="card">
+      <h2>8) Proc Chance and Proc Resists</h2>
+      <h3>Proc chance per swing/round</h3>
+      <p>
+        Proc chance scales with effective delay and DEX. Offhand has a dual-wield adjustment. Then proc-rate modifiers are applied.
+      </p>
+      <div class="formula">baseProcChance = (0.0004166667 + 1.1437908496732e-5 * DEX) * effectiveDelay</div>
+      <div class="formula">offhandAdjusted = baseProcChance * (50 / dualWieldChance)</div>
+      <div class="formula">finalProcChance = clamp(0, 1, adjustedChance * (100 + procRate) / 100)</div>
+      <p>
+        Level-gated procs do not fire below required proc level.
+      </p>
+
+      <h3>Proc spell resist resolution</h3>
+      <p>
+        For resistable proc spells, the sim checks immunity and then runs a resist calculation using target resist type (MR/FR/CR/DR/PR), level delta, and spell resist modifier.
+      </p>
+      <div class="formula">resistChance = clamp(0, 200, targetResist + levelMod + resistModifier)</div>
+      <div class="formula">if roll &gt; resistChance: full land (100% damage)</div>
+      <div class="formula">if roll &lt;= resistChance: full resist (0%) or partial based on no-partial flag</div>
+      <p>
+        Resulting proc damage is:
+      </p>
+      <div class="formula">actualProcDamage = floor(baseProcDamage * effectiveness / 100)</div>
+      <p>
+        So procs can be:
+      </p>
+      <ul>
+        <li><strong>Full land:</strong> full listed proc damage.</li>
+        <li><strong>Partial resist:</strong> reduced proc damage.</li>
+        <li><strong>Full resist:</strong> 0 proc damage.</li>
+      </ul>
+      <p class="muted">
+        This is why two weapons with similar listed proc damage can perform differently against different target resist profiles.
+      </p>
+    </div>
+
+    <div class="card">
+      <h2>9) What ATK and AC Usually Do (Prioritization)</h2>
       <table>
         <thead>
           <tr>
@@ -220,7 +275,7 @@
     </div>
 
     <div class="card">
-      <h2>8) Displayed ATK in Report</h2>
+      <h2>10) Displayed ATK in Report</h2>
       <div class="formula">displayedATK = floor((offenseRating + toHit) * 1000 / 744)</div>
       <p class="muted">
         This is a reporting transform and not itself the core swing resolution formula.
