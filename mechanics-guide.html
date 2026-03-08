@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DPS Sim Mechanics Guide</title>
+  <style>
+    :root {
+      --bg: #1a1d23;
+      --panel: #252830;
+      --border: #3d4452;
+      --text: #e6e8ec;
+      --muted: #8b909a;
+      --accent: #7eb8da;
+      --code: #1e2128;
+    }
+    body {
+      margin: 0;
+      padding: 1.5rem;
+      font-family: "Segoe UI", system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.55;
+    }
+    .wrap {
+      max-width: 980px;
+      margin: 0 auto;
+    }
+    h1, h2, h3 {
+      color: var(--accent);
+      margin-top: 1.2rem;
+      margin-bottom: 0.45rem;
+    }
+    p, li {
+      color: var(--text);
+    }
+    .muted {
+      color: var(--muted);
+    }
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1rem 1.1rem;
+      margin-bottom: 0.9rem;
+    }
+    code {
+      background: var(--code);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 0.1rem 0.3rem;
+      color: var(--text);
+    }
+    .formula {
+      background: var(--code);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 0.55rem 0.65rem;
+      margin: 0.45rem 0;
+      overflow-x: auto;
+      font-family: ui-monospace, "Cascadia Code", monospace;
+      font-size: 0.9rem;
+    }
+    a {
+      color: var(--accent);
+    }
+    table {
+      border-collapse: collapse;
+      width: 100%;
+      margin-top: 0.55rem;
+    }
+    th, td {
+      border: 1px solid var(--border);
+      padding: 0.45rem 0.55rem;
+      text-align: left;
+      vertical-align: top;
+    }
+    th {
+      color: var(--muted);
+      font-weight: 600;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>DPS Sim Mechanics Guide</h1>
+    <p class="muted">
+      This page explains exactly how this simulator models melee damage, hit chance, haste, offense, and target defenses.
+      Formulas are based on EQMacEmu combat logic and this simulator's implementation.
+    </p>
+
+    <div class="card">
+      <h2>1) Weapon Base Damage and Delay</h2>
+      <p>
+        Every weapon starts from <strong>base damage</strong> and <strong>delay</strong>. Delay is in deciseconds
+        (<code>40 = 4.0s</code>).
+      </p>
+      <div class="formula">effectiveDelay = max(4, delay / (1 + hastePercent / 100))</div>
+      <p class="muted">
+        Faster effective delay means more swings per minute and generally more DPS.
+      </p>
+    </div>
+
+    <div class="card">
+      <h2>2) Haste</h2>
+      <p>
+        The UI combines worn + spell haste. In the sim, positive haste is capped by level rules before being used for delay.
+      </p>
+      <div class="formula">effectiveHastePercent = min(rawHastePercent, maxBonusByLevel)</div>
+      <p>
+        Haste affects attack frequency, not hit chance directly.
+      </p>
+    </div>
+
+    <div class="card">
+      <h2>3) Offense Skill vs Offense Rating (Important)</h2>
+      <p>
+        These are different and used in different parts of the calculation:
+      </p>
+      <ul>
+        <li><strong>Offense skill</strong> (0-255): used in <strong>to-hit</strong> math.</li>
+        <li><strong>Offense rating</strong>: used in <strong>damage roll</strong> math.</li>
+      </ul>
+      <div class="formula">toHit = 7 + offenseSkill + weaponSkill + toHitBonus</div>
+      <div class="formula">offenseRating = offenseSkill + STR_bonus + wornATK + spellATK</div>
+      <p>
+        STR contributes through:
+      </p>
+      <div class="formula">STR_bonus = floor((2 * STR - 150) / 3), when STR >= 75</div>
+    </div>
+
+    <div class="card">
+      <h2>4) Hit Chance (Avoidance) vs Damage (Mitigation)</h2>
+      <p>
+        AC is not a single value in this sim. It is split into two defense concepts:
+      </p>
+      <ul>
+        <li><strong>Avoidance</strong>: controls whether you hit/miss.</li>
+        <li><strong>Mitigation</strong>: controls how hard a landed hit is reduced.</li>
+      </ul>
+      <h3>Avoidance (hit chance)</h3>
+      <div class="formula">effectiveToHit = min(toHit, 550)</div>
+      <div class="formula">a = effectiveToHit + 10; b = avoidance + 10</div>
+      <div class="formula">if a*1.21 &gt; b: hitChance = 1 - b / (a*1.21*2); else hitChance = (a*1.21) / (b*2)</div>
+      <h3>Mitigation (damage size)</h3>
+      <p>
+        Mitigation comes from level-based formulas and target AC handling. It is used in the damage roll competition:
+      </p>
+      <div class="formula">rollIndex = RollD20(offenseRating, mitigation)  // 1..20</div>
+      <div class="formula">damage = floor((rollIndex * baseDamage + 5) / 10)</div>
+    </div>
+
+    <div class="card">
+      <h2>5) In Front vs Behind</h2>
+      <p>
+        Choosing <strong>Behind</strong> does <em>not</em> force all swings to land. Misses still happen from to-hit vs avoidance.
+      </p>
+      <ul>
+        <li><strong>Behind</strong>: skips block/parry/riposte/dodge layer.</li>
+        <li><strong>Front</strong>: after a successful hit roll, there is an additional avoid chance.</li>
+      </ul>
+      <div class="formula">front extra avoid layer = 8%</div>
+      <p class="muted">
+        Use front if you want a conservative/tank-facing estimate; use behind for DPS-from-rear assumptions.
+      </p>
+    </div>
+
+    <div class="card">
+      <h2>6) Core Max-Hit Formulas</h2>
+      <p>
+        For a single landed non-crit swing before proc damage:
+      </p>
+      <div class="formula">minNonCrit ~= floor((1 * baseDamage + 5) / 10) + damageBonus</div>
+      <div class="formula">maxNonCrit ~= floor((20 * baseDamage + 5) / 10) + damageBonus</div>
+      <p>
+        So the non-crit range is roughly ~0.1x to ~2.0x of baseDamage (plus damage bonus).
+      </p>
+      <p>
+        Then multipliers/crit logic can further scale landed damage.
+      </p>
+    </div>
+
+    <div class="card">
+      <h2>7) What ATK and AC Usually Do (Prioritization)</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Stat</th>
+            <th>Main Effect</th>
+            <th>When It Matters Most</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Offense skill / weapon skill</td>
+            <td>Raises hit chance via to-hit.</td>
+            <td>Most noticeable when accuracy is not near cap.</td>
+          </tr>
+          <tr>
+            <td>Worn ATK / spell ATK / STR</td>
+            <td>Raises offense rating, improving damage roll quality.</td>
+            <td>Most noticeable when fighting higher mitigation targets.</td>
+          </tr>
+          <tr>
+            <td>Target avoidance</td>
+            <td>Reduces landed hit rate.</td>
+            <td>Large impact on total DPS when to-hit is modest.</td>
+          </tr>
+          <tr>
+            <td>Target mitigation (AC path)</td>
+            <td>Reduces landed hit size.</td>
+            <td>Large impact on max-hit frequency and average hit.</td>
+          </tr>
+        </tbody>
+      </table>
+      <p class="muted">
+        Practical rule in this model: if your hit rate is already strong, more offense rating (ATK/STR) often gives better returns;
+        if your hit rate is weak, improving to-hit inputs can be more valuable first.
+      </p>
+    </div>
+
+    <div class="card">
+      <h2>8) Displayed ATK in Report</h2>
+      <div class="formula">displayedATK = floor((offenseRating + toHit) * 1000 / 744)</div>
+      <p class="muted">
+        This is a reporting transform and not itself the core swing resolution formula.
+      </p>
+    </div>
+
+    <p class="muted">
+      Reference implementation: <a href="https://github.com/SecretsOTheP/EQMacEmu/blob/main/zone/attack.cpp" target="_blank" rel="noopener">EQMacEmu attack.cpp</a>.
+      Return to <a href="index.html">main simulator</a>.
+    </p>
+  </div>
+</body>
+</html>
