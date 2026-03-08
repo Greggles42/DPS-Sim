@@ -202,7 +202,7 @@
 
   // Roll for crit, then apply crit damage if it lands. Returns { damage, isCrit }.
   // damageBonus = main-hand damage bonus (0 for offhand). isArchery, isBerserk, cripplingBlowChance optional.
-  function rollMeleeCrit(damage, damageBonus, level, classId, dex, critChanceMult, isArchery, isBerserk, cripplingBlowChance, rng) {
+  function rollMeleeCrit(damage, damageBonus, level, classId, dex, critChanceMult, isArchery, isBerserk, cripplingBlowChance, critDmgDebugDmgBonus, rng) {
     const clientBaseCritChance = 0;
     const critChancePct = getCritChance(level, classId, dex, clientBaseCritChance, critChanceMult || 0, !!isArchery);
     if (critChancePct <= 0) return { damage, isCrit: false };
@@ -215,7 +215,9 @@
       critMod = 29;
       cripSuccess = true;
     }
-    const newDamage = applyCritDamage(damage, damageBonus, critMod, cripSuccess);
+    let newDamage = applyCritDamage(damage, damageBonus, critMod, cripSuccess);
+    // Debug parity toggle: add +1 to melee crits after all other crit calculations.
+    if (critDmgDebugDmgBonus && !isArchery) newDamage += 1;
     return { damage: newDamage, isCrit: true };
   }
 
@@ -687,7 +689,7 @@
       const mult = rollDamageMultiplier(offenseRating, baseDmg, level, 'ranger', true, rng);
       let dmg = mult.damage;
       const beforeCrit = dmg;
-      const critResult = rollMeleeCrit(dmg, 0, level, 'ranger', options.dex, options.critChanceMult || 0, true, false, 0, rng);
+      const critResult = rollMeleeCrit(dmg, 0, level, 'ranger', options.dex, options.critChanceMult || 0, true, false, 0, options.critDmgDebugDmgBonus, rng);
       dmg = critResult.damage;
       if (critResult.isCrit) {
         report.critHits++;
@@ -1091,7 +1093,7 @@
           const mult = rollDamageMultiplier(offenseRating, baseDmg, level, options.classId, false, rng);
           let dmg = mult.damage;
           const beforeCrit = dmg;
-          const critResult = rollMeleeCrit(dmg, 0, level, options.classId, options.dex, options.critChanceMult, false, false, 0, rng);
+          const critResult = rollMeleeCrit(dmg, 0, level, options.classId, options.dex, options.critChanceMult, false, false, 0, options.critDmgDebugDmgBonus, rng);
           dmg = critResult.damage;
           if (critResult.isCrit) { report.critHits++; report.critDamageGain += (dmg - beforeCrit); }
           if (isRogueBackstab && level != null) {
@@ -1134,7 +1136,7 @@
           dmg += mainHandDamageBonus;
           dmg = Math.max(dmg, 1 + mainHandDamageBonus);
           const beforeCrit = dmg;
-          const critResult = rollMeleeCrit(dmg, mainHandDamageBonus, level, options.classId, options.dex, options.critChanceMult, false, false, 0, rng);
+          const critResult = rollMeleeCrit(dmg, mainHandDamageBonus, level, options.classId, options.dex, options.critChanceMult, false, false, 0, options.critDmgDebugDmgBonus, rng);
           dmg = critResult.damage;
           dmg = Math.max(dmg, 1 + mainHandDamageBonus);
           if (critResult.isCrit) { report.critHits++; report.critDamageGain += (dmg - beforeCrit); }
@@ -1166,7 +1168,7 @@
             dmg += mainHandDamageBonus;
             dmg = Math.max(dmg, 1 + mainHandDamageBonus);
             const beforeCrit = dmg;
-            const critResult = rollMeleeCrit(dmg, mainHandDamageBonus, level, options.classId, options.dex, options.critChanceMult, false, false, 0, rng);
+            const critResult = rollMeleeCrit(dmg, mainHandDamageBonus, level, options.classId, options.dex, options.critChanceMult, false, false, 0, options.critDmgDebugDmgBonus, rng);
             dmg = critResult.damage;
             dmg = Math.max(dmg, 1 + mainHandDamageBonus);
             if (critResult.isCrit) { report.critHits++; report.critDamageGain += (dmg - beforeCrit); }
@@ -1197,7 +1199,7 @@
               dmg += mainHandDamageBonus;
               dmg = Math.max(dmg, 1 + mainHandDamageBonus);
               const beforeCrit = dmg;
-              const critResult = rollMeleeCrit(dmg, mainHandDamageBonus, level, options.classId, options.dex, options.critChanceMult, false, false, 0, rng);
+              const critResult = rollMeleeCrit(dmg, mainHandDamageBonus, level, options.classId, options.dex, options.critChanceMult, false, false, 0, options.critDmgDebugDmgBonus, rng);
               dmg = critResult.damage;
               dmg = Math.max(dmg, 1 + mainHandDamageBonus);
               if (critResult.isCrit) { report.critHits++; report.critDamageGain += (dmg - beforeCrit); }
@@ -1280,7 +1282,7 @@
             const mult = rollDamageMultiplier(offenseRating, dmg, level, options.classId, false, rng);
             dmg = mult.damage;
             const beforeCrit = dmg;
-            const critResult = rollMeleeCrit(dmg, 0, level, options.classId, options.dex, options.critChanceMult, false, false, 0, rng);
+            const critResult = rollMeleeCrit(dmg, 0, level, options.classId, options.dex, options.critChanceMult, false, false, 0, options.critDmgDebugDmgBonus, rng);
             dmg = critResult.damage;
             if (critResult.isCrit) { report.critHits++; report.critDamageGain += (dmg - beforeCrit); }
             report.fistweaving.swings++;
@@ -1298,7 +1300,7 @@
               const mult = rollDamageMultiplier(offenseRating, dmg, level, options.classId, false, rng);
               dmg = mult.damage;
               const beforeCrit = dmg;
-              const critResult = rollMeleeCrit(dmg, 0, level, options.classId, options.dex, options.critChanceMult, false, false, 0, rng);
+              const critResult = rollMeleeCrit(dmg, 0, level, options.classId, options.dex, options.critChanceMult, false, false, 0, options.critDmgDebugDmgBonus, rng);
               dmg = critResult.damage;
               if (critResult.isCrit) { report.critHits++; report.critDamageGain += (dmg - beforeCrit); }
               report.fistweaving.swings++;
@@ -1335,7 +1337,7 @@
             const mult = rollDamageMultiplier(offenseRating, dmg, level, options.classId, false, rng);
             dmg = mult.damage;
             const beforeCrit = dmg;
-            const critResult = rollMeleeCrit(dmg, 0, level, options.classId, options.dex, options.critChanceMult, false, false, 0, rng);
+            const critResult = rollMeleeCrit(dmg, 0, level, options.classId, options.dex, options.critChanceMult, false, false, 0, options.critDmgDebugDmgBonus, rng);
             dmg = critResult.damage;
             if (critResult.isCrit) { report.critHits++; report.critDamageGain += (dmg - beforeCrit); }
             const ohDisciplineMin = getDisciplineMinHit(cappedW2Damage, 0, disciplineActiveOh);
@@ -1362,7 +1364,7 @@
               const mult = rollDamageMultiplier(offenseRating, dmg, level, options.classId, false, rng);
               dmg = mult.damage;
               const beforeCrit = dmg;
-              const critResult = rollMeleeCrit(dmg, 0, level, options.classId, options.dex, options.critChanceMult, false, false, 0, rng);
+              const critResult = rollMeleeCrit(dmg, 0, level, options.classId, options.dex, options.critChanceMult, false, false, 0, options.critDmgDebugDmgBonus, rng);
               dmg = critResult.damage;
               if (critResult.isCrit) { report.critHits++; report.critDamageGain += (dmg - beforeCrit); }
               const ohDisciplineMin2 = getDisciplineMinHit(cappedW2Damage, 0, disciplineActiveOh);

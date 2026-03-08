@@ -521,6 +521,7 @@
         <div class="char-checkbox-row">
           <label class="checkbox-label char-checkbox"><input type="checkbox" id="ambidexterity-aa"> Ambidexterity (+32 dual wield)</label>
         </div>
+        <input type="hidden" id="crit-dmg-debug-dmg-bonus" value="1">
         <div id="special-attack-row" style="display: none;">
           <div class="char-secondary-row">
             <div class="char-field"><label for="special-attack-type" class="small-label">Special attack</label><select id="special-attack-type"><option value="none">None</option><option value="flying_kick">Flying Kick</option><option value="backstab">Backstab</option><option value="kick">Kick</option><option value="bash">Bash/Slam</option></select></div>
@@ -1711,6 +1712,7 @@
           spellAttack,
           toHitBonus,
           ambidexterity: $('ambidexterity-aa').checked ? 32 : 0,
+          critDmgDebugDmgBonus: (function () { var el = $('crit-dmg-debug-dmg-bonus'); return !!(el && ((typeof el.checked === 'boolean' && el.checked) || String(el.value) === '1' || String(el.value).toLowerCase() === 'true')); })(),
           doubleAttackSkill,
           dualWieldSkill: (useWeapon2 || !hasMainHand) ? dualWieldSkill : 0,
           level,
@@ -2376,6 +2378,7 @@
           spellAttack: parseInt($('spell-attack').value, 10) || 0,
           toHitBonus,
           ambidexterity: $('ambidexterity-aa').checked ? 32 : 0,
+          critDmgDebugDmgBonus: (function () { var el = $('crit-dmg-debug-dmg-bonus'); return !!(el && ((typeof el.checked === 'boolean' && el.checked) || String(el.value) === '1' || String(el.value).toLowerCase() === 'true')); })(),
           doubleAttackSkill: parseInt($('double-attack').value, 10) || 0,
           level,
           targetAC,
