@@ -454,10 +454,12 @@
     .easy-grid {
       display: grid;
       gap: 0.9rem;
-      grid-template-columns: minmax(160px, 220px) minmax(180px, 220px) minmax(260px, 1fr);
+      grid-template-columns: minmax(160px, 220px) minmax(180px, 220px) minmax(320px, 460px);
       align-items: start;
+      justify-content: start;
     }
     .easy-col { background: rgba(0, 0, 0, 0.12); border: 1px solid var(--border); border-radius: 8px; padding: 0.75rem; }
+    .easy-col-weapons { max-width: 460px; width: 100%; }
     .easy-col h3 { margin: 0 0 0.6rem; font-size: 0.85rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
     .easy-class-stack { display: grid; gap: 0.35rem; max-height: 390px; overflow-y: auto; padding-right: 0.15rem; }
     .easy-class-btn {
@@ -506,15 +508,11 @@
     }
     .easy-assumptions-wrap h3, .easy-history-wrap h3 { margin: 0 0 0.5rem; font-size: 0.85rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
     #easy-assumptions { width: 100%; min-height: 80px; resize: vertical; background: var(--input-bg); border: 1px solid var(--border); color: var(--text); border-radius: 4px; padding: 0.55rem; font-family: inherit; font-size: 0.88rem; }
-    #easy-history-list { max-height: 220px; overflow-y: auto; font-size: 0.85rem; padding-right: 0.45rem; }
-    .easy-history-row { display: grid; grid-template-columns: 1fr auto; gap: 0.45rem; padding: 0.35rem 0; border-bottom: 1px solid var(--border); }
-    .easy-history-row:last-child { border-bottom: none; }
-    .easy-history-dps { color: var(--accent); font-weight: 600; text-align: right; padding-right: 0.35rem; }
-    #easy-result-log-list { max-height: 220px; overflow-y: auto; font-size: 0.82rem; }
-    .easy-result-log-row { padding: 0.42rem 0; border-bottom: 1px solid var(--border); }
-    .easy-result-log-row:last-child { border-bottom: none; }
-    .easy-result-log-head { color: var(--text); font-weight: 600; margin-bottom: 0.18rem; }
-    .easy-result-log-detail { color: var(--muted); }
+    .easy-history-table-wrap { max-height: 220px; overflow: auto; padding-right: 0.45rem; }
+    .easy-history-table { width: 100%; min-width: 980px; border-collapse: collapse; font-size: 0.82rem; }
+    .easy-history-table th, .easy-history-table td { border-bottom: 1px solid var(--border); padding: 0.3rem 0.4rem; text-align: left; white-space: nowrap; }
+    .easy-history-table th { color: var(--muted); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.03em; }
+    .easy-history-table td.easy-history-dps { color: var(--accent); font-weight: 600; text-align: right; padding-right: 0.35rem; }
 
   </style>
 </head>
@@ -552,7 +550,7 @@
             <input type="range" id="easy-worn-haste" min="0" max="41" step="1" value="41">
           </div>
         </div>
-        <div class="easy-col">
+        <div class="easy-col easy-col-weapons">
           <h3>Weapons</h3>
           <div class="easy-weapon-card">
             <div class="easy-weapon-head">
@@ -595,10 +593,6 @@
       </div>
       <div class="easy-history-wrap">
         <h3>Log History</h3>
-        <div id="easy-history-list"></div>
-      </div>
-      <div class="easy-history-wrap">
-        <h3>Log Result Box</h3>
         <div id="easy-result-log-list"></div>
       </div>
     </section>
@@ -2081,10 +2075,21 @@
 
         const totalAttack = report.displayedAttack != null ? report.displayedAttack : report.offenseRating;
         const weaponDps = report.durationSec > 0 ? (report.totalDamage / report.durationSec) : 0;
+        const mainhandDps = report.durationSec > 0 ? ((report.weapon1 && report.weapon1.totalDamage ? report.weapon1.totalDamage : 0) / report.durationSec) : 0;
+        const offhandDps = report.durationSec > 0 ? ((report.weapon2 && report.weapon2.totalDamage ? report.weapon2.totalDamage : 0) / report.durationSec) : 0;
+        const procDps = report.durationSec > 0 ? ((((report.weapon1 && report.weapon1.procDamageTotal) || 0) + (((report.weapon2 && report.weapon2.procDamageTotal) || 0))) / report.durationSec) : 0;
         SIM_HISTORY.unshift({
+          weaponCombo: w1Name + (useWeapon2 ? (' + ' + w2Name) : ''),
           weapon1: w1Name,
           weapon2: useWeapon2 ? w2Name : '—',
           targetName: window.selectedTargetNpc && window.selectedTargetNpc.name ? String(window.selectedTargetNpc.name).replace(/_/g, ' ') : undefined,
+          level: level,
+          wornHaste: parseInt(($('worn-haste') && $('worn-haste').value) || '0', 10) || 0,
+          effectiveHaste: report.effectiveHastePercent != null ? Number(report.effectiveHastePercent) : 0,
+          netAttackRating: totalAttack,
+          mainhandDps: mainhandDps,
+          offhandDps: offhandDps,
+          procDps: procDps,
           attack: totalAttack,
           mobAC: targetAC,
           dps: weaponDps
@@ -3510,6 +3515,7 @@
         if (a.level === 60) {
           lines.push('- Ambidexterity: On');
           lines.push('- Combat Fury 3: On (6% crit chance)');
+          lines.push('- Worn attack: 0');
           if (easyClassHasSpellCastingFury(selectedClassId)) {
             lines.push('- Spell Casting Fury: Rank 3');
           }
@@ -3631,39 +3637,6 @@
         inputEl.addEventListener('keydown', function (e) { if (e.key === 'Escape') { closeEasyDropdown(prefix); inputEl.blur(); } });
       }
       function updateEasyDpsFromGlobal() { var easyDps = $('easy-dps-value'); var dps = $('dps-value'); if (easyDps && dps) easyDps.textContent = dps.textContent || '-'; }
-      var EASY_RESULT_LOG = [];
-      var EASY_RESULT_LOG_MAX = 30;
-      function renderEasyResultLog() {
-        var listEl = $('easy-result-log-list');
-        if (!listEl) return;
-        if (EASY_RESULT_LOG.length === 0) {
-          listEl.innerHTML = '<p class="hint" style="margin:0;">No DPS breakdowns logged yet.</p>';
-          return;
-        }
-        listEl.innerHTML = EASY_RESULT_LOG.map(function (row) {
-          return '<div class="easy-result-log-row">' +
-            '<div class="easy-result-log-head">Run ' + row.run + ' - Total DPS: ' + row.totalDps.toFixed(2) + '</div>' +
-            '<div class="easy-result-log-detail">Mainhand DPS: ' + row.mainhandDps.toFixed(2) + ' | Offhand DPS: ' + row.offhandDps.toFixed(2) + ' | Proc DPS: ' + row.procDps.toFixed(2) + '</div>' +
-            '</div>';
-        }).join('');
-      }
-      function logEasyResultBreakdownFromLastRun() {
-        var payload = window._lastSimRunExport;
-        if (!payload || payload.mode !== 'melee' || !payload.averaged) return;
-        var r = payload.averaged;
-        var dur = Number(r.durationSec || 0);
-        if (!(dur > 0)) return;
-        var w1 = r.weapon1 || {};
-        var w2 = r.weapon2 || {};
-        var mh = Number(w1.totalDamage || 0) / dur;
-        var oh = Number(w2.totalDamage || 0) / dur;
-        var proc = (Number(w1.procDamageTotal || 0) + Number(w2.procDamageTotal || 0)) / dur;
-        var total = Number(r.totalDamage || 0) / dur;
-        var nextRun = EASY_RESULT_LOG.length > 0 ? (EASY_RESULT_LOG[0].run + 1) : 1;
-        EASY_RESULT_LOG.unshift({ run: nextRun, mainhandDps: mh, offhandDps: oh, procDps: proc, totalDps: total });
-        if (EASY_RESULT_LOG.length > EASY_RESULT_LOG_MAX) EASY_RESULT_LOG.pop();
-        renderEasyResultLog();
-      }
       function runEasyModeSimulation() {
         syncAdvancedFromEasyBasics();
         window.selectedTargetNpc = null;
@@ -3672,16 +3645,47 @@
         applyGenericTargetIfNoneSelected();
         run();
         updateEasyDpsFromGlobal();
-        logEasyResultBreakdownFromLastRun();
       }
       function renderEasyHistory() {
-        var listEl = $('easy-history-list'); if (!listEl) return;
+        var listEl = $('easy-result-log-list'); if (!listEl) return;
         if (SIM_HISTORY.length === 0) { listEl.innerHTML = '<p class="hint" style="margin:0;">No runs yet this session.</p>'; return; }
-        listEl.innerHTML = SIM_HISTORY.slice(0, 25).map(function (h) {
-          var w1 = (h.weapon1 || '-').replace(/</g, '&lt;'); var w2 = (h.weapon2 || '-').replace(/</g, '&lt;');
+        var header = '<table class="easy-history-table"><thead><tr>' +
+          '<th>Weapon Combination</th>' +
+          '<th>Level</th>' +
+          '<th>Worn Haste</th>' +
+          '<th>Effective Haste</th>' +
+          '<th>Net ATK</th>' +
+          '<th>Target AC</th>' +
+          '<th>Mainhand DPS</th>' +
+          '<th>Offhand DPS</th>' +
+          '<th>Proc DPS</th>' +
+          '<th style="text-align:right;">DPS</th>' +
+          '</tr></thead><tbody>';
+        var rows = SIM_HISTORY.slice(0, 25).map(function (h) {
+          var combo = (h.weaponCombo || ((h.weapon1 || '-') + ' + ' + (h.weapon2 || '-'))).replace(/</g, '&lt;');
+          var level = h.level != null ? h.level : '-';
+          var worn = h.wornHaste != null ? (h.wornHaste + '%') : '-';
+          var eff = h.effectiveHaste != null ? (Number(h.effectiveHaste).toFixed(1) + '%') : '-';
+          var netAtk = h.netAttackRating != null ? h.netAttackRating : (h.attack != null ? h.attack : '-');
+          var ac = h.mobAC != null ? h.mobAC : '-';
+          var mh = typeof h.mainhandDps === 'number' ? h.mainhandDps.toFixed(2) : '-';
+          var oh = typeof h.offhandDps === 'number' ? h.offhandDps.toFixed(2) : '-';
+          var proc = typeof h.procDps === 'number' ? h.procDps.toFixed(2) : '-';
           var dps = (typeof h.dps === 'number') ? h.dps.toFixed(2) : '-';
-          return '<div class="easy-history-row"><span>' + w1 + ' / ' + w2 + '</span><span class="easy-history-dps">' + dps + '</span></div>';
+          return '<tr>' +
+            '<td title="' + combo.replace(/"/g, '&quot;') + '">' + combo + '</td>' +
+            '<td>' + level + '</td>' +
+            '<td>' + worn + '</td>' +
+            '<td>' + eff + '</td>' +
+            '<td>' + netAtk + '</td>' +
+            '<td>' + ac + '</td>' +
+            '<td>' + mh + '</td>' +
+            '<td>' + oh + '</td>' +
+            '<td>' + proc + '</td>' +
+            '<td class="easy-history-dps">' + dps + '</td>' +
+            '</tr>';
         }).join('');
+        listEl.innerHTML = '<div class="easy-history-table-wrap">' + header + rows + '</tbody></table></div>';
       }
       function initEasyModeUi() {
         buildEasyClassButtons();
@@ -3723,7 +3727,6 @@
         };
         setUiMode(UI_MODES.EASY);
         renderEasyHistory();
-        renderEasyResultLog();
       }
 
       function runRanged() {
@@ -3852,10 +3855,19 @@
         const arrowName = (arrowFromItemSearch && arrowDisplayName) ? arrowDisplayName : (arrowDamage > 0 ? arrowDamage + ' dmg' : '—');
         const rangedTotalAttack = report.displayedAttack != null ? report.displayedAttack : report.offenseRating;
         const rangedDps = report.durationSec > 0 ? (report.totalDamage / report.durationSec) : 0;
+        const rangedProcDps = report.durationSec > 0 ? (((report.ranged && report.ranged.procDamageTotal) || 0) / report.durationSec) : 0;
         SIM_HISTORY.unshift({
+          weaponCombo: rangedWeaponName + ' + ' + arrowName,
           weapon1: rangedWeaponName,
           weapon2: arrowName,
           targetName: window.selectedTargetNpc && window.selectedTargetNpc.name ? String(window.selectedTargetNpc.name).replace(/_/g, ' ') : undefined,
+          level: options.level,
+          wornHaste: parseInt(($('ranged-worn-haste') && $('ranged-worn-haste').value) || '0', 10) || 0,
+          effectiveHaste: report.effectiveHastePercent != null ? Number(report.effectiveHastePercent) : 0,
+          netAttackRating: rangedTotalAttack,
+          mainhandDps: rangedDps,
+          offhandDps: 0,
+          procDps: rangedProcDps,
           attack: rangedTotalAttack,
           mobAC: options.targetAC,
           dps: rangedDps

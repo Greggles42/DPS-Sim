@@ -201,6 +201,53 @@
     </div>
 
     <div class="card">
+      <h2>6.5) Double Attack, Triple Attack, and Dual Wield</h2>
+
+      <h3>Double attack (main-hand extra swing)</h3>
+      <p>
+        The simulator computes:
+      </p>
+      <div class="formula">doubleAttackEffective = doubleAttackSkill + level</div>
+      <div class="formula">doubleAttack succeeds if doubleAttackEffective &gt; randomInt(0, 499)</div>
+      <p>
+        Approximate chance:
+      </p>
+      <div class="formula">P(doubleAttack) ~= doubleAttackEffective / 500</div>
+      <p class="muted">
+        (Capped by the random roll range; bard and beastlord are excluded by sim logic.)
+      </p>
+
+      <h3>Triple attack (warrior/monk only)</h3>
+      <ul>
+        <li>Only <strong>Warrior</strong> and <strong>Monk</strong> at <strong>level 60+</strong>.</li>
+        <li>Only checked on rounds where double attack already succeeded.</li>
+      </ul>
+      <div class="formula">P(triple | double) = 13.5%</div>
+      <div class="formula">P(triple on round) ~= P(doubleAttack) * 0.135</div>
+
+      <h3>Dual wield (offhand round chance)</h3>
+      <p>
+        Offhand rounds are gated by dual-wield chance:
+      </p>
+      <div class="formula">dualWieldEffective = dualWieldSkill + level + ambidexterityBonus</div>
+      <div class="formula">dualWield succeeds if dualWieldEffective &gt; randomInt(0, 374)</div>
+      <div class="formula">P(offhand round) ~= dualWieldEffective / 375</div>
+
+      <h3>Independent offhand timer</h3>
+      <p>
+        Offhand swing timing is independent from main hand.
+      </p>
+      <ul>
+        <li>Main hand advances on its own timer from weapon 1 delay.</li>
+        <li>Offhand advances on its own timer from weapon 2 delay.</li>
+        <li>The offhand initial swing is randomly offset, then repeats independently.</li>
+      </ul>
+      <p class="muted">
+        This means offhand does not "wait" for main-hand events.
+      </p>
+    </div>
+
+    <div class="card">
       <h2>7) Elemental Damage on Weapons</h2>
       <p>
         Elemental weapon damage is treated as an extra base-damage adder before the melee damage roll.
