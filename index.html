@@ -3443,7 +3443,7 @@
       var modeBtn = $('btn-mode-toggle');
       if (modeBtn) modeBtn.addEventListener('click', toggleUiMode);
 
-      var EASY_CLASS_ORDER = ['warrior','cleric','paladin','ranger','shadowknight','druid','monk','bard','rogue','shaman','necromancer','wizard','magician','enchanter','beastlord'];
+      var EASY_CLASS_ORDER = ['bard','beastlord','cleric','druid','enchanter','magician','monk','necromancer','paladin','ranger','rogue','shadowknight','shaman','warrior','wizard'];
       function titleCaseClassName(classId) { return classId ? (classId.charAt(0).toUpperCase() + classId.slice(1)) : 'Unknown'; }
       function buildEasyClassButtons() {
         var wrap = $('easy-class-buttons');
@@ -3688,6 +3688,8 @@
         listEl.innerHTML = '<div class="easy-history-table-wrap">' + header + rows + '</tbody></table></div>';
       }
       function initEasyModeUi() {
+        var classEl = $('class');
+        if (classEl && !classEl.value) classEl.value = 'monk';
         buildEasyClassButtons();
         buildEasyLevelOptions();
         syncEasyFromAdvancedBasics();
@@ -3901,13 +3903,26 @@
         if (!ambiEl) return;
         ambiEl.checked = (level === 60 && ambidextrousClasses.includes(classId));
       }
-      function onClassOrLevelChange() {
+      function onClassOrLevelChange(opts) {
+        opts = opts || {};
+        const clampOnly = !!opts.clampOnly;
         const classId = ($('class').value || '').toLowerCase();
         if (typeof WeaponSkillCaps !== 'undefined' && classId) {
           const idx = WeaponSkillCaps.resolveClassIndex(WeaponSkillCaps.SkillCapsSpec, classId);
           if (idx >= 0) {
             const combat = WeaponSkillCaps.CombatSkillCaps;
-            const setCap = function (id, val) { var el = $(id); if (el) el.value = (val > 0) ? val : ''; };
+            const setCap = function (id, val) {
+              var el = $(id);
+              if (!el) return;
+              var cap = (val > 0) ? Number(val) : 0;
+              if (!clampOnly) {
+                el.value = cap > 0 ? String(cap) : '';
+                return;
+              }
+              if (cap <= 0) return;
+              var cur = parseInt(el.value, 10);
+              if (!isNaN(cur) && cur > cap) el.value = String(cap);
+            };
             const level = parseInt($('level').value, 10) || 60;
             if (typeof WeaponSkillCaps.getCombatSkillCap === 'function') {
               setCap('offense-skill', WeaponSkillCaps.getCombatSkillCap('offense', classId, level));
@@ -3927,8 +3942,15 @@
           }
           $('class-hint').textContent = 'Class and level auto-fill skills and weapon caps. Edit below to override.';
         } else if (classId && CLASSES[classId]) {
-          $('double-attack').value = CLASSES[classId].doubleAttack;
-          $('dual-wield').value = CLASSES[classId].dualWield;
+          if (!clampOnly) {
+            $('double-attack').value = CLASSES[classId].doubleAttack;
+            $('dual-wield').value = CLASSES[classId].dualWield;
+          } else {
+            var da = parseInt($('double-attack').value, 10);
+            var dw = parseInt($('dual-wield').value, 10);
+            if (!isNaN(da) && da > CLASSES[classId].doubleAttack) $('double-attack').value = String(CLASSES[classId].doubleAttack);
+            if (!isNaN(dw) && dw > CLASSES[classId].dualWield) $('dual-wield').value = String(CLASSES[classId].dualWield);
+          }
           $('class-hint').textContent = 'Class and level auto-fill skills and weapon caps. Edit below to override.';
         } else {
           $('class-hint').textContent = 'Pick a class to auto-fill skills. Edit below to override.';
@@ -3955,7 +3977,18 @@
         const scfClasses = ['paladin', 'shadowknight', 'ranger', 'bard', 'beastlord'];
         if (scfRow) scfRow.style.display = scfClasses.indexOf(classId) >= 0 ? '' : 'none';
         updateFistweavingVisibility();
-        updateWeaponSkillInputs();
+        if (!clampOnly) {
+          updateWeaponSkillInputs();
+        } else if (typeof WeaponSkillCaps !== 'undefined' && classId) {
+          const level = parseInt($('level').value, 10) || 60;
+          VALID_SKILL_KEYS.forEach(function (key) {
+            const cap = WeaponSkillCaps.getCapForSimClass(classId, key, level);
+            const el = $('skill-' + key);
+            if (!el || !(cap > 0)) return;
+            const cur = parseInt(el.value, 10);
+            if (!isNaN(cur) && cur > cap) el.value = String(cap);
+          });
+        }
         updateClassIcon();
         applyGenericTargetIfNoneSelected();
         updateItemSearchDebug();
@@ -3977,9 +4010,19 @@
         iconEl.alt = classId ? (classId.charAt(0).toUpperCase() + classId.slice(1)) : '';
         wrap.style.display = '';
       }
-      $('class').addEventListener('change', onClassOrLevelChange);
-      $('level').addEventListener('change', onClassOrLevelChange);
-      $('level').addEventListener('input', onClassOrLevelChange);
+      var lastMeleeLevel = parseInt(($('level') && $('level').value) || '60', 10) || 60;
+      $('class').addEventListener('change', function () {
+        onClassOrLevelChange({ clampOnly: false });
+        lastMeleeLevel = parseInt(($('level') && $('level').value) || '60', 10) || 60;
+      });
+      function onMeleeLevelEdited() {
+        var newLevel = parseInt(($('level') && $('level').value) || '60', 10) || 60;
+        var reduced = newLevel < lastMeleeLevel;
+        onClassOrLevelChange({ clampOnly: reduced });
+        lastMeleeLevel = newLevel;
+      }
+      $('level').addEventListener('change', onMeleeLevelEdited);
+      $('level').addEventListener('input', onMeleeLevelEdited);
       var rangedLevelEl = $('ranged-level');
       if (rangedLevelEl) {
         rangedLevelEl.addEventListener('change', function () { applyGenericTargetIfNoneSelected(); updateItemSearchDebug(); });
