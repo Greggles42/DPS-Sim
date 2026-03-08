@@ -430,6 +430,92 @@
     #weapon2-section.is-disabled .weapon-name {
       text-decoration: line-through;
     }
+
+    .mode-toggle-row { margin: 0.25rem 0 1rem; }
+    .mode-toggle-btn {
+      background: var(--input-bg);
+      color: var(--text);
+      border: 1px solid var(--border);
+      margin: 0;
+      padding: 0.55rem 0.85rem;
+      font-size: 0.9rem;
+    }
+    .mode-toggle-btn:hover { border-color: var(--accent); }
+    .mode-toggle-btn .mode-toggle-next { color: var(--muted); margin-left: 0.25rem; }
+    .easy-only { display: none; }
+    body[data-ui-mode="easy"] .easy-only { display: block; }
+    body[data-ui-mode="easy"] .advanced-only { display: none !important; }
+    .easy-layout {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1rem;
+    }
+    .easy-grid {
+      display: grid;
+      gap: 0.9rem;
+      grid-template-columns: minmax(160px, 220px) minmax(180px, 220px) minmax(260px, 1fr);
+      align-items: start;
+    }
+    .easy-col { background: rgba(0, 0, 0, 0.12); border: 1px solid var(--border); border-radius: 8px; padding: 0.75rem; }
+    .easy-col h3 { margin: 0 0 0.6rem; font-size: 0.85rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+    .easy-class-stack { display: grid; gap: 0.35rem; max-height: 390px; overflow-y: auto; padding-right: 0.15rem; }
+    .easy-class-btn {
+      width: 100%;
+      text-align: left;
+      margin: 0;
+      padding: 0.5rem 0.6rem;
+      background: var(--input-bg);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-size: 0.85rem;
+    }
+    .easy-class-btn.is-selected {
+      background: rgba(126, 184, 218, 0.2);
+      border-color: var(--accent);
+      color: var(--accent);
+      box-shadow: inset 0 0 0 1px rgba(126, 184, 218, 0.4);
+    }
+    .easy-field { margin-bottom: 0.65rem; }
+    .easy-field:last-child { margin-bottom: 0; }
+    .easy-field label { font-size: 0.8rem; }
+    .easy-field input[type="range"] { width: 100%; margin: 0.25rem 0 0; }
+    .easy-range-readout { font-size: 1.05rem; font-weight: 700; color: var(--accent); }
+    .easy-weapon-card { margin-bottom: 0.7rem; padding: 0.55rem; border: 1px solid var(--border); border-radius: 6px; background: var(--input-bg); }
+    .easy-weapon-card:last-child { margin-bottom: 0; }
+    .easy-weapon-head { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; margin-bottom: 0.4rem; }
+    .easy-weapon-name { font-size: 0.9rem; font-weight: 600; min-height: 1.2em; }
+    .easy-weapon-detail { font-size: 0.78rem; color: var(--muted); margin-top: 0.15rem; }
+    .easy-weapon-icon { width: 36px; height: 36px; border: 1px solid var(--border); border-radius: 4px; object-fit: contain; background: #111; cursor: pointer; }
+    .easy-weapon-icon.is-empty { opacity: 0.45; cursor: default; }
+    .easy-weapon-search { position: relative; }
+    .easy-weapon-search input { margin: 0; }
+    .easy-weapon-search .item-search-list { max-height: 210px; }
+    .easy-actions { margin-top: 0.9rem; }
+    #btn-run-easy { width: 100%; margin: 0; font-size: 1.15rem; padding: 0.85rem 1rem; }
+    .easy-dps { margin-top: 0.6rem; text-align: center; }
+    .easy-dps-label { font-size: 0.75rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+    .easy-dps-value { font-size: 2.3rem; font-weight: 800; color: var(--accent); line-height: 1.05; }
+    .easy-assumptions-wrap, .easy-history-wrap {
+      margin-top: 0.9rem;
+      background: rgba(0, 0, 0, 0.12);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0.75rem;
+    }
+    .easy-assumptions-wrap h3, .easy-history-wrap h3 { margin: 0 0 0.5rem; font-size: 0.85rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+    #easy-assumptions { width: 100%; min-height: 80px; resize: vertical; background: var(--input-bg); border: 1px solid var(--border); color: var(--text); border-radius: 4px; padding: 0.55rem; font-family: inherit; font-size: 0.88rem; }
+    #easy-history-list { max-height: 220px; overflow-y: auto; font-size: 0.85rem; }
+    .easy-history-row { display: grid; grid-template-columns: 1fr auto; gap: 0.45rem; padding: 0.35rem 0; border-bottom: 1px solid var(--border); }
+    .easy-history-row:last-child { border-bottom: none; }
+    .easy-history-dps { color: var(--accent); font-weight: 600; text-align: right; }
+    #easy-result-log-list { max-height: 220px; overflow-y: auto; font-size: 0.82rem; }
+    .easy-result-log-row { padding: 0.42rem 0; border-bottom: 1px solid var(--border); }
+    .easy-result-log-row:last-child { border-bottom: none; }
+    .easy-result-log-head { color: var(--text); font-weight: 600; margin-bottom: 0.18rem; }
+    .easy-result-log-detail { color: var(--muted); }
+
   </style>
 </head>
 <body>
@@ -446,12 +532,87 @@
     </div>
   </div>
 
-  <div class="tab-bar">
+  <div class="mode-toggle-row">
+    <button type="button" id="btn-mode-toggle" class="mode-toggle-btn">Switch to Advanced Mode <span class="mode-toggle-next">(current: Easy)</span></button>
+  </div>
+
+  <div id="easy-mode-root" class="easy-only">
+    <section class="easy-layout">
+      <div class="easy-grid">
+        <div class="easy-col">
+          <h3>Class</h3>
+          <div id="easy-class-buttons" class="easy-class-stack"></div>
+        </div>
+        <div class="easy-col">
+          <h3>Character</h3>
+          <div class="easy-field">
+            <label for="easy-level">Character level</label>
+            <select id="easy-level"></select>
+          </div>
+          <div class="easy-field">
+            <label for="easy-worn-haste">Worn haste</label>
+            <div class="easy-range-readout" id="easy-worn-haste-value">41%</div>
+            <input type="range" id="easy-worn-haste" min="0" max="41" step="1" value="41">
+          </div>
+        </div>
+        <div class="easy-col">
+          <h3>Weapons</h3>
+          <div class="easy-weapon-card">
+            <div class="easy-weapon-head">
+              <div>
+                <div class="easy-weapon-name" id="easy-w1-name">Main hand: Unequipped</div>
+                <div class="easy-weapon-detail" id="easy-w1-detail">DMG: - | Delay: - | Proc: -</div>
+              </div>
+              <img id="easy-w1-icon" class="easy-weapon-icon is-empty" alt="Main hand weapon icon">
+            </div>
+            <div class="easy-weapon-search">
+              <input type="text" id="easy-w1-item-search" placeholder="Search main hand (3+ chars)" autocomplete="off">
+              <div id="easy-w1-item-search-list" class="item-search-list" role="listbox"></div>
+            </div>
+          </div>
+          <div class="easy-weapon-card">
+            <div class="easy-weapon-head">
+              <div>
+                <div class="easy-weapon-name" id="easy-w2-name">Offhand: Unequipped</div>
+                <div class="easy-weapon-detail" id="easy-w2-detail">DMG: - | Delay: - | Proc: -</div>
+              </div>
+              <img id="easy-w2-icon" class="easy-weapon-icon is-empty" alt="Offhand weapon icon">
+            </div>
+            <div class="easy-weapon-search">
+              <input type="text" id="easy-w2-item-search" placeholder="Search offhand (3+ chars)" autocomplete="off">
+              <div id="easy-w2-item-search-list" class="item-search-list" role="listbox"></div>
+            </div>
+          </div>
+          <div class="easy-actions">
+            <button type="button" id="btn-run-easy">Calculate DPS</button>
+            <div class="easy-dps">
+              <div class="easy-dps-label">Resulting DPS</div>
+              <div id="easy-dps-value" class="easy-dps-value">-</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="easy-assumptions-wrap">
+        <h3>Assumptions Made</h3>
+        <textarea id="easy-assumptions" placeholder="Configured assumptions will appear here."></textarea>
+      </div>
+      <div class="easy-history-wrap">
+        <h3>Log History</h3>
+        <div id="easy-history-list"></div>
+      </div>
+      <div class="easy-history-wrap">
+        <h3>Log Result Box</h3>
+        <div id="easy-result-log-list"></div>
+      </div>
+    </section>
+  </div>
+
+  <div class="tab-bar advanced-only">
     <button type="button" class="tab-btn active" id="tab-melee" aria-selected="true">Melee</button>
     <button type="button" class="tab-btn" id="tab-ranged" aria-selected="false">Ranged</button>
   </div>
 
-  <div class="main-layout">
+  <div class="main-layout advanced-only">
   <div class="main-left">
   <div class="tab-content-wrapper">
   <div id="melee-tab" class="tab-panel">
@@ -896,7 +1057,7 @@
   </aside>
   </div>
 
-  <section style="margin-top: 1rem;">
+  <section class="advanced-only" style="margin-top: 1rem;">
     <h2>Version log</h2>
     <ul style="font-size: 0.9rem; color: var(--muted); margin: 0; padding-left: 1.25rem;">
       <li><strong>0.11</strong> — Implemented haste caps. Split worn and spell haste out into individual components. Improved damage calculation and backstab should be much more accurate. Items with required levels are filtered out from weapon list if your character level is too low. Automatically scale generic target info based on character level. Removed some PoP items from the luclin weapons list.</li>
@@ -1541,6 +1702,7 @@
         if (prefix === 'w1' && id === 'unequipped') updateWeaponNameDisplay('w2');
         updateBackstabModFromEquipment();
         updateItemSearchDebug();
+        syncEasyWeaponSummaries();
       }
 
       // Class-specific defaults and modifiers (EQMacEmu / attack.cpp style)
@@ -1897,6 +2059,7 @@
 
         const dpsEl = $('dps-value');
         if (dpsEl && report.durationSec) dpsEl.textContent = (report.totalDamage / report.durationSec).toFixed(2);
+        updateEasyDpsFromGlobal();
 
         const histContainer = $('histogram-container');
         if (reports.length > 0) {
@@ -1924,6 +2087,7 @@
         });
         if (SIM_HISTORY.length > SIM_HISTORY_MAX) SIM_HISTORY.pop();
         renderSimHistory();
+        renderEasyHistory();
 
         if (USAGE_LOG_URL) {
           logUsage({
@@ -3220,6 +3384,7 @@
         clearHistoryBtn.addEventListener('click', function () {
           SIM_HISTORY.length = 0;
           renderSimHistory();
+          renderEasyHistory();
         });
       }
 
@@ -3251,6 +3416,301 @@
       }
       $('tab-melee').addEventListener('click', function () { showTab('melee'); });
       $('tab-ranged').addEventListener('click', function () { showTab('ranged'); });
+      var UI_MODES = { EASY: 'easy', ADVANCED: 'advanced' };
+      function setUiMode(mode) {
+        var normalized = mode === UI_MODES.ADVANCED ? UI_MODES.ADVANCED : UI_MODES.EASY;
+        document.body.setAttribute('data-ui-mode', normalized);
+        var btn = $('btn-mode-toggle');
+        if (btn) {
+          btn.innerHTML = normalized === UI_MODES.EASY
+            ? 'Switch to Advanced Mode <span class="mode-toggle-next">(current: Easy)</span>'
+            : 'Switch to Easy Mode <span class="mode-toggle-next">(current: Advanced)</span>';
+        }
+      }
+      function toggleUiMode() {
+        var current = document.body.getAttribute('data-ui-mode') || UI_MODES.EASY;
+        setUiMode(current === UI_MODES.EASY ? UI_MODES.ADVANCED : UI_MODES.EASY);
+      }
+      var modeBtn = $('btn-mode-toggle');
+      if (modeBtn) modeBtn.addEventListener('click', toggleUiMode);
+
+      var EASY_CLASS_ORDER = ['warrior','cleric','paladin','ranger','shadowknight','druid','monk','bard','rogue','shaman','necromancer','wizard','magician','enchanter','beastlord'];
+      function titleCaseClassName(classId) { return classId ? (classId.charAt(0).toUpperCase() + classId.slice(1)) : 'Unknown'; }
+      function buildEasyClassButtons() {
+        var wrap = $('easy-class-buttons');
+        if (!wrap) return;
+        wrap.innerHTML = '';
+        EASY_CLASS_ORDER.forEach(function (classId) {
+          var btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = 'easy-class-btn';
+          btn.setAttribute('data-class-id', classId);
+          btn.textContent = titleCaseClassName(classId);
+          btn.addEventListener('click', function () {
+            var classEl = $('class');
+            if (!classEl) return;
+            classEl.value = classId;
+            classEl.dispatchEvent(new Event('change'));
+            syncEasyClassSelection();
+          });
+          wrap.appendChild(btn);
+        });
+      }
+      function syncEasyClassSelection() {
+        var selected = (($('class') && $('class').value) || '').toLowerCase();
+        document.querySelectorAll('#easy-class-buttons .easy-class-btn').forEach(function (btn) {
+          btn.classList.toggle('is-selected', (btn.getAttribute('data-class-id') || '').toLowerCase() === selected);
+        });
+      }
+      function buildEasyLevelOptions() {
+        var levelEl = $('easy-level'); if (!levelEl) return;
+        var options = [];
+        for (var i = 1; i <= 65; i++) options.push('<option value="' + i + '"' + (i >= 61 ? ' disabled' : '') + '>' + i + (i >= 61 ? ' (locked)' : '') + '</option>');
+        levelEl.innerHTML = options.join('');
+      }
+      function getEasyAssumptionsByLevel(level) {
+        var lvl = parseInt(level, 10) || 1;
+        if (lvl < 1) lvl = 1;
+        if (lvl > 60) lvl = 60;
+        var wornHaste = 0;
+        if (lvl >= 10 && lvl <= 39) wornHaste = 22;
+        else if (lvl >= 40 && lvl <= 59) wornHaste = 34;
+        else if (lvl === 60) wornHaste = 41;
+        return {
+          level: lvl,
+          wornHaste: wornHaste,
+          spellHaste: lvl === 60 ? 85 : 0,
+          spellAttack: lvl === 60 ? 150 : 0
+        };
+      }
+      function easyClassHasSpellCastingFury(classId) {
+        return ['paladin', 'shadowknight', 'ranger', 'bard', 'beastlord'].indexOf((classId || '').toLowerCase()) >= 0;
+      }
+      function setSpellCastingFuryRank(rank) {
+        var wanted = String(rank);
+        var radio = document.querySelector('input[name="spell-casting-fury"][value="' + wanted + '"]');
+        if (radio) radio.checked = true;
+      }
+      function updateEasyAssumptionsFromLevel(level) {
+        var a = getEasyAssumptionsByLevel(level);
+        var assumptions = $('easy-assumptions');
+        if (!assumptions) return;
+        assumptions.value = [
+          'Worn haste by level:',
+          '- Level 10-39: 22%',
+          '- Level 40-59: 34%',
+          '- Level 60: 41%',
+          '',
+          'Current level assumptions (' + a.level + '):',
+          '- Worn haste default: ' + a.wornHaste + '%',
+          '- Spell haste: ' + a.spellHaste + '%',
+          '- Spell attack: ' + a.spellAttack,
+          '- Ambidexterity: ' + (a.level === 60 ? 'On' : 'Off'),
+          '- Combat Fury 3 (6% crit): ' + (a.level === 60 ? 'On' : 'Off'),
+          '- Spell Casting Fury: class-based at level 60'
+        ].join('\n');
+      }
+      function syncEasyFromAdvancedBasics() {
+        var levelSrc = $('level'); var easyLevel = $('easy-level');
+        if (levelSrc && easyLevel) { var lvl = parseInt(levelSrc.value, 10); if (isNaN(lvl)) lvl = 60; if (lvl > 60) lvl = 60; if (lvl < 1) lvl = 1; easyLevel.value = String(lvl); }
+        var currentLevel = easyLevel ? (parseInt(easyLevel.value, 10) || 1) : 1;
+        var defaults = getEasyAssumptionsByLevel(currentLevel);
+        var easyHaste = $('easy-worn-haste');
+        if (easyHaste) easyHaste.value = String(defaults.wornHaste);
+        var readout = $('easy-worn-haste-value');
+        if (readout) readout.textContent = String(defaults.wornHaste) + '%';
+        var wornSrc = $('worn-haste');
+        if (wornSrc) wornSrc.value = String(defaults.wornHaste);
+        syncEasyClassSelection();
+        updateEasyAssumptionsFromLevel(currentLevel);
+      }
+      function syncAdvancedFromEasyBasics() {
+        var easyLevel = $('easy-level'); var levelEl = $('level');
+        if (easyLevel && levelEl) { levelEl.value = easyLevel.value; levelEl.dispatchEvent(new Event('input')); levelEl.dispatchEvent(new Event('change')); }
+        var levelForAssumptions = easyLevel ? (parseInt(easyLevel.value, 10) || 1) : 1;
+        var assumptions = getEasyAssumptionsByLevel(levelForAssumptions);
+        var easyHaste = $('easy-worn-haste');
+        var wornHaste = $('worn-haste');
+        if (easyHaste && wornHaste) wornHaste.value = easyHaste.value;
+        var spellHaste = $('spell-haste');
+        if (spellHaste) spellHaste.value = String(assumptions.spellHaste);
+        var spellAttack = $('spell-attack');
+        if (spellAttack) spellAttack.value = String(assumptions.spellAttack);
+        var ambi = $('ambidexterity-aa');
+        if (ambi) ambi.checked = assumptions.level === 60;
+        var critChance = $('crit-chance-aa');
+        if (critChance) critChance.value = assumptions.level === 60 ? '6' : '0';
+        var classId = (($('class') && $('class').value) || '').toLowerCase();
+        if (assumptions.level === 60 && easyClassHasSpellCastingFury(classId)) setSpellCastingFuryRank(3);
+        else setSpellCastingFuryRank(0);
+      }
+      function getEasyWeaponDisplay(prefix) {
+        var d = parseInt($(prefix + '-damage').value, 10) || 0; var dl = parseInt($(prefix + '-delay').value, 10) || 0;
+        if (!(d > 0 && dl > 0)) return 'Unequipped';
+        var name = prefix === 'w1' ? w1DisplayName : w2DisplayName;
+        var fromSearch = prefix === 'w1' ? w1FromItemSearch : w2FromItemSearch;
+        return (fromSearch && name) ? name : (d + 'd/' + dl);
+      }
+      function syncEasyWeaponSummary(prefix) {
+        var nameEl = $(prefix === 'w1' ? 'easy-w1-name' : 'easy-w2-name');
+        var detailEl = $(prefix === 'w1' ? 'easy-w1-detail' : 'easy-w2-detail');
+        var iconEl = $(prefix === 'w1' ? 'easy-w1-icon' : 'easy-w2-icon');
+        if (nameEl) nameEl.textContent = (prefix === 'w1' ? 'Main hand: ' : 'Offhand: ') + getEasyWeaponDisplay(prefix);
+        if (detailEl) {
+          var dmg = parseInt($(prefix + '-damage').value, 10) || 0;
+          var delay = parseInt($(prefix + '-delay').value, 10) || 0;
+          var proc = (($(prefix + '-proc') && $(prefix + '-proc').value) || '').trim();
+          if (dmg > 0 && delay > 0) detailEl.textContent = 'DMG: ' + dmg + ' | Delay: ' + delay + ' | Proc: ' + (proc || '-');
+          else detailEl.textContent = 'DMG: - | Delay: - | Proc: -';
+        }
+        var sourceIcon = $(prefix + '-weapon-icon'); var sourceWrap = $(prefix + '-weapon-icon-wrap');
+        var src = sourceIcon ? sourceIcon.getAttribute('src') : ''; var visible = sourceWrap && sourceWrap.style.display !== 'none' && !!src;
+        if (iconEl) {
+          if (visible) { iconEl.src = src; iconEl.classList.remove('is-empty'); iconEl.title = 'Click to unequip'; }
+          else { iconEl.removeAttribute('src'); iconEl.classList.add('is-empty'); iconEl.title = 'No weapon equipped'; }
+        }
+      }
+      function syncEasyWeaponSummaries() { syncEasyWeaponSummary('w1'); syncEasyWeaponSummary('w2'); }
+      function closeEasyDropdown(prefix) { var listEl = $('easy-' + prefix + '-item-search-list'); if (listEl) listEl.classList.remove('is-open'); }
+      function openEasyDropdown(prefix) { var listEl = $('easy-' + prefix + '-item-search-list'); if (listEl) listEl.classList.add('is-open'); }
+      function renderEasyDropdown(prefix, items, loading, query) {
+        var listEl = $('easy-' + prefix + '-item-search-list'); if (!listEl) return;
+        var q = (query || '').trim(); var hasQuery = q.length >= ITEM_SEARCH_MIN_CHARS;
+        var filtered = (items || []).filter(function (w) {
+          if (!slotOkForPrefix(prefix, w) || !classOkForSelected(w)) return false;
+          if (prefix === 'w2') {
+            var offhandBlockedTypes = { '2hs': 1, '2hp': 1, '2hb': 1, 'archery': 1, 'bow': 1 };
+            if (w.is2H || w.offhandBlocked) return false; if (w.type && offhandBlockedTypes[w.type]) return false;
+          }
+          return true;
+        });
+        var recent = getRecentWeapons().filter(function (w) { return slotOkForPrefix(prefix, w) && classOkForSelected(w); });
+        function itemButton(w) { return '<button type="button" class="item-search-item" data-payload="' + encodeURIComponent(JSON.stringify(w)) + '"><span>' + (w.name || '').replace(/</g, '&lt;') + '</span><div class="item-search-item-detail">' + renderItemLabel(w).replace(/</g, '&lt;') + '</div></button>'; }
+        var html = '';
+        if (hasQuery) { html += '<div class="item-search-section">Search results</div>'; if (loading) html += '<div class="item-search-msg">Searching...</div>'; else if (!filtered.length) html += '<div class="item-search-msg">No results</div>'; else html += filtered.map(itemButton).join(''); }
+        if (recent.length) html += '<div class="item-search-section">Recent</div>' + recent.map(itemButton).join('');
+        if (!html) html = '<div class="item-search-msg">Type at least ' + ITEM_SEARCH_MIN_CHARS + ' characters to search</div>';
+        listEl.innerHTML = html;
+        listEl.querySelectorAll('.item-search-item[data-payload]').forEach(function (btn) {
+          btn.addEventListener('mousedown', function (e) {
+            e.preventDefault(); var payload = btn.getAttribute('data-payload'); if (!payload) return;
+            var w = null; try { w = JSON.parse(decodeURIComponent(payload)); } catch (err) { w = null; }
+            if (!w) return; saveRecentWeapon(w); applyWeaponFromSearch(prefix, w); syncEasyWeaponSummaries();
+            var inputEl = $('easy-' + prefix + '-item-search'); if (inputEl) inputEl.value = ''; closeEasyDropdown(prefix);
+          });
+        });
+      }
+      function runEasyItemSearch(prefix) {
+        var inputEl = $('easy-' + prefix + '-item-search'); if (!inputEl) return;
+        var query = (inputEl.value || '').trim();
+        if (query.length < ITEM_SEARCH_MIN_CHARS) { renderEasyDropdown(prefix, [], false, query); openEasyDropdown(prefix); return; }
+        renderEasyDropdown(prefix, [], true, query); openEasyDropdown(prefix);
+        var selectedClassId = ($('class').value || '').trim().toLowerCase();
+        var useApi = $('use-itemsearch-api') && $('use-itemsearch-api').checked;
+        var p = (useApi && typeof ItemSearch !== 'undefined' && ItemSearch.searchWeapons) ? ItemSearch.searchWeapons(query, selectedClassId) : searchWeaponsFromWeaponList(query, selectedClassId);
+        Promise.resolve(p).then(function (results) { renderEasyDropdown(prefix, results || [], false, query); }).catch(function () { renderEasyDropdown(prefix, [], false, query); });
+      }
+      function setupEasyItemSearch(prefix) {
+        var inputEl = $('easy-' + prefix + '-item-search'); var listEl = $('easy-' + prefix + '-item-search-list'); if (!inputEl || !listEl) return;
+        var debounced = debounce(function () { runEasyItemSearch(prefix); }, ITEM_SEARCH_DEBOUNCE_MS);
+        inputEl.addEventListener('focus', function () { runEasyItemSearch(prefix); });
+        inputEl.addEventListener('input', function () { debounced(); });
+        inputEl.addEventListener('keydown', function (e) { if (e.key === 'Escape') { closeEasyDropdown(prefix); inputEl.blur(); } });
+      }
+      function updateEasyDpsFromGlobal() { var easyDps = $('easy-dps-value'); var dps = $('dps-value'); if (easyDps && dps) easyDps.textContent = dps.textContent || '-'; }
+      var EASY_RESULT_LOG = [];
+      var EASY_RESULT_LOG_MAX = 30;
+      function renderEasyResultLog() {
+        var listEl = $('easy-result-log-list');
+        if (!listEl) return;
+        if (EASY_RESULT_LOG.length === 0) {
+          listEl.innerHTML = '<p class="hint" style="margin:0;">No DPS breakdowns logged yet.</p>';
+          return;
+        }
+        listEl.innerHTML = EASY_RESULT_LOG.map(function (row) {
+          return '<div class="easy-result-log-row">' +
+            '<div class="easy-result-log-head">Run ' + row.run + ' - Total DPS: ' + row.totalDps.toFixed(2) + '</div>' +
+            '<div class="easy-result-log-detail">Mainhand DPS: ' + row.mainhandDps.toFixed(2) + ' | Offhand DPS: ' + row.offhandDps.toFixed(2) + ' | Proc DPS: ' + row.procDps.toFixed(2) + '</div>' +
+            '</div>';
+        }).join('');
+      }
+      function logEasyResultBreakdownFromLastRun() {
+        var payload = window._lastSimRunExport;
+        if (!payload || payload.mode !== 'melee' || !payload.averaged) return;
+        var r = payload.averaged;
+        var dur = Number(r.durationSec || 0);
+        if (!(dur > 0)) return;
+        var w1 = r.weapon1 || {};
+        var w2 = r.weapon2 || {};
+        var mh = Number(w1.totalDamage || 0) / dur;
+        var oh = Number(w2.totalDamage || 0) / dur;
+        var proc = (Number(w1.procDamageTotal || 0) + Number(w2.procDamageTotal || 0)) / dur;
+        var total = Number(r.totalDamage || 0) / dur;
+        var nextRun = EASY_RESULT_LOG.length > 0 ? (EASY_RESULT_LOG[0].run + 1) : 1;
+        EASY_RESULT_LOG.unshift({ run: nextRun, mainhandDps: mh, offhandDps: oh, procDps: proc, totalDps: total });
+        if (EASY_RESULT_LOG.length > EASY_RESULT_LOG_MAX) EASY_RESULT_LOG.pop();
+        renderEasyResultLog();
+      }
+      function runEasyModeSimulation() {
+        syncAdvancedFromEasyBasics();
+        window.selectedTargetNpc = null;
+        var targetSearch = $('target-npc-search'); var rangedTargetSearch = $('ranged-target-npc-search');
+        if (targetSearch) targetSearch.value = ''; if (rangedTargetSearch) rangedTargetSearch.value = '';
+        applyGenericTargetIfNoneSelected();
+        run();
+        updateEasyDpsFromGlobal();
+        logEasyResultBreakdownFromLastRun();
+      }
+      function renderEasyHistory() {
+        var listEl = $('easy-history-list'); if (!listEl) return;
+        if (SIM_HISTORY.length === 0) { listEl.innerHTML = '<p class="hint" style="margin:0;">No runs yet this session.</p>'; return; }
+        listEl.innerHTML = SIM_HISTORY.slice(0, 25).map(function (h) {
+          var w1 = (h.weapon1 || '-').replace(/</g, '&lt;'); var w2 = (h.weapon2 || '-').replace(/</g, '&lt;');
+          var dps = (typeof h.dps === 'number') ? h.dps.toFixed(2) : '-';
+          return '<div class="easy-history-row"><span>' + w1 + ' / ' + w2 + '</span><span class="easy-history-dps">' + dps + '</span></div>';
+        }).join('');
+      }
+      function initEasyModeUi() {
+        buildEasyClassButtons();
+        buildEasyLevelOptions();
+        syncEasyFromAdvancedBasics();
+        syncEasyWeaponSummaries();
+        setupEasyItemSearch('w1');
+        setupEasyItemSearch('w2');
+        var easyLevel = $('easy-level');
+        if (easyLevel) easyLevel.addEventListener('change', function () {
+          if ((parseInt(easyLevel.value, 10) || 0) > 60) easyLevel.value = '60';
+          var lvl = parseInt(easyLevel.value, 10) || 1;
+          var assumptions = getEasyAssumptionsByLevel(lvl);
+          var easyHasteEl = $('easy-worn-haste');
+          if (easyHasteEl) easyHasteEl.value = String(assumptions.wornHaste);
+          var readout = $('easy-worn-haste-value');
+          if (readout) readout.textContent = String(assumptions.wornHaste) + '%';
+          updateEasyAssumptionsFromLevel(lvl);
+          syncAdvancedFromEasyBasics();
+        });
+        var easyHaste = $('easy-worn-haste');
+        if (easyHaste) easyHaste.addEventListener('input', function () {
+          var v = parseInt(easyHaste.value, 10); if (isNaN(v)) v = 0; v = Math.max(0, Math.min(41, v));
+          easyHaste.value = String(v);
+          var readout = $('easy-worn-haste-value'); if (readout) readout.textContent = String(v) + '%';
+          var wornHaste = $('worn-haste'); if (wornHaste) wornHaste.value = String(v);
+        });
+        var easyRun = $('btn-run-easy'); if (easyRun) easyRun.addEventListener('click', runEasyModeSimulation);
+        var easyW1Icon = $('easy-w1-icon'); var easyW2Icon = $('easy-w2-icon');
+        if (easyW1Icon) easyW1Icon.addEventListener('click', function () { if (easyW1Icon.classList.contains('is-empty')) return; applyWeaponPreset('w1', 'unequipped'); updateWeapon2Disabled(); syncEasyWeaponSummaries(); });
+        if (easyW2Icon) easyW2Icon.addEventListener('click', function () { if (easyW2Icon.classList.contains('is-empty')) return; applyWeaponPreset('w2', 'unequipped'); syncEasyWeaponSummaries(); });
+        var assumptions = $('easy-assumptions');
+        if (assumptions && !assumptions.value) updateEasyAssumptionsFromLevel(parseInt(($('easy-level') && $('easy-level').value) || '1', 10) || 1);
+        window.setEasyAssumptions = function (list) {
+          var el = $('easy-assumptions'); if (!el) return;
+          if (Array.isArray(list)) { el.value = list.map(function (line) { return '- ' + String(line); }).join('\n'); return; }
+          el.value = String(list || '');
+        };
+        setUiMode(UI_MODES.EASY);
+        renderEasyHistory();
+        renderEasyResultLog();
+      }
 
       function runRanged() {
         var rankViewToggle = $('btn-rank-view-toggle');
@@ -3473,6 +3933,7 @@
         updateClassIcon();
         applyGenericTargetIfNoneSelected();
         updateItemSearchDebug();
+        syncEasyFromAdvancedBasics();
       }
       function updateClassIcon() {
         const classId = ($('class').value || '').toLowerCase();
@@ -4314,11 +4775,14 @@
 
       document.addEventListener('click', function (e) {
         if (e.target.closest('.item-search-wrap')) return;
+        if (e.target.closest('.easy-weapon-search')) return;
         if (e.target.closest('.target-npc-wrap')) return;
         closeItemSearchDropdown('w1');
         closeItemSearchDropdown('w2');
         closeItemSearchDropdown('ranged-weapon');
         closeItemSearchDropdown('arrow');
+        closeEasyDropdown('w1');
+        closeEasyDropdown('w2');
         closeTargetNpcDropdown();
         closeRangedTargetNpcDropdown();
       });
@@ -4327,6 +4791,8 @@
       setupItemSearch('w2');
       setupItemSearch('ranged-weapon');
       setupItemSearch('arrow');
+
+      initEasyModeUi();
 
       function clearRangedArrowItemSearchOnManualEdit(kind) {
         if (kind === 'ranged') { rangedFromItemSearch = false; }
