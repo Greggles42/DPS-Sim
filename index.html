@@ -2066,6 +2066,7 @@
               maxSpellProcCritDmg: reports.length ? Math.max(...reports.map(function (r) { return r.weapon1.maxSpellProcCritDmg || 0; })) : 0,
               slayUndeadHits: Math.round(reports.reduce((s, r) => s + (r.weapon1.slayUndeadHits || 0), 0) / runs),
               slayUndeadDamageTotal: Math.round(reports.reduce((s, r) => s + (r.weapon1.slayUndeadDamageTotal || 0), 0) / runs),
+              maxSlayUndeadHit: reports.some(function (r) { return (r.weapon1.slayUndeadHits || 0) > 0; }) ? Math.max.apply(null, reports.map(function (r) { return r.weapon1.maxSlayUndeadHit || 0; })) : 0,
               anticipatedProcChancePerRound: reports[0].weapon1.anticipatedProcChancePerRound,
               anticipatedProcsPerMinute: reports[0].weapon1.anticipatedProcsPerMinute,
               procLevelBlocked: !!reports[0].weapon1.procLevelBlocked,
@@ -3681,6 +3682,11 @@
         var radio = document.querySelector('input[name="spell-casting-fury"][value="' + wanted + '"]');
         if (radio) radio.checked = true;
       }
+      function setSlayUndeadRank(rank) {
+        var wanted = String(rank);
+        var radio = document.querySelector('input[name="slay-undead"][value="' + wanted + '"]');
+        if (radio) radio.checked = true;
+      }
       function updateEasyAssumptionsFromLevel(level, classId) {
         var a = getEasyAssumptionsByLevel(level);
         var selectedClassId = (classId || (($('class') && $('class').value) || '')).toLowerCase();
@@ -3701,6 +3707,9 @@
           lines.push('- Worn attack: 0');
           if (easyClassHasSpellCastingFury(selectedClassId)) {
             lines.push('- Spell Casting Fury: Rank 3');
+          }
+          if (selectedClassId === 'paladin') {
+            lines.push('- Slay Undead: Rank 3');
           }
         }
         assumptions.value = lines.join('\n');
@@ -3749,6 +3758,8 @@
         var classId = (($('class') && $('class').value) || '').toLowerCase();
         if (assumptions.level === 60 && easyClassHasSpellCastingFury(classId)) setSpellCastingFuryRank(3);
         else setSpellCastingFuryRank(0);
+        if (assumptions.level === 60 && classId === 'paladin') setSlayUndeadRank(3);
+        else setSlayUndeadRank(0);
       }
       function getEasyWeaponDisplay(prefix) {
         var d = parseInt($(prefix + '-damage').value, 10) || 0; var dl = parseInt($(prefix + '-delay').value, 10) || 0;

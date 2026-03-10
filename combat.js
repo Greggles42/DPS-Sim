@@ -999,7 +999,7 @@
     const roundsPerMinW1 = (delay1Ms > 0 && hasMainHand) ? (60 * 1000 / delay1Ms) : 0;
     const roundsPerMinW2 = (delay2Ms > 0 && w2) ? (60 * 1000 / delay2Ms) : 0;
     const report = {
-      weapon1: { swings: 0, hits: 0, totalDamage: 0, maxDamage: 0, minDamage: Infinity, hitList: [], procs: 0, procDamageTotal: 0, procResists: 0, procFullResists: 0, procPartialResists: 0, procResistDamageLost: 0, spellProcCrits: 0, maxSpellProcCritDmg: 0, slayUndeadHits: 0, slayUndeadDamageTotal: 0, rounds: 0, single: 0, double: 0, triple: 0 },
+      weapon1: { swings: 0, hits: 0, totalDamage: 0, maxDamage: 0, minDamage: Infinity, hitList: [], procs: 0, procDamageTotal: 0, procResists: 0, procFullResists: 0, procPartialResists: 0, procResistDamageLost: 0, spellProcCrits: 0, maxSpellProcCritDmg: 0, slayUndeadHits: 0, slayUndeadDamageTotal: 0, maxSlayUndeadHit: 0, rounds: 0, single: 0, double: 0, triple: 0 },
       weapon2: { swings: 0, hits: 0, totalDamage: 0, maxDamage: 0, minDamage: Infinity, hitList: [], procs: 0, procDamageTotal: 0, procResists: 0, procFullResists: 0, procPartialResists: 0, procResistDamageLost: 0, spellProcCrits: 0, maxSpellProcCritDmg: 0, rounds: 0, single: 0, double: 0, triple: 0 },
       durationSec: options.fightDurationSec,
       rawHastePercent: !Number.isNaN(Number(options.hastePercent)) ? Number(options.hastePercent) : 0,
@@ -1209,6 +1209,7 @@
             dmg = slayResult1.damage;
             report.weapon1.slayUndeadHits++;
             report.weapon1.slayUndeadDamageTotal += dmg;
+            report.weapon1.maxSlayUndeadHit = Math.max(report.weapon1.maxSlayUndeadHit || 0, dmg);
           } else {
             const beforeCrit = dmg;
             const critResult = rollMeleeCrit(dmg, mainHandDamageBonus, level, options.classId, options.dex, options.critChanceMult, false, false, 0, options.critDmgDebugDmgBonus, rng);
@@ -1249,6 +1250,7 @@
               dmg = slayResult2.damage;
               report.weapon1.slayUndeadHits++;
               report.weapon1.slayUndeadDamageTotal += dmg;
+              report.weapon1.maxSlayUndeadHit = Math.max(report.weapon1.maxSlayUndeadHit || 0, dmg);
             } else {
               const beforeCrit = dmg;
               const critResult = rollMeleeCrit(dmg, mainHandDamageBonus, level, options.classId, options.dex, options.critChanceMult, false, false, 0, options.critDmgDebugDmgBonus, rng);
@@ -1288,6 +1290,7 @@
                 dmg = slayResult3.damage;
                 report.weapon1.slayUndeadHits++;
                 report.weapon1.slayUndeadDamageTotal += dmg;
+                report.weapon1.maxSlayUndeadHit = Math.max(report.weapon1.maxSlayUndeadHit || 0, dmg);
               } else {
                 const beforeCrit = dmg;
                 const critResult = rollMeleeCrit(dmg, mainHandDamageBonus, level, options.classId, options.dex, options.critChanceMult, false, false, 0, options.critDmgDebugDmgBonus, rng);
@@ -1777,9 +1780,11 @@
       lines.push('');
       const suHits = report.weapon1 && report.weapon1.slayUndeadHits != null ? report.weapon1.slayUndeadHits : 0;
       const suDamage = report.weapon1 && report.weapon1.slayUndeadDamageTotal != null ? report.weapon1.slayUndeadDamageTotal : 0;
+      const suMaxHit = report.weapon1 && report.weapon1.maxSlayUndeadHit != null ? report.weapon1.maxSlayUndeadHit : 0;
       lines.push('  Slay Undead (AA)');
       lines.push(padLine('    Slay Undead hits:', String(suHits)));
       lines.push(padLine('    Slay Undead damage:', String(suDamage)));
+      lines.push(padLine('    Max Slay Undead hit:', String(suMaxHit)));
       lines.push(padLine('    DPS from Slay Undead:', dur > 0 ? (suDamage / dur).toFixed(2) : '0.00'));
     }
     if (report.fistweaving && report.fistweaving.rounds > 0) {
