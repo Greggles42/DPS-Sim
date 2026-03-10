@@ -721,6 +721,16 @@
           </div>
           <p class="hint">Paladin, Shadowknight, Ranger, Bard, Beastlord. Affects proc spell damage.</p>
         </div>
+        <div id="slay-undead-row" style="display: none;">
+          <label class="small-label">Slay Undead (AA)</label>
+          <div class="radio-group">
+            <label><input type="radio" name="slay-undead" value="0" checked> Off</label>
+            <label><input type="radio" name="slay-undead" value="1"> 1 (1% chance, 200% dmg vs undead)</label>
+            <label><input type="radio" name="slay-undead" value="2"> 2 (2% chance, 250% dmg vs undead)</label>
+            <label><input type="radio" name="slay-undead" value="3"> 3 (3% chance, 300% dmg vs undead)</label>
+          </div>
+          <p class="hint">Paladin only. Main-hand hits vs Undead / Undead Pet / Vampire body types.</p>
+        </div>
       </details>
         </div>
         <div class="char-haste-icon-wrap"><img id="class-icon" src="" alt="" class="class-icon" aria-hidden="true"></div>
@@ -881,6 +891,8 @@
         <p class="hint">Magic, Fire, Cold, Poison, Disease. Used when weapons have elemental damage.</p>
         <label class="checkbox-label"><input type="checkbox" id="apply-bane"> Apply Bane Damage</label>
         <p class="hint">When checked, each weapon's bane damage is added to its base damage.</p>
+        <label class="checkbox-label"><input type="checkbox" id="target-undead-mob"> Undead mob</label>
+        <p class="hint">When checked, the sim treats the target as undead (body type Undead). Enables undead-only procs and Paladin Slay Undead AA.</p>
       </details>
       <button type="button" id="btn-run">Run simulation</button>
       <hr class="sim-rank-divider" aria-hidden="true">
@@ -1864,6 +1876,7 @@
           return isNaN(rn) ? null : rn;
         })();
         var targetBodyType = (function () {
+          if ($('target-undead-mob') && $('target-undead-mob').checked) return 3;
           var npc = window.selectedTargetNpc;
           if (!npc || typeof npc !== 'object') return null;
           var bt = npc.bodytype != null ? npc.bodytype : (npc.bodytype === 0 ? 0 : (npc.BodyType != null ? npc.BodyType : null));
@@ -2002,6 +2015,7 @@
           duelist: classId === 'rogue' && $('duelist').checked,
           innerFlame: classId === 'monk' && $('innerflame').checked,
           spellCastingFury: (function () { var el = document.querySelector('input[name="spell-casting-fury"]:checked'); return el ? (parseInt(el.value, 10) || 0) : 0; })(),
+          slayUndead: (function () { var el = document.querySelector('input[name="slay-undead"]:checked'); return el ? (parseInt(el.value, 10) || 0) : 0; })(),
           fistweaving: hasMainHand && classId === 'monk' && weapon1.is2H && $('fistweaving').checked,
           critChanceMult: critChanceMult || undefined,
           backstabReuseEffectiveSec: (backstabReuseManual && (() => { const v = parseFloat($('backstab-reuse-sec').value); return v > 0 && !isNaN(v) ? v : undefined; })()) || undefined,
@@ -2050,6 +2064,8 @@
               procResistDamageLost: Math.round(reports.reduce((s, r) => s + (r.weapon1.procResistDamageLost || 0), 0) / runs),
               spellProcCrits: Math.round(reports.reduce((s, r) => s + (r.weapon1.spellProcCrits || 0), 0) / runs),
               maxSpellProcCritDmg: reports.length ? Math.max(...reports.map(function (r) { return r.weapon1.maxSpellProcCritDmg || 0; })) : 0,
+              slayUndeadHits: Math.round(reports.reduce((s, r) => s + (r.weapon1.slayUndeadHits || 0), 0) / runs),
+              slayUndeadDamageTotal: Math.round(reports.reduce((s, r) => s + (r.weapon1.slayUndeadDamageTotal || 0), 0) / runs),
               anticipatedProcChancePerRound: reports[0].weapon1.anticipatedProcChancePerRound,
               anticipatedProcsPerMinute: reports[0].weapon1.anticipatedProcsPerMinute,
               procLevelBlocked: !!reports[0].weapon1.procLevelBlocked,
@@ -2115,6 +2131,7 @@
               var sumSq = dpsValues.reduce(function (s, d) { return s + (d - meanDps) * (d - meanDps); }, 0);
               return runs > 1 ? Math.sqrt(sumSq / (runs - 1)) : 0;
             })(),
+            classId: reports[0].classId || undefined,
             special: reports[0].special
               ? {
                   name: reports[0].special.name,
@@ -2711,6 +2728,7 @@
           level,
           targetAC,
           mobLevel,
+          targetBodyType: ($('target-undead-mob') && $('target-undead-mob').checked) ? 3 : null,
           targetMR, targetFR, targetCR, targetPR, targetDR,
           fightDurationSec: durationSec,
           dex,
@@ -2724,6 +2742,7 @@
           duelist: classId === 'rogue' && $('duelist').checked,
           innerFlame: classId === 'monk' && $('innerflame').checked,
           spellCastingFury: (function () { var el = document.querySelector('input[name="spell-casting-fury"]:checked'); return el ? (parseInt(el.value, 10) || 0) : 0; })(),
+          slayUndead: (function () { var el = document.querySelector('input[name="slay-undead"]:checked'); return el ? (parseInt(el.value, 10) || 0) : 0; })(),
           critChanceMult: critChanceMult || undefined,
           backstabReuseEffectiveSec: (backstabReuseManual && (() => { const v = parseFloat($('backstab-reuse-sec').value); return v > 0 && !isNaN(v) ? v : undefined; })()) || undefined,
           flyingKickReuseEffectiveSec: (flyingKickReuseManual && (() => { const v = parseFloat($('flyingkick-reuse-sec').value); return v > 0 && !isNaN(v) ? v : undefined; })()) || undefined,
@@ -4213,6 +4232,8 @@
         const scfRow = $('spell-casting-fury-row');
         const scfClasses = ['paladin', 'shadowknight', 'ranger', 'bard', 'beastlord'];
         if (scfRow) scfRow.style.display = scfClasses.indexOf(classId) >= 0 ? '' : 'none';
+        const slayUndeadRow = $('slay-undead-row');
+        if (slayUndeadRow) slayUndeadRow.style.display = classId === 'paladin' ? '' : 'none';
         updateFistweavingVisibility();
         if (!clampOnly) {
           updateWeaponSkillInputs();

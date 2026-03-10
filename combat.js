@@ -504,6 +504,37 @@
     return { damage: Math.floor(damage * (100 + scf.multPercent) / 100), isCrit: true };
   }
 
+  // ----- Slay Undead (Paladin AA, 3 ranks) -----
+  // Only vs undead targets (body type 3 Undead, 8 Undead Pet, 12 Vampire). Chance and damage bonus per rank (EQEmu SlayRateBonus/10000, slayDmgBonus).
+  const SLAY_UNDEAD_BODY_TYPES = [3, 8, 12];
+  function getSlayUndead(options) {
+    const rank = options.slayUndead | 0;
+    if (rank < 1 || rank > 3) return { apply: false, slayChance: 0, slayDmgBonusPercent: 0 };
+    const classId = (options.classId || '').toLowerCase();
+    if (classId !== 'paladin') return { apply: false, slayChance: 0, slayDmgBonusPercent: 0 };
+    return {
+      apply: true,
+      slayChance: [0.01, 0.02, 0.03][rank - 1],
+      slayDmgBonusPercent: [200, 250, 300][rank - 1]
+    };
+  }
+  function isUndeadTarget(options) {
+    const bt = options.targetBodyType;
+    if (bt == null) return false;
+    return SLAY_UNDEAD_BODY_TYPES.indexOf(Number(bt)) !== -1;
+  }
+  function trySlayUndead(damage, damageBonus, minBase, options, rng) {
+    const slay = getSlayUndead(options);
+    if (!slay.apply || damage <= 0) return null;
+    if (!isUndeadTarget(options)) return null;
+    if (rng() >= slay.slayChance) return null;
+    const db = damageBonus || 0;
+    let slayDmg = Math.floor(((damage - db + 6) * slay.slayDmgBonusPercent) / 100) + db;
+    const minSlay = Math.floor((minBase + 5) * slay.slayDmgBonusPercent / 100) + db;
+    if (slayDmg < minSlay) slayDmg = minSlay;
+    return { damage: slayDmg, isSlay: true };
+  }
+
   // ----- Special attacks (Flying Kick, Backstab, Kick, Bash, etc.) -----
   // Per EQMacEmu special_attacks.cpp: Bash (Warrior/Paladin/SK/Cleric), Slam (Ogre/Troll/Barbarian = Bash without shield), Kick (Warrior/Ranger/Beastlord), Flying Kick (Monk), Backstab (Rogue).
   // Flying Kick uses skill/level-based base only; Kick/Bash use GetSkillBaseDamage (skill-based base, not weapon).
@@ -968,7 +999,7 @@
     const roundsPerMinW1 = (delay1Ms > 0 && hasMainHand) ? (60 * 1000 / delay1Ms) : 0;
     const roundsPerMinW2 = (delay2Ms > 0 && w2) ? (60 * 1000 / delay2Ms) : 0;
     const report = {
-      weapon1: { swings: 0, hits: 0, totalDamage: 0, maxDamage: 0, minDamage: Infinity, hitList: [], procs: 0, procDamageTotal: 0, procResists: 0, procFullResists: 0, procPartialResists: 0, procResistDamageLost: 0, spellProcCrits: 0, maxSpellProcCritDmg: 0, rounds: 0, single: 0, double: 0, triple: 0 },
+      weapon1: { swings: 0, hits: 0, totalDamage: 0, maxDamage: 0, minDamage: Infinity, hitList: [], procs: 0, procDamageTotal: 0, procResists: 0, procFullResists: 0, procPartialResists: 0, procResistDamageLost: 0, spellProcCrits: 0, maxSpellProcCritDmg: 0, slayUndeadHits: 0, slayUndeadDamageTotal: 0, rounds: 0, single: 0, double: 0, triple: 0 },
       weapon2: { swings: 0, hits: 0, totalDamage: 0, maxDamage: 0, minDamage: Infinity, hitList: [], procs: 0, procDamageTotal: 0, procResists: 0, procFullResists: 0, procPartialResists: 0, procResistDamageLost: 0, spellProcCrits: 0, maxSpellProcCritDmg: 0, rounds: 0, single: 0, double: 0, triple: 0 },
       durationSec: options.fightDurationSec,
       rawHastePercent: !Number.isNaN(Number(options.hastePercent)) ? Number(options.hastePercent) : 0,
@@ -999,6 +1030,7 @@
         backstabModPercent: specialConfig.fromBehindOnly ? (options.backstabModPercent || 0) : undefined,
       } : null,
       fistweaving: (options.classId === 'monk' && hasMainHand && w1.is2H && options.fistweaving) ? { rounds: 0, swings: 0, hits: 0, totalDamage: 0, maxDamage: 0, single: 0, double: 0 } : null,
+      classId: options.classId || undefined,
     };
     report.weapon1.procLevelBlocked = false;
     report.weapon1.procLevelRequired = null;
@@ -1172,11 +1204,18 @@
           dmg = mult.damage;
           dmg += mainHandDamageBonus;
           dmg = Math.max(dmg, 1 + mainHandDamageBonus);
-          const beforeCrit = dmg;
-          const critResult = rollMeleeCrit(dmg, mainHandDamageBonus, level, options.classId, options.dex, options.critChanceMult, false, false, 0, options.critDmgDebugDmgBonus, rng);
-          dmg = critResult.damage;
-          dmg = Math.max(dmg, 1 + mainHandDamageBonus);
-          if (critResult.isCrit) { report.critHits++; report.critDamageGain += (dmg - beforeCrit); }
+          const slayResult1 = trySlayUndead(dmg, mainHandDamageBonus, 1, options, rng);
+          if (slayResult1) {
+            dmg = slayResult1.damage;
+            report.weapon1.slayUndeadHits++;
+            report.weapon1.slayUndeadDamageTotal += dmg;
+          } else {
+            const beforeCrit = dmg;
+            const critResult = rollMeleeCrit(dmg, mainHandDamageBonus, level, options.classId, options.dex, options.critChanceMult, false, false, 0, options.critDmgDebugDmgBonus, rng);
+            dmg = critResult.damage;
+            dmg = Math.max(dmg, 1 + mainHandDamageBonus);
+            if (critResult.isCrit) { report.critHits++; report.critDamageGain += (dmg - beforeCrit); }
+          }
           const mhDisciplineMin = getDisciplineMinHit(cappedW1Damage, mainHandDamageBonus, disciplineActiveMh);
           if (mhDisciplineMin != null && dmg < mhDisciplineMin) dmg = mhDisciplineMin;
           if (w1.noDamageVsTarget) { report.elementalDamageTotal -= mhElemAdder; dmg = 0; }
@@ -1205,11 +1244,18 @@
             dmg = mult.damage;
             dmg += mainHandDamageBonus;
             dmg = Math.max(dmg, 1 + mainHandDamageBonus);
-            const beforeCrit = dmg;
-            const critResult = rollMeleeCrit(dmg, mainHandDamageBonus, level, options.classId, options.dex, options.critChanceMult, false, false, 0, options.critDmgDebugDmgBonus, rng);
-            dmg = critResult.damage;
-            dmg = Math.max(dmg, 1 + mainHandDamageBonus);
-            if (critResult.isCrit) { report.critHits++; report.critDamageGain += (dmg - beforeCrit); }
+            const slayResult2 = trySlayUndead(dmg, mainHandDamageBonus, 1, options, rng);
+            if (slayResult2) {
+              dmg = slayResult2.damage;
+              report.weapon1.slayUndeadHits++;
+              report.weapon1.slayUndeadDamageTotal += dmg;
+            } else {
+              const beforeCrit = dmg;
+              const critResult = rollMeleeCrit(dmg, mainHandDamageBonus, level, options.classId, options.dex, options.critChanceMult, false, false, 0, options.critDmgDebugDmgBonus, rng);
+              dmg = critResult.damage;
+              dmg = Math.max(dmg, 1 + mainHandDamageBonus);
+              if (critResult.isCrit) { report.critHits++; report.critDamageGain += (dmg - beforeCrit); }
+            }
             const mhDisciplineMin2 = getDisciplineMinHit(cappedW1Damage, mainHandDamageBonus, disciplineActiveMh);
             if (mhDisciplineMin2 != null && dmg < mhDisciplineMin2) dmg = mhDisciplineMin2;
             if (w1.noDamageVsTarget) { report.elementalDamageTotal -= mhElemAdder2; dmg = 0; }
@@ -1237,11 +1283,18 @@
               dmg = mult.damage;
               dmg += mainHandDamageBonus;
               dmg = Math.max(dmg, 1 + mainHandDamageBonus);
-              const beforeCrit = dmg;
-              const critResult = rollMeleeCrit(dmg, mainHandDamageBonus, level, options.classId, options.dex, options.critChanceMult, false, false, 0, options.critDmgDebugDmgBonus, rng);
-              dmg = critResult.damage;
-              dmg = Math.max(dmg, 1 + mainHandDamageBonus);
-              if (critResult.isCrit) { report.critHits++; report.critDamageGain += (dmg - beforeCrit); }
+              const slayResult3 = trySlayUndead(dmg, mainHandDamageBonus, 1, options, rng);
+              if (slayResult3) {
+                dmg = slayResult3.damage;
+                report.weapon1.slayUndeadHits++;
+                report.weapon1.slayUndeadDamageTotal += dmg;
+              } else {
+                const beforeCrit = dmg;
+                const critResult = rollMeleeCrit(dmg, mainHandDamageBonus, level, options.classId, options.dex, options.critChanceMult, false, false, 0, options.critDmgDebugDmgBonus, rng);
+                dmg = critResult.damage;
+                dmg = Math.max(dmg, 1 + mainHandDamageBonus);
+                if (critResult.isCrit) { report.critHits++; report.critDamageGain += (dmg - beforeCrit); }
+              }
               const mhDisciplineMin3 = getDisciplineMinHit(cappedW1Damage, mainHandDamageBonus, disciplineActiveMh);
               if (mhDisciplineMin3 != null && dmg < mhDisciplineMin3) dmg = mhDisciplineMin3;
               if (w1.noDamageVsTarget) { report.elementalDamageTotal -= mhElemAdder3; dmg = 0; }
@@ -1534,56 +1587,60 @@
     const totalDPS = dur ? (report.totalDamage / dur).toFixed(2) : '—';
     const runs = runsAveraged != null ? runsAveraged : 1;
     const lines = [];
+    const VALUE_COL = 48;
+    function padLine(prefix, value) {
+      return prefix + ' '.repeat(Math.max(0, VALUE_COL - prefix.length)) + value;
+    }
 
     // 1. Executive Summary
     lines.push('=== Executive Summary ===', '');
-    lines.push(`  Duration:              ${dur} seconds`);
-    lines.push(`  Runs averaged:        ${runs}`);
-    lines.push(`  Total DPS:            ${totalDPS}`);
+    lines.push(padLine('  Duration:', `${dur} seconds`));
+    lines.push(padLine('  Runs averaged:', String(runs)));
+    lines.push(padLine('  Total DPS:', totalDPS));
     if (runs > 1 && report.dpsStdDev != null && report.dpsStdDev >= 0) {
-      lines.push(`  DPS std dev:           ${report.dpsStdDev.toFixed(2)}`);
+      lines.push(padLine('  DPS std dev:', report.dpsStdDev.toFixed(2)));
     }
-    lines.push(`  Total damage:         ${report.totalDamage}`);
-    if (report.critHits != null && report.critHits >= 0) lines.push(`  Critical hits:         ${report.critHits}`);
+    lines.push(padLine('  Total damage:', String(report.totalDamage)));
+    if (report.critHits != null && report.critHits >= 0) lines.push(padLine('  Critical hits:', String(report.critHits)));
     if (report.critDamageGain != null && report.critDamageGain >= 0) {
-      lines.push(`  Crit DPS gain:         ${(report.critDamageGain / dur).toFixed(2)} (vs non-crit baseline)`);
+      lines.push(padLine('  Crit DPS gain:', `${(report.critDamageGain / dur).toFixed(2)} (vs non-crit baseline)`));
     }
     if (report.elementalDamageTotal != null && report.elementalDamageTotal > 0) {
-      lines.push(`  Elemental damage:     ${report.elementalDamageTotal}`);
+      lines.push(padLine('  Elemental damage:', String(report.elementalDamageTotal)));
     }
     lines.push('');
 
     // 2. Offense & To-Hit Model
     lines.push('=== Offense & To-Hit Model ===', '');
-    if (report.calculatedToHit != null) lines.push(`  Calculated to-hit:     ${report.calculatedToHit}`);
-    if (report.offenseSkill != null) lines.push(`  Offense skill:         ${report.offenseSkill}  (0–255, used for to-hit only)`);
-    if (report.offenseRating != null) lines.push(`  Offense rating:        ${report.offenseRating}  (used for damage)`);
-    if (report.offenseRatingFromStr != null) lines.push(`    From STR:            ${report.offenseRatingFromStr}`);
+    if (report.calculatedToHit != null) lines.push(padLine('  Calculated to-hit:', String(report.calculatedToHit)));
+    if (report.offenseSkill != null) lines.push(padLine('  Offense skill:', `${report.offenseSkill}  (0–255, used for to-hit only)`));
+    if (report.offenseRating != null) lines.push(padLine('  Offense rating:', `${report.offenseRating}  (used for damage)`));
+    if (report.offenseRatingFromStr != null) lines.push(padLine('    From STR:', String(report.offenseRatingFromStr)));
     if (report.offenseRating != null && report.offenseRatingFromStr != null) {
       const other = report.offenseRating - report.offenseRatingFromStr;
-      lines.push(`    From other:          ${other}  (skill + worn + spell)`);
+      lines.push(padLine('    From other:', `${other}  (skill + worn + spell)`));
     }
-    if (report.displayedAttack != null) lines.push(`  Displayed ATK:         ${report.displayedAttack}`);
-    lines.push('  ATK formula:           (offense rating + toHit) * 1000 / 744');
+    if (report.displayedAttack != null) lines.push(padLine('  Displayed ATK:', String(report.displayedAttack)));
+    lines.push(padLine('  ATK formula:', '(offense rating + toHit) * 1000 / 744'));
     if (report.rawHastePercent != null || report.effectiveHastePercent != null) {
       const raw = report.rawHastePercent != null ? Number(report.rawHastePercent).toFixed(1) : '—';
       const eff = report.effectiveHastePercent != null ? Number(report.effectiveHastePercent).toFixed(1) : '—';
-      lines.push(`  Haste (raw / effective): ${raw}% / ${eff}%`);
+      lines.push(padLine('  Haste (raw / effective):', `${raw}% / ${eff}%`));
     }
     lines.push('');
 
     // 3. Weapon Overview
     lines.push('=== Weapon Overview ===', '');
     lines.push(`  ${weapon1Label || 'Weapon 1'}`);
-    if (report.damageBonus != null) lines.push(`    Damage bonus:        ${report.damageBonus}`);
-    if (report.damageBonusTotal != null && report.damageBonusTotal > 0) lines.push(`    Damage from bonus:   ${report.damageBonusTotal}`);
-    lines.push(`    Total damage:       ${w1.totalDamage}`);
-    lines.push(`    Weapon DPS:          ${(w1.totalDamage / dur).toFixed(2)}`);
+    if (report.damageBonus != null) lines.push(padLine('    Damage bonus:', String(report.damageBonus)));
+    if (report.damageBonusTotal != null && report.damageBonusTotal > 0) lines.push(padLine('    Damage from bonus:', String(report.damageBonusTotal)));
+    lines.push(padLine('    Total damage:', String(w1.totalDamage)));
+    lines.push(padLine('    Weapon DPS:', (w1.totalDamage / dur).toFixed(2)));
     lines.push('');
     if (w2.swings > 0) {
       lines.push(`  ${weapon2Label || 'Weapon 2'}`);
-      lines.push(`    Total damage:       ${w2.totalDamage}`);
-      lines.push(`    Weapon DPS:          ${(w2.totalDamage / dur).toFixed(2)}`);
+      lines.push(padLine('    Total damage:', String(w2.totalDamage)));
+      lines.push(padLine('    Weapon DPS:', (w2.totalDamage / dur).toFixed(2)));
       lines.push('');
     }
 
@@ -1591,92 +1648,92 @@
     lines.push('=== Attack Distribution ===', '');
     lines.push(`  ${weapon1Label || 'Weapon 1'}`, '');
     const r1 = w1.rounds != null ? w1.rounds : w1.swings;
-    lines.push(`    Combat rounds:       ${r1}`);
+    lines.push(padLine('    Combat rounds:', String(r1)));
     if (r1 > 0) {
       const single1 = w1.single != null ? w1.single : 0;
       const double1 = w1.double != null ? w1.double : 0;
       const triple1 = w1.triple != null ? w1.triple : 0;
-      lines.push(`    Single / Double / Triple (%):  ${(single1 / r1 * 100).toFixed(1)}% / ${(double1 / r1 * 100).toFixed(1)}% / ${(triple1 / r1 * 100).toFixed(1)}%`);
+      lines.push(padLine('    Single / Double / Triple (%):', `${(single1 / r1 * 100).toFixed(1)}% / ${(double1 / r1 * 100).toFixed(1)}% / ${(triple1 / r1 * 100).toFixed(1)}%`));
     }
-    lines.push(`    Single attacks:      ${w1.single != null ? w1.single : '—'}`);
-    lines.push(`    Double attacks:      ${w1.double != null ? w1.double : '—'}`);
-    lines.push(`    Triple attacks:      ${w1.triple != null ? w1.triple : '—'}`);
-    lines.push(`    Swings:              ${w1.swings}`);
-    lines.push(`    Hits:                ${w1.hits}`);
-    if (w1.swings > 0) lines.push(`    Accuracy:             ${(w1.hits / w1.swings * 100).toFixed(1)}%`);
+    lines.push(padLine('    Single attacks:', String(w1.single != null ? w1.single : '—')));
+    lines.push(padLine('    Double attacks:', String(w1.double != null ? w1.double : '—')));
+    lines.push(padLine('    Triple attacks:', String(w1.triple != null ? w1.triple : '—')));
+    lines.push(padLine('    Swings:', String(w1.swings)));
+    lines.push(padLine('    Hits:', String(w1.hits)));
+    if (w1.swings > 0) lines.push(padLine('    Accuracy:', (w1.hits / w1.swings * 100).toFixed(1) + '%'));
     lines.push('');
     if (w2.swings > 0) {
       lines.push(`  ${weapon2Label || 'Weapon 2'}`, '');
       const r2 = w2.rounds != null ? w2.rounds : w2.swings;
-      lines.push(`    Combat rounds:       ${r2}`);
+      lines.push(padLine('    Combat rounds:', String(r2)));
       if (r2 > 0) {
         const single2 = w2.single != null ? w2.single : 0;
         const double2 = w2.double != null ? w2.double : 0;
-        lines.push(`    Single / Double (%):  ${(single2 / r2 * 100).toFixed(1)}% / ${(double2 / r2 * 100).toFixed(1)}%`);
+        lines.push(padLine('    Single / Double (%):', `${(single2 / r2 * 100).toFixed(1)}% / ${(double2 / r2 * 100).toFixed(1)}%`));
       }
-      lines.push(`    Single attacks:      ${w2.single != null ? w2.single : '—'}`);
-      lines.push(`    Double attacks:      ${w2.double != null ? w2.double : '—'}`);
-      lines.push(`    Swings:              ${w2.swings}`);
-      lines.push(`    Hits:                ${w2.hits}`);
-      if (w2.swings > 0) lines.push(`    Accuracy:             ${(w2.hits / w2.swings * 100).toFixed(1)}%`);
+      lines.push(padLine('    Single attacks:', String(w2.single != null ? w2.single : '—')));
+      lines.push(padLine('    Double attacks:', String(w2.double != null ? w2.double : '—')));
+      lines.push(padLine('    Swings:', String(w2.swings)));
+      lines.push(padLine('    Hits:', String(w2.hits)));
+      if (w2.swings > 0) lines.push(padLine('    Accuracy:', (w2.hits / w2.swings * 100).toFixed(1) + '%'));
       lines.push('');
     }
 
     // 5. Hit Damage Statistics
     lines.push('=== Hit Damage Statistics ===', '');
     lines.push(`  ${weapon1Label || 'Weapon 1'}`);
-    lines.push(`    Max hit:             ${formatHitStat(s1.max != null ? s1.max : w1.maxDamage)}`);
-    lines.push(`    Min hit:             ${formatHitStat(s1.min)}`);
-    lines.push(`    Mean hit:            ${formatHitStat(s1.mean)}`);
-    lines.push(`    Median hit:          ${formatHitStat(s1.median)}`);
-    lines.push(`    Mode hit:            ${formatHitStat(s1.mode)}`);
+    lines.push(padLine('    Max hit:', formatHitStat(s1.max != null ? s1.max : w1.maxDamage)));
+    lines.push(padLine('    Min hit:', formatHitStat(s1.min)));
+    lines.push(padLine('    Mean hit:', formatHitStat(s1.mean)));
+    lines.push(padLine('    Median hit:', formatHitStat(s1.median)));
+    lines.push(padLine('    Mode hit:', formatHitStat(s1.mode)));
     lines.push('');
     if (w2.swings > 0) {
       lines.push(`  ${weapon2Label || 'Weapon 2'}`);
-      lines.push(`    Max hit:             ${formatHitStat(s2.max != null ? s2.max : w2.maxDamage)}`);
-      lines.push(`    Min hit:             ${formatHitStat(s2.min)}`);
-      lines.push(`    Mean hit:            ${formatHitStat(s2.mean)}`);
-      lines.push(`    Median hit:          ${formatHitStat(s2.median)}`);
-      lines.push(`    Mode hit:            ${formatHitStat(s2.mode)}`);
+      lines.push(padLine('    Max hit:', formatHitStat(s2.max != null ? s2.max : w2.maxDamage)));
+      lines.push(padLine('    Min hit:', formatHitStat(s2.min)));
+      lines.push(padLine('    Mean hit:', formatHitStat(s2.mean)));
+      lines.push(padLine('    Median hit:', formatHitStat(s2.median)));
+      lines.push(padLine('    Mode hit:', formatHitStat(s2.mode)));
       lines.push('');
     }
 
     // 6. Procs & Specials
     lines.push('=== Procs & Specials ===', '');
     lines.push(`  ${weapon1Label || 'Weapon 1'}`);
-    if (w1.anticipatedProcsPerMinute != null) lines.push(`    Anticipated procs per minute: ${w1.anticipatedProcsPerMinute.toFixed(2)}`);
-    if (w1.anticipatedProcChancePerRound != null) lines.push(`    Anticipated proc chance per round: ${(w1.anticipatedProcChancePerRound * 100).toFixed(2)}%`);
-    if (w1.procs != null) lines.push(`    Procs:               ${w1.procs}`);
-    lines.push(`    Proc damage:         ${w1.procDamageTotal != null ? w1.procDamageTotal : 0}`);
-    lines.push(`    Proc DPS:            ${(w1.procDamageTotal != null && dur > 0) ? (w1.procDamageTotal / dur).toFixed(2) : '0.00'}`);
-    lines.push(`    Proc full resists:   ${w1.procFullResists != null ? w1.procFullResists : 0}`);
-    lines.push(`    Proc partial resists: ${w1.procPartialResists != null ? w1.procPartialResists : 0}`);
+    if (w1.anticipatedProcsPerMinute != null) lines.push(padLine('    Anticipated procs per minute:', w1.anticipatedProcsPerMinute.toFixed(2)));
+    if (w1.anticipatedProcChancePerRound != null) lines.push(padLine('    Anticipated proc chance per round:', (w1.anticipatedProcChancePerRound * 100).toFixed(2) + '%'));
+    if (w1.procs != null) lines.push(padLine('    Procs:', String(w1.procs)));
+    lines.push(padLine('    Proc damage:', String(w1.procDamageTotal != null ? w1.procDamageTotal : 0)));
+    lines.push(padLine('    Proc DPS:', (w1.procDamageTotal != null && dur > 0) ? (w1.procDamageTotal / dur).toFixed(2) : '0.00'));
+    lines.push(padLine('    Proc full resists:', String(w1.procFullResists != null ? w1.procFullResists : 0)));
+    lines.push(padLine('    Proc partial resists:', String(w1.procPartialResists != null ? w1.procPartialResists : 0)));
     if (w1.procLevelBlocked) {
-      lines.push(`    Proc gated by level: yes (level ${w1.procLevelCurrent != null ? w1.procLevelCurrent : '-'} < required ${w1.procLevelRequired != null ? w1.procLevelRequired : '-'})`);
+      lines.push(padLine('    Proc gated by level:', `yes (level ${w1.procLevelCurrent != null ? w1.procLevelCurrent : '-'} < required ${w1.procLevelRequired != null ? w1.procLevelRequired : '-'})`));
     }
     if (w1.procResistDamageLost != null && w1.procResistDamageLost > 0) {
-      lines.push(`    Proc damage lost (resists): ${w1.procResistDamageLost}`);
+      lines.push(padLine('    Proc damage lost (resists):', String(w1.procResistDamageLost)));
     }
-    if (w1.spellProcCrits != null) lines.push(`    Proc spell crits (SCF):  ${w1.spellProcCrits}`);
-    if (w1.maxSpellProcCritDmg != null && w1.maxSpellProcCritDmg > 0) lines.push(`    Max spell proc crit dmg:  ${w1.maxSpellProcCritDmg}`);
+    if (w1.spellProcCrits != null) lines.push(padLine('    Proc spell crits (SCF):', String(w1.spellProcCrits)));
+    if (w1.maxSpellProcCritDmg != null && w1.maxSpellProcCritDmg > 0) lines.push(padLine('    Max spell proc crit dmg:', String(w1.maxSpellProcCritDmg)));
     if (w2.swings > 0) {
       lines.push('');
       lines.push(`  ${weapon2Label || 'Weapon 2'}`);
-      if (w2.anticipatedProcsPerMinute != null) lines.push(`    Anticipated procs per minute: ${w2.anticipatedProcsPerMinute.toFixed(2)}`);
-      if (w2.anticipatedProcChancePerRound != null) lines.push(`    Anticipated proc chance per round: ${(w2.anticipatedProcChancePerRound * 100).toFixed(2)}%`);
-      if (w2.procs != null) lines.push(`    Procs:               ${w2.procs}`);
-      lines.push(`    Proc damage:         ${w2.procDamageTotal != null ? w2.procDamageTotal : 0}`);
-      lines.push(`    Proc DPS:            ${(w2.procDamageTotal != null && dur > 0) ? (w2.procDamageTotal / dur).toFixed(2) : '0.00'}`);
-      lines.push(`    Proc full resists:   ${w2.procFullResists != null ? w2.procFullResists : 0}`);
-      lines.push(`    Proc partial resists: ${w2.procPartialResists != null ? w2.procPartialResists : 0}`);
+      if (w2.anticipatedProcsPerMinute != null) lines.push(padLine('    Anticipated procs per minute:', w2.anticipatedProcsPerMinute.toFixed(2)));
+      if (w2.anticipatedProcChancePerRound != null) lines.push(padLine('    Anticipated proc chance per round:', (w2.anticipatedProcChancePerRound * 100).toFixed(2) + '%'));
+      if (w2.procs != null) lines.push(padLine('    Procs:', String(w2.procs)));
+      lines.push(padLine('    Proc damage:', String(w2.procDamageTotal != null ? w2.procDamageTotal : 0)));
+      lines.push(padLine('    Proc DPS:', (w2.procDamageTotal != null && dur > 0) ? (w2.procDamageTotal / dur).toFixed(2) : '0.00'));
+      lines.push(padLine('    Proc full resists:', String(w2.procFullResists != null ? w2.procFullResists : 0)));
+      lines.push(padLine('    Proc partial resists:', String(w2.procPartialResists != null ? w2.procPartialResists : 0)));
       if (w2.procLevelBlocked) {
-        lines.push(`    Proc gated by level: yes (level ${w2.procLevelCurrent != null ? w2.procLevelCurrent : '-'} < required ${w2.procLevelRequired != null ? w2.procLevelRequired : '-'})`);
+        lines.push(padLine('    Proc gated by level:', `yes (level ${w2.procLevelCurrent != null ? w2.procLevelCurrent : '-'} < required ${w2.procLevelRequired != null ? w2.procLevelRequired : '-'})`));
       }
       if (w2.procResistDamageLost != null && w2.procResistDamageLost > 0) {
-        lines.push(`    Proc damage lost (resists): ${w2.procResistDamageLost}`);
+        lines.push(padLine('    Proc damage lost (resists):', String(w2.procResistDamageLost)));
       }
-      if (w2.spellProcCrits != null) lines.push(`    Proc spell crits (SCF):  ${w2.spellProcCrits}`);
-      if (w2.maxSpellProcCritDmg != null && w2.maxSpellProcCritDmg > 0) lines.push(`    Max spell proc crit dmg:  ${w2.maxSpellProcCritDmg}`);
+      if (w2.spellProcCrits != null) lines.push(padLine('    Proc spell crits (SCF):', String(w2.spellProcCrits)));
+      if (w2.maxSpellProcCritDmg != null && w2.maxSpellProcCritDmg > 0) lines.push(padLine('    Max spell proc crit dmg:', String(w2.maxSpellProcCritDmg)));
     }
     if (report.special && (report.special.count > 0 || (report.special.attempts != null && report.special.attempts > 0))) {
       lines.push('');
@@ -1691,49 +1748,58 @@
       const dpsLabel = sp.name === 'Backstab' ? 'DPS from backstab' : 'DPS';
       lines.push(`  ${sp.name}`);
       if (sp.name === 'Backstab') {
-        lines.push(`    Number of backstab rounds: ${a}`);
-        if (sp.doubleBackstabs !== undefined) lines.push(`    Backstab swings: ${totalBackstabAttempts}`);
+        lines.push(padLine('    Number of backstab rounds:', String(a)));
+        if (sp.doubleBackstabs !== undefined) lines.push(padLine('    Backstab swings:', String(totalBackstabAttempts)));
       } else {
-        lines.push(`    Attempts:            ${a}`);
+        lines.push(padLine('    Attempts:', String(a)));
       }
       if (sp.doubleBackstabs !== undefined) {
-        lines.push(`    Single backstab rounds:   ${singleBackstabRounds}`);
-        lines.push(`    Double backstab rounds:   ${D}`);
+        lines.push(padLine('    Single backstab rounds:', String(singleBackstabRounds)));
+        lines.push(padLine('    Double backstab rounds:', String(D)));
       }
-      lines.push(`    ${sp.name === 'Backstab' ? 'Backstab hits landed' : 'Hits landed'}:        ${h}`);
-      lines.push(`    Accuracy:           ${acc}%`);
+      lines.push(padLine(`    ${sp.name === 'Backstab' ? 'Backstab hits landed' : 'Hits landed'}:`, String(h)));
+      lines.push(padLine('    Accuracy:', acc + '%'));
       if (sp.effectiveReuseSec != null && sp.effectiveReuseSec > 0) {
-        lines.push(`    Effective special attack delay: ${sp.effectiveReuseSec.toFixed(2)}s`);
+        lines.push(padLine('    Effective special attack delay:', sp.effectiveReuseSec.toFixed(2) + 's'));
       }
-      lines.push(`    Total damage:       ${sp.totalDamage}`);
-      lines.push(`    Max hit:            ${sp.maxDamage}`);
-      lines.push(`    ${dpsLabel}:          ${(sp.totalDamage / dur).toFixed(2)}`);
+      lines.push(padLine('    Total damage:', String(sp.totalDamage)));
+      lines.push(padLine('    Max hit:', String(sp.maxDamage)));
+      lines.push(padLine(`    ${dpsLabel}:`, (sp.totalDamage / dur).toFixed(2)));
       if (sp.backstabSkill != null) {
         const effectiveSkill = Math.min(255, Math.floor(sp.backstabSkill * (100 + (sp.backstabModPercent || 0)) / 100));
-        lines.push(`    Effective backstab skill: ${effectiveSkill}`);
+        lines.push(padLine('    Effective backstab skill:', String(effectiveSkill)));
         if ((sp.backstabModPercent || 0) > 0) {
-          lines.push(`    Backstab weapon modifier applied: +${sp.backstabModPercent}%`);
+          lines.push(padLine('    Backstab weapon modifier applied:', '+' + sp.backstabModPercent + '%'));
         }
       }
+    }
+    if ((report.classId || '').toLowerCase() === 'paladin') {
+      lines.push('');
+      const suHits = report.weapon1 && report.weapon1.slayUndeadHits != null ? report.weapon1.slayUndeadHits : 0;
+      const suDamage = report.weapon1 && report.weapon1.slayUndeadDamageTotal != null ? report.weapon1.slayUndeadDamageTotal : 0;
+      lines.push('  Slay Undead (AA)');
+      lines.push(padLine('    Slay Undead hits:', String(suHits)));
+      lines.push(padLine('    Slay Undead damage:', String(suDamage)));
+      lines.push(padLine('    DPS from Slay Undead:', dur > 0 ? (suDamage / dur).toFixed(2) : '0.00'));
     }
     if (report.fistweaving && report.fistweaving.rounds > 0) {
       const fw = report.fistweaving;
       const fwAcc = fw.swings > 0 ? (fw.hits / fw.swings * 100).toFixed(1) : '0';
       lines.push('  Fistweaving (9 dmg, no proc)');
-      lines.push(`    Rounds:              ${fw.rounds}`);
-      lines.push(`    Single / Double:     ${fw.single ?? '—'} / ${fw.double ?? '—'}`);
-      lines.push(`    Swings:              ${fw.swings}`);
-      lines.push(`    Hits:                ${fw.hits}`);
-      lines.push(`    Accuracy:            ${fwAcc}%`);
-      lines.push(`    Total damage:       ${fw.totalDamage}`);
-      lines.push(`    DPS:                 ${(fw.totalDamage / dur).toFixed(2)}`);
+      lines.push(padLine('    Rounds:', String(fw.rounds)));
+      lines.push(padLine('    Single / Double:', `${fw.single ?? '—'} / ${fw.double ?? '—'}`));
+      lines.push(padLine('    Swings:', String(fw.swings)));
+      lines.push(padLine('    Hits:', String(fw.hits)));
+      lines.push(padLine('    Accuracy:', fwAcc + '%'));
+      lines.push(padLine('    Total damage:', String(fw.totalDamage)));
+      lines.push(padLine('    DPS:', (fw.totalDamage / dur).toFixed(2)));
     }
     lines.push('');
 
     // 7. Final Totals
     lines.push('=== Final Totals ===', '');
-    lines.push(`  Total damage:         ${report.totalDamage}`);
-    lines.push(`  Total DPS:            ${totalDPS}`);
+    lines.push(padLine('  Total damage:', String(report.totalDamage)));
+    lines.push(padLine('  Total DPS:', totalDPS));
     return lines.join('\n');
   }
 
