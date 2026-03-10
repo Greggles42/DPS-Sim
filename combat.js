@@ -925,7 +925,7 @@
       : (OFFENSE_SKILL + strBonus + wornAttack + spellAttack);
     const dualWieldEffective = getDualWieldEffective(level, options.dualWieldSkill, options.ambidexterity ?? 0);
     const dualWieldPct = (dualWieldEffective / 375) * 100;
-    const doubleAttackEffective = getDoubleAttackEffective(level, options.doubleAttackSkill || 0);
+    const doubleAttackEffective = options.doubleAttackSkill > 0 ? getDoubleAttackEffective(level, options.doubleAttackSkill) : 0;
 
     const w1 = options.weapon1;
     const w2 = options.weapon2;
