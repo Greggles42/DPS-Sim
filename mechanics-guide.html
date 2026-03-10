@@ -164,10 +164,49 @@
       <div class="formula">if a*1.21 &gt; b: hitChance = 1 - b / (a*1.21*2); else hitChance = (a*1.21) / (b*2)</div>
       <h3>Mitigation (damage size)</h3>
       <p>
-        Mitigation comes from level-based formulas and target AC handling. It is used in the damage roll competition:
+        Mitigation is the defender value used only for the <strong>damage roll</strong> (how hard a landed hit hits).
+        It does not affect hit chance. It is computed from mob level and target AC, then used in the RollD20 contest below.
       </p>
-      <div class="formula">rollIndex = RollD20(offenseRating, mitigation)  // 1..20</div>
-      <div class="formula">damage = floor((rollIndex * baseDamage + 5) / 10)</div>
+      <p><strong>How mitigation is computed (GetMitigation):</strong></p>
+      <ul>
+        <li>Level &lt; 15: <code>mit = level × 3</code> (and +2 if level &lt; 3).</li>
+        <li>Level ≥ 15: <code>mit = floor(level × 41 / 10) − 15</code>.</li>
+        <li>Capped at 200. If the result is 200 and mob AC &gt; 200, use mob AC instead.</li>
+        <li>Then add item/spell AC bonuses: <code>+ floor(4×itemAC/3) + floor(spellAC/4)</code>.</li>
+      </ul>
+
+      <h4>rollIndex in detail (RollD20)</h4>
+      <p>
+        For each landed hit, the simulator rolls a <strong>rollIndex</strong> from 1 to 20. That index decides where the hit lands in the damage range:
+      </p>
+      <div class="formula">rollIndex = RollD20(offenseRating, mitigation)  // result 1..20</div>
+      <div class="formula">damage = floor((rollIndex × baseDamage + 5) / 10) + damageBonus</div>
+      <p>
+        So <strong>rollIndex = 1</strong> gives minimum damage; <strong>rollIndex = 20</strong> gives maximum damage (for that weapon’s base range, before crits etc.).
+      </p>
+      <p><strong>How rollIndex is derived (the atk/def roll competition):</strong></p>
+      <ol>
+        <li>
+          <strong>Attack roll:</strong> <code>atkRoll = random(0, offenseRating+5)</code> — uniform integer from 0 up to (offenseRating+5)−1.
+        </li>
+        <li>
+          <strong>Defense roll:</strong> <code>defRoll = random(0, mitigation+5)</code> — uniform integer from 0 up to (mitigation+5)−1.
+        </li>
+        <li>
+          <strong>Average scale:</strong> <code>avg = floor((offenseRating + mitigation + 10) / 2)</code>.
+        </li>
+        <li>
+          <strong>Raw contest:</strong> <code>raw = (atkRoll − defRoll) + floor(avg/2)</code>, then scaled and clamped into 0..19, and <code>rollIndex = raw + 1</code> so the final value is 1..20.
+        </li>
+      </ol>
+      <p><strong>What causes a hit to hit for max vs min?</strong></p>
+      <ul>
+        <li><strong>High damage (max or near-max):</strong> When <strong>atkRoll</strong> is high and <strong>defRoll</strong> is low, (atkRoll − defRoll) is large, so the scaled index is high (near 20). So you get max (or near-max) hits when the attacker “wins” the roll contest by a wide margin.</li>
+        <li><strong>Low damage (min or near-min):</strong> When <strong>atkRoll</strong> is low and <strong>defRoll</strong> is high, (atkRoll − defRoll) is small or negative, so the scaled index is low (near 1). So you get min (or near-min) hits when the defender “wins” the roll contest.</li>
+      </ul>
+      <p class="muted">
+        Higher <strong>offense rating</strong> (STR, worn ATK, spell ATK, offense skill) increases the range of atkRoll, so you can roll higher and get more big hits. Higher <strong>mitigation</strong> (e.g. high-AC or high-level mobs) increases the range of defRoll, so the defender often “wins” more and you see more low (min) hits and fewer max hits. That is why high-mitigation targets feel like they reduce your damage spread and push hits toward the bottom of the range.
+      </p>
     </div>
 
     <div class="card">
