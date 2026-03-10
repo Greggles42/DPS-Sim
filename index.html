@@ -518,6 +518,7 @@
     .easy-history-table-wrap { max-height: 220px; overflow: auto; padding-right: 0.45rem; }
     .easy-history-table { width: 100%; min-width: 980px; border-collapse: collapse; font-size: 0.82rem; }
     .easy-history-table th, .easy-history-table td { border-bottom: 1px solid var(--border); padding: 0.3rem 0.4rem; text-align: left; white-space: nowrap; }
+    .easy-history-table thead th { white-space: normal; line-height: 1.25; }
     .easy-history-table th { color: var(--muted); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.03em; }
     .easy-history-table td.easy-history-dps { color: var(--accent); font-weight: 600; text-align: right; padding-right: 0.35rem; }
 
@@ -3836,12 +3837,12 @@
         var header = '<table class="easy-history-table"><thead><tr>' +
           '<th>Weapon Combination</th>' +
           '<th>Level</th>' +
-          '<th>Worn Haste</th>' +
-          '<th>Effective Haste</th>' +
+          '<th>Worn<br>Haste</th>' +
+          '<th>Effective<br>Haste</th>' +
           '<th>Net ATK</th>' +
           '<th>Target AC</th>' +
-          '<th>Mainhand DPS</th>' +
-          '<th>Offhand DPS</th>' +
+          '<th>Mainhand<br>DPS</th>' +
+          '<th>Offhand<br>DPS</th>' +
           '<th>Proc DPS</th>' +
           '<th style="text-align:right;">DPS</th>' +
           '</tr></thead><tbody>';
