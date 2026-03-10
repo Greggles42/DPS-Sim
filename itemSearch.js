@@ -604,8 +604,21 @@
    * @param {string} [classId] - Selected class (e.g. 'warrior', 'cleric'); filters by item classes bitmask.
    * @returns {Promise<Array<Object>>} Resolves to array of normalized weapons.
    */
+  function getItemName(item) {
+    if (!item || typeof item !== 'object') return '';
+    var v = item.name || item.Name || item.item_name || item.itemName;
+    return (v != null ? String(v) : '').trim();
+  }
+
   function searchWeapons(nameFilter, classId) {
+    var q = (nameFilter != null ? String(nameFilter) : '').trim().toLowerCase();
     return searchItems(nameFilter).then(function (items) {
+      if (q) {
+        items = items.filter(function (item) {
+          var name = getItemName(item).toLowerCase();
+          return name.indexOf(q) >= 0;
+        });
+      }
       var mask = classId ? CLASS_BITMASK[classId] : 0;
       if (mask) {
         items = items.filter(function (item) {
