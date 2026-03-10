@@ -568,7 +568,7 @@
               <img id="easy-w1-icon" class="easy-weapon-icon is-empty" alt="Main hand weapon icon">
             </div>
             <div class="easy-weapon-search">
-              <input type="text" id="easy-w1-item-search" placeholder="Search main hand (3+ chars)" autocomplete="off">
+              <input type="text" id="easy-w1-item-search" placeholder="Search main hand (4+ chars)" autocomplete="off">
               <div id="easy-w1-item-search-list" class="item-search-list" role="listbox"></div>
             </div>
           </div>
@@ -581,7 +581,7 @@
               <img id="easy-w2-icon" class="easy-weapon-icon is-empty" alt="Offhand weapon icon">
             </div>
             <div class="easy-weapon-search">
-              <input type="text" id="easy-w2-item-search" placeholder="Search offhand (3+ chars)" autocomplete="off">
+              <input type="text" id="easy-w2-item-search" placeholder="Search offhand (4+ chars)" autocomplete="off">
               <div id="easy-w2-item-search-list" class="item-search-list" role="listbox"></div>
             </div>
           </div>
@@ -737,7 +737,7 @@
       <p class="hint char-hint" style="margin-top: 0; margin-bottom: 0.35rem;">When unchecked, item search uses resources/weaponlist.json.</p>
       <div class="item-search-wrap">
         <label for="w1-item-search">Search items</label>
-        <input type="text" id="w1-item-search" placeholder="Type 3+ characters to search..." autocomplete="off">
+        <input type="text" id="w1-item-search" placeholder="Type 4+ characters to search..." autocomplete="off">
         <div id="w1-item-search-list" class="item-search-list" role="listbox"></div>
       </div>
       <input type="hidden" id="w1-is2h-override" value="0">
@@ -795,7 +795,7 @@
       <div id="w2-weapon-skill" class="weapon-skill"></div>
       <div class="item-search-wrap">
         <label for="w2-item-search">Search items (API)</label>
-        <input type="text" id="w2-item-search" placeholder="Type 3+ characters to search..." autocomplete="off">
+        <input type="text" id="w2-item-search" placeholder="Type 4+ characters to search..." autocomplete="off">
         <div id="w2-item-search-list" class="item-search-list" role="listbox"></div>
       </div>
       <div class="row">
@@ -932,7 +932,7 @@
       <h2>Ranged weapon</h2>
       <div class="item-search-wrap">
         <label for="ranged-weapon-item-search">Search items (API)</label>
-        <input type="text" id="ranged-weapon-item-search" placeholder="Type 3+ characters to search..." autocomplete="off">
+        <input type="text" id="ranged-weapon-item-search" placeholder="Type 4+ characters to search..." autocomplete="off">
         <div id="ranged-weapon-item-search-list" class="item-search-list" role="listbox"></div>
       </div>
       <div class="row">
@@ -967,7 +967,7 @@
       <h2>Arrow type</h2>
       <div class="item-search-wrap">
         <label for="arrow-item-search">Search items (API)</label>
-        <input type="text" id="arrow-item-search" placeholder="Type 3+ characters to search..." autocomplete="off">
+        <input type="text" id="arrow-item-search" placeholder="Type 4+ characters to search..." autocomplete="off">
         <div id="arrow-item-search-list" class="item-search-list" role="listbox"></div>
       </div>
       <div class="row">
@@ -2107,6 +2107,13 @@
             baseDamageCap: reports[0].baseDamageCap || null,
             critHits: Math.round(reports.reduce((s, r) => s + (r.critHits || 0), 0) / runs),
             critDamageGain: Math.round(reports.reduce((s, r) => s + (r.critDamageGain || 0), 0) / runs),
+            dpsStdDev: (function () {
+              var dur = durationSec || 1;
+              var dpsValues = reports.map(function (r) { return (r.totalDamage || 0) / dur; });
+              var meanDps = dpsValues.reduce(function (s, d) { return s + d; }, 0) / runs;
+              var sumSq = dpsValues.reduce(function (s, d) { return s + (d - meanDps) * (d - meanDps); }, 0);
+              return runs > 1 ? Math.sqrt(sumSq / (runs - 1)) : 0;
+            })(),
             special: reports[0].special
               ? {
                   name: reports[0].special.name,
@@ -4047,6 +4054,13 @@
             totalDamage: Math.round(reports.reduce((s, r) => s + r.totalDamage, 0) / runs),
             critHits: Math.round(reports.reduce((s, r) => s + (r.critHits || 0), 0) / runs),
             critDamageGain: Math.round(reports.reduce((s, r) => s + (r.critDamageGain || 0), 0) / runs),
+            dpsStdDev: (function () {
+              var dur = r0.durationSec || 1;
+              var dpsValues = reports.map(function (r) { return (r.totalDamage || 0) / dur; });
+              var meanDps = dpsValues.reduce(function (s, d) { return s + d; }, 0) / runs;
+              var sumSq = dpsValues.reduce(function (s, d) { return s + (d - meanDps) * (d - meanDps); }, 0);
+              return runs > 1 ? Math.sqrt(sumSq / (runs - 1)) : 0;
+            })(),
             wallPenaltyDamageLost: r0.wallPenaltyDamageLost != null ? Math.round(reports.reduce((s, r) => s + (r.wallPenaltyDamageLost || 0), 0) / runs) : undefined,
             calculatedToHit: r0.calculatedToHit,
             offenseSkill: r0.offenseSkill,
@@ -4348,7 +4362,7 @@
       const ITEM_SEARCH_RECENT_RANGED_KEY = 'dps_sim_recent_ranged_weapons';
       const ITEM_SEARCH_RECENT_ARROW_KEY = 'dps_sim_recent_arrows';
       const ITEM_SEARCH_MAX_RECENT = 15;
-      const ITEM_SEARCH_MIN_CHARS = 3;
+      const ITEM_SEARCH_MIN_CHARS = 4;
       const ITEM_SEARCH_DEBOUNCE_MS = 300;
 
       function getRecentWeapons() {

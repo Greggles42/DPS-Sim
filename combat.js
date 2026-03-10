@@ -768,6 +768,9 @@
     lines.push(`  Duration:              ${dur} seconds`);
     lines.push(`  Runs averaged:        ${runs}`);
     lines.push(`  Total DPS:            ${totalDPS}`);
+    if (runs > 1 && report.dpsStdDev != null && report.dpsStdDev >= 0) {
+      lines.push(`  DPS std dev:           ${report.dpsStdDev.toFixed(2)}`);
+    }
     lines.push(`  Total damage:         ${report.totalDamage}`);
     if (report.critHits != null && report.critHits >= 0) lines.push(`  Critical hits:         ${report.critHits}`);
     if (report.critDamageGain != null) {
@@ -1537,6 +1540,9 @@
     lines.push(`  Duration:              ${dur} seconds`);
     lines.push(`  Runs averaged:        ${runs}`);
     lines.push(`  Total DPS:            ${totalDPS}`);
+    if (runs > 1 && report.dpsStdDev != null && report.dpsStdDev >= 0) {
+      lines.push(`  DPS std dev:           ${report.dpsStdDev.toFixed(2)}`);
+    }
     lines.push(`  Total damage:         ${report.totalDamage}`);
     if (report.critHits != null && report.critHits >= 0) lines.push(`  Critical hits:         ${report.critHits}`);
     if (report.critDamageGain != null && report.critDamageGain >= 0) {
