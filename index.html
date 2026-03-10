@@ -226,6 +226,7 @@
     .radio-option-note { font-size: 0.85rem; color: var(--muted); font-weight: 400; }
     .checkbox-label { display: flex; align-items: center; gap: 0.35rem; cursor: pointer; margin-bottom: 0.25rem; }
     .checkbox-label input[type="checkbox"] { width: auto; margin: 0; }
+    .bane-id-label { font-size: 0.75rem; color: var(--muted); margin-left: 0.25rem; }
     .main-layout {
       display: block;
       margin-top: var(--section-gap);
@@ -778,9 +779,12 @@
             <option value="magic">Magic</option>
           </select></div>
           <div><label for="w1-elem-damage" class="small-label">Elem dmg</label><input type="number" id="w1-elem-damage" min="0" value="0" placeholder="0"></div>
-          <div><label for="w1-bane" class="small-label">Bane dmg</label><input type="number" id="w1-bane" min="0" value="0" placeholder="0"></div>
         </div>
-        <input type="hidden" id="w1-bane-race" value="">
+        <div class="row">
+          <div><label for="w1-bane" class="small-label">Bane dmg</label><input type="number" id="w1-bane" min="0" value="0" placeholder="0"></div>
+          <div><label for="w1-bane-body" class="small-label">Bane body</label><input type="number" id="w1-bane-body" min="0" value="0" placeholder="0" title="EQEmu body type ID"><span id="w1-bane-body-label" class="bane-id-label" aria-live="polite"></span></div>
+          <div><label for="w1-bane-race" class="small-label">Bane race</label><input type="number" id="w1-bane-race" min="0" value="0" placeholder="0" title="EQEmu race ID"><span id="w1-bane-race-label" class="bane-id-label" aria-live="polite"></span></div>
+        </div>
       </details>
     </section>
 
@@ -832,9 +836,12 @@
             <option value="magic">Magic</option>
           </select></div>
           <div><label for="w2-elem-damage" class="small-label">Elem dmg</label><input type="number" id="w2-elem-damage" min="0" value="0" placeholder="0"></div>
-          <div><label for="w2-bane" class="small-label">Bane dmg</label><input type="number" id="w2-bane" min="0" value="0" placeholder="0"></div>
         </div>
-        <input type="hidden" id="w2-bane-race" value="">
+        <div class="row">
+          <div><label for="w2-bane" class="small-label">Bane dmg</label><input type="number" id="w2-bane" min="0" value="0" placeholder="0"></div>
+          <div><label for="w2-bane-body" class="small-label">Bane body</label><input type="number" id="w2-bane-body" min="0" value="0" placeholder="0" title="EQEmu body type ID"><span id="w2-bane-body-label" class="bane-id-label" aria-live="polite"></span></div>
+          <div><label for="w2-bane-race" class="small-label">Bane race</label><input type="number" id="w2-bane-race" min="0" value="0" placeholder="0" title="EQEmu race ID"><span id="w2-bane-race-label" class="bane-id-label" aria-live="polite"></span></div>
+        </div>
       </details>
     </section>
 
@@ -1041,6 +1048,12 @@
   </div>
 
   <aside class="histogram-aside">
+    <section class="histogram-panel" id="sim-history-section">
+      <h2>Simulation history</h2>
+      <p class="hint" style="margin-top: -0.5rem; margin-bottom: 0.5rem;">Runs from this session (newest first).</p>
+      <div id="sim-history-list"></div>
+      <button type="button" id="sim-history-clear" class="sim-history-clear-btn">Clear history</button>
+    </section>
     <section class="histogram-panel">
       <h2>Charts</h2>
       <div id="histogram-container" class="histogram-container"></div>
@@ -1048,12 +1061,6 @@
     <section class="histogram-panel">
       <h2>Damage breakdown</h2>
       <div id="damage-pie-container" class="damage-pie-container" aria-hidden="true"></div>
-    </section>
-    <section class="histogram-panel" id="sim-history-section">
-      <h2>Simulation history</h2>
-      <p class="hint" style="margin-top: -0.5rem; margin-bottom: 0.5rem;">Runs from this session (newest first).</p>
-      <div id="sim-history-list"></div>
-      <button type="button" id="sim-history-clear" class="sim-history-clear-btn">Clear history</button>
     </section>
   </aside>
   </div>
@@ -1144,6 +1151,30 @@
       }
       ensureLocalSpellDataLoaded();
       const $ = (id) => document.getElementById(id);
+      function parseResist(id) {
+        var el = $(id);
+        if (!el) return 35;
+        var v = parseInt(el.value, 10);
+        return isNaN(v) ? 35 : v;
+      }
+      /** EQEmu race ID -> name (docs.eqemu.io server npc race-list). Used for bane race display. */
+      var EQEMU_RACE_NAMES = { 1:'Human',2:'Barbarian',3:'Erudite',4:'Wood Elf',5:'High Elf',6:'Dark Elf',7:'Half Elf',8:'Dwarf',9:'Troll',10:'Ogre',11:'Halfling',12:'Gnome',13:'Aviak',14:'Werewolf',15:'Brownie',16:'Centaur',17:'Golem',18:'Giant',19:'Trakanon',20:'Venril Sathir',21:'Evil Eye',22:'Beetle',23:'Kerran',24:'Fish',25:'Fairy',26:'Froglok',27:'Froglok',28:'Fungusman',29:'Gargoyle',30:'Gasbag',31:'Gelatinous Cube',32:'Ghost',33:'Ghoul',34:'Bat',35:'Eel',36:'Rat',37:'Snake',38:'Spider',39:'Gnoll',40:'Goblin',41:'Gorilla',42:'Wolf',43:'Bear',44:'Guard',45:'Demi Lich',46:'Imp',47:'Griffin',48:'Kobold',49:'Dragon',50:'Lion',51:'Lizard Man',52:'Mimic',53:'Minotaur',54:'Orc',55:'Beggar',56:'Pixie',57:'Drachnid',58:'Solusek Ro',59:'Goblin',60:'Skeleton',61:'Shark',62:'Tunare',63:'Tiger',64:'Treant',65:'Vampire',66:'Rallos Zek',67:'Human',68:'Tentacle Terror',69:'Will-O-Wisp',70:'Zombie',71:'Human',72:'Ship',73:'Launch',74:'Piranha',75:'Elemental',76:'Puma',77:'Dark Elf',78:'Erudite',79:'Bixie',80:'Reanimated Hand',81:'Halfling',82:'Scarecrow',83:'Skunk',84:'Snake Elemental',85:'Spectre',86:'Sphinx',87:'Armadillo',88:'Clockwork Gnome',89:'Drake',90:'Barbarian',91:'Alligator',92:'Troll',93:'Ogre',94:'Dwarf',95:'Cazic Thule',96:'Cockatrice',97:'Daisy Man',98:'Vampire',99:'Amygdalan',100:'Dervish',101:'Efreeti',102:'Tadpole',103:'Kedge',104:'Leech',105:'Swordfish',106:'Guard',107:'Mammoth',108:'Eye',109:'Wasp',110:'Mermaid',111:'Harpy',112:'Guard',113:'Drixie',114:'Ghost Ship',115:'Clam',116:'Seahorse',117:'Ghost',118:'Ghost',119:'Sabertooth',120:'Wolf',121:'Gorgon',122:'Dragon',123:'Innoruuk',124:'Unicorn',125:'Pegasus',126:'Djinn',127:'Invisible Man',128:'Iksar',129:'Scorpion',130:'Vah Shir',131:'Sarnak',132:'Draglock',133:'Drolvarg',134:'Mosquito',135:'Rhinoceros',136:'Xalgoz',137:'Goblin',138:'Yeti',139:'Iksar',140:'Giant',141:'Boat',144:'Burynai',145:'Goo',146:'Sarnak Spirit',147:'Iksar Spirit',148:'Fish',149:'Scorpion',150:'Erollisi',151:'Tribunal',152:'Bertoxxulous',153:'Bristlebane',154:'Fay Drake',155:'Undead Sarnak',156:'Ratman',157:'Wyvern',158:'Wurm',159:'Devourer',160:'Iksar Golem',161:'Undead Iksar',162:'Man-Eating Plant',163:'Raptor',164:'Sarnak Golem',165:'Dragon',166:'Animated Hand',167:'Succulent',168:'Holgresh',169:'Brontotherium',170:'Snow Dervish',171:'Dire Wolf',172:'Manticore',173:'Totem',174:'Ice Spectre',175:'Enchanted Armor',176:'Snow Rabbit',177:'Walrus',178:'Geonid',181:'Yakkar',182:'Faun',183:'Coldain',184:'Dragon',185:'Hag',186:'Hippogriff',187:'Siren',188:'Giant',189:'Giant',190:'Othmir',191:'Ulthork',192:'Dragon',193:'Abhorrent',194:'Sea Turtle',195:'Dragon',196:'Dragon',197:'Ronnie Test',198:'Dragon',199:'Shik\'Nar',200:'Rockhopper',201:'Underbulk',202:'Grimling',203:'Worm',204:'Evan Test',205:'Shadel',206:'Owlbear',207:'Rhino Beetle',208:'Vampire',209:'Earth Elemental',210:'Air Elemental',211:'Water Elemental',212:'Fire Elemental',213:'Wetfang Minnow',214:'Thought Horror',215:'Tegi',216:'Horse',217:'Shissar',218:'Fungal Fiend',219:'Vampire',220:'Stonegrabber',221:'Scarlet Cheetah',222:'Zelniak',223:'Lightcrawler',224:'Shade',225:'Sunfbelow',226:'Sun Revenant',227:'Shrieker',228:'Galorian',229:'Netherbian',230:'Akheva',231:'Grieg Veneficus',232:'Sonic Wolf',233:'Ground Shaker',234:'Vah Shir Skeleton',235:'Wretch',236:'Seru',237:'Recuso',238:'Vah Shir',239:'Guard',240:'Teleport Man',241:'Werewolf',242:'Nymph',243:'Dryad',244:'Treant',245:'Fly',246:'Tarew Marr',247:'Solusek Ro',248:'Clockwork Golem',249:'Clockwork Brain',250:'Banshee',251:'Guard of Justice',252:'Mini POM',253:'Diseased Fiend',254:'Solusek Ro Guard',255:'Bertoxxulous',256:'The Tribunal',257:'Terris Thule',258:'Vegerog',259:'Crocodile',260:'Bat',261:'Hraquis',262:'Tranquilion',263:'Tin Soldier',264:'Nightmare Wraith',265:'Malarian',266:'Knight of Pestilence',267:'Lepertoloth',268:'Bubonian',269:'Bubonian Underling',270:'Pusling',271:'Water Mephit',272:'Stormrider',273:'Junk Beast',274:'Broken Clockwork',275:'Giant Clockwork',276:'Clockwork Beetle',277:'Nightmare Goblin',278:'Karana',279:'Blood Raven',280:'Nightmare Gargoyle',281:'Mouth of Insanity',282:'Skeletal Horse',283:'Saryrn',284:'Fennin Ro',285:'Tormentor',286:'Soul Devourer',287:'Nightmare',288:'Rallos Zek',289:'Vallon Zek',290:'Tallon Zek',291:'Air Mephit',292:'Earth Mephit',293:'Fire Mephit',294:'Nightmare Mephit',295:'Zebuxoruk',296:'Mithaniel Marr',297:'Undead Knight',298:'The Rathe',299:'Xegony',300:'Fiend',330:'Froglok',522:'Drakkin',2250:'Interactive Object',2254:'Node' };
+      /** EQEmu body type ID -> name (docs.eqemu.io server npc body-types). Used for bane body display. */
+      var EQEMU_BODY_TYPE_NAMES = { 1:'Normal',2:'Lycanthrope',3:'Undead',4:'Giant',5:'Construct',6:'Extra Planar',7:'Monster',8:'Undead Pet',9:'Raid Giant',10:'Raid Coldain',11:'Untargetable',12:'Vampire',13:'Atenha Ra',14:'Greater Akheva',15:'Khati Sha',16:'Seru',17:'Grieg Veneficus',18:'Draz Nurakk',19:'God',20:'Luggald',21:'Animal',22:'Insect',23:'Fire Creature',24:'Construct, Elemental, or Gargoyle',25:'Plant',26:'Dragon',27:'Summoned Creature',28:'Summoned Creature 2',29:'Dragon 2',30:'Velious Dragon',31:'Familiar',32:'Dragon 3',33:'Boxes',34:'Muramite',60:'Untargetable 2',63:'Swarm Pet',64:'Monster Summoning',66:'Invisible Man',67:'Special' };
+      function formatBaneRaceLabel(id) {
+        if (id == null || id === '' || (typeof id === 'number' && (isNaN(id) || id <= 0))) return '';
+        var n = typeof id === 'number' ? id : parseInt(id, 10);
+        if (isNaN(n)) return '';
+        var name = EQEMU_RACE_NAMES[n];
+        return name != null ? (n + ' (' + name + ')') : (n + ' (Unknown)');
+      }
+      function formatBaneBodyLabel(id) {
+        if (id == null || id === '' || (typeof id === 'number' && (isNaN(id) || id <= 0))) return '';
+        var n = typeof id === 'number' ? id : parseInt(id, 10);
+        if (isNaN(n)) return '';
+        var name = EQEMU_BODY_TYPE_NAMES[n];
+        return name != null ? (n + ' (' + name + ')') : (n + ' (Unknown)');
+      }
       var npcTypesList = [];
       fetch('resources/npc_types.json')
         .then(function (r) { return r.ok ? r.json() : null; })
@@ -1698,11 +1729,17 @@
           if (elemDamageEl) elemDamageEl.value = (p.elemDamage != null ? p.elemDamage : 0) || '';
           const baneEl = $(prefix + '-bane');
           if (baneEl) baneEl.value = (p.baneDamage != null ? p.baneDamage : 0) || '';
+          const baneBodyEl = $(prefix + '-bane-body');
+          if (baneBodyEl) {
+            var bb = raw && raw.banedmgbody != null ? Number(raw.banedmgbody) : (raw && raw.baneDamageBody != null ? Number(raw.baneDamageBody) : null);
+            baneBodyEl.value = (bb != null && !isNaN(bb) && bb > 0) ? String(Math.floor(bb)) : '0';
+          }
           const baneRaceEl = $(prefix + '-bane-race');
           if (baneRaceEl) {
             const br = raw && raw.banedamagerace != null ? Number(raw.banedamagerace) : (raw && raw.banedmgrace != null ? Number(raw.banedmgrace) : (raw && raw.baneDamageRace != null ? Number(raw.baneDamageRace) : null));
-            baneRaceEl.value = (br != null && !isNaN(br)) ? String(br) : '';
+            baneRaceEl.value = (br != null && !isNaN(br) && br > 0) ? String(Math.floor(br)) : '0';
           }
+          updateBaneLabels(prefix);
           if (prefix === 'w1' && (p.is2H || pType2H)) {
             applyWeaponPreset('w2', 'unequipped');
           }
@@ -1773,9 +1810,11 @@
         const elemDamage = elemDamageEl && elemDamageEl.value !== '' ? (parseInt(elemDamageEl.value, 10) || 0) : 0;
         const baneEl = $(prefix + '-bane');
         const baneDamage = baneEl && baneEl.value !== '' ? (parseInt(baneEl.value, 10) || 0) : 0;
+        const baneBodyEl = $(prefix + '-bane-body');
+        const baneDamageBody = baneBodyEl && baneBodyEl.value !== '' ? (parseInt(baneBodyEl.value, 10) || 0) : 0;
         const baneRaceEl = $(prefix + '-bane-race');
         const baneDamageRace = baneRaceEl && baneRaceEl.value !== '' ? (parseInt(baneRaceEl.value, 10) || 0) : 0;
-        const out = { damage, delay, procSpell: proc, procSpellDamage: procSpellDamage || 0, procRate, minDmg, maxDmg, is2H, baneDamage, baneDamageRace };
+        const out = { damage, delay, procSpell: proc, procSpellDamage: procSpellDamage || 0, procRate, minDmg, maxDmg, is2H, baneDamage, baneDamageBody, baneDamageRace };
         if (procLevel != null && procLevel > 0) out.procLevel = procLevel;
         if (procBuffDurationTicks != null && procBuffDurationTicks > 0) out.procBuffDurationTicks = procBuffDurationTicks;
         if (procSpellId != null) out.procSpellId = procSpellId;
@@ -1801,6 +1840,7 @@
             if (sd1.resistModifier != null) weapon1.procSpellResistModifier = sd1.resistModifier;
             weapon1.procSpellNoPartialResist = sd1.noPartialResist;
             weapon1.procSpellMovementEffect = sd1.movementEffect;
+            if (sd1.targettype != null) weapon1.procSpellTargetType = sd1.targettype;
           }
         }
         if (weapon2 && weapon2.procSpellId && typeof ItemSearch !== 'undefined' && ItemSearch.getSpellFromLocalData) {
@@ -1810,6 +1850,7 @@
             if (sd2.resistModifier != null) weapon2.procSpellResistModifier = sd2.resistModifier;
             weapon2.procSpellNoPartialResist = sd2.noPartialResist;
             weapon2.procSpellMovementEffect = sd2.movementEffect;
+            if (sd2.targettype != null) weapon2.procSpellTargetType = sd2.targettype;
           }
         }
         var targetRace = (function () {
@@ -1819,6 +1860,14 @@
           if (rr == null || rr === '') return null;
           var rn = parseInt(rr, 10);
           return isNaN(rn) ? null : rn;
+        })();
+        var targetBodyType = (function () {
+          var npc = window.selectedTargetNpc;
+          if (!npc || typeof npc !== 'object') return null;
+          var bt = npc.bodytype != null ? npc.bodytype : (npc.bodytype === 0 ? 0 : (npc.BodyType != null ? npc.BodyType : null));
+          if (bt == null && bt !== 0) return null;
+          var bn = parseInt(bt, 10);
+          return isNaN(bn) ? null : bn;
         })();
         var applyManualBane = $('apply-bane').checked;
         var autoBaneW1 = weapon1 && weapon1.baneDamage > 0 && weapon1.baneDamageRace > 0 && targetRace != null && weapon1.baneDamageRace === targetRace;
@@ -1847,11 +1896,11 @@
         const level = parseInt($('level').value, 10) || 60;
         const targetAC = parseInt($('target-ac').value, 10) || 550;
         const mobLevel = parseInt($('mob-level').value, 10) || 60;
-        const targetMR = parseInt($('target-mr').value, 10) || 35;
-        const targetFR = parseInt($('target-fr').value, 10) || 35;
-        const targetCR = parseInt($('target-cr').value, 10) || 35;
-        const targetPR = parseInt($('target-pr').value, 10) || 35;
-        const targetDR = parseInt($('target-dr').value, 10) || 35;
+        const targetMR = parseResist('target-mr');
+        const targetFR = parseResist('target-fr');
+        const targetCR = parseResist('target-cr');
+        const targetPR = parseResist('target-pr');
+        const targetDR = parseResist('target-dr');
         const durationSec = parseInt($('duration').value, 10) || 6000;
         const str = parseInt($('str').value, 10) || 255;
         const runs = Math.max(1, Math.min(1000, parseInt($('runs').value, 10) || 20));
@@ -1879,13 +1928,15 @@
           procSpellResistType: weapon1.procSpellResistType,
           procSpellResistModifier: weapon1.procSpellResistModifier,
           procSpellNoPartialResist: weapon1.procSpellNoPartialResist,
-          procSpellMovementEffect: weapon1.procSpellMovementEffect
+          procSpellMovementEffect: weapon1.procSpellMovementEffect,
+          procSpellTargetType: weapon1.procSpellTargetType
         } : {};
         const w2ProcResist = useWeapon2 && weapon2 ? {
           procSpellResistType: weapon2.procSpellResistType,
           procSpellResistModifier: weapon2.procSpellResistModifier,
           procSpellNoPartialResist: weapon2.procSpellNoPartialResist,
-          procSpellMovementEffect: weapon2.procSpellMovementEffect
+          procSpellMovementEffect: weapon2.procSpellMovementEffect,
+          procSpellTargetType: weapon2.procSpellTargetType
         } : {};
         var equippedBackstabModPercent = classId === 'rogue' ? Math.max(
           (w1BackstabModPercent != null && !isNaN(Number(w1BackstabModPercent))) ? Number(w1BackstabModPercent) : 0,
@@ -1909,6 +1960,7 @@
           level,
           targetAC,
           mobLevel,
+          targetBodyType: targetBodyType,
           targetMR, targetFR, targetCR, targetPR, targetDR,
           fightDurationSec: durationSec,
           dex,
@@ -2306,6 +2358,32 @@
         var n = parseInt(rr, 10);
         return isNaN(n) ? null : n;
       }
+      function getItemBaneBodyById(itemId) {
+        if (itemId == null || itemId === '') return null;
+        var id = String(itemId);
+        var raw = (weaponListData && weaponListData[id]) || (luclinWeaponsData && luclinWeaponsData[id]) || (popWeaponsData && popWeaponsData[id]) || null;
+        if (!raw || typeof raw !== 'object') return null;
+        var bb = raw.banedmgbody != null ? raw.banedmgbody : (raw.baneDamageBody != null ? raw.baneDamageBody : null);
+        if (bb == null || bb === '') return null;
+        var n = parseInt(bb, 10);
+        return isNaN(n) ? null : n;
+      }
+      function updateBaneLabels(prefix) {
+        var bodyEl = $(prefix + '-bane-body');
+        var raceEl = $(prefix + '-bane-race');
+        var bodyLabel = $(prefix + '-bane-body-label');
+        var raceLabel = $(prefix + '-bane-race-label');
+        if (bodyEl && bodyLabel) {
+          var bv = bodyEl.value.trim();
+          var bodyNum = bv === '' ? null : (parseInt(bv, 10));
+          bodyLabel.textContent = bodyNum != null && !isNaN(bodyNum) && bodyNum > 0 ? formatBaneBodyLabel(bodyNum) : '';
+        }
+        if (raceEl && raceLabel) {
+          var rv = raceEl.value.trim();
+          var raceNum = rv === '' ? null : (parseInt(rv, 10));
+          raceLabel.textContent = raceNum != null && !isNaN(raceNum) && raceNum > 0 ? formatBaneRaceLabel(raceNum) : '';
+        }
+      }
       function isLoreItem(props) { return props.lore && props.lore.indexOf('*') >= 0; }
       function primarySlotAllowed(slots, is2H) {
         if (slots != null) return (slots & SLOT_PRIMARY_BIT) !== 0;
@@ -2564,11 +2642,11 @@
         const offenseSkill = Math.min(255, Math.max(0, parseInt($('offense-skill').value, 10) || 252));
         const targetAC = parseInt($('target-ac').value, 10) || 550;
         const mobLevel = parseInt($('mob-level').value, 10) || 60;
-        const targetMR = parseInt($('target-mr').value, 10) || 35;
-        const targetFR = parseInt($('target-fr').value, 10) || 35;
-        const targetCR = parseInt($('target-cr').value, 10) || 35;
-        const targetPR = parseInt($('target-pr').value, 10) || 35;
-        const targetDR = parseInt($('target-dr').value, 10) || 35;
+        const targetMR = parseResist('target-mr');
+        const targetFR = parseResist('target-fr');
+        const targetCR = parseResist('target-cr');
+        const targetPR = parseResist('target-pr');
+        const targetDR = parseResist('target-dr');
         const str = parseInt($('str').value, 10) || 255;
         const dex = parseInt($('dex').value, 10) || 255;
         const fromBehind = document.querySelector('input[name="from-behind"]:checked').value === '1';
@@ -3096,11 +3174,11 @@
           level: level,
           targetAC: parseInt($('ranged-target-ac').value, 10) || 300,
           mobLevel: parseInt($('ranged-mob-level').value, 10) || 60,
-          targetMR: parseInt($('ranged-target-mr').value, 10) || 35,
-          targetFR: parseInt($('ranged-target-fr').value, 10) || 35,
-          targetCR: parseInt($('ranged-target-cr').value, 10) || 35,
-          targetPR: parseInt($('ranged-target-pr').value, 10) || 35,
-          targetDR: parseInt($('ranged-target-dr').value, 10) || 35,
+          targetMR: parseResist('ranged-target-mr'),
+          targetFR: parseResist('ranged-target-fr'),
+          targetCR: parseResist('ranged-target-cr'),
+          targetPR: parseResist('ranged-target-pr'),
+          targetDR: parseResist('ranged-target-dr'),
           fightDurationSec: durationSec,
           offenseSkill: 252,
           wornAttack: parseInt($('ranged-worn-attack').value, 10) || 0,
@@ -3824,6 +3902,14 @@
         const arrowElemType = ($('arrow-elem-type').value || '').trim();
         const arrowElemDamage = parseInt($('arrow-elem-damage').value, 10) || 0;
         if (arrowElemType && arrowElemDamage > 0) { arrow.elemType = arrowElemType; arrow.elemDamage = arrowElemDamage; }
+        const rangedTargetBodyType = (function () {
+          var npc = window.selectedTargetNpc;
+          if (!npc || typeof npc !== 'object') return null;
+          var bt = npc.bodytype != null ? npc.bodytype : (npc.bodytype === 0 ? 0 : (npc.BodyType != null ? npc.BodyType : null));
+          if (bt == null && bt !== 0) return null;
+          var bn = parseInt(bt, 10);
+          return isNaN(bn) ? null : bn;
+        })();
         const options = {
           rangedWeapon,
           arrow,
@@ -3831,11 +3917,12 @@
           level: parseInt($('ranged-level').value, 10) || 60,
           targetAC: parseInt($('ranged-target-ac').value, 10) || 300,
           mobLevel: parseInt($('ranged-mob-level').value, 10) || 60,
-          targetMR: parseInt($('ranged-target-mr').value, 10) || 35,
-          targetFR: parseInt($('ranged-target-fr').value, 10) || 35,
-          targetCR: parseInt($('ranged-target-cr').value, 10) || 35,
-          targetPR: parseInt($('ranged-target-pr').value, 10) || 35,
-          targetDR: parseInt($('ranged-target-dr').value, 10) || 35,
+          targetBodyType: rangedTargetBodyType,
+          targetMR: parseResist('ranged-target-mr'),
+          targetFR: parseResist('ranged-target-fr'),
+          targetCR: parseResist('ranged-target-cr'),
+          targetPR: parseResist('ranged-target-pr'),
+          targetDR: parseResist('ranged-target-dr'),
           fightDurationSec: parseInt($('ranged-duration').value, 10) || 6000,
           offenseSkill: 252,
           wornAttack: parseInt($('ranged-worn-attack').value, 10) || 0,
@@ -4174,6 +4261,8 @@
       }
       [$('w1-damage'), $('w1-delay')].forEach(function (el) { if (el) el.addEventListener('input', function () { clearItemSearchOnManualEdit('w1'); updateWeaponNameDisplay('w1'); }); });
       [$('w2-damage'), $('w2-delay')].forEach(function (el) { if (el) el.addEventListener('input', function () { clearItemSearchOnManualEdit('w2'); updateWeaponNameDisplay('w2'); }); });
+      [$('w1-bane-body'), $('w1-bane-race')].forEach(function (el) { if (el) { el.addEventListener('input', function () { updateBaneLabels('w1'); }); el.addEventListener('change', function () { updateBaneLabels('w1'); }); } });
+      [$('w2-bane-body'), $('w2-bane-race')].forEach(function (el) { if (el) { el.addEventListener('input', function () { updateBaneLabels('w2'); }); el.addEventListener('change', function () { updateBaneLabels('w2'); }); } });
       function onWeaponIconClick(prefix) {
         applyWeaponPreset(prefix, 'unequipped');
         updateWeaponSkillInputs();
@@ -4383,12 +4472,19 @@
         if (elemDamageEl) elemDamageEl.value = isNaN(elemDmg) ? '' : elemDmg;
         const baneEl = $(prefix + '-bane');
         if (baneEl) baneEl.value = isNaN(bane) ? '' : bane;
+        const baneBodyEl = $(prefix + '-bane-body');
+        if (baneBodyEl) {
+          var bbody = (weapon.baneDamageBody != null && !isNaN(Number(weapon.baneDamageBody))) ? Number(weapon.baneDamageBody) : null;
+          if ((bbody == null || bbody <= 0) && weapon.itemId != null) bbody = getItemBaneBodyById(weapon.itemId);
+          baneBodyEl.value = (bbody != null && !isNaN(bbody) && bbody > 0) ? String(Math.floor(bbody)) : '0';
+        }
         const baneRaceEl = $(prefix + '-bane-race');
         if (baneRaceEl) {
           var br = (weapon.baneDamageRace != null && !isNaN(Number(weapon.baneDamageRace))) ? Number(weapon.baneDamageRace) : null;
           if ((br == null || br <= 0) && weapon.itemId != null) br = getItemBaneRaceById(weapon.itemId);
-          baneRaceEl.value = (br != null && !isNaN(br) && br > 0) ? String(Math.floor(br)) : '';
+          baneRaceEl.value = (br != null && !isNaN(br) && br > 0) ? String(Math.floor(br)) : '0';
         }
+        updateBaneLabels(prefix);
         var normType = (weapon.type != null && weapon.type !== '') ? String(weapon.type).trim().toLowerCase() : null;
         var isPiercing = normType === '1hp' || normType === '2hp';
         var backstabModVal = (weapon.backstabModPercent != null && !isNaN(Number(weapon.backstabModPercent))) ? Number(weapon.backstabModPercent) : null;
@@ -4527,7 +4623,7 @@
           let s = '<div class="item-search-section">Recent</div>';
           recent.forEach(function (w) {
             const label = renderItemLabel(w);
-            s += '<button type="button" class="item-search-item" data-item-id="' + (w.itemId != null ? String(w.itemId) : '') + '" data-name="' + (w.name || '').replace(/"/g, '&quot;') + '" data-damage="' + (w.damage != null ? w.damage : '') + '" data-delay="' + (w.delay != null ? w.delay : '') + '" data-weapon-type="' + (w.type || '').replace(/"/g, '&quot;') + '" data-item-type-num="' + (w.itemTypeNum != null ? String(w.itemTypeNum) : '') + '" data-slots="' + (w.slots != null ? String(w.slots) : '') + '" data-classes="' + (w.classes != null ? String(w.classes) : '') + '" data-proc="' + (w.proc || '').replace(/"/g, '&quot;') + '" data-procdamage="' + (w.procDamage != null ? w.procDamage : '') + '" data-proc-rate="' + (w.procRate != null ? w.procRate : '0') + '" data-proc-level="' + (w.procLevel != null ? w.procLevel : '') + '" data-proc-spell-id="' + (w.procSpellId != null ? w.procSpellId : '') + '" data-elemtype="' + (w.elemType || '').replace(/"/g, '&quot;') + '" data-elemdamage="' + (w.elemDamage != null ? w.elemDamage : '') + '" data-bane="' + (w.baneDamage != null ? w.baneDamage : '') + '" data-bane-race="' + (w.baneDamageRace != null ? w.baneDamageRace : '') + '" data-backstab-mod="' + (w.backstabModPercent != null ? String(w.backstabModPercent) : '') + '" data-icon="' + (w.icon != null && w.icon > 0 ? w.icon : '') + '" data-is2h="' + (w.is2H ? '1' : '0') + '" data-offhand-blocked="' + (w.offhandBlocked ? '1' : '0') + '"><span>' + (w.name || '').replace(/</g, '&lt;') + '</span><div class="item-search-item-detail">' + label.replace(/</g, '&lt;') + '</div></button>';
+            s += '<button type="button" class="item-search-item" data-item-id="' + (w.itemId != null ? String(w.itemId) : '') + '" data-name="' + (w.name || '').replace(/"/g, '&quot;') + '" data-damage="' + (w.damage != null ? w.damage : '') + '" data-delay="' + (w.delay != null ? w.delay : '') + '" data-weapon-type="' + (w.type || '').replace(/"/g, '&quot;') + '" data-item-type-num="' + (w.itemTypeNum != null ? String(w.itemTypeNum) : '') + '" data-slots="' + (w.slots != null ? String(w.slots) : '') + '" data-classes="' + (w.classes != null ? String(w.classes) : '') + '" data-proc="' + (w.proc || '').replace(/"/g, '&quot;') + '" data-procdamage="' + (w.procDamage != null ? w.procDamage : '') + '" data-proc-rate="' + (w.procRate != null ? w.procRate : '0') + '" data-proc-level="' + (w.procLevel != null ? w.procLevel : '') + '" data-proc-spell-id="' + (w.procSpellId != null ? w.procSpellId : '') + '" data-elemtype="' + (w.elemType || '').replace(/"/g, '&quot;') + '" data-elemdamage="' + (w.elemDamage != null ? w.elemDamage : '') + '" data-bane="' + (w.baneDamage != null ? w.baneDamage : '') + '" data-bane-body="' + (w.baneDamageBody != null ? w.baneDamageBody : '') + '" data-bane-race="' + (w.baneDamageRace != null ? w.baneDamageRace : '') + '" data-backstab-mod="' + (w.backstabModPercent != null ? String(w.backstabModPercent) : '') + '" data-icon="' + (w.icon != null && w.icon > 0 ? w.icon : '') + '" data-is2h="' + (w.is2H ? '1' : '0') + '" data-offhand-blocked="' + (w.offhandBlocked ? '1' : '0') + '"><span>' + (w.name || '').replace(/</g, '&lt;') + '</span><div class="item-search-item-detail">' + label.replace(/</g, '&lt;') + '</div></button>';
           });
           return s;
         }
@@ -4540,7 +4636,7 @@
           } else {
             results.forEach(function (w) {
               const label = renderItemLabel(w);
-              s += '<button type="button" class="item-search-item item-search-item-result" data-item-id="' + (w.itemId != null ? String(w.itemId) : '') + '" data-name="' + (w.name || '').replace(/"/g, '&quot;') + '" data-damage="' + (w.damage != null ? w.damage : '') + '" data-delay="' + (w.delay != null ? w.delay : '') + '" data-weapon-type="' + (w.type || '').replace(/"/g, '&quot;') + '" data-item-type-num="' + (w.itemTypeNum != null ? String(w.itemTypeNum) : '') + '" data-slots="' + (w.slots != null ? String(w.slots) : '') + '" data-classes="' + (w.classes != null ? String(w.classes) : '') + '" data-proc="' + (w.proc || '').replace(/"/g, '&quot;') + '" data-procdamage="' + (w.procDamage != null ? w.procDamage : '') + '" data-proc-rate="' + (w.procRate != null ? w.procRate : '0') + '" data-proc-level="' + (w.procLevel != null ? w.procLevel : '') + '" data-proc-spell-id="' + (w.procSpellId != null ? w.procSpellId : '') + '" data-elemtype="' + (w.elemType || '').replace(/"/g, '&quot;') + '" data-elemdamage="' + (w.elemDamage != null ? w.elemDamage : '') + '" data-bane="' + (w.baneDamage != null ? w.baneDamage : '') + '" data-bane-race="' + (w.baneDamageRace != null ? w.baneDamageRace : '') + '" data-backstab-mod="' + (w.backstabModPercent != null ? String(w.backstabModPercent) : '') + '" data-icon="' + (w.icon != null && w.icon > 0 ? w.icon : '') + '" data-is2h="' + (w.is2H ? '1' : '0') + '" data-offhand-blocked="' + (w.offhandBlocked ? '1' : '0') + '"><span>' + (w.name || '').replace(/</g, '&lt;') + '</span><div class="item-search-item-detail">' + label.replace(/</g, '&lt;') + '</div></button>';
+              s += '<button type="button" class="item-search-item item-search-item-result" data-item-id="' + (w.itemId != null ? String(w.itemId) : '') + '" data-name="' + (w.name || '').replace(/"/g, '&quot;') + '" data-damage="' + (w.damage != null ? w.damage : '') + '" data-delay="' + (w.delay != null ? w.delay : '') + '" data-weapon-type="' + (w.type || '').replace(/"/g, '&quot;') + '" data-item-type-num="' + (w.itemTypeNum != null ? String(w.itemTypeNum) : '') + '" data-slots="' + (w.slots != null ? String(w.slots) : '') + '" data-classes="' + (w.classes != null ? String(w.classes) : '') + '" data-proc="' + (w.proc || '').replace(/"/g, '&quot;') + '" data-procdamage="' + (w.procDamage != null ? w.procDamage : '') + '" data-proc-rate="' + (w.procRate != null ? w.procRate : '0') + '" data-proc-level="' + (w.procLevel != null ? w.procLevel : '') + '" data-proc-spell-id="' + (w.procSpellId != null ? w.procSpellId : '') + '" data-elemtype="' + (w.elemType || '').replace(/"/g, '&quot;') + '" data-elemdamage="' + (w.elemDamage != null ? w.elemDamage : '') + '" data-bane="' + (w.baneDamage != null ? w.baneDamage : '') + '" data-bane-body="' + (w.baneDamageBody != null ? w.baneDamageBody : '') + '" data-bane-race="' + (w.baneDamageRace != null ? w.baneDamageRace : '') + '" data-backstab-mod="' + (w.backstabModPercent != null ? String(w.backstabModPercent) : '') + '" data-icon="' + (w.icon != null && w.icon > 0 ? w.icon : '') + '" data-is2h="' + (w.is2H ? '1' : '0') + '" data-offhand-blocked="' + (w.offhandBlocked ? '1' : '0') + '"><span>' + (w.name || '').replace(/</g, '&lt;') + '</span><div class="item-search-item-detail">' + label.replace(/</g, '&lt;') + '</div></button>';
             });
           }
           return s;
@@ -4575,6 +4671,7 @@
               elemType: (btn.getAttribute('data-elemtype') || '').trim(),
               elemDamage: num(btn.getAttribute('data-elemdamage')),
               baneDamage: num(btn.getAttribute('data-bane')),
+              baneDamageBody: numOrNull(btn.getAttribute('data-bane-body')),
               baneDamageRace: numOrNull(btn.getAttribute('data-bane-race')),
               backstabModPercent: numOrNull(btn.getAttribute('data-backstab-mod')),
               icon: iconVal > 0 ? iconVal : null,

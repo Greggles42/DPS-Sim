@@ -399,6 +399,38 @@
   }
 
   /**
+   * EQEmu spell target types that restrict by body type (see docs target-types and body-types).
+   * Maps spell targettype ID -> array of allowed NPC bodytype IDs. If target's bodytype is not in the set, proc cannot land.
+   */
+  const SPELL_TARGET_TYPE_TO_BODY_TYPES = {
+    9: [21],           // Animal -> Animal
+    10: [3],           // Undead -> Undead
+    11: [27, 28],      // Summoned -> Summoned Creature(s)
+    15: [],            // Corpse (no living body type matches)
+    16: [25],          // Plant -> Plant
+    17: [4, 9],        // Uber Giants -> Giant, Raid Giant
+    18: [26, 29, 30, 32], // Uber Dragons -> Dragon variants
+    24: [3],           // AOE Undead -> Undead
+    25: [27, 28],      // AOE Summoned -> Summoned
+    35: [34]           // Muramite -> Muramite
+  };
+
+  /**
+   * Check whether a proc spell can land on the current target based on spell target type vs target body type.
+   * @param {Object} weapon - weapon with optional procSpellTargetType (EQEmu spell targettype)
+   * @param {Object} options - options.targetBodyType (NPC bodytype)
+   * @returns {boolean} true if proc can land (no restriction, or target body type is allowed)
+   */
+  function canProcLandOnTarget(weapon, options) {
+    if (!weapon || weapon.procSpellTargetType == null) return true;
+    const targetBodyType = options && options.targetBodyType != null ? options.targetBodyType : null;
+    if (targetBodyType == null) return true;
+    const allowed = SPELL_TARGET_TYPE_TO_BODY_TYPES[weapon.procSpellTargetType];
+    if (allowed == null) return true;
+    return allowed.indexOf(targetBodyType) !== -1;
+  }
+
+  /**
    * Spell resist roll for procs. Based on EQMacEmu CheckResistSpell.
    * @param {number} resistType - 0=none, 1=magic, 2=fire, 3=cold, 4=disease, 5=poison
    * @param {number} targetResist - target's resist value for that type
@@ -645,7 +677,7 @@
       report.ranged.swings++;
       // Proc is attempted every swing (even on miss)
       let procDamageThisShot = 0;
-      if (procChance > 0 && checkProc(procChance, procRng)) {
+      if (procChance > 0 && checkProc(procChance, procRng) && canProcLandOnTarget(bow, options)) {
         report.ranged.procs++;
         const procDmg = (bow.procSpellDamage != null ? bow.procSpellDamage : 0) || 0;
         const effectiveness = getProcSpellEffectiveness(bow, options, level, procRng);
@@ -1220,7 +1252,7 @@
         }
 
         // Proc once per round (only if at least one hit landed)
-        if (procChance1 > 0 && checkProc(procChance1, procRng)) {
+        if (procChance1 > 0 && checkProc(procChance1, procRng) && canProcLandOnTarget(w1, options)) {
           report.weapon1.procs++;
           const procDmg = (w1.procSpellDamage != null ? w1.procSpellDamage : 0) | 0;
           const effectiveness = getProcSpellEffectiveness(w1, options, level, procRng);
@@ -1381,7 +1413,7 @@
             }
           }
           // Proc once per round (only if at least one hit landed)
-          if ( procChance2 > 0 && checkProc(procChance2, procRng)) {
+          if ( procChance2 > 0 && checkProc(procChance2, procRng) && canProcLandOnTarget(w2, options)) {
             report.weapon2.procs++;
             const procDmg = (w2.procSpellDamage != null ? w2.procSpellDamage : 0) | 0;
             const effectiveness = getProcSpellEffectiveness(w2, options, level, procRng);

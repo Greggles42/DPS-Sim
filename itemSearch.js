@@ -139,6 +139,8 @@
       if (!isNaN(rd)) resistModifier = rd;
     }
     var noPartialResist = !!(spell.no_partial_resist != null && spell.no_partial_resist !== 0 && String(spell.no_partial_resist) !== '0');
+    var targettype = spell.targettype != null ? (typeof spell.targettype === 'number' ? spell.targettype : parseInt(String(spell.targettype), 10)) : undefined;
+    if (targettype != null && isNaN(targettype)) targettype = undefined;
     var SE_Root = 27;
     var SE_MovementSpeed = 54;
     var movementEffect = false;
@@ -148,7 +150,7 @@
       var effId = typeof eid2 === 'number' ? eid2 : parseInt(String(eid2), 10);
       if (effId === SE_Root || effId === SE_MovementSpeed) { movementEffect = true; break; }
     }
-    return {
+    var out = {
       name: name,
       damage: damage,
       buffdurationTicks: buffdurationTicks,
@@ -157,6 +159,8 @@
       noPartialResist: noPartialResist,
       movementEffect: movementEffect
     };
+    if (targettype != null) out.targettype = targettype;
+    return out;
   }
 
   /**
@@ -522,6 +526,9 @@
     var baneDamageRaceRaw = get(item, ['baneDamageRace', 'banedamagerace', 'banedmgrace', 'baneDmgRace', 'bane_damage_race', 'BaneDamageRace']);
     var baneDamageRace = (baneDamageRaceRaw != null && baneDamageRaceRaw !== '') ? parseInt(baneDamageRaceRaw, 10) : null;
     if (isNaN(baneDamageRace)) baneDamageRace = null;
+    var baneDamageBodyRaw = get(item, ['baneDamageBody', 'banedmgbody', 'bane_damage_body', 'BaneDamageBody']);
+    var baneDamageBody = (baneDamageBodyRaw != null && baneDamageBodyRaw !== '') ? parseInt(baneDamageBodyRaw, 10) : null;
+    if (isNaN(baneDamageBody)) baneDamageBody = null;
 
     /* Skillmod type 8 = backstab; skillmodvalue is the backstab skill % modifier */
     var backstabModPercent = null;
@@ -579,6 +586,7 @@
       elemDamage: elemDamage,
       baneDamage: baneDamage,
       baneDamageRace: baneDamageRace,
+      baneDamageBody: baneDamageBody,
       icon: icon > 0 ? icon : null,
       slots: slots,
       classes: itemClasses,
