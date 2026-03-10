@@ -523,7 +523,7 @@
 
   </style>
 </head>
-<body>
+<body data-ui-mode="easy">
   <div class="banner">
     <div class="banner-left">
       <h1>Gabbiz's Project Quarm EQ DPS Simulator <span id="app-version" style="font-weight: 400; color: var(--muted); font-size: 0.85rem;">v1.0</span></h1>
@@ -3587,6 +3587,7 @@
       }
       var modeBtn = $('btn-mode-toggle');
       if (modeBtn) modeBtn.addEventListener('click', toggleUiMode);
+      setUiMode(UI_MODES.EASY);
 
       var EASY_CLASS_ORDER = ['bard','beastlord','cleric','druid','enchanter','magician','monk','necromancer','paladin','ranger','rogue','shadowknight','shaman','warrior','wizard'];
       function titleCaseClassName(classId) { return classId ? (classId.charAt(0).toUpperCase() + classId.slice(1)) : 'Unknown'; }
