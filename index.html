@@ -1878,7 +1878,7 @@
           var n = parseInt(id, 10);
           return isNaN(n) ? null : n;
         })();
-        // Targets that can ONLY be damaged by the appropriate bane (Emperor Ssraeshza = Shissar race bane, Lord Inquisitor Seru = Seru body bane).
+        // Targets with special_abilities 1^22 (immune to bane): only the matching bane can damage. Lord Inquisitor Seru (159000) = Seru body bane only; Emperor Ssraeshza (162065) = Shissar race bane only.
         var BANE_ONLY_TARGETS = { 162065: { type: 'race', value: 217 }, 159000: { type: 'body', value: 16 } };
         function applyBaneForTarget(weapon, isTargetSelected) {
           if (!weapon || !isTargetSelected) return;
@@ -1891,6 +1891,7 @@
               if (weapon.baneDamage) weapon.damage += weapon.baneDamage;
             } else {
               weapon.damage = 0;
+              weapon.noDamageVsTarget = true;
             }
             return;
           }
@@ -1903,9 +1904,9 @@
         var isTargetSelected = targetNpcId != null || targetRace != null || targetBodyType != null;
         applyBaneForTarget(weapon1, isTargetSelected);
         applyBaneForTarget(weapon2, isTargetSelected);
-        const hasMainHand = weapon1.damage >= 1 && weapon1.delay >= 10;
+        const hasMainHand = (weapon1.damage >= 1 && weapon1.delay >= 10) || (weapon1.noDamageVsTarget && weapon1.delay >= 10);
         const dualWieldSkillForValidation = parseInt($('dual-wield').value, 10) || 0;
-        const hasOffhand = weapon2.damage >= 1 && weapon2.delay >= 10 && dualWieldSkillForValidation >= 1;
+        const hasOffhand = (weapon2.damage >= 1 && weapon2.delay >= 10 && dualWieldSkillForValidation >= 1) || (weapon2.noDamageVsTarget && weapon2.delay >= 10 && dualWieldSkillForValidation >= 1);
         if (!hasMainHand && !hasOffhand) {
           $('report').textContent = 'Set Weapon 1 (Damage >= 1, Delay >= 10) or Weapon 2 with Dual Wield skill.';
           const pieContainer = $('damage-pie-container');
@@ -1970,8 +1971,8 @@
         var equippedWornAttackBonus = Math.max(0, (w1WornAttackBonus != null && !isNaN(Number(w1WornAttackBonus))) ? Number(w1WornAttackBonus) : 0)
           + Math.max(0, (w2WornAttackBonus != null && !isNaN(Number(w2WornAttackBonus))) ? Number(w2WornAttackBonus) : 0);
         const options = {
-          weapon1: hasMainHand ? Object.assign({ damage: weapon1.damage, delay: weapon1.delay, procSpell: weapon1.procSpell, procSpellDamage: weapon1.procSpellDamage, procRate: weapon1.procRate, procLevel: weapon1.procLevel, procBuffDurationTicks: weapon1.procBuffDurationTicks, is2H: weapon1.is2H, elemType: weapon1.elemType, elemDamage: weapon1.elemDamage, type: w1WeaponType || undefined }, w1ProcResist) : undefined,
-          weapon2: useWeapon2 ? Object.assign({ damage: weapon2.damage, delay: weapon2.delay, procSpell: weapon2.procSpell, procSpellDamage: weapon2.procSpellDamage, procRate: weapon2.procRate, procLevel: weapon2.procLevel, procBuffDurationTicks: weapon2.procBuffDurationTicks, elemType: weapon2.elemType, elemDamage: weapon2.elemDamage }, w2ProcResist) : undefined,
+          weapon1: hasMainHand ? Object.assign({ damage: weapon1.damage, delay: weapon1.delay, procSpell: weapon1.procSpell, procSpellDamage: weapon1.procSpellDamage, procRate: weapon1.procRate, procLevel: weapon1.procLevel, procBuffDurationTicks: weapon1.procBuffDurationTicks, is2H: weapon1.is2H, elemType: weapon1.elemType, elemDamage: weapon1.elemDamage, type: w1WeaponType || undefined, noDamageVsTarget: !!weapon1.noDamageVsTarget }, w1ProcResist) : undefined,
+          weapon2: useWeapon2 ? Object.assign({ damage: weapon2.damage, delay: weapon2.delay, procSpell: weapon2.procSpell, procSpellDamage: weapon2.procSpellDamage, procRate: weapon2.procRate, procLevel: weapon2.procLevel, procBuffDurationTicks: weapon2.procBuffDurationTicks, elemType: weapon2.elemType, elemDamage: weapon2.elemDamage, noDamageVsTarget: !!weapon2.noDamageVsTarget }, w2ProcResist) : undefined,
           weapon1Type: w1WeaponType || undefined,
           hastePercent,
           offenseSkill,
@@ -3928,14 +3929,16 @@
           var bn = parseInt(bt, 10);
           return isNaN(bn) ? null : bn;
         })();
+        // Same as BANE_ONLY_TARGETS: 1^22 immune to bane; only Seru bane damages Seru, only Shissar bane damages Emperor Ssraeshza.
         var RANGED_BANE_ONLY_TARGETS = { 162065: { type: 'race', value: 217 }, 159000: { type: 'body', value: 16 } };
         var rangedTargetSelected = rangedTargetNpcId != null || rangedTargetRace != null || rangedTargetBodyType != null;
+        var rangedNoDamageVsTarget = false;
         if (rangedTargetSelected) {
           var req = rangedTargetNpcId != null ? RANGED_BANE_ONLY_TARGETS[rangedTargetNpcId] : null;
           if (req) {
             var hasBane = (req.type === 'race' && rangedBaneRace === req.value && rangedBane > 0) ||
               (req.type === 'body' && rangedBaneBody === req.value && rangedBane > 0);
-            if (hasBane) damage += rangedBane; else damage = 0;
+            if (hasBane) damage += rangedBane; else { damage = 0; rangedNoDamageVsTarget = true; }
           } else {
             var raceMatch = rangedTargetRace != null && rangedBaneRace != null && rangedBaneRace === rangedTargetRace && rangedBane > 0;
             var bodyMatch = rangedTargetBodyType != null && rangedBaneBody != null && rangedBaneBody === rangedTargetBodyType && rangedBane > 0;
@@ -3950,6 +3953,7 @@
           procSpell: ($('ranged-proc').value || '').trim() || undefined,
           procSpellDamage: parseInt($('ranged-proc-damage').value, 10) || 0,
           procLevel: parseInt($('ranged-proc-level').value, 10) || undefined,
+          noDamageVsTarget: rangedNoDamageVsTarget,
         };
         const rangedElemType = ($('ranged-elem-type').value || '').trim();
         const rangedElemDamage = parseInt($('ranged-elem-damage').value, 10) || 0;

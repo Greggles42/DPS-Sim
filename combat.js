@@ -679,7 +679,7 @@
       let procDamageThisShot = 0;
       if (procChance > 0 && checkProc(procChance, procRng) && canProcLandOnTarget(bow, options)) {
         report.ranged.procs++;
-        const procDmg = (bow.procSpellDamage != null ? bow.procSpellDamage : 0) || 0;
+        const procDmg = bow.noDamageVsTarget ? 0 : ((bow.procSpellDamage != null ? bow.procSpellDamage : 0) || 0);
         const effectiveness = getProcSpellEffectiveness(bow, options, level, procRng);
         let actualProcDmg = Math.floor(procDmg * effectiveness / 100);
         const scfResult = applySpellCastingFuryProc(actualProcDmg, options, procRng);
@@ -734,6 +734,7 @@
         report.wallPenaltyDamageLost += (dmg - actualDamage);
         dmg = actualDamage;
       }
+      if (bow.noDamageVsTarget) { report.elementalDamageTotal -= rangedElemAdder; dmg = 0; procDamageThisShot = 0; }
       dmg += procDamageThisShot;
       report.ranged.totalDamage += dmg;
       report.totalDamage += dmg;
@@ -1133,6 +1134,7 @@
             dmg = Math.max(dmg, minHit);
           }
           if (backstabDisciplineMinHit != null && dmg < backstabDisciplineMinHit) dmg = backstabDisciplineMinHit;
+          if (w1.noDamageVsTarget) { if (specElemAdder > 0) report.elementalDamageTotal -= specElemAdder; dmg = 0; }
           report.special.totalDamage += dmg;
           report.special.maxDamage = Math.max(report.special.maxDamage, dmg);
           report.special.hitList.push(dmg);
@@ -1174,6 +1176,7 @@
           if (critResult.isCrit) { report.critHits++; report.critDamageGain += (dmg - beforeCrit); }
           const mhDisciplineMin = getDisciplineMinHit(cappedW1Damage, mainHandDamageBonus, disciplineActiveMh);
           if (mhDisciplineMin != null && dmg < mhDisciplineMin) dmg = mhDisciplineMin;
+          if (w1.noDamageVsTarget) { report.elementalDamageTotal -= mhElemAdder; dmg = 0; }
           report.weapon1.swings++;
           report.weapon1.hits++;
           report.weapon1.totalDamage += dmg;
@@ -1206,6 +1209,7 @@
             if (critResult.isCrit) { report.critHits++; report.critDamageGain += (dmg - beforeCrit); }
             const mhDisciplineMin2 = getDisciplineMinHit(cappedW1Damage, mainHandDamageBonus, disciplineActiveMh);
             if (mhDisciplineMin2 != null && dmg < mhDisciplineMin2) dmg = mhDisciplineMin2;
+            if (w1.noDamageVsTarget) { report.elementalDamageTotal -= mhElemAdder2; dmg = 0; }
             report.weapon1.swings++;
             report.weapon1.hits++;
             report.weapon1.totalDamage += dmg;
@@ -1237,6 +1241,7 @@
               if (critResult.isCrit) { report.critHits++; report.critDamageGain += (dmg - beforeCrit); }
               const mhDisciplineMin3 = getDisciplineMinHit(cappedW1Damage, mainHandDamageBonus, disciplineActiveMh);
               if (mhDisciplineMin3 != null && dmg < mhDisciplineMin3) dmg = mhDisciplineMin3;
+              if (w1.noDamageVsTarget) { report.elementalDamageTotal -= mhElemAdder3; dmg = 0; }
               report.weapon1.swings++;
               report.weapon1.hits++;
               report.weapon1.totalDamage += dmg;
@@ -1254,7 +1259,7 @@
         // Proc once per round (only if at least one hit landed)
         if (procChance1 > 0 && checkProc(procChance1, procRng) && canProcLandOnTarget(w1, options)) {
           report.weapon1.procs++;
-          const procDmg = (w1.procSpellDamage != null ? w1.procSpellDamage : 0) | 0;
+          const procDmg = w1.noDamageVsTarget ? 0 : ((w1.procSpellDamage != null ? w1.procSpellDamage : 0) | 0);
           const effectiveness = getProcSpellEffectiveness(w1, options, level, procRng);
           if (procBuffTicks1 > 0 && procDmg > 0) {
             perTick1 = (procDmg / procBuffTicks1) * effectiveness / 100;
@@ -1374,6 +1379,7 @@
             if (critResult.isCrit) { report.critHits++; report.critDamageGain += (dmg - beforeCrit); }
             const ohDisciplineMin = getDisciplineMinHit(cappedW2Damage, 0, disciplineActiveOh);
             if (ohDisciplineMin != null && dmg < ohDisciplineMin) dmg = ohDisciplineMin;
+            if (w2.noDamageVsTarget) { report.elementalDamageTotal -= ohElemAdder; dmg = 0; }
             report.weapon2.swings++;
             report.weapon2.hits++;
             report.weapon2.totalDamage += dmg;
@@ -1401,6 +1407,7 @@
               if (critResult.isCrit) { report.critHits++; report.critDamageGain += (dmg - beforeCrit); }
               const ohDisciplineMin2 = getDisciplineMinHit(cappedW2Damage, 0, disciplineActiveOh);
               if (ohDisciplineMin2 != null && dmg < ohDisciplineMin2) dmg = ohDisciplineMin2;
+              if (w2.noDamageVsTarget) { report.elementalDamageTotal -= ohElemAdder2; dmg = 0; }
               report.weapon2.swings++;
               report.weapon2.hits++;
               report.weapon2.totalDamage += dmg;
@@ -1415,7 +1422,7 @@
           // Proc once per round (only if at least one hit landed)
           if ( procChance2 > 0 && checkProc(procChance2, procRng) && canProcLandOnTarget(w2, options)) {
             report.weapon2.procs++;
-            const procDmg = (w2.procSpellDamage != null ? w2.procSpellDamage : 0) | 0;
+            const procDmg = w2.noDamageVsTarget ? 0 : ((w2.procSpellDamage != null ? w2.procSpellDamage : 0) | 0);
             const effectiveness = getProcSpellEffectiveness(w2, options, level, procRng);
             if (procBuffTicks2 > 0 && procDmg > 0) {
               perTick2 = (procDmg / procBuffTicks2) * effectiveness / 100;
