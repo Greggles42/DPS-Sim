@@ -3957,14 +3957,6 @@
         const arrowElemType = ($('arrow-elem-type').value || '').trim();
         const arrowElemDamage = parseInt($('arrow-elem-damage').value, 10) || 0;
         if (arrowElemType && arrowElemDamage > 0) { arrow.elemType = arrowElemType; arrow.elemDamage = arrowElemDamage; }
-        const rangedTargetBodyType = (function () {
-          var npc = window.selectedTargetNpc;
-          if (!npc || typeof npc !== 'object') return null;
-          var bt = npc.bodytype != null ? npc.bodytype : (npc.bodytype === 0 ? 0 : (npc.BodyType != null ? npc.BodyType : null));
-          if (bt == null && bt !== 0) return null;
-          var bn = parseInt(bt, 10);
-          return isNaN(bn) ? null : bn;
-        })();
         const options = {
           rangedWeapon,
           arrow,
