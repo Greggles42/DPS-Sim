@@ -174,7 +174,7 @@
   }
 
   // ----- Melee critical hit chance (client: DEX, class, AA, discipline) -----
-  // critChance is in percent (0–100); divide by 100 for roll. RuleI(Combat, ClientBaseCritChance) default 0.
+  // critChance is in percent (0–100). Warrior has innate base; Combat Fury 1/2/3 add flat +2%/+4%/+6% (critChanceMult) on top.
   function getCritChance(level, classId, dex, clientBaseCritChance, critChanceMult, isArchery) {
     let critChance = (clientBaseCritChance != null ? clientBaseCritChance : 0);
     const dexCap = Math.min(dex != null ? dex : 255, 255);
@@ -184,11 +184,10 @@
       critChance += 0.5 + dexCap / 90 + overCap;
     } else if (isArchery && classId === 'ranger' && level > 16) {
       critChance += 1.35 + dexCap / 34 + overCap * 2;
-    } else if (classId !== 'warrior' && critChanceMult) {
+    } else if (classId !== 'warrior' && (critChanceMult || 0) > 0) {
       critChance += 0.275 + dexCap / 150 + overCap;
     }
-
-    if (critChanceMult) critChance += critChance * critChanceMult / 100;
+    critChance += (critChanceMult || 0);
     return Math.max(0, Math.min(100, critChance));
   }
 
@@ -609,7 +608,7 @@
    * @param {number} [options.spellAttack=0]
    * @param {number} [options.str=255] - for offense rating
    * @param {number} [options.dex=255] - proc rate, crit
-   * @param {number} [options.critChanceMult=0] - AA crit %
+   * @param {number} [options.critChanceMult=0] - Combat Fury flat crit % (0, 2, 4, 6)
    * @param {number} [options.archeryMastery=2] - 1, 2, or 3 (AA)
    * @param {boolean} [options.mobStationary=false]
    * @param {boolean} [options.useWalledMobPenalty=false] - track damage lost to wall penalty
@@ -919,7 +918,7 @@
    * @param {number} [options.kickReuseEffectiveSec] - effective kick reuse (s), no haste applied
    * @param {number} [options.bashReuseEffectiveSec] - effective bash reuse (s), no haste applied
    * @param {number} [options.seed] - optional RNG seed for reproducibility
-   * @param {number} [options.critChanceMult] - AA Critical Hit Chance bonus (percent)
+   * @param {number} [options.critChanceMult] - Combat Fury flat crit % (0, 2, 4, 6); stacks on warrior innate
    * @param {boolean} [options.duelist] - rogue only: SE_DamageModifier[185] (+100% base damage) for 12s at a random time in the fight
    * @param {boolean} [options.innerFlame] - monk only: SE_DamageModifier[185] (+100% base damage) for 12s at a random time in the fight
    */

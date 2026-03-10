@@ -676,8 +676,14 @@
         <div class="char-secondary-row">
           <div class="char-field char-field-num"><label for="str" class="small-label">STR</label><input type="number" id="str" min="1" value="255" placeholder="255"></div>
           <div class="char-field char-field-num"><label for="dex" class="small-label">DEX</label><input type="number" id="dex" min="1" value="255" placeholder="255"></div>
-          <div class="char-field char-field-num"><label for="crit-chance-aa" class="small-label">Crit %</label><input type="number" id="crit-chance-aa" min="0" value="6" placeholder="0"></div>
+          <div class="char-field"><label class="small-label">Combat Fury (AA)</label><div class="radio-group">
+            <label><input type="radio" name="combat-fury" value="0" checked> Off</label>
+            <label><input type="radio" name="combat-fury" value="1"> 1 (+2% crit)</label>
+            <label><input type="radio" name="combat-fury" value="2"> 2 (+4% crit)</label>
+            <label><input type="radio" name="combat-fury" value="3"> 3 (+6% crit)</label>
+          </div></div>
         </div>
+        <p class="hint char-hint" style="margin-top: -0.35rem; margin-bottom: 0.5rem;">Stacks on top of warrior innate crit chance.</p>
         <div class="char-checkbox-row">
           <label class="checkbox-label char-checkbox"><input type="checkbox" id="ambidexterity-aa"> Ambidexterity (+32 dual wield)</label>
         </div>
@@ -1946,7 +1952,8 @@
         const runs = Math.max(1, Math.min(1000, parseInt($('runs').value, 10) || 20));
         const dex = parseInt($('dex').value, 10) || 255;
         const fromBehind = document.querySelector('input[name="from-behind"]:checked').value === '1';
-        const critChanceMult = parseInt($('crit-chance-aa').value, 10) || 0;
+        const combatFuryRank = (function () { var el = document.querySelector('input[name="combat-fury"]:checked'); return el ? (parseInt(el.value, 10) || 0) : 0; })();
+        const critChanceMult = combatFuryRank * 2;
         const classId = ($('class').value || '').toLowerCase();
         const classConfig = classId ? CLASSES[classId] : null;
         const toHitBonus = (classConfig && classConfig.toHitBonus) ? classConfig.toHitBonus : 0;
@@ -2702,7 +2709,8 @@
         const str = parseInt($('str').value, 10) || 255;
         const dex = parseInt($('dex').value, 10) || 255;
         const fromBehind = document.querySelector('input[name="from-behind"]:checked').value === '1';
-        const critChanceMult = parseInt($('crit-chance-aa').value, 10) || 0;
+        const combatFuryRank = (function () { var el = document.querySelector('input[name="combat-fury"]:checked'); return el ? (parseInt(el.value, 10) || 0) : 0; })();
+        const critChanceMult = combatFuryRank * 2;
         const classConfig = CLASSES[classId] || null;
         const classCanUse2H = typeof WeaponSkillCaps !== 'undefined' && (
           (WeaponSkillCaps.getCapForSimClass(classId, '2hb', level) > 0) ||
@@ -3703,7 +3711,7 @@
         ];
         if (a.level === 60) {
           lines.push('- Ambidexterity: On');
-          lines.push('- Combat Fury 3: On (6% crit chance)');
+          lines.push('- Combat Fury 3: On (+6% crit)');
           lines.push('- Worn attack: 0');
           if (easyClassHasSpellCastingFury(selectedClassId)) {
             lines.push('- Spell Casting Fury: Rank 3');
@@ -3753,8 +3761,8 @@
         if (dexEl) dexEl.value = String(assumptions.dex);
         var ambi = $('ambidexterity-aa');
         if (ambi) ambi.checked = assumptions.level === 60;
-        var critChance = $('crit-chance-aa');
-        if (critChance) critChance.value = assumptions.level === 60 ? '6' : '0';
+        var combatFuryEl = document.querySelector('input[name="combat-fury"][value="' + (assumptions.level === 60 ? '3' : '0') + '"]');
+        if (combatFuryEl) combatFuryEl.checked = true;
         var classId = (($('class') && $('class').value) || '').toLowerCase();
         if (assumptions.level === 60 && easyClassHasSpellCastingFury(classId)) setSpellCastingFuryRank(3);
         else setSpellCastingFuryRank(0);
