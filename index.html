@@ -1725,7 +1725,7 @@
           if (p1WornAtk <= 0 && p && p.wornAttackBonus != null && !isNaN(Number(p.wornAttackBonus)) && Number(p.wornAttackBonus) > 0)
             p1WornAtk = Number(p.wornAttackBonus);
           w1WornAttackBonus = p1WornAtk > 0 ? p1WornAtk : null;
-          if (id === 'unequipped') w1DisplayName = '';
+          if (id === 'unequipped') { w1DisplayName = ''; if (typeof updateItemSearchDebug === 'function') updateItemSearchDebug('W1', null); }
           const overrideEl = $('w1-is2h-override');
           if (overrideEl) overrideEl.value = (p && (p.is2H || pType2H)) ? '1' : '0';
         }
@@ -1740,7 +1740,7 @@
           if (p2WornAtk <= 0 && p && p.wornAttackBonus != null && !isNaN(Number(p.wornAttackBonus)) && Number(p.wornAttackBonus) > 0)
             p2WornAtk = Number(p.wornAttackBonus);
           w2WornAttackBonus = p2WornAtk > 0 ? p2WornAtk : null;
-          if (id === 'unequipped') w2DisplayName = '';
+          if (id === 'unequipped') { w2DisplayName = ''; if (typeof updateItemSearchDebug === 'function') updateItemSearchDebug('W2', null); }
         }
         if (p) {
           $(prefix + '-damage').value = p.damage;
@@ -4406,6 +4406,7 @@
       updateWeapon2Disabled();
       function clearItemSearchOnManualEdit(prefix) {
         if (prefix === 'w1') { w1FromItemSearch = false; w1BackstabModPercent = null; w1WornAttackBonus = null; } else { w2FromItemSearch = false; w2BackstabModPercent = null; w2WornAttackBonus = null; }
+        if (typeof updateItemSearchDebug === 'function') updateItemSearchDebug(prefix === 'w1' ? 'W1' : 'W2', null);
         updateBackstabModFromEquipment();
       }
       [$('w1-damage'), $('w1-delay')].forEach(function (el) { if (el) el.addEventListener('input', function () { clearItemSearchOnManualEdit('w1'); refreshWornAttackFromCurrentWeapons(); updateWeaponNameDisplay('w1'); updateWeaponNameDisplay('w2'); }); });
