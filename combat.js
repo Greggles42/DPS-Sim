@@ -504,7 +504,7 @@
   }
 
   // ----- Slay Undead (Paladin AA, 3 ranks) -----
-  // Only vs undead targets (body type 3 Undead, 8 Undead Pet, 12 Vampire). Placeholder: 0.5% chance per rank, 10x/15x/20x damage multiplier.
+  // Only vs undead targets (body type 3 Undead, 8 Undead Pet, 12 Vampire). Rank 1/2/3: 2.25%/2.35%/2.4% chance, 15x/16x/17x damage multiplier.
   const SLAY_UNDEAD_BODY_TYPES = [3, 8, 12];
   function getSlayUndead(options) {
     const rank = options.slayUndead | 0;
@@ -513,8 +513,8 @@
     if (classId !== 'paladin') return { apply: false, slayChance: 0, slayDmgBonusPercent: 0 };
     return {
       apply: true,
-      slayChance: [0.005, 0.01, 0.015][rank - 1],
-      slayDmgBonusPercent: [1000, 1500, 2000][rank - 1]
+      slayChance: [0.0225, 0.0235, 0.024][rank - 1],
+      slayDmgBonusPercent: [1500, 1600, 1700][rank - 1]
     };
   }
   function isUndeadTarget(options) {
