@@ -547,7 +547,7 @@
           <div id="easy-class-buttons" class="easy-class-stack"></div>
         </div>
         <div class="easy-col">
-          <h3>Character</h3>
+          <h3>Character &amp; Fight</h3>
           <div class="easy-field">
             <label for="easy-level">Character level</label>
             <select id="easy-level"></select>
@@ -556,6 +556,13 @@
             <label for="easy-worn-haste">Worn haste</label>
             <div class="easy-range-readout" id="easy-worn-haste-value">41%</div>
             <input type="range" id="easy-worn-haste" min="0" max="41" step="1" value="41">
+          </div>
+          <div class="easy-field">
+            <label>Target</label>
+            <div class="radio-group">
+              <label><input type="radio" name="easy-target-type" value="group" checked> Group Content</label>
+              <label><input type="radio" name="easy-target-type" value="raid"> Raid Content</label>
+            </div>
           </div>
         </div>
         <div class="easy-col easy-col-weapons">
@@ -594,17 +601,6 @@
             </div>
           </div>
         </div>
-      </div>
-      <div class="easy-grid">
-        <div></div>
-        <div class="easy-col">
-          <h3>Target</h3>
-          <div class="radio-group">
-            <label><input type="radio" name="easy-target-type" value="group" checked> Group Content</label>
-            <label><input type="radio" name="easy-target-type" value="raid"> Raid Content</label>
-          </div>
-        </div>
-        <div></div>
       </div>
       <div class="easy-assumptions-wrap">
         <h3>Assumptions Made</h3>
