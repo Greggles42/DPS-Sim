@@ -1637,8 +1637,6 @@
       }
       function refreshWornAttackFromCurrentWeapons() {
         function resolveSlotAtk(prefix) {
-          var current = (prefix === 'w1' ? w1WornAttackBonus : w2WornAttackBonus);
-          if (current != null && !isNaN(Number(current)) && Number(current) > 0) return Number(current);
           var presetEl = $(prefix + '-preset');
           var presetId = presetEl && presetEl.value ? String(presetEl.value) : '';
           if (presetId && presetId !== 'unequipped') {
