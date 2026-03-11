@@ -493,6 +493,13 @@
     .easy-range-readout { font-size: 1.05rem; font-weight: 700; color: var(--accent); }
     .easy-weapon-card { margin-bottom: 0.7rem; padding: 0.55rem; border: 1px solid var(--border); border-radius: 6px; background: var(--input-bg); }
     .easy-weapon-card:last-child { margin-bottom: 0; }
+    .easy-weapons-swap-wrap { display: flex; justify-content: center; align-items: center; margin: 0.4rem 0; }
+    .btn-swap-weapons { display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; padding: 0; border: 1px solid var(--border); border-radius: 6px; background: var(--input-bg); color: var(--text); cursor: pointer; transition: background 0.15s, border-color 0.15s; }
+    .btn-swap-weapons:hover { background: rgba(126, 184, 218, 0.15); border-color: var(--accent); }
+    .btn-swap-weapons .swap-icon { width: 20px; height: 20px; }
+    .swap-icon-vertical { display: block; }
+    .swap-icon-horizontal { display: block; transform: rotate(-90deg); }
+    .weapons-swap-wrap { display: flex; justify-content: center; align-items: center; margin: 0.5rem 0; }
     .easy-weapon-head { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; margin-bottom: 0.4rem; }
     .easy-weapon-name { font-size: 0.9rem; font-weight: 600; min-height: 1.2em; }
     .easy-weapon-detail { font-size: 0.78rem; color: var(--muted); margin-top: 0.15rem; }
@@ -579,6 +586,11 @@
               <input type="text" id="easy-w1-item-search" placeholder="Search main hand (4+ chars)" autocomplete="off">
               <div id="easy-w1-item-search-list" class="item-search-list" role="listbox"></div>
             </div>
+          </div>
+          <div class="easy-weapons-swap-wrap">
+            <button type="button" id="btn-swap-weapons-easy" class="btn-swap-weapons" title="Swap main hand and offhand">
+              <svg class="swap-icon swap-icon-vertical" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 4l-4 4h3v4h2V8h3L12 4zm0 16l4-4h-3v-4h-2v4H8l4 4z" fill="currentColor"/></svg>
+            </button>
           </div>
           <div class="easy-weapon-card">
             <div class="easy-weapon-head">
@@ -814,6 +826,12 @@
         </div>
       </details>
     </section>
+
+    <div class="weapons-swap-wrap advanced-only">
+      <button type="button" id="btn-swap-weapons-advanced" class="btn-swap-weapons" title="Swap main hand and offhand">
+        <svg class="swap-icon swap-icon-vertical" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 4l-4 4h3v4h2V8h3L12 4zm0 16l4-4h-3v-4h-2v4H8l4 4z" fill="currentColor"/></svg>
+      </button>
+    </div>
 
     <section id="weapon2-section" class="section--core weapon-section">
       <div class="weapon-icon-wrap" id="w2-weapon-icon-wrap" style="display:none"><img id="w2-weapon-icon" class="weapon-icon" src="" alt=""></div>
@@ -1799,6 +1817,44 @@
         if (prefix === 'w1') updateWeaponNameDisplay('w2');
         updateBackstabModFromEquipment();
         updateItemSearchDebug();
+        syncEasyWeaponSummaries();
+      }
+
+      function swapWeapons() {
+        var fields = ['damage', 'delay', 'proc', 'proc-damage', 'proc-rate', 'proc-level', 'proc-buff-duration', 'proc-spell-id', 'proc-spell-resist-type', 'proc-spell-resist-modifier', 'proc-spell-no-partial', 'proc-spell-movement-effect', 'elem-type', 'elem-damage', 'bane', 'bane-body', 'bane-race'];
+        var vals1 = {}; var vals2 = {};
+        fields.forEach(function (f) {
+          var el1 = $('w1-' + f); var el2 = $('w2-' + f);
+          if (el1) vals1[f] = el1.value;
+          if (el2) vals2[f] = el2.value;
+        });
+        fields.forEach(function (f) {
+          var el1 = $('w1-' + f); var el2 = $('w2-' + f);
+          if (el1 && vals2[f] !== undefined) el1.value = vals2[f];
+          if (el2 && vals1[f] !== undefined) el2.value = vals1[f];
+        });
+        var t;
+        t = w1DisplayName; w1DisplayName = w2DisplayName; w2DisplayName = t;
+        t = w1FromItemSearch; w1FromItemSearch = w2FromItemSearch; w2FromItemSearch = t;
+        t = w1WeaponType; w1WeaponType = w2WeaponType; w2WeaponType = t;
+        t = w1BackstabModPercent; w1BackstabModPercent = w2BackstabModPercent; w2BackstabModPercent = t;
+        t = w1WornAttackBonus; w1WornAttackBonus = w2WornAttackBonus; w2WornAttackBonus = t;
+        var overrideEl = $('w1-is2h-override');
+        if (overrideEl) overrideEl.value = '0';
+        var presetEl = $('w1-preset');
+        if (presetEl) presetEl.value = '';
+        var w2Type = (w2WeaponType || '').toLowerCase();
+        if (['2hb', '2hs', '2hp', 'bow'].indexOf(w2Type) !== -1) applyWeaponPreset('w2', 'unequipped');
+        var wrap1 = $('w1-weapon-icon-wrap'); var wrap2 = $('w2-weapon-icon-wrap');
+        var img1 = $('w1-weapon-icon'); var img2 = $('w2-weapon-icon');
+        if (img1 && img2) { var src1 = img1.getAttribute('src') || ''; var src2 = img2.getAttribute('src') || ''; img1.src = src2; img2.src = src1; }
+        if (wrap1 && wrap2) { var d1 = wrap1.style.display; var d2 = wrap2.style.display; wrap1.style.display = d2; wrap2.style.display = d1; }
+        updateWeaponNameDisplay('w1'); updateWeaponNameDisplay('w2');
+        updateWeaponIcon('w1', null); updateWeaponIcon('w2', null);
+        updateWeapon2Disabled(); updateFistweavingVisibility();
+        refreshWornAttackFromCurrentWeapons();
+        updateBaneLabels('w1'); updateBaneLabels('w2');
+        updateBackstabModFromEquipment();
         syncEasyWeaponSummaries();
       }
 
@@ -3996,6 +4052,8 @@
         var easyW1Icon = $('easy-w1-icon'); var easyW2Icon = $('easy-w2-icon');
         if (easyW1Icon) easyW1Icon.addEventListener('click', function () { if (easyW1Icon.classList.contains('is-empty')) return; applyWeaponPreset('w1', 'unequipped'); updateWeapon2Disabled(); syncEasyWeaponSummaries(); });
         if (easyW2Icon) easyW2Icon.addEventListener('click', function () { if (easyW2Icon.classList.contains('is-empty')) return; applyWeaponPreset('w2', 'unequipped'); syncEasyWeaponSummaries(); });
+        var btnSwapEasy = $('btn-swap-weapons-easy');
+        if (btnSwapEasy) btnSwapEasy.addEventListener('click', function () { swapWeapons(); });
         var assumptions = $('easy-assumptions');
         if (assumptions && !assumptions.value) updateEasyAssumptionsFromLevel(parseInt(($('easy-level') && $('easy-level').value) || '1', 10) || 1, (($('class') && $('class').value) || '').toLowerCase());
         window.setEasyAssumptions = function (list) {
@@ -4457,6 +4515,8 @@
       const w2Wrap = $('w2-weapon-icon-wrap');
       if (w1Wrap) { w1Wrap.title = 'Click to unequip'; w1Wrap.addEventListener('click', function () { onWeaponIconClick('w1'); }); }
       if (w2Wrap) { w2Wrap.title = 'Click to unequip'; w2Wrap.addEventListener('click', function () { onWeaponIconClick('w2'); }); }
+      var btnSwapAdvanced = $('btn-swap-weapons-advanced');
+      if (btnSwapAdvanced) btnSwapAdvanced.addEventListener('click', function () { swapWeapons(); });
       updateWeaponSkillInputs();
 
       // ----- Item search autofilter (API + recent items) -----
