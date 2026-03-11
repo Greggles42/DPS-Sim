@@ -1683,6 +1683,9 @@
         const dly = parseInt($(prefix + '-delay').value, 10) || 0;
         const isUnequipped = dmg <= 0 || dly <= 0;
         let name = isUnequipped ? 'Unequipped' : ((prefix === 'w1' ? w1DisplayName : w2DisplayName) || 'Custom');
+        const atkBonus = prefix === 'w1' ? w1WornAttackBonus : w2WornAttackBonus;
+        if (!isUnequipped && atkBonus != null && !isNaN(Number(atkBonus)) && Number(atkBonus) > 0)
+          name += ' [ATK+' + Number(atkBonus) + ']';
         const skillKey = skillKeyForCap(prefix === 'w1' ? w1WeaponType : w2WeaponType, prefix === 'w1' && isW1TwoHanded());
         span.textContent = name;
         if (skillEl) {
@@ -1785,6 +1788,9 @@
         updateWeaponNameDisplay(prefix);
         updateWeaponIcon(prefix, null);
         if (prefix === 'w1' && id === 'unequipped') updateWeaponNameDisplay('w2');
+        refreshWornAttackFromCurrentWeapons();
+        updateWeaponNameDisplay(prefix);
+        if (prefix === 'w1') updateWeaponNameDisplay('w2');
         updateBackstabModFromEquipment();
         updateItemSearchDebug();
         syncEasyWeaponSummaries();
@@ -4404,8 +4410,8 @@
         if (prefix === 'w1') { w1FromItemSearch = false; w1BackstabModPercent = null; w1WornAttackBonus = null; } else { w2FromItemSearch = false; w2BackstabModPercent = null; w2WornAttackBonus = null; }
         updateBackstabModFromEquipment();
       }
-      [$('w1-damage'), $('w1-delay')].forEach(function (el) { if (el) el.addEventListener('input', function () { clearItemSearchOnManualEdit('w1'); updateWeaponNameDisplay('w1'); }); });
-      [$('w2-damage'), $('w2-delay')].forEach(function (el) { if (el) el.addEventListener('input', function () { clearItemSearchOnManualEdit('w2'); updateWeaponNameDisplay('w2'); }); });
+      [$('w1-damage'), $('w1-delay')].forEach(function (el) { if (el) el.addEventListener('input', function () { clearItemSearchOnManualEdit('w1'); refreshWornAttackFromCurrentWeapons(); updateWeaponNameDisplay('w1'); updateWeaponNameDisplay('w2'); }); });
+      [$('w2-damage'), $('w2-delay')].forEach(function (el) { if (el) el.addEventListener('input', function () { clearItemSearchOnManualEdit('w2'); refreshWornAttackFromCurrentWeapons(); updateWeaponNameDisplay('w2'); updateWeaponNameDisplay('w1'); }); });
       [$('w1-bane-body'), $('w1-bane-race')].forEach(function (el) { if (el) { el.addEventListener('input', function () { updateBaneLabels('w1'); }); el.addEventListener('change', function () { updateBaneLabels('w1'); }); } });
       [$('w2-bane-body'), $('w2-bane-race')].forEach(function (el) { if (el) { el.addEventListener('input', function () { updateBaneLabels('w2'); }); el.addEventListener('change', function () { updateBaneLabels('w2'); }); } });
       function onWeaponIconClick(prefix) {
@@ -4656,6 +4662,7 @@
           w2FromItemSearch = true;
           w2WeaponType = normType;
         }
+        refreshWornAttackFromCurrentWeapons();
         updateWeaponNameDisplay(prefix);
         updateWeaponSkillInputs();
         if (prefix === 'w1') {
@@ -4667,6 +4674,7 @@
           updateWeapon2Disabled();
           updateFistweavingVisibility();
         }
+        updateWeaponNameDisplay(prefix === 'w1' ? 'w2' : 'w1');
       }
 
       function applyRangedWeaponFromSearch(weapon) {
