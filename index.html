@@ -497,7 +497,7 @@
     .easy-weapon-name { font-size: 0.9rem; font-weight: 600; min-height: 1.2em; }
     .easy-weapon-detail { font-size: 0.78rem; color: var(--muted); margin-top: 0.15rem; }
     .easy-weapon-icon { width: 36px; height: 36px; border: 1px solid var(--border); border-radius: 4px; object-fit: contain; background: #111; cursor: pointer; }
-    .easy-weapon-icon.is-empty { opacity: 0.45; cursor: default; }
+    .easy-weapon-icon.is-empty { display: none; }
     .easy-weapon-search { position: relative; }
     .easy-weapon-search input { margin: 0; }
     .easy-weapon-search .item-search-list { max-height: 210px; }
@@ -557,13 +557,6 @@
             <div class="easy-range-readout" id="easy-worn-haste-value">41%</div>
             <input type="range" id="easy-worn-haste" min="0" max="41" step="1" value="41">
           </div>
-          <div class="easy-field">
-            <label>Target</label>
-            <div class="radio-group">
-              <label><input type="radio" name="easy-target-type" value="group" checked> Group Content</label>
-              <label><input type="radio" name="easy-target-type" value="raid"> Raid Content</label>
-            </div>
-          </div>
         </div>
         <div class="easy-col easy-col-weapons">
           <h3>Weapons</h3>
@@ -601,6 +594,17 @@
             </div>
           </div>
         </div>
+      </div>
+      <div class="easy-grid">
+        <div></div>
+        <div class="easy-col">
+          <h3>Target</h3>
+          <div class="radio-group">
+            <label><input type="radio" name="easy-target-type" value="group" checked> Group Content</label>
+            <label><input type="radio" name="easy-target-type" value="raid"> Raid Content</label>
+          </div>
+        </div>
+        <div></div>
       </div>
       <div class="easy-assumptions-wrap">
         <h3>Assumptions Made</h3>
