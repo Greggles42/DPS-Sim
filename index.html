@@ -2901,7 +2901,7 @@
                 weapon1Type: p.type || undefined,
                 dualWieldSkill: 0,
                 weaponSkillForToHit: weaponSkillForToHit,
-                wornAttack: (baseOptions.wornAttack || 0) + getWornAttackBonusForNorm(p),
+                wornAttack: getWornAttackBonusForNorm(p) || 0,
                 backstabModPercent: classId === 'rogue' ? Math.max(formBackstabModPercent, getBackstabModPercentForNorm(p)) : undefined,
                 fistweaving: classId === 'monk' && is2H && $('fistweaving').checked
               });
@@ -2942,7 +2942,7 @@
                 weapon1Type: refNorm.type || undefined,
                 dualWieldSkill: dualWieldSkillForm,
                 weaponSkillForToHit: refWeaponSkillForToHit,
-                wornAttack: (baseOptions.wornAttack || 0) + getWornAttackBonusForNorm(refNorm) + getWornAttackBonusForNorm(p2),
+                wornAttack: (getWornAttackBonusForNorm(refNorm) || 0) + (getWornAttackBonusForNorm(p2) || 0),
                 backstabModPercent: classId === 'rogue' ? Math.max(formBackstabModPercent, getBackstabModPercentForNorm(refNorm), getBackstabModPercentForNorm(p2)) : undefined,
                 fistweaving: false
               });
