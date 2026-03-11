@@ -1090,7 +1090,7 @@
   <section class="advanced-only" style="margin-top: 1rem;">
     <h2>Version log</h2>
     <ul style="font-size: 0.9rem; color: var(--muted); margin: 0; padding-left: 1.25rem;">
-      <li><strong>1.01</strong> — Race-specific procs (e.g. undead, summoned) now only land on matching target body types. Bane damage auto-applies by target type (race/body); no bane on generic target. Emperor Ssraeshza and Lord Inquisitor Seru require the appropriate bane to take damage. Only classes with the double attack skill can double attack.</li>
+      <li><strong>1.01</strong> — Race-specific procs (e.g. undead, summoned) now only land on matching target body types. Bane damage auto-applies by target type (race/body); no bane on generic target. Only classes with the double attack skill can double attack.</li>
       <li><strong>1.0</strong> — Easy Mode UI introduced for a simplified default experience, with Advanced Mode retained for full controls.</li>
       <li><strong>0.11</strong> — Implemented haste caps. Split worn and spell haste out into individual components. Improved damage calculation and backstab should be much more accurate. Items with required levels are filtered out from weapon list if your character level is too low. Automatically scale generic target info based on character level. Removed some PoP items from the luclin weapons list.</li>
       <li><strong>0.10</strong> — Added spell proc resist chances. Added weapon ranking function.</li>
@@ -1453,16 +1453,20 @@
         '31379': { damage: 14, delay: 18, proc: '', procDamage: 0, name: 'Claw of Lightning', type: '1hs' },
         '31301': { damage: 13, delay: 17, proc: '', procDamage: 0, name: 'Vyemm\'s Fang', type: '1hp' },
         '1158': { damage: 13, delay: 18, proc: 'Thunder Strike', procDamage: 263, name: 'Salindrite Dagger', type: '1hp' },
-        '11057': { damage: 15, delay: 25, proc: '', procDamage: 0, name: 'Ragebringer', type: '1hp' },
+        '11057': { damage: 15, delay: 25, proc: '', procDamage: 0, name: 'Ragebringer', type: '1hp', wornAttackBonus: 40 },
         '28806': { damage: 16, delay: 20, proc: 'Khalshazar\'s Deceit', procDamage: 0, name: 'Khalshazar', type: '1hp' },
-        '28805': { damage: 16, delay: 21, proc: '', procDamage: 0, name: 'Bloodbath', type: '1hp' },
+        '28805': { damage: 16, delay: 21, proc: '', procDamage: 0, name: 'Bloodbath', type: '1hp', wornAttackBonus: 25 },
         '26585': { damage: 16, delay: 19, proc: 'Serpent\'s Bite', procDamage: 100, name: 'Acrylia Handled Broadsword', type: '1hs' },
+        '8495': { damage: 13, delay: 22, proc: '', procDamage: 0, name: 'Claw of the Savage Spirit', type: '1hp', wornAttackBonus: 30 },
+        '10909': { damage: 14, delay: 24, proc: '', procDamage: 0, name: 'Blade of Tactics', type: '1hs', wornAttackBonus: 30 },
+        '20487': { damage: 13, delay: 21, proc: '', procDamage: 0, name: 'Swiftwind', is2H: true, type: '2hs', wornAttackBonus: 30 },
       };
 
       // Ranged weapon presets (PQDI: https://www.pqdi.cc/item/...)
       const RANGED_WEAPON_PRESETS = {
         '25208': { damage: 43, delay: 45, proc: 'Torment', procDamage: 0, name: 'War Bow of Rallos Zek' },
         '27317': { damage: 39, delay: 45, proc: '', procDamage: 0, name: 'Ssraeshzian Longbow' },
+        '29597': { damage: 42, delay: 37, proc: '', procDamage: 0, name: 'Stonewood Compound Bow', wornAttackBonus: 10 },
         '28989': { damage: 33, delay: 35, proc: 'Spirit Curse', procDamage: 0, name: 'Bow of Shadows' },
         '27326': { damage: 33, delay: 35, proc: 'Avatar', procDamage: 0, name: 'Primal Velium Reinforced Bow' },
       };
@@ -1638,9 +1642,12 @@
           var presetEl = $(prefix + '-preset');
           var presetId = presetEl && presetEl.value ? String(presetEl.value) : '';
           if (presetId && presetId !== 'unequipped') {
-            var raw = (weaponListData && weaponListData[presetId]) || (luclinWeaponsData && luclinWeaponsData[presetId]) || (popWeaponsData && popWeaponsData[presetId]) || null;
+            var raw = (weaponListData && weaponListData[presetId]) || (luclinWeaponsData && luclinWeaponsData[presetId]) || (popWeaponsData && popWeaponsData[presetId]) || (typeof procRatesByItemId !== 'undefined' && procRatesByItemId && procRatesByItemId[presetId]) || null;
             var atkFromRaw = getWornAttackBonusFromRawItem(raw);
             if (atkFromRaw > 0) return atkFromRaw;
+            var presetObj = typeof WEAPON_PRESETS !== 'undefined' && WEAPON_PRESETS && WEAPON_PRESETS[presetId];
+            if (presetObj && presetObj.wornAttackBonus != null && !isNaN(Number(presetObj.wornAttackBonus)) && Number(presetObj.wornAttackBonus) > 0)
+              return Number(presetObj.wornAttackBonus);
           }
           if (typeof itemSearchDebugSlots !== 'undefined' && itemSearchDebugSlots) {
             var slotKey = prefix === 'w1' ? 'W1' : 'W2';
@@ -1714,6 +1721,8 @@
           var p1Backstab = getBackstabModPercentFromRawItem(raw);
           w1BackstabModPercent = (p1Piercing && p1Backstab != null) ? p1Backstab : null;
           var p1WornAtk = getWornAttackBonusFromRawItem(raw);
+          if (p1WornAtk <= 0 && p && p.wornAttackBonus != null && !isNaN(Number(p.wornAttackBonus)) && Number(p.wornAttackBonus) > 0)
+            p1WornAtk = Number(p.wornAttackBonus);
           w1WornAttackBonus = p1WornAtk > 0 ? p1WornAtk : null;
           if (id === 'unequipped') w1DisplayName = '';
           const overrideEl = $('w1-is2h-override');
@@ -1727,6 +1736,8 @@
           var p2Backstab = getBackstabModPercentFromRawItem(raw);
           w2BackstabModPercent = (p2Piercing && p2Backstab != null) ? p2Backstab : null;
           var p2WornAtk = getWornAttackBonusFromRawItem(raw);
+          if (p2WornAtk <= 0 && p && p.wornAttackBonus != null && !isNaN(Number(p.wornAttackBonus)) && Number(p.wornAttackBonus) > 0)
+            p2WornAtk = Number(p.wornAttackBonus);
           w2WornAttackBonus = p2WornAtk > 0 ? p2WornAtk : null;
           if (id === 'unequipped') w2DisplayName = '';
         }
