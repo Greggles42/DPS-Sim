@@ -514,7 +514,7 @@
       padding: 0.75rem;
     }
     .easy-assumptions-wrap h3, .easy-history-wrap h3 { margin: 0 0 0.5rem; font-size: 0.85rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
-    #easy-assumptions { width: 100%; min-height: 180px; resize: vertical; background: var(--input-bg); border: 1px solid var(--border); color: var(--text); border-radius: 4px; padding: 0.55rem; font-family: inherit; font-size: 0.88rem; }
+    #easy-assumptions { width: 100%; min-height: 240px; resize: vertical; background: var(--input-bg); border: 1px solid var(--border); color: var(--text); border-radius: 4px; padding: 0.55rem; font-family: inherit; font-size: 0.88rem; }
     .easy-history-table-wrap { max-height: 220px; overflow: auto; padding-right: 0.45rem; }
     .easy-history-table { width: 100%; min-width: 980px; border-collapse: collapse; font-size: 0.82rem; }
     .easy-history-table th, .easy-history-table td { border-bottom: 1px solid var(--border); padding: 0.3rem 0.4rem; text-align: left; white-space: nowrap; }
@@ -556,6 +556,13 @@
             <label for="easy-worn-haste">Worn haste</label>
             <div class="easy-range-readout" id="easy-worn-haste-value">41%</div>
             <input type="range" id="easy-worn-haste" min="0" max="41" step="1" value="41">
+          </div>
+          <div class="easy-field">
+            <label>Target</label>
+            <div class="radio-group">
+              <label><input type="radio" name="easy-target-type" value="group" checked> Group Content</label>
+              <label><input type="radio" name="easy-target-type" value="raid"> Raid Content</label>
+            </div>
           </div>
         </div>
         <div class="easy-col easy-col-weapons">
@@ -3738,6 +3745,10 @@
             lines.push('- Slay Undead: Rank 3');
           }
         }
+        var easyTarget = document.querySelector('input[name="easy-target-type"]:checked');
+        var isRaid = easyTarget && easyTarget.value === 'raid';
+        lines.push('- Target: ' + (isRaid ? 'Raid Content (650 AC, level 65, 75 to all resists)' : 'Group Content (level-scaled mob: level = character level, AC 5–200 by level)'));
+        lines.push('');
         assumptions.value = lines.join('\n');
       }
       function syncEasyFromAdvancedBasics() {
@@ -3883,7 +3894,23 @@
         window.selectedTargetNpc = null;
         var targetSearch = $('target-npc-search'); var rangedTargetSearch = $('ranged-target-npc-search');
         if (targetSearch) targetSearch.value = ''; if (rangedTargetSearch) rangedTargetSearch.value = '';
-        applyGenericTargetIfNoneSelected();
+        var easyTarget = document.querySelector('input[name="easy-target-type"]:checked');
+        var isRaid = easyTarget && easyTarget.value === 'raid';
+        var set = function (id, val) {
+          var el = $(id);
+          if (el && val !== undefined && val !== null) el.value = val;
+        };
+        if (isRaid) {
+          set('target-ac', 650);
+          set('mob-level', 65);
+          set('target-mr', 75);
+          set('target-fr', 75);
+          set('target-cr', 75);
+          set('target-pr', 75);
+          set('target-dr', 75);
+        } else {
+          applyGenericTargetIfNoneSelected();
+        }
         run();
         updateEasyDpsFromGlobal();
       }
@@ -3958,6 +3985,13 @@
           var wornHaste = $('worn-haste'); if (wornHaste) wornHaste.value = String(v);
         });
         var easyRun = $('btn-run-easy'); if (easyRun) easyRun.addEventListener('click', runEasyModeSimulation);
+        document.querySelectorAll('input[name="easy-target-type"]').forEach(function (radio) {
+          radio.addEventListener('change', function () {
+            var lvl = parseInt(($('easy-level') && $('easy-level').value) || '1', 10) || 1;
+            var classId = (($('class') && $('class').value) || '').toLowerCase();
+            updateEasyAssumptionsFromLevel(lvl, classId);
+          });
+        });
         var easyW1Icon = $('easy-w1-icon'); var easyW2Icon = $('easy-w2-icon');
         if (easyW1Icon) easyW1Icon.addEventListener('click', function () { if (easyW1Icon.classList.contains('is-empty')) return; applyWeaponPreset('w1', 'unequipped'); updateWeapon2Disabled(); syncEasyWeaponSummaries(); });
         if (easyW2Icon) easyW2Icon.addEventListener('click', function () { if (easyW2Icon.classList.contains('is-empty')) return; applyWeaponPreset('w2', 'unequipped'); syncEasyWeaponSummaries(); });
