@@ -697,6 +697,8 @@
       calculatedToHit: toHit,
       offenseSkill: OFFENSE_SKILL,
       offenseRating: offenseRating,
+      offenseRatingFromStr: strBonus,
+      archerySkill: ARCHERY_SKILL,
       displayedAttack: Math.floor((offenseRating + toHit) * 1000 / 744),
     };
     const rangedProcLevelReq = getProcLevelRequirement(bow);
@@ -795,8 +797,30 @@
     const dur = report.durationSec;
     const totalDPS = dur ? (report.totalDamage / dur).toFixed(2) : '—';
     const runs = runsAveraged != null ? runsAveraged : 1;
+    const VALUE_COL = 48;
+    function padLine(prefix, value) {
+      return prefix + ' '.repeat(Math.max(0, VALUE_COL - prefix.length)) + value;
+    }
     function fmt(v) {
       return v == null ? '—' : (Number.isInteger(v) ? String(v) : v.toFixed(2));
+    }
+    function hitStatsFromList(arr) {
+      if (!arr || arr.length === 0) return { min: null, max: null, mean: null, median: null, mode: null };
+      const min = Math.min.apply(null, arr);
+      const max = Math.max.apply(null, arr);
+      const sum = arr.reduce((a, b) => a + b, 0);
+      const mean = sum / arr.length;
+      const sorted = arr.slice().sort((a, b) => a - b);
+      const mid = Math.floor(sorted.length / 2);
+      const median = sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+      const counts = {};
+      let mode = arr[0], maxCount = 0;
+      for (let i = 0; i < arr.length; i++) {
+        const v = arr[i];
+        counts[v] = (counts[v] || 0) + 1;
+        if (counts[v] > maxCount) { maxCount = counts[v]; mode = v; }
+      }
+      return { min, max, mean, median, mode };
     }
     const lines = [];
 
@@ -806,78 +830,89 @@
       lines.push(`  Base damage cap (anti-twink): ${report.baseDamageCap.cap} (level < 40, imposed on weapon base damage)`);
       lines.push('');
     }
-    lines.push(`  Duration:              ${dur} seconds`);
-    lines.push(`  Runs averaged:        ${runs}`);
-    lines.push(`  Total DPS:            ${totalDPS}`);
+    lines.push(padLine('  Duration:', `${dur} seconds`));
+    lines.push(padLine('  Runs averaged:', String(runs)));
+    lines.push(padLine('  Total DPS:', totalDPS));
     if (runs > 1 && report.dpsStdDev != null && report.dpsStdDev >= 0) {
-      lines.push(`  DPS std dev:           ${report.dpsStdDev.toFixed(2)}`);
+      lines.push(padLine('  DPS std dev:', report.dpsStdDev.toFixed(2)));
     }
-    lines.push(`  Total damage:         ${report.totalDamage}`);
-    if (report.critHits != null && report.critHits >= 0) lines.push(`  Critical hits:         ${report.critHits}`);
-    if (report.critDamageGain != null) {
-      lines.push(`  Crit DPS gain:         ${(report.critDamageGain / dur).toFixed(2)} (vs non-crit baseline)`);
+    lines.push(padLine('  Total damage:', String(report.totalDamage)));
+    if (report.critHits != null && report.critHits >= 0) lines.push(padLine('  Critical hits:', String(report.critHits)));
+    if (report.critDamageGain != null && report.critDamageGain >= 0) {
+      lines.push(padLine('  Crit DPS gain:', `${(report.critDamageGain / dur).toFixed(2)} (vs non-crit baseline)`));
     }
     if (report.elementalDamageTotal != null && report.elementalDamageTotal > 0) {
-      lines.push(`  Elemental damage:     ${report.elementalDamageTotal}`);
+      lines.push(padLine('  Elemental damage:', String(report.elementalDamageTotal)));
     }
     lines.push('');
 
-    // 2. Offense & To-Hit Model
+    // 2. Offense & To-Hit Model (align with melee: offense skill, archery skill, rating breakdown, ATK, haste)
     lines.push('=== Offense & To-Hit Model ===', '');
-    if (report.calculatedToHit != null) lines.push(`  Calculated to-hit:     ${report.calculatedToHit}`);
-    if (report.offenseRating != null) lines.push(`  Offense rating:        ${report.offenseRating}  (used for damage)`);
-    if (report.displayedAttack != null) lines.push(`  Displayed ATK:         ${report.displayedAttack}`);
-    lines.push('  ATK formula:           (offense rating + toHit) * 1000 / 744');
+    if (report.calculatedToHit != null) lines.push(padLine('  Calculated to-hit:', String(report.calculatedToHit)));
+    if (report.offenseSkill != null) lines.push(padLine('  Offense skill:', `${report.offenseSkill}  (0–255, used for to-hit only)`));
+    if (report.archerySkill != null) lines.push(padLine('  Archery skill:', `${report.archerySkill}  (used in to-hit)`));
+    if (report.offenseRating != null) lines.push(padLine('  Offense rating:', `${report.offenseRating}  (used for damage)`));
+    if (report.offenseRatingFromStr != null) lines.push(padLine('    From STR:', String(report.offenseRatingFromStr)));
+    if (report.offenseRating != null && report.offenseRatingFromStr != null) {
+      const other = report.offenseRating - report.offenseRatingFromStr;
+      lines.push(padLine('    From other:', `${other}  (skill + worn + spell)`));
+    }
+    if (report.displayedAttack != null) lines.push(padLine('  Displayed ATK:', String(report.displayedAttack)));
+    lines.push(padLine('  ATK formula:', '(offense rating + toHit) * 1000 / 744'));
     if (report.rawHastePercent != null || report.effectiveHastePercent != null) {
       const raw = report.rawHastePercent != null ? Number(report.rawHastePercent).toFixed(1) : '—';
       const eff = report.effectiveHastePercent != null ? Number(report.effectiveHastePercent).toFixed(1) : '—';
-      lines.push(`  Haste (raw / effective): ${raw}% / ${eff}%`);
+      lines.push(padLine('  Haste (raw / effective):', `${raw}% / ${eff}%`));
     }
     lines.push('');
 
     // 3. Weapon Overview (Ranged)
     lines.push('=== Weapon Overview ===', '');
     lines.push('  Ranged');
-    lines.push(`    Total damage:       ${r.totalDamage}`);
-    lines.push(`    Weapon DPS:          ${(r.totalDamage / dur).toFixed(2)}`);
+    lines.push(padLine('    Total damage:', String(r.totalDamage)));
+    lines.push(padLine('    Weapon DPS:', (r.totalDamage / dur).toFixed(2)));
     lines.push('');
 
     // 4. Attack Distribution
     lines.push('=== Attack Distribution ===', '');
-    lines.push(`    Shots:              ${r.swings}`);
-    lines.push(`    Hits:               ${r.hits}`);
-    if (r.swings > 0) lines.push(`    Accuracy:             ${(r.hits / r.swings * 100).toFixed(1)}%`);
+    lines.push(padLine('    Shots:', String(r.swings)));
+    lines.push(padLine('    Hits:', String(r.hits)));
+    if (r.swings > 0) lines.push(padLine('    Accuracy:', (r.hits / r.swings * 100).toFixed(1) + '%'));
     lines.push('');
 
-    // 5. Hit Damage Statistics
+    // 5. Hit Damage Statistics (match melee: max, min, mean, median, mode)
     lines.push('=== Hit Damage Statistics ===', '');
-    lines.push(`    Max hit:             ${fmt(r.maxDamage)}`);
-    lines.push(`    Min hit:             ${fmt(r.minDamage)}`);
+    const rStats = hitStatsFromList(r.hitList);
+    lines.push(padLine('    Max hit:', fmt(rStats.max != null ? rStats.max : r.maxDamage)));
+    lines.push(padLine('    Min hit:', fmt(rStats.min)));
+    lines.push(padLine('    Mean hit:', fmt(rStats.mean)));
+    lines.push(padLine('    Median hit:', fmt(rStats.median)));
+    lines.push(padLine('    Mode hit:', fmt(rStats.mode)));
     lines.push('');
 
     // 6. Procs & Specials
     lines.push('=== Procs & Specials ===', '');
-    if (r.anticipatedProcsPerMinute != null) lines.push(`    Anticipated procs per minute: ${r.anticipatedProcsPerMinute.toFixed(2)}`);
-    if (r.anticipatedProcChancePerShot != null) lines.push(`    Anticipated proc chance per shot: ${(r.anticipatedProcChancePerShot * 100).toFixed(2)}%`);
-    if (r.procs != null) lines.push(`    Procs:               ${r.procs}`);
-    lines.push(`    Proc damage:         ${r.procDamageTotal != null ? r.procDamageTotal : 0}`);
-    lines.push(`    Proc DPS:            ${(r.procDamageTotal != null && dur > 0) ? (r.procDamageTotal / dur).toFixed(2) : '0.00'}`);
-    lines.push(`    Proc full resists:   ${r.procFullResists != null ? r.procFullResists : 0}`);
-    lines.push(`    Proc partial resists: ${r.procPartialResists != null ? r.procPartialResists : 0}`);
+    if (r.anticipatedProcsPerMinute != null) lines.push(padLine('    Anticipated procs per minute:', r.anticipatedProcsPerMinute.toFixed(2)));
+    if (r.anticipatedProcChancePerShot != null) lines.push(padLine('    Anticipated proc chance per shot:', (r.anticipatedProcChancePerShot * 100).toFixed(2) + '%'));
+    if (r.procs != null) lines.push(padLine('    Procs:', String(r.procs)));
+    lines.push(padLine('    Proc damage:', String(r.procDamageTotal != null ? r.procDamageTotal : 0)));
+    lines.push(padLine('    Proc DPS:', (r.procDamageTotal != null && dur > 0) ? (r.procDamageTotal / dur).toFixed(2) : '0.00'));
+    lines.push(padLine('    Proc full resists:', String(r.procFullResists != null ? r.procFullResists : 0)));
+    lines.push(padLine('    Proc partial resists:', String(r.procPartialResists != null ? r.procPartialResists : 0)));
     if (r.procLevelBlocked) {
-      lines.push(`    Proc gated by level: yes (level ${r.procLevelCurrent != null ? r.procLevelCurrent : '-'} < required ${r.procLevelRequired != null ? r.procLevelRequired : '-'})`);
+      lines.push(padLine('    Proc gated by level:', `yes (level ${r.procLevelCurrent != null ? r.procLevelCurrent : '-'} < required ${r.procLevelRequired != null ? r.procLevelRequired : '-'})`));
     }
     if (r.procResistDamageLost != null && r.procResistDamageLost > 0) {
-      lines.push(`    Proc damage lost (resists): ${r.procResistDamageLost}`);
+      lines.push(padLine('    Proc damage lost (resists):', String(r.procResistDamageLost)));
     }
-    if (r.spellProcCrits != null) lines.push(`    Proc spell crits (SCF):  ${r.spellProcCrits}`);
-    if (r.maxSpellProcCritDmg != null && r.maxSpellProcCritDmg > 0) lines.push(`    Max spell proc crit dmg:  ${r.maxSpellProcCritDmg}`);
+    if (r.spellProcCrits != null) lines.push(padLine('    Proc spell crits (SCF):', String(r.spellProcCrits)));
+    if (r.maxSpellProcCritDmg != null && r.maxSpellProcCritDmg > 0) lines.push(padLine('    Max spell proc crit dmg:', String(r.maxSpellProcCritDmg)));
     lines.push('');
 
     // 7. Final Totals
     lines.push('=== Final Totals ===', '');
-    lines.push(`  Total damage:         ${report.totalDamage}`);
-    lines.push(`  Total DPS:            ${totalDPS}`);
+    lines.push(padLine('  Total damage:', String(report.totalDamage)));
+    lines.push(padLine('  Total DPS:', totalDPS));
     return lines.join('\n');
   }
 
