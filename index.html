@@ -941,7 +941,7 @@
         <div class="char-field char-field-num"><label for="ranged-level">Level</label><input type="number" id="ranged-level" min="1" max="65" value="60" placeholder="60"></div>
         <div class="char-field char-field-num"><label for="ranged-worn-haste">Worn haste % <span class="info-icon" title="Item haste; capped to 10% at level 1-25, uncapped at level 26+">&#8505;</span></label><input type="number" id="ranged-worn-haste" min="0" value="41" placeholder="41"></div>
         <div class="char-field char-field-num"><label for="ranged-spell-haste">Spell haste % <span class="info-icon" title="(60% Haste + 25% v3 bard haste)">&#8505;</span></label><input type="number" id="ranged-spell-haste" min="0" value="85" placeholder="85"></div>
-        <div class="char-field char-field-num"><label for="ranged-quiver-weight-reduction">Quiver weight reduction % <span class="info-icon" title="Quiver haste = (weight reduction ÷ 3). Example: 30% WR quiver gives 10% quiver haste. This stacks with worn and spell haste.">&#8505;</span></label><input type="number" id="ranged-quiver-weight-reduction" min="0" max="100" value="0" placeholder="e.g. 30 for 30% WR"></div>
+        <div class="char-field char-field-num"><label for="ranged-quiver-weight-reduction">Quiver WR% <span class="info-icon" title="Quiver haste = (weight reduction ÷ 3). Example: 30% WR quiver gives 10% quiver haste. This stacks with worn and spell haste.">&#8505;</span></label><input type="number" id="ranged-quiver-weight-reduction" min="0" max="100" value="0" placeholder="e.g. 30 for 30% WR"></div>
         <div class="char-field char-field-num"><label for="ranged-worn-attack">Worn ATK <span class="info-icon" title="don't include atk from weapon, it will automatically be included">&#8505;</span></label><input type="number" id="ranged-worn-attack" min="0" value="0" placeholder="0"></div>
         <div class="char-field char-field-num"><label for="ranged-spell-attack">Spell ATK</label><input type="number" id="ranged-spell-attack" min="0" value="0" placeholder="0"></div>
       </div>
@@ -3518,9 +3518,8 @@
             }
             var subText = top40.length > 0 ? ' Top 40 averaged over ' + runsCount + ' runs.' : '';
             var sourceLabel = includePop ? 'Bows from popweapons.json.' : 'Bows from luclinweapons.json. Arrows from weaponlist.json.';
-            var heading, rowsForTable, chartLabel;
             if (currentMode === 'slot') {
-              // Slot mode: derive best-per-bow and best-per-arrow from combos.
+              // Slot mode: separate bow and ammo slot rankings, using component-only DPS.
               var bowBest = {};
               var arrowBest = {};
               results.forEach(function (row) {
@@ -3534,14 +3533,12 @@
               var bowRows = Object.keys(bowBest).map(function (id) {
                 var row = bowBest[id];
                 return {
-                  slotType: 'Bow',
                   label: (row.label || '').split(' + ')[0],
-                  totalDps: row.totalDps,
-                  mainhandDps: row.mainhandDps,
-                  offhandDps: row.offhandDps
+                  dps: row.mainhandDps != null ? row.mainhandDps : 0
                 };
               });
-              bowRows.sort(function (a, b) { return (b.totalDps || 0) - (a.totalDps || 0); });
+              bowRows.sort(function (a, b) { return (b.dps || 0) - (a.dps || 0); });
+              bowRows = bowRows.slice(0, 40);
               var arrowRows = Object.keys(arrowBest).map(function (id) {
                 var row = arrowBest[id];
                 var baseArrowDps = row.offhandDps != null ? row.offhandDps : 0;
@@ -3551,31 +3548,63 @@
                   normArrowDps = baseArrowDps * (bowForArrow.delay / 30);
                 }
                 return {
-                  slotType: 'Arrow',
                   label: (row.label || '').split(' + ')[1] || ('Arrow ' + id),
-                  totalDps: normArrowDps,
-                  mainhandDps: 0,
-                  offhandDps: normArrowDps
+                  dps: normArrowDps
                 };
               });
-              arrowRows.sort(function (a, b) { return (b.totalDps || 0) - (a.totalDps || 0); });
-              rowsForTable = bowRows.concat(arrowRows);
-              heading = '=== Ranged slot rank (by DPS) ===';
-              chartLabel = 'Bow / Arrow slot';
-            } else {
-              rowsForTable = results;
-              heading = '=== Ranged (bow + arrow) rank (by DPS) ===';
-              chartLabel = 'Bow + Arrow';
+              arrowRows.sort(function (a, b) { return (b.dps || 0) - (a.dps || 0); });
+              arrowRows = arrowRows.slice(0, 40);
+              var maxBowDps = bowRows[0] && bowRows[0].dps > 0 ? bowRows[0].dps : 1;
+              var bowChartRows = bowRows.map(function (row, i) {
+                var pct = row.dps != null && maxBowDps > 0 ? (row.dps / maxBowDps * 100) : 0;
+                var labelSafe = (row.label || '').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+                var dpsStr = row.dps != null ? row.dps.toFixed(2) : '—';
+                var pctStr = (i === 0) ? '100%' : (pct.toFixed(1) + '%');
+                var barWidth = Math.max(0, Math.min(100, pct));
+                return '<div class="rank-chart-row" title="' + labelSafe + '"><span class="rank-chart-label">' + labelSafe + '</span><span class="rank-chart-dps">' + dpsStr + '</span><span class="rank-chart-pct">' + pctStr + '</span><div class="rank-chart-bar-wrap"><div class="rank-chart-bar" style="width:' + barWidth + '%"></div></div></div>';
+              });
+              var chartHeaderSlot = '<div class="rank-chart-row rank-chart-header"><span class="rank-chart-label">Bow slot</span><span class="rank-chart-dps">DPS</span><span class="rank-chart-pct">% of BIS</span><div class="rank-chart-bar-wrap"></div></div>';
+              var chartHtmlSlot = bowChartRows.length > 0 ? '<div class="rank-weapons-chart"><h3>Top 40 bows by DPS (X scale = #1)</h3>' + chartHeaderSlot + bowChartRows.join('') + '</div>' : '';
+              var histContainerSlot = $('histogram-container');
+              if (histContainerSlot) histContainerSlot.innerHTML = chartHtmlSlot;
+              var linesSlot = [
+                '=== Ranged slot rank (by DPS) ===',
+                'Class: Ranger, Level: ' + level + ', Duration: ' + durationSec + 's',
+                sourceLabel + subText,
+                ''
+              ];
+              var bowTableRowsHtml = bowRows.map(function (row, i) {
+                var rank = i + 1;
+                var labelSafe = (row.label || '').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+                var dpsStr = row.dps != null ? row.dps.toFixed(2) : '—';
+                return '<tr><td>' + rank + '</td><td>' + labelSafe + '</td><td style="text-align:right;">' + dpsStr + '</td></tr>';
+              });
+              var bowTableHtml = '<table class="rank-weapons-table" style="margin-top:0.5rem; border-collapse:collapse; width:100%; font-size:0.9rem;"><thead><tr><th style="text-align:left;">#</th><th style="text-align:left;">Bow</th><th style="text-align:right;">Bow DPS</th></tr></thead><tbody>' + bowTableRowsHtml.join('') + '</tbody></table>';
+              var arrowHeadingLine = '=== Ammo slot rank (by DPS) ===';
+              var arrowTableRowsHtml = arrowRows.map(function (row, i) {
+                var rank = i + 1;
+                var labelSafe = (row.label || '').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+                var dpsStr = row.dps != null ? row.dps.toFixed(2) : '—';
+                return '<tr><td>' + rank + '</td><td>' + labelSafe + '</td><td style="text-align:right;">' + dpsStr + '</td></tr>';
+              });
+              var arrowTableHtml = '<table class="rank-weapons-table" style="margin-top:0.5rem; border-collapse:collapse; width:100%; font-size:0.9rem;"><thead><tr><th style="text-align:left;">#</th><th style="text-align:left;">Ammo</th><th style="text-align:right;">Ammo DPS</th></tr></thead><tbody>' + arrowTableRowsHtml.join('') + '</tbody></table>';
+              $('report').innerHTML =
+                '<pre style="margin:0;">' + linesSlot.join('\n') + '</pre>' +
+                bowTableHtml +
+                '<pre style="margin-top:0.75rem; margin-bottom:0;">' + arrowHeadingLine + '</pre>' +
+                arrowTableHtml;
+              return;
             }
+            // Combinations mode (unchanged): show full bow+arrow DPS breakdown.
+            var rowsForTable = results;
+            var heading = '=== Ranged (bow + arrow) rank (by DPS) ===';
+            var chartLabel = 'Bow + Arrow';
             var maxDps = rowsForTable[0] && rowsForTable[0].totalDps > 0 ? rowsForTable[0].totalDps : 1;
             var lines = [heading, 'Class: Ranger, Level: ' + level + ', Duration: ' + durationSec + 's', sourceLabel + subText, ''];
             var tableRows = rowsForTable.slice(0, 400).map(function (row, i) {
               var rank = i + 1;
               var label = (row.label || '').replace(/</g, '&lt;').replace(/"/g, '&quot;');
               var totalDpsStr = row.totalDps != null ? row.totalDps.toFixed(2) : '—';
-              if (currentMode === 'slot') {
-                label = (row.slotType || '') + ': ' + label;
-              }
               var bowDpsStr = row.mainhandDps != null ? row.mainhandDps.toFixed(2) : '—';
               var arrowDpsStr = row.offhandDps != null ? row.offhandDps.toFixed(2) : '—';
               return '<tr><td>' + rank + '</td><td>' + label + '</td><td style="text-align:right;">' + bowDpsStr + '</td><td style="text-align:right;">' + arrowDpsStr + '</td><td style="text-align:right;">' + totalDpsStr + '</td></tr>';
@@ -3583,9 +3612,6 @@
             var chartRows = rowsForTable.slice(0, 40).map(function (row, i) {
               var pct = row.totalDps != null && maxDps > 0 ? (row.totalDps / maxDps * 100) : 0;
               var labelSafe = (row.label || '').replace(/</g, '&lt;').replace(/"/g, '&quot;');
-              if (currentMode === 'slot') {
-                labelSafe = (row.slotType || '') + ': ' + labelSafe;
-              }
               var dpsStr = row.totalDps != null ? row.totalDps.toFixed(2) : '—';
               var pctStr = (i === 0) ? '100%' : (pct.toFixed(1) + '%');
               var barWidth = Math.max(0, Math.min(100, pct));
