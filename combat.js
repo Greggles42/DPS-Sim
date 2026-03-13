@@ -606,8 +606,9 @@
    * @param {number} [options.offenseSkill=252] - archery to-hit
    * @param {number} [options.wornAttack=0]
    * @param {number} [options.spellAttack=0]
-   * @param {number} [options.str=255] - for offense rating
-   * @param {number} [options.dex=255] - proc rate, crit
+   * @param {number} [options.dex=255] - offense rating stat (archery uses DEX), proc rate, crit
+   * @param {number} [options.maxDex=255] - cap DEX for offense calc (EQ GetMaxDEX)
+   * @param {string} [options.classId] - if 'ranger' and level>54, offense += level*4-216
    * @param {number} [options.critChanceMult=0] - Combat Fury flat crit % (0, 2, 4, 6)
    * @param {number} [options.archeryMastery=2] - 1, 2, or 3 (AA)
    * @param {boolean} [options.mobStationary=false]
@@ -624,13 +625,23 @@
     const mobLevel = options.mobLevel != null ? options.mobLevel : 60;
     const avoidance = options.avoidance != null ? options.avoidance : getAvoidanceNPC(mobLevel);
     const mitigation = getMitigation(mobLevel, targetAC, 0, 0);
-    const str = options.str != null ? options.str : 255;
-    const strBonus = str >= 75 ? Math.floor((2 * str - 150) / 3) : 0;
+    // Archery uses DEX for offense rating (EQ: SkillArchery/SkillThrowing use DEX; others use STR)
+    const maxDex = options.maxDex != null ? Math.min(255, Math.max(0, options.maxDex)) : 255;
+    const dex = Math.min(options.dex != null ? options.dex : 255, maxDex);
+    const dexBonus = dex >= 75 ? Math.floor((2 * dex - 150) / 3) : 0;
     const wornAttack = options.wornAttack != null ? options.wornAttack : 0;
     const spellAttack = options.spellAttack != null ? options.spellAttack : 0;
     const OFFENSE_SKILL = options.offenseSkill != null ? Math.min(255, Math.max(0, options.offenseSkill)) : 252;
-    const ARCHERY_SKILL = 252;
-    const toHit = 7 + OFFENSE_SKILL + ARCHERY_SKILL;
+    const bow = options.rangedWeapon;
+    const arrow = options.arrow;
+    if (!bow || bow.damage == null || bow.delay == null || !arrow || arrow.damage == null) {
+      return { error: 'Missing rangedWeapon (damage, delay) or arrow (damage)' };
+    }
+    const ARCHERY_SKILL_BASE = options.archerySkill != null ? Math.min(252, Math.max(0, Math.floor(options.archerySkill))) : 252;
+    const archeryModPercent = (bow.archeryModPercent != null && !Number.isNaN(Number(bow.archeryModPercent))) ? Number(bow.archeryModPercent) : 0;
+    const ARCHERY_SKILL_MODIFIED = Math.floor(ARCHERY_SKILL_BASE * (100 + archeryModPercent) / 100);
+    const ARCHERY_SKILL_EFFECTIVE = Math.min(252, ARCHERY_SKILL_MODIFIED);
+    const toHit = 7 + OFFENSE_SKILL + ARCHERY_SKILL_EFFECTIVE;
     const trueshot = !!options.trueshot;
     const TRUESHOT_DURATION_MS = 120000;
     const durationMs = Math.floor(options.fightDurationSec * 1000);
@@ -638,14 +649,12 @@
       ? (durationMs <= TRUESHOT_DURATION_MS ? 0 : Math.floor(rng() * (durationMs - TRUESHOT_DURATION_MS)))
       : 0;
     const trueshotEndMs = trueshot ? (trueshotStartMs + Math.min(TRUESHOT_DURATION_MS, durationMs)) : 0;
-    const toHitTrueshot = 7 + OFFENSE_SKILL + Math.floor(ARCHERY_SKILL * 1.12);
-    const offenseRating = OFFENSE_SKILL + strBonus + wornAttack + spellAttack;
-
-    const bow = options.rangedWeapon;
-    const arrow = options.arrow;
-    if (!bow || bow.damage == null || bow.delay == null || !arrow || arrow.damage == null) {
-      return { error: 'Missing rangedWeapon (damage, delay) or arrow (damage)' };
-    }
+    const archerySkillTrueshot = Math.min(252, Math.floor(ARCHERY_SKILL_EFFECTIVE * 1.12));
+    const toHitTrueshot = 7 + OFFENSE_SKILL + archerySkillTrueshot;
+    let offenseRating = OFFENSE_SKILL + dexBonus + wornAttack + spellAttack;
+    if (offenseRating < 1) offenseRating = 1;
+    const rangerOffenseBonus = (options.classId === 'ranger' && level > 54) ? (level * 4 - 216) : 0;
+    if (rangerOffenseBonus > 0) offenseRating += rangerOffenseBonus;
     const mastery = options.archeryMastery != null ? Math.max(1, Math.min(3, Math.floor(options.archeryMastery))) : 2;
     const masteryMult = mastery === 1 ? 1.30 : mastery === 2 ? 1.60 : 2.00;
     let baseDamagePerShot = ((bow.damage || 0) + (arrow.damage || 0)) * masteryMult;
@@ -697,8 +706,12 @@
       calculatedToHit: toHit,
       offenseSkill: OFFENSE_SKILL,
       offenseRating: offenseRating,
-      offenseRatingFromStr: strBonus,
-      archerySkill: ARCHERY_SKILL,
+      offenseRatingFromDex: dexBonus,
+      rangerOffenseBonus: rangerOffenseBonus || undefined,
+      archerySkill: ARCHERY_SKILL_BASE,
+      archerySkillModified: ARCHERY_SKILL_MODIFIED,
+      archerySkillEffective: ARCHERY_SKILL_EFFECTIVE,
+      archeryModPercent: archeryModPercent,
       displayedAttack: Math.floor((offenseRating + toHit) * 1000 / 744),
     };
     const rangedProcLevelReq = getProcLevelRequirement(bow);
@@ -850,11 +863,17 @@
     lines.push('=== Offense & To-Hit Model ===', '');
     if (report.calculatedToHit != null) lines.push(padLine('  Calculated to-hit:', String(report.calculatedToHit)));
     if (report.offenseSkill != null) lines.push(padLine('  Offense skill:', `${report.offenseSkill}  (0–255, used for to-hit only)`));
-    if (report.archerySkill != null) lines.push(padLine('  Archery skill:', `${report.archerySkill}  (used in to-hit)`));
+    if (report.archerySkill != null) lines.push(padLine('  Archery skill:', `${report.archerySkill}  (base, 0–252)`));
+    if (report.archerySkillModified != null) {
+      const modNote = report.archeryModPercent > 0 ? `  (bow +${report.archeryModPercent}%)` : '';
+      lines.push(padLine('  Modified archery skill:', `${report.archerySkillModified}${modNote}`));
+    }
+    if (report.archerySkillEffective != null) lines.push(padLine('  Effective archery skill:', `${report.archerySkillEffective}  (capped at 252, used in to-hit)`));
     if (report.offenseRating != null) lines.push(padLine('  Offense rating:', `${report.offenseRating}  (used for damage)`));
-    if (report.offenseRatingFromStr != null) lines.push(padLine('    From STR:', String(report.offenseRatingFromStr)));
-    if (report.offenseRating != null && report.offenseRatingFromStr != null) {
-      const other = report.offenseRating - report.offenseRatingFromStr;
+    if (report.offenseRatingFromDex != null) lines.push(padLine('    From DEX:', String(report.offenseRatingFromDex)));
+    if (report.rangerOffenseBonus != null && report.rangerOffenseBonus > 0) lines.push(padLine('    Ranger level>54 bonus:', `+${report.rangerOffenseBonus}`));
+    if (report.offenseRating != null && report.offenseRatingFromDex != null) {
+      const other = report.offenseRating - report.offenseRatingFromDex - (report.rangerOffenseBonus || 0);
       lines.push(padLine('    From other:', `${other}  (skill + worn + spell)`));
     }
     if (report.displayedAttack != null) lines.push(padLine('  Displayed ATK:', String(report.displayedAttack)));

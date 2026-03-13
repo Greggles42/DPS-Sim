@@ -985,6 +985,7 @@
         <label for="ranged-proc-damage">Proc spell damage (on proc)</label>
         <input type="number" id="ranged-proc-damage" min="0" value="0" placeholder="0">
         <input type="hidden" id="ranged-proc-level" value="">
+        <input type="hidden" id="ranged-archery-mod" value="0">
         <div class="row">
           <div><label for="ranged-elem-type" class="small-label">Elemental type</label><select id="ranged-elem-type">
             <option value="">None</option>
@@ -2632,6 +2633,10 @@
             var normWornAttack = getWornAttackBonusFromRawItem(raw);
             if (normWornAttack > 0) norm.wornAttackBonus = normWornAttack;
           }
+          if (norm.archeryModPercent == null && (raw.skillmodtype === 7 || raw.skillmodType === 7)) {
+            var av = raw.skillmodvalue != null ? parseInt(raw.skillmodvalue, 10) : (raw.skillmodValue != null ? parseInt(raw.skillmodValue, 10) : NaN);
+            if (!isNaN(av)) norm.archeryModPercent = av;
+          }
           var normProcLevel = raw.proclevel != null ? parseInt(raw.proclevel, 10) : NaN;
           norm.procLevel = (!isNaN(normProcLevel) && normProcLevel > 0) ? normProcLevel : undefined;
           if ((norm.procSpellId != null || raw.proceffect != null) && (!norm.proc || norm.procDamage == null || norm.procDamage === 0) && typeof ItemSearch !== 'undefined' && ItemSearch.getSpellFromLocalData) {
@@ -2667,6 +2672,10 @@
           baneDamageRace: (raw.banedmgrace != null ? parseInt(raw.banedmgrace, 10) : 0) || 0,
           type: 'bow'
         };
+        if (raw.skillmodtype === 7 || raw.skillmodType === 7) {
+          var rawArcheryMod = raw.skillmodvalue != null ? parseInt(raw.skillmodvalue, 10) : (raw.skillmodValue != null ? parseInt(raw.skillmodValue, 10) : NaN);
+          if (!isNaN(rawArcheryMod)) result.archeryModPercent = rawArcheryMod;
+        }
         if (raw.proceffect != null && typeof ItemSearch !== 'undefined' && ItemSearch.getSpellFromLocalData) {
           var procSpellId = parseInt(raw.proceffect, 10);
           if (!isNaN(procSpellId)) {
@@ -3437,7 +3446,8 @@
               procRate: (bow.procRate != null && !Number.isNaN(Number(bow.procRate))) ? Number(bow.procRate) : 0,
               procLevel: (bow.procLevel != null && !Number.isNaN(Number(bow.procLevel)) && Number(bow.procLevel) > 0) ? Number(bow.procLevel) : undefined,
               elemType: bow.elemType || undefined,
-              elemDamage: (bow.elemDamage != null ? bow.elemDamage : 0) || 0
+              elemDamage: (bow.elemDamage != null ? bow.elemDamage : 0) || 0,
+              archeryModPercent: (bow.archeryModPercent != null && !Number.isNaN(Number(bow.archeryModPercent))) ? Number(bow.archeryModPercent) : 0
             };
             if (bow.procBuffDurationTicks != null && bow.procBuffDurationTicks > 0)
               rangedWeapon.procBuffDurationTicks = bow.procBuffDurationTicks;
@@ -3583,6 +3593,7 @@
               });
               var bowTableHtml = '<table class="rank-weapons-table" style="margin-top:0.5rem; border-collapse:collapse; width:100%; font-size:0.9rem;"><thead><tr><th style="text-align:left;">#</th><th style="text-align:left;">Bow</th><th style="text-align:right;">Bow DPS</th></tr></thead><tbody>' + bowTableRowsHtml.join('') + '</tbody></table>';
               var arrowHeadingLine = '=== Ammo slot rank (by DPS) ===';
+              var arrowDescriptionLine = 'Arrow DPS on this list is normalized to a bow delay of 30. Use the Combinations view to see how each arrow ranks with a specific bow.';
               var arrowTableRowsHtml = arrowRows.map(function (row, i) {
                 var rank = i + 1;
                 var labelSafe = (row.label || '').replace(/</g, '&lt;').replace(/"/g, '&quot;');
@@ -3593,7 +3604,7 @@
               $('report').innerHTML =
                 '<pre style="margin:0;">' + linesSlot.join('\n') + '</pre>' +
                 bowTableHtml +
-                '<pre style="margin-top:0.75rem; margin-bottom:0;">' + arrowHeadingLine + '</pre>' +
+                '<pre style="margin-top:0.75rem; margin-bottom:0;">' + arrowHeadingLine + '\n' + arrowDescriptionLine + '</pre>' +
                 arrowTableHtml;
               return;
             }
@@ -3653,7 +3664,8 @@
               procRate: (bow.procRate != null && !Number.isNaN(Number(bow.procRate))) ? Number(bow.procRate) : 0,
               procLevel: (bow.procLevel != null && !Number.isNaN(Number(bow.procLevel)) && Number(bow.procLevel) > 0) ? Number(bow.procLevel) : undefined,
               elemType: bow.elemType || undefined,
-              elemDamage: (bow.elemDamage != null ? bow.elemDamage : 0) || 0
+              elemDamage: (bow.elemDamage != null ? bow.elemDamage : 0) || 0,
+              archeryModPercent: (bow.archeryModPercent != null && !Number.isNaN(Number(bow.archeryModPercent))) ? Number(bow.archeryModPercent) : 0
             };
             if (bow.procBuffDurationTicks != null && bow.procBuffDurationTicks > 0)
               rangedWeapon.procBuffDurationTicks = bow.procBuffDurationTicks;
@@ -4321,6 +4333,7 @@
           procSpell: ($('ranged-proc').value || '').trim() || undefined,
           procSpellDamage: parseInt($('ranged-proc-damage').value, 10) || 0,
           procLevel: parseInt($('ranged-proc-level').value, 10) || undefined,
+          archeryModPercent: parseInt($('ranged-archery-mod').value, 10) || 0,
           noDamageVsTarget: rangedNoDamageVsTarget,
         };
         const rangedElemType = ($('ranged-elem-type').value || '').trim();
@@ -4347,9 +4360,9 @@
           offenseSkill: 252,
           wornAttack: parseInt($('ranged-worn-attack').value, 10) || 0,
           spellAttack: parseInt($('ranged-spell-attack').value, 10) || 0,
-          str: 255,
           dex: 255,
           critChanceMult: 0,
+          classId: 'ranger',
           archeryMastery: parseInt(document.querySelector('input[name="archery-mastery"]:checked').value, 10) || 3,
           mobStationary: $('mob-stationary').checked,
           trueshot: $('trueshot').checked,
@@ -4985,6 +4998,8 @@
         }
         var rangedBaneBodyEl = $('ranged-bane-body');
         if (rangedBaneBodyEl) rangedBaneBodyEl.value = (weapon.baneDamageBody != null && !isNaN(Number(weapon.baneDamageBody))) ? String(Math.floor(weapon.baneDamageBody)) : '';
+        var rangedArcheryModEl = $('ranged-archery-mod');
+        if (rangedArcheryModEl) rangedArcheryModEl.value = (weapon.archeryModPercent != null && !isNaN(Number(weapon.archeryModPercent))) ? String(Math.floor(Number(weapon.archeryModPercent))) : '0';
         rangedWeaponDisplayName = (weapon.name || '').trim() || 'Custom';
         rangedFromItemSearch = true;
         updateWeaponIcon('ranged-weapon', weapon.icon != null ? Number(weapon.icon) : null);
@@ -5488,7 +5503,7 @@
       initEasyModeUi();
 
       function clearRangedArrowItemSearchOnManualEdit(kind) {
-        if (kind === 'ranged') { rangedFromItemSearch = false; updateWeaponIcon('ranged-weapon', null); updateRangedWeaponDisplay(); }
+        if (kind === 'ranged') { rangedFromItemSearch = false; var ram = $('ranged-archery-mod'); if (ram) ram.value = '0'; updateWeaponIcon('ranged-weapon', null); updateRangedWeaponDisplay(); }
         if (kind === 'arrow') { arrowFromItemSearch = false; updateWeaponIcon('arrow', null); updateArrowDisplay(); }
       }
       [$('ranged-damage'), $('ranged-delay'), $('ranged-proc'), $('ranged-proc-damage'), $('ranged-elem-type'), $('ranged-elem-damage'), $('ranged-bane')].forEach(function (el) {

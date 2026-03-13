@@ -530,29 +530,33 @@
     var baneDamageBody = (baneDamageBodyRaw != null && baneDamageBodyRaw !== '') ? parseInt(baneDamageBodyRaw, 10) : null;
     if (isNaN(baneDamageBody)) baneDamageBody = null;
 
-    /* Skillmod type 8 = backstab; skillmodvalue is the backstab skill % modifier */
+    /* Skillmod type 7 = archery; skillmodvalue is the archery skill % modifier. Type 8 = backstab. */
     var backstabModPercent = null;
+    var archeryModPercent = null;
     var skillmodTypeRaw = get(item, ['skillmodType', 'skillmod_type', 'SkillmodType', 'skillmodtype']);
     var skillmodType = (typeof skillmodTypeRaw === 'number') ? skillmodTypeRaw : parseInt(skillmodTypeRaw, 10);
-    if (skillmodType === 8) {
-      var skillmodValRaw = get(item, ['skillmodValue', 'skillmod_value', 'SkillmodValue', 'skillmodvalue']);
-      var skillmodVal = (typeof skillmodValRaw === 'number') ? skillmodValRaw : parseInt(skillmodValRaw, 10);
-      if (!isNaN(skillmodVal)) backstabModPercent = skillmodVal;
+    var skillmodValRaw = get(item, ['skillmodValue', 'skillmod_value', 'SkillmodValue', 'skillmodvalue']);
+    var skillmodVal = (typeof skillmodValRaw === 'number') ? skillmodValRaw : parseInt(skillmodValRaw, 10);
+    if (!isNaN(skillmodVal)) {
+      if (skillmodType === 7) archeryModPercent = skillmodVal;
+      else if (skillmodType === 8) backstabModPercent = skillmodVal;
     }
     var skillmodArr = get(item, ['skillmod', 'skillmods', 'SkillMod']);
-    if (backstabModPercent == null && Array.isArray(skillmodArr)) {
+    if (Array.isArray(skillmodArr)) {
       for (var i = 0; i < skillmodArr.length; i++) {
         var mod = skillmodArr[i];
         if (!mod || typeof mod !== 'object') continue;
         var modType = (typeof mod.type === 'number') ? mod.type : parseInt(mod.type, 10);
-        if (modType === 8) {
-          var modVal = (typeof mod.value === 'number') ? mod.value : parseInt(mod.value, 10);
-          if (!isNaN(modVal)) { backstabModPercent = modVal; break; }
+        var modVal = (typeof mod.value === 'number') ? mod.value : parseInt(mod.value, 10);
+        if (!isNaN(modVal)) {
+          if (modType === 7 && archeryModPercent == null) archeryModPercent = modVal;
+          else if (modType === 8 && backstabModPercent == null) backstabModPercent = modVal;
         }
         modType = (typeof mod.skillmodType === 'number') ? mod.skillmodType : parseInt(mod.skillmodType, 10);
-        if (modType === 8) {
-          modVal = (typeof mod.skillmodValue === 'number') ? mod.skillmodValue : parseInt(mod.skillmodValue, 10);
-          if (!isNaN(modVal)) { backstabModPercent = modVal; break; }
+        modVal = (typeof mod.skillmodValue === 'number') ? mod.skillmodValue : parseInt(mod.skillmodValue, 10);
+        if (!isNaN(modVal)) {
+          if (modType === 7 && archeryModPercent == null) archeryModPercent = modVal;
+          else if (modType === 8 && backstabModPercent == null) backstabModPercent = modVal;
         }
       }
     }
@@ -591,6 +595,7 @@
       slots: slots,
       classes: itemClasses,
       backstabModPercent: backstabModPercent,
+      archeryModPercent: archeryModPercent != null ? archeryModPercent : undefined,
       itemId: itemIdVal
     };
 
