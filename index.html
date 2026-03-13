@@ -698,7 +698,7 @@
         <div class="char-checkbox-row">
           <label class="checkbox-label char-checkbox"><input type="checkbox" id="ambidexterity-aa"> Ambidexterity (+32 dual wield)</label>
         </div>
-        <input type="hidden" id="crit-dmg-debug-dmg-bonus" value="1">
+        <input type="hidden" id="crit-dmg-debug-dmg-bonus" value="0">
         <div id="special-attack-row" style="display: none;">
           <div class="char-secondary-row">
             <div class="char-field"><label for="special-attack-type" class="small-label">Special attack</label><select id="special-attack-type"><option value="none">None</option><option value="flying_kick">Flying Kick</option><option value="backstab">Backstab</option><option value="kick">Kick</option><option value="bash">Bash/Slam</option></select></div>
@@ -716,10 +716,10 @@
         <div class="char-field" style="margin-top: 0.5rem;">
           <label class="small-label">Combat Fury (AA)</label>
           <div class="radio-group">
-            <label><input type="radio" name="combat-fury" value="0" checked> Off</label>
+            <label><input type="radio" name="combat-fury" value="0"> Off</label>
             <label><input type="radio" name="combat-fury" value="1"> 1 (+2% crit)</label>
             <label><input type="radio" name="combat-fury" value="2"> 2 (+4% crit)</label>
-            <label><input type="radio" name="combat-fury" value="3"> 3 (+6% crit)</label>
+            <label><input type="radio" name="combat-fury" value="3" checked> 3 (+6% crit)</label>
           </div>
           <p class="hint char-hint" style="margin-top: 0.25rem; margin-bottom: 0;">Stacks on top of warrior innate crit chance.</p>
         </div>
