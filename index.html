@@ -3501,7 +3501,9 @@
           });
           results.sort(function (a, b) { return (b.totalDps || 0) - (a.totalDps || 0); });
           var runsCount = Math.max(1, Math.min(1000, parseInt($('ranged-runs').value, 10) || 20));
-          var top40 = results.slice(0, 40);
+          // Shortlist the top N combinations for detailed averaging runs.
+          // Use 100 so arrows with significant elemental damage get fully exercised against resists.
+          var topCombos = results.slice(0, 100);
           function renderRankReport() {
             var currentMode = (window._rankWeaponsReportViewMode === 'slot') ? 'slot' : 'combinations';
             results.sort(function (a, b) { return (b.totalDps || 0) - (a.totalDps || 0); });
@@ -3516,7 +3518,7 @@
               viewToggleBtn.textContent = 'Combos/Slots';
               viewToggleBtn.title = 'Toggle rank view (current: ' + (currentMode === 'slot' ? 'Slot Ranking' : 'Combinations') + ')';
             }
-            var subText = top40.length > 0 ? ' Top 40 averaged over ' + runsCount + ' runs.' : '';
+            var subText = topCombos.length > 0 ? ' Top 100 averaged over ' + runsCount + ' runs (display shows top 40).' : '';
             var sourceLabel = includePop ? 'Bows from popweapons.json.' : 'Bows from luclinweapons.json. Arrows from weaponlist.json.';
             if (currentMode === 'slot') {
               // Slot mode: separate bow and ammo slot rankings, using component-only DPS.
@@ -3623,7 +3625,7 @@
             if (histContainer) histContainer.innerHTML = chartHtml;
             $('report').innerHTML = '<pre style="margin:0;">' + lines.join('\n') + '</pre><table class="rank-weapons-table" style="margin-top:0.5rem; border-collapse:collapse; width:100%; font-size:0.9rem;"><thead><tr><th style="text-align:left;">#</th><th style="text-align:left;">' + chartLabel + '</th><th style="text-align:right;">Bow DPS</th><th style="text-align:right;">Arrow DPS</th><th style="text-align:right;">Total DPS</th></tr></thead><tbody>' + tableRows.join('') + '</tbody></table>';
           }
-          if (top40.length === 0) {
+          if (topCombos.length === 0) {
             renderRankReport();
             return;
           }
@@ -3631,13 +3633,13 @@
           var avgIndex = 0;
           function runNextTop40() {
             var reportEl = $('report');
-            if (avgIndex >= top40.length) {
+            if (avgIndex >= topCombos.length) {
               if (reportEl) reportEl.textContent = 'Reordering results...';
               renderRankReport();
               return;
             }
             if (reportEl) reportEl.textContent = 'Averaging top 40 results over multiple runs';
-            var row = top40[avgIndex];
+            var row = topCombos[avgIndex];
             var bow = bows.filter(function (b) { return b.id === row.bowId; })[0];
             var arrow = arrows.filter(function (a) { return a.id === row.arrowId; })[0];
             if (!bow || !arrow) { avgIndex++; requestAnimationFrame(runNextTop40); return; }
