@@ -941,6 +941,7 @@
         <div class="char-field char-field-num"><label for="ranged-level">Level</label><input type="number" id="ranged-level" min="1" max="65" value="60" placeholder="60"></div>
         <div class="char-field char-field-num"><label for="ranged-worn-haste">Worn haste % <span class="info-icon" title="Item haste; capped to 10% at level 1-25, uncapped at level 26+">&#8505;</span></label><input type="number" id="ranged-worn-haste" min="0" value="41" placeholder="41"></div>
         <div class="char-field char-field-num"><label for="ranged-spell-haste">Spell haste % <span class="info-icon" title="(60% Haste + 25% v3 bard haste)">&#8505;</span></label><input type="number" id="ranged-spell-haste" min="0" value="85" placeholder="85"></div>
+        <div class="char-field char-field-num"><label for="ranged-quiver-weight-reduction">Quiver weight reduction % <span class="info-icon" title="Quiver haste = (weight reduction ÷ 3). Example: 30% WR quiver gives 10% quiver haste. This stacks with worn and spell haste.">&#8505;</span></label><input type="number" id="ranged-quiver-weight-reduction" min="0" max="100" value="0" placeholder="e.g. 30 for 30% WR"></div>
         <div class="char-field char-field-num"><label for="ranged-worn-attack">Worn ATK <span class="info-icon" title="don't include atk from weapon, it will automatically be included">&#8505;</span></label><input type="number" id="ranged-worn-attack" min="0" value="0" placeholder="0"></div>
         <div class="char-field char-field-num"><label for="ranged-spell-attack">Spell ATK</label><input type="number" id="ranged-spell-attack" min="0" value="0" placeholder="0"></div>
       </div>
@@ -1385,7 +1386,11 @@
         var level = parseInt($('ranged-level').value, 10) || 60;
         var worn = parsePercentInput('ranged-worn-haste');
         var spell = parsePercentInput('ranged-spell-haste');
-        return getTotalHastePercent(level, worn, spell);
+        var quiverWr = parsePercentInput('ranged-quiver-weight-reduction');
+        if (quiverWr < 0) quiverWr = 0;
+        if (quiverWr > 100) quiverWr = 100;
+        var quiverHaste = quiverWr / 3;
+        return getTotalHastePercent(level, worn, spell) + quiverHaste;
       }
       let backstabReuseManual = false;
       let flyingKickReuseManual = false;
