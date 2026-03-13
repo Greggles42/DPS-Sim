@@ -2687,6 +2687,7 @@
         if (!isNaN(classes) && classes !== 0 && (classes & 8) === 0) return null;
         var dmg = parseInt(raw.damage, 10);
         if (isNaN(dmg) || dmg < 0) return null;
+        if (dmg < 6 && !/^Summoned:\s*Arrow$/i.test(nameStr.trim())) return null;
         var elemType = ''; var elemDamage = 0;
         if (raw.elemdmgtype != null && raw.elemdmgamt != null) {
           var et = { 1: 'magic', 2: 'fire', 3: 'cold', 4: 'poison', 5: 'disease' }[parseInt(raw.elemdmgtype, 10)];
