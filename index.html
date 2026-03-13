@@ -5188,6 +5188,11 @@
           if (mask && classes != null && !isNaN(classes) && (classes & mask) === 0) continue;
           var withId = Object.assign({}, item, { id: parseInt(id, 10) });
           if (withId.id !== withId.id) withId.id = id;
+          // So ItemSearch.normalizeItemForWeapon picks up elemental: it expects eleDmgType (number) and eleDmgAmt (EQEmu raw uses elemdmgtype/elemdmgamt).
+          if (itemTypeVal === 27 && (item.elemdmgtype != null || item.elemdmgamt != null)) {
+            withId.eleDmgType = item.elemdmgtype != null ? parseInt(item.elemdmgtype, 10) : 0;
+            withId.eleDmgAmt = item.elemdmgamt != null ? parseInt(item.elemdmgamt, 10) : 0;
+          }
           raw.push(withId);
         }
         CUSTOM_MONK_WEAPONS.forEach(function (item) {
