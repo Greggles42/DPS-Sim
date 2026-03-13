@@ -5176,7 +5176,12 @@
           if (!list.hasOwnProperty(id)) continue;
           var item = list[id];
           if (!item || typeof item !== 'object') continue;
-          if (num(item.damage) < 1 || num(item.delay) < 1) continue;
+          var dmgVal = num(item.damage);
+          var dlyVal = num(item.delay);
+          var itemTypeVal = num(item.itemtype);
+          if (dmgVal < 1) continue;
+          // Allow arrows (itemtype 27, ammo) to have delay = 0; require delay >= 1 for all other items.
+          if (dlyVal < 1 && itemTypeVal !== 27) continue;
           var name = (item.Name != null ? String(item.Name) : (item.name != null ? String(item.name) : '')).toLowerCase();
           if (q && name.indexOf(q) < 0) continue;
           var classes = item.classes != null ? parseInt(item.classes, 10) : (item.Classes != null ? parseInt(item.Classes, 10) : null);
