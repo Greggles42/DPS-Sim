@@ -769,9 +769,8 @@
       <div class="weapon-section-header"><h2>Weapon 1 (Main Hand)</h2></div>
       <div id="w1-weapon-name" class="weapon-name" aria-live="polite"></div>
       <div id="w1-weapon-skill" class="weapon-skill"></div>
-      <p class="hint char-hint" style="margin-top: 0; margin-bottom: 0.35rem;">Item search uses local resources (weaponlist.json, luclinweapons.json, etc.).</p>
       <div class="item-search-wrap">
-        <label for="w1-item-search">Search items</label>
+        <label for="w1-item-search">Item Search</label>
         <input type="text" id="w1-item-search" placeholder="Type 4+ characters to search..." autocomplete="off">
         <div id="w1-item-search-list" class="item-search-list" role="listbox"></div>
       </div>
@@ -829,7 +828,7 @@
       <div id="w2-weapon-name" class="weapon-name" aria-live="polite"></div>
       <div id="w2-weapon-skill" class="weapon-skill"></div>
       <div class="item-search-wrap">
-        <label for="w2-item-search">Search items (API)</label>
+        <label for="w2-item-search">Item Search</label>
         <input type="text" id="w2-item-search" placeholder="Type 4+ characters to search..." autocomplete="off">
         <div id="w2-item-search-list" class="item-search-list" role="listbox"></div>
       </div>
@@ -969,7 +968,7 @@
     <section class="section--core">
       <h2>Ranged weapon</h2>
       <div class="item-search-wrap">
-        <label for="ranged-weapon-item-search">Search items (API)</label>
+        <label for="ranged-weapon-item-search">Item Search</label>
         <input type="text" id="ranged-weapon-item-search" placeholder="Type 4+ characters to search..." autocomplete="off">
         <div id="ranged-weapon-item-search-list" class="item-search-list" role="listbox"></div>
       </div>
@@ -1004,7 +1003,7 @@
     <section class="section--core">
       <h2>Arrow type</h2>
       <div class="item-search-wrap">
-        <label for="arrow-item-search">Search items (API)</label>
+        <label for="arrow-item-search">Item Search</label>
         <input type="text" id="arrow-item-search" placeholder="Type 4+ characters to search..." autocomplete="off">
         <div id="arrow-item-search-list" class="item-search-list" role="listbox"></div>
       </div>
@@ -1106,6 +1105,7 @@
   <section class="advanced-only" style="margin-top: 1rem;">
     <h2>Version log</h2>
     <ul style="font-size: 0.9rem; color: var(--muted); margin: 0; padding-left: 1.25rem;">
+      <li><strong>1.03</strong> — Added some previously unsearchable or missing weapons (including monk Velious fists). Removed use of the external ItemSearch API in favor of the integrated item lists only. Implemented quick weapon swap on the Easy mode UI. Updated backstab reporting data. Simulations can now be run with only one weapon equipped. Ranged damage simulation now searches correctly. Trueshot can be toggled on the ranged simulator.</li>
       <li><strong>1.02</strong> — Easy mode has group content/raid content toggle. Fixed some worn attack values on weapons from being ignored (such as from Ragebringer or Bloodbath). Adjusted Slay Undead chances to be 2.25%/2.35%/2.4% per level and 15×/16×/17× damage multipliers. Added weapon swap button to easy mode UI.</li>
       <li><strong>1.01</strong> — Race-specific procs (e.g. undead, summoned) now only land on matching target body types. Bane damage auto-applies by target type (race/body); no bane on generic target. Only classes with the double attack skill can double attack.</li>
       <li><strong>1.0</strong> — Easy Mode UI introduced for a simplified default experience, with Advanced Mode retained for full controls.</li>
@@ -1345,7 +1345,7 @@
       }
 
       // When releasing: 1) Bump VERSION below. 2) Add a new <li> at the top of the Version log section above.
-      const VERSION = '1.02';
+      const VERSION = '1.03';
       const versionEl = $('app-version');
       if (versionEl) versionEl.textContent = 'v' + VERSION;
 
@@ -4849,9 +4849,12 @@
         return true;
       }
 
-      function classOkForSelected(w) {
+      function classOkForSelected(w, prefix) {
         if (!w || typeof ItemSearch === 'undefined' || !ItemSearch.itemMatchesClass) return true;
-        const selectedClassId = ($('class').value || '').trim().toLowerCase();
+        // Ranged tab always filters by ranger usability, regardless of melee class selection.
+        const selectedClassId = (prefix === 'ranged-weapon' || prefix === 'arrow')
+          ? 'ranger'
+          : (($('class').value || '').trim().toLowerCase());
         return !selectedClassId || ItemSearch.itemMatchesClass(w, selectedClassId);
       }
 
@@ -4859,8 +4862,8 @@
         const listEl = $(prefix + '-item-search-list');
         if (!listEl) return;
         recent = recent || getRecent(prefix);
-        recent = recent.filter(function (w) { return slotOkForPrefix(prefix, w) && classOkForSelected(w); });
-        results = results ? results.filter(function (w) { return slotOkForPrefix(prefix, w) && classOkForSelected(w); }) : [];
+        recent = recent.filter(function (w) { return slotOkForPrefix(prefix, w) && classOkForSelected(w, prefix); });
+        results = results ? results.filter(function (w) { return slotOkForPrefix(prefix, w) && classOkForSelected(w, prefix); }) : [];
         const omit2H = prefix === 'w2';
         if (omit2H) {
           const offhandBlockedTypes = { '2hs': 1, '2hp': 1, '2hb': 1, 'archery': 1, 'bow': 1 };
@@ -5016,7 +5019,9 @@
         }
         renderDropdown(prefix, recent, null, true, query);
         openItemSearchDropdown(prefix);
-        const selectedClassId = ($('class').value || '').trim().toLowerCase();
+        const selectedClassId = (prefix === 'ranged-weapon' || prefix === 'arrow')
+          ? 'ranger'
+          : (($('class').value || '').trim().toLowerCase());
         searchWeaponsFromWeaponList(query, selectedClassId).then(function (results) {
           const recentNow = getRecent(prefix);
           renderDropdown(prefix, recentNow, results || [], false, query);
