@@ -2246,6 +2246,9 @@
                   doubleBackstabs: reports[0].special.doubleBackstabs !== undefined ? Math.round(reports.reduce((s, r) => s + (r.special && r.special.doubleBackstabs != null ? r.special.doubleBackstabs : 0), 0) / runs) : undefined,
                   backstabSkill: reports[0].special.backstabSkill,
                   backstabModPercent: reports[0].special.backstabModPercent,
+                  backstabToHit: reports[0].special.backstabToHit,
+                  effectiveBackstabSkillReport: reports[0].special.effectiveBackstabSkillReport,
+                  attemptedAttacks: reports[0].special.attemptedAttacks,
                   effectiveReuseSec: reports[0].special.effectiveReuseSec,
                   hitList: reports[0].special.hitList,
                 }

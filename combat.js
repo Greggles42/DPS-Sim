@@ -1115,6 +1115,12 @@
     }
     const specialCooldownMs = effectiveSpecialReuseSec * 1000;
     if (report.special) report.special.effectiveReuseSec = effectiveSpecialReuseSec;
+    if (report.special && specialConfig && specialConfig.fromBehindOnly && options.classId === 'rogue') {
+      const bsSkill = options.backstabSkill != null ? options.backstabSkill : 225;
+      const bsModPct = options.backstabModPercent || 0;
+      report.special.backstabToHit = 7 + OFFENSE_SKILL + bsSkill;
+      report.special.effectiveBackstabSkillReport = Math.min(252, Math.floor(bsSkill * (100 + bsModPct) / 100));
+    }
     let nextSwing1Ms = hasMainHand ? 0 : Infinity;
     let nextSwing2Ms = dualWielding && offhandEquipped ? rng() * delay2Ms : Infinity;
     let nextSpecialAtMs = (canFireSpecial && report.special) ? 0 : Infinity;
@@ -1751,7 +1757,7 @@
       if (w2.spellProcCrits != null) lines.push(padLine('    Proc spell crits (SCF):', String(w2.spellProcCrits)));
       if (w2.maxSpellProcCritDmg != null && w2.maxSpellProcCritDmg > 0) lines.push(padLine('    Max spell proc crit dmg:', String(w2.maxSpellProcCritDmg)));
     }
-    if (report.special && (report.special.count > 0 || (report.special.attempts != null && report.special.attempts > 0))) {
+    if (report.special) {
       lines.push('');
       const sp = report.special;
       const a = sp.attempts != null ? sp.attempts : 0;
@@ -1764,6 +1770,11 @@
       const dpsLabel = sp.name === 'Backstab' ? 'DPS from backstab' : 'DPS';
       lines.push(`  ${sp.name}`);
       if (sp.name === 'Backstab') {
+        if (sp.backstabToHit != null) lines.push(padLine('    To-hit (backstab):', String(sp.backstabToHit)));
+        if (sp.effectiveBackstabSkillReport != null) lines.push(padLine('    Effective backstab skill:', String(sp.effectiveBackstabSkillReport)));
+        if (sp.backstabSkill != null && (sp.backstabModPercent || 0) > 0) {
+          lines.push(padLine('    Backstab weapon modifier applied:', '+' + sp.backstabModPercent + '%'));
+        }
         lines.push(padLine('    Number of backstab rounds:', String(a)));
         if (sp.doubleBackstabs !== undefined) lines.push(padLine('    Backstab swings:', String(totalBackstabAttempts)));
       } else {
@@ -1774,14 +1785,14 @@
         lines.push(padLine('    Double backstab rounds:', String(D)));
       }
       lines.push(padLine(`    ${sp.name === 'Backstab' ? 'Backstab hits landed' : 'Hits landed'}:`, String(h)));
-      lines.push(padLine('    Accuracy:', acc + '%'));
+      lines.push(padLine('    Accuracy (chance to hit):', acc + '%'));
       if (sp.effectiveReuseSec != null && sp.effectiveReuseSec > 0) {
         lines.push(padLine('    Effective special attack delay:', sp.effectiveReuseSec.toFixed(2) + 's'));
       }
       lines.push(padLine('    Total damage:', String(sp.totalDamage)));
       lines.push(padLine('    Max hit:', String(sp.maxDamage)));
       lines.push(padLine(`    ${dpsLabel}:`, (sp.totalDamage / dur).toFixed(2)));
-      if (sp.backstabSkill != null) {
+      if (sp.name !== 'Backstab' && sp.backstabSkill != null) {
         const effectiveSkill = Math.min(252, Math.floor(sp.backstabSkill * (100 + (sp.backstabModPercent || 0)) / 100));
         lines.push(padLine('    Effective backstab skill:', String(effectiveSkill)));
         if ((sp.backstabModPercent || 0) > 0) {
