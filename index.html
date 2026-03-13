@@ -3333,6 +3333,15 @@
           if (!isNaN(races) && races === 0) return;
           var norm = normalizeBowFromList(id, raw);
           if (norm) {
+            var bowName = (norm.name || '').toLowerCase();
+            if (bowName === 'alabaster hilted wind bow'
+              || bowName === 'primordial driftwood compound bow'
+              || bowName === 'featherwood compound bow'
+              || bowName === 'obsidianwood compound bow'
+              || bowName === 'stonewood compound bow'
+              || bowName === 'nightmarewood compound bow') {
+              return;
+            }
             var baseDmg = norm.damage + (norm.baneDamage || 0);
             var score = baseDmg / Math.max(1, norm.delay || 1);
             bows.push({
@@ -3491,6 +3500,8 @@
           function renderRankReport() {
             var currentMode = (window._rankWeaponsReportViewMode === 'slot') ? 'slot' : 'combinations';
             results.sort(function (a, b) { return (b.totalDps || 0) - (a.totalDps || 0); });
+            var bowsById = {};
+            bows.forEach(function (b) { bowsById[b.id] = b; });
             window._lastRankWeaponsResults = results;
             window._rankWeaponsReportViewMode = currentMode;
             window._renderRankWeaponsReportView = renderRankReport;
@@ -3515,28 +3526,35 @@
                   arrowBest[row.arrowId] = row;
                 }
               });
-            var bowRows = Object.keys(bowBest).map(function (id) {
+              var bowRows = Object.keys(bowBest).map(function (id) {
                 var row = bowBest[id];
                 return {
                   slotType: 'Bow',
                   label: (row.label || '').split(' + ')[0],
-                totalDps: row.totalDps,
-                mainhandDps: row.mainhandDps,
-                offhandDps: row.offhandDps
+                  totalDps: row.totalDps,
+                  mainhandDps: row.mainhandDps,
+                  offhandDps: row.offhandDps
                 };
               });
+              bowRows.sort(function (a, b) { return (b.totalDps || 0) - (a.totalDps || 0); });
               var arrowRows = Object.keys(arrowBest).map(function (id) {
                 var row = arrowBest[id];
+                var baseArrowDps = row.offhandDps != null ? row.offhandDps : 0;
+                var bowForArrow = bowsById[row.bowId];
+                var normArrowDps = baseArrowDps;
+                if (bowForArrow && bowForArrow.delay && bowForArrow.delay > 0) {
+                  normArrowDps = baseArrowDps * (bowForArrow.delay / 30);
+                }
                 return {
                   slotType: 'Arrow',
                   label: (row.label || '').split(' + ')[1] || ('Arrow ' + id),
-                totalDps: row.totalDps,
-                mainhandDps: row.mainhandDps,
-                offhandDps: row.offhandDps
+                  totalDps: normArrowDps,
+                  mainhandDps: 0,
+                  offhandDps: normArrowDps
                 };
               });
+              arrowRows.sort(function (a, b) { return (b.totalDps || 0) - (a.totalDps || 0); });
               rowsForTable = bowRows.concat(arrowRows);
-              rowsForTable.sort(function (a, b) { return (b.totalDps || 0) - (a.totalDps || 0); });
               heading = '=== Ranged slot rank (by DPS) ===';
               chartLabel = 'Bow / Arrow slot';
             } else {
