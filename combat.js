@@ -817,9 +817,6 @@
     if (report.critDamageGain != null) {
       lines.push(`  Crit DPS gain:         ${(report.critDamageGain / dur).toFixed(2)} (vs non-crit baseline)`);
     }
-    if (report.wallPenaltyDamageLost != null && report.wallPenaltyDamageLost >= 0) {
-      lines.push(`  Wall penalty lost:    ${report.wallPenaltyDamageLost}`);
-    }
     if (report.elementalDamageTotal != null && report.elementalDamageTotal > 0) {
       lines.push(`  Elemental damage:     ${report.elementalDamageTotal}`);
     }

@@ -956,9 +956,7 @@
         <p class="hint">AA Archery Mastery rank (1, 2, or 3).</p>
         <label class="checkbox-label"><input type="checkbox" id="mob-stationary" checked> Mob stationary</label>
         <p class="hint">When checked, target is not moving (affects hit/damage if sim uses it).</p>
-        <label class="checkbox-label"><input type="checkbox" id="use-walled-mob-penalty"> Use Walled Mob Penalty</label>
         <label class="checkbox-label"><input type="checkbox" id="trueshot"> Trueshot (2 min random window: +105% archery damage, +12% archery skill)</label>
-        <p class="hint">When checked, the report tracks damage lost due to wall penalty vs a standard hit.</p>
       </details>
         </div>
         <div class="char-haste-icon-wrap"><img id="ranged-class-icon" src="resources/class icons/C_ranger.gif" alt="" class="class-icon" aria-hidden="true"></div>
@@ -3347,7 +3345,6 @@
           dex: 255,
           archeryMastery: parseInt(document.querySelector('input[name="archery-mastery"]:checked').value, 10) || 3,
           mobStationary: $('mob-stationary').checked,
-          useWalledMobPenalty: $('use-walled-mob-penalty').checked,
           trueshot: $('trueshot').checked,
           classId: 'ranger',
           spellCastingFury: (function () { var el = document.querySelector('input[name="spell-casting-fury"]:checked'); return el ? (parseInt(el.value, 10) || 0) : 0; })(),
@@ -4166,7 +4163,6 @@
           critChanceMult: 0,
           archeryMastery: parseInt(document.querySelector('input[name="archery-mastery"]:checked').value, 10) || 3,
           mobStationary: $('mob-stationary').checked,
-          useWalledMobPenalty: $('use-walled-mob-penalty').checked,
           trueshot: $('trueshot').checked,
         };
         const reports = [];
