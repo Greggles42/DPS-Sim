@@ -963,40 +963,43 @@
 
     const w1 = options.weapon1;
     const w2 = options.weapon2;
-    const hasMainHand = !!w1;
+    // Treat a weapon as unequipped if missing or invalid (damage/delay); ignore swings for that slot
+    const mainHandEquipped = w1 && ((w1.damage >= 1 && w1.delay >= 10) || (w1.noDamageVsTarget && w1.delay >= 10));
+    const offhandEquipped = w2 && w2.damage >= 1 && w2.delay >= 10;
+    const hasMainHand = !!mainHandEquipped;
     if (specialType === 'backstab' && options.classId === 'rogue' && canFireSpecial && hasMainHand) {
       const mainHandType = (options.weapon1Type != null ? String(options.weapon1Type) : (w1.type != null ? String(w1.type) : '')).toLowerCase();
       if (mainHandType !== '1hp') canFireSpecial = false;
     }
     const baseDamageCap = getBaseDamageCap(level, options.classId);
     const cappedW1Damage = hasMainHand ? (baseDamageCap != null ? Math.min(w1.damage, baseDamageCap) : w1.damage) : 0;
-    const cappedW2Damage = w2 ? (baseDamageCap != null ? Math.min(w2.damage, baseDamageCap) : w2.damage) : 0;
+    const cappedW2Damage = offhandEquipped ? (baseDamageCap != null ? Math.min(w2.damage, baseDamageCap) : w2.damage) : 0;
     const mainHandDamageBonus = hasMainHand ? getDamageBonusClient(level, options.classId, w1.delay, !!w1.is2H) : 0;
-    const dualWielding = !!w2 && (options.dualWieldSkill != null && options.dualWieldSkill > 0) &&
+    const dualWielding = offhandEquipped && (options.dualWieldSkill != null && options.dualWieldSkill > 0) &&
       options.classId !== 'paladin' && options.classId !== 'shadowknight';
 
     if (!hasMainHand && !dualWielding) {
-      return { error: 'Offhand-only mode requires Weapon 2 with damage, delay, and dual wield skill.' };
+      return { error: 'Equip at least one weapon (Weapon 1 or Weapon 2 with damage, delay, and dual wield skill).' };
     }
 
     const delay1 = hasMainHand ? effectiveDelayDecisec(w1.delay, effectiveHastePercent) : 0;
-    const delay2 = w2 ? effectiveDelayDecisec(w2.delay, effectiveHastePercent) : 0;
+    const delay2 = offhandEquipped ? effectiveDelayDecisec(w2.delay, effectiveHastePercent) : 0;
     const delay1Ms = hasMainHand ? effectiveDelayMs(w1.delay, effectiveHastePercent) : Infinity;
-    const delay2Ms = w2 ? effectiveDelayMs(w2.delay, effectiveHastePercent) : 0;
+    const delay2Ms = offhandEquipped ? effectiveDelayMs(w2.delay, effectiveHastePercent) : 0;
 
     const baseProcChance1 = hasMainHand && w1.procSpell != null && canTriggerProcAtLevel(w1, level)
       ? getProcChancePerSwing(delay1, false, dualWieldPct, options.dex || 150)
       : 0;
-    const baseProcChance2 = w2 && w2.procSpell != null && canTriggerProcAtLevel(w2, level)
+    const baseProcChance2 = offhandEquipped && w2.procSpell != null && canTriggerProcAtLevel(w2, level)
       ? getProcChancePerSwing(delay2, true, dualWieldPct, options.dex || 150)
       : 0;
-    const procRate1 = (w1.procRate != null && !Number.isNaN(Number(w1.procRate))) ? Number(w1.procRate) : 0;
-    const procRate2 = (w2 && w2.procRate != null && !Number.isNaN(Number(w2.procRate))) ? Number(w2.procRate) : 0;
+    const procRate1 = (hasMainHand && w1.procRate != null && !Number.isNaN(Number(w1.procRate))) ? Number(w1.procRate) : 0;
+    const procRate2 = (offhandEquipped && w2.procRate != null && !Number.isNaN(Number(w2.procRate))) ? Number(w2.procRate) : 0;
     const procChance1 = Math.min(1, Math.max(0, baseProcChance1 * (100 + procRate1) / 100));
     const procChance2 = Math.min(1, Math.max(0, baseProcChance2 * (100 + procRate2) / 100));
 
     const roundsPerMinW1 = (delay1Ms > 0 && hasMainHand) ? (60 * 1000 / delay1Ms) : 0;
-    const roundsPerMinW2 = (delay2Ms > 0 && w2) ? (60 * 1000 / delay2Ms) : 0;
+    const roundsPerMinW2 = (delay2Ms > 0 && offhandEquipped) ? (60 * 1000 / delay2Ms) : 0;
     const report = {
       weapon1: { swings: 0, hits: 0, totalDamage: 0, maxDamage: 0, minDamage: Infinity, hitList: [], procs: 0, procDamageTotal: 0, procResists: 0, procFullResists: 0, procPartialResists: 0, procResistDamageLost: 0, spellProcCrits: 0, maxSpellProcCritDmg: 0, slayUndeadHits: 0, slayUndeadDamageTotal: 0, maxSlayUndeadHit: 0, rounds: 0, single: 0, double: 0, triple: 0 },
       weapon2: { swings: 0, hits: 0, totalDamage: 0, maxDamage: 0, minDamage: Infinity, hitList: [], procs: 0, procDamageTotal: 0, procResists: 0, procFullResists: 0, procPartialResists: 0, procResistDamageLost: 0, spellProcCrits: 0, maxSpellProcCritDmg: 0, rounds: 0, single: 0, double: 0, triple: 0 },
@@ -1012,7 +1015,7 @@
       offenseRating: offenseRating,
       offenseRatingFromStr: strBonus,
       displayedAttack: Math.floor((offenseRating + toHit) * 1000 / 744),
-      baseDamageCap: (baseDamageCap != null && ((w1 && w1.damage > baseDamageCap) || (w2 && w2.damage > baseDamageCap))) ? { cap: baseDamageCap } : null,
+      baseDamageCap: (baseDamageCap != null && ((hasMainHand && w1.damage > baseDamageCap) || (offhandEquipped && w2.damage > baseDamageCap))) ? { cap: baseDamageCap } : null,
       critHits: 0,
       critDamageGain: 0,
       special: (canFireSpecial && hasMainHand) ? {
@@ -1037,13 +1040,13 @@
     report.weapon2.procLevelBlocked = false;
     report.weapon2.procLevelRequired = null;
     report.weapon2.procLevelCurrent = level;
-    const w1ProcLevelReq = getProcLevelRequirement(w1);
+    const w1ProcLevelReq = getProcLevelRequirement(hasMainHand ? w1 : null);
     if (hasMainHand && w1.procSpell != null && w1ProcLevelReq != null && level < w1ProcLevelReq) {
       report.weapon1.procLevelBlocked = true;
       report.weapon1.procLevelRequired = w1ProcLevelReq;
     }
-    const w2ProcLevelReq = getProcLevelRequirement(w2);
-    if (w2 && w2.procSpell != null && w2ProcLevelReq != null && level < w2ProcLevelReq) {
+    const w2ProcLevelReq = getProcLevelRequirement(offhandEquipped ? w2 : null);
+    if (offhandEquipped && w2.procSpell != null && w2ProcLevelReq != null && level < w2ProcLevelReq) {
       report.weapon2.procLevelBlocked = true;
       report.weapon2.procLevelRequired = w2ProcLevelReq;
     }
@@ -1051,14 +1054,14 @@
       report.weapon1.anticipatedProcChancePerRound = procChance1;
       report.weapon1.anticipatedProcsPerMinute = roundsPerMinW1 > 0 ? procChance1 * roundsPerMinW1 : null;
     }
-    if (w2 && w2.procSpell) {
+    if (offhandEquipped && w2.procSpell) {
       report.weapon2.anticipatedProcChancePerRound = procChance2;
       report.weapon2.anticipatedProcsPerMinute = roundsPerMinW2 > 0 ? procChance2 * roundsPerMinW2 : null;
     }
 
     const durationMs = Math.floor(options.fightDurationSec * 1000);
     const procBuffTicks1 = (hasMainHand && w1.procBuffDurationTicks != null && w1.procBuffDurationTicks > 0) ? w1.procBuffDurationTicks : 0;
-    const procBuffTicks2 = (w2 && w2.procBuffDurationTicks != null && w2.procBuffDurationTicks > 0) ? w2.procBuffDurationTicks : 0;
+    const procBuffTicks2 = (offhandEquipped && w2.procBuffDurationTicks != null && w2.procBuffDurationTicks > 0) ? w2.procBuffDurationTicks : 0;
     let lastProcMs1 = 0, dotEndMs1 = 0, perTick1 = 0;
     let lastProcMs2 = 0, dotEndMs2 = 0, perTick2 = 0;
     const duelist = !!(options.duelist && options.classId === 'rogue');
@@ -1102,7 +1105,7 @@
     const specialCooldownMs = effectiveSpecialReuseSec * 1000;
     if (report.special) report.special.effectiveReuseSec = effectiveSpecialReuseSec;
     let nextSwing1Ms = hasMainHand ? 0 : Infinity;
-    let nextSwing2Ms = dualWielding ? rng() * delay2Ms : Infinity;
+    let nextSwing2Ms = dualWielding && offhandEquipped ? rng() * delay2Ms : Infinity;
     let nextSpecialAtMs = (canFireSpecial && report.special) ? 0 : Infinity;
 
     // Event-driven loop: timers in ms. Each swing: (1) AvoidanceCheck: rollHit(toHit, avoidance) → hit or miss. (2) If hit: CalcMeleeDamage uses RollD20(offense, mitigation) → damage.
