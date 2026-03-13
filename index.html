@@ -963,8 +963,10 @@
       </div>
     </section>
 
-    <section class="section--core">
-      <h2>Ranged weapon</h2>
+    <section class="section--core weapon-section">
+      <div class="weapon-icon-wrap" id="ranged-weapon-weapon-icon-wrap" style="display:none"><img id="ranged-weapon-weapon-icon" class="weapon-icon" src="" alt=""></div>
+      <div class="weapon-section-header"><h2>Ranged weapon</h2></div>
+      <div id="ranged-weapon-name" class="weapon-name" aria-live="polite">Unequipped</div>
       <div class="item-search-wrap">
         <label for="ranged-weapon-item-search">Item Search</label>
         <input type="text" id="ranged-weapon-item-search" placeholder="Type 4+ characters to search..." autocomplete="off">
@@ -998,8 +1000,10 @@
       </details>
     </section>
 
-    <section class="section--core">
-      <h2>Arrow type</h2>
+    <section class="section--core weapon-section">
+      <div class="weapon-icon-wrap" id="arrow-weapon-icon-wrap" style="display:none"><img id="arrow-weapon-icon" class="weapon-icon" src="" alt=""></div>
+      <div class="weapon-section-header"><h2>Arrow type</h2></div>
+      <div id="arrow-weapon-name" class="weapon-name" aria-live="polite">Unequipped</div>
       <div class="item-search-wrap">
         <label for="arrow-item-search">Item Search</label>
         <input type="text" id="arrow-item-search" placeholder="Type 4+ characters to search..." autocomplete="off">
@@ -1746,6 +1750,25 @@
           imgEl.alt = '';
           wrapEl.style.display = 'none';
         }
+      }
+
+      function updateRangedWeaponDisplay() {
+        const nameEl = $('ranged-weapon-name');
+        if (!nameEl) return;
+        const dmg = parseInt($('ranged-damage').value, 10) || 0;
+        const dly = parseInt($('ranged-delay').value, 10) || 0;
+        const isUnequipped = dmg <= 0 || dly <= 0;
+        const name = isUnequipped ? 'Unequipped' : (rangedWeaponDisplayName || 'Custom');
+        nameEl.textContent = name;
+      }
+
+      function updateArrowDisplay() {
+        const nameEl = $('arrow-weapon-name');
+        if (!nameEl) return;
+        const dmg = parseInt($('arrow-damage').value, 10) || 0;
+        const isUnequipped = dmg <= 0;
+        const name = isUnequipped ? 'Unequipped' : (arrowDisplayName || 'Custom');
+        nameEl.textContent = name;
       }
 
       function applyWeaponPreset(prefix, id) {
@@ -4798,6 +4821,8 @@
         if (rangedBaneBodyEl) rangedBaneBodyEl.value = (weapon.baneDamageBody != null && !isNaN(Number(weapon.baneDamageBody))) ? String(Math.floor(weapon.baneDamageBody)) : '';
         rangedWeaponDisplayName = (weapon.name || '').trim() || 'Custom';
         rangedFromItemSearch = true;
+        updateWeaponIcon('ranged-weapon', weapon.icon != null ? Number(weapon.icon) : null);
+        updateRangedWeaponDisplay();
         if (weapon.procSpellId != null && typeof ItemSearch !== 'undefined' && ItemSearch.fetchSpellById) {
           ItemSearch.fetchSpellById(weapon.procSpellId).then(function (spell) {
             if (spell && spell.name) {
@@ -4817,6 +4842,8 @@
         $('arrow-elem-damage').value = (weapon.elemDamage != null && !isNaN(Number(weapon.elemDamage)) ? Number(weapon.elemDamage) : 0) || '';
         arrowDisplayName = (weapon.name || '').trim() || 'Custom';
         arrowFromItemSearch = true;
+        updateWeaponIcon('arrow', weapon.icon != null ? Number(weapon.icon) : null);
+        updateArrowDisplay();
       }
 
       function debounce(fn, ms) {
@@ -5285,8 +5312,8 @@
       initEasyModeUi();
 
       function clearRangedArrowItemSearchOnManualEdit(kind) {
-        if (kind === 'ranged') { rangedFromItemSearch = false; }
-        if (kind === 'arrow') { arrowFromItemSearch = false; }
+        if (kind === 'ranged') { rangedFromItemSearch = false; updateWeaponIcon('ranged-weapon', null); updateRangedWeaponDisplay(); }
+        if (kind === 'arrow') { arrowFromItemSearch = false; updateWeaponIcon('arrow', null); updateArrowDisplay(); }
       }
       [$('ranged-damage'), $('ranged-delay'), $('ranged-proc'), $('ranged-proc-damage'), $('ranged-elem-type'), $('ranged-elem-damage'), $('ranged-bane')].forEach(function (el) {
         if (el) el.addEventListener('input', function () { clearRangedArrowItemSearchOnManualEdit('ranged'); });
