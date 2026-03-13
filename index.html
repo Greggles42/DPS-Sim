@@ -1669,9 +1669,13 @@
           if (typeof itemSearchDebugSlots !== 'undefined' && itemSearchDebugSlots) {
             var slotKey = prefix === 'w1' ? 'W1' : 'W2';
             var slot = itemSearchDebugSlots[slotKey];
-            if (slot && slot.itemId != null) {
-              var atkFromItem = getItemWornAttackById(slot.itemId);
-              if (atkFromItem > 0) return atkFromItem;
+            if (slot) {
+              var atkFromSlot = (slot.wornAttackBonus != null && !isNaN(Number(slot.wornAttackBonus)) && Number(slot.wornAttackBonus) > 0) ? Number(slot.wornAttackBonus) : 0;
+              if (atkFromSlot > 0) return atkFromSlot;
+              if (slot.itemId != null) {
+                var atkFromItem = getItemWornAttackById(slot.itemId);
+                if (atkFromItem > 0) return atkFromItem;
+              }
             }
           }
           return null;
@@ -4490,12 +4494,13 @@
       updateWeaponNameDisplay('w2');
       updateWeapon2Disabled();
       function clearItemSearchOnManualEdit(prefix) {
-        if (prefix === 'w1') { w1FromItemSearch = false; w1BackstabModPercent = null; w1WornAttackBonus = null; } else { w2FromItemSearch = false; w2BackstabModPercent = null; w2WornAttackBonus = null; }
-        if (typeof updateItemSearchDebug === 'function') updateItemSearchDebug(prefix === 'w1' ? 'W1' : 'W2', null);
+        if (prefix === 'w1') { w1FromItemSearch = false; } else { w2FromItemSearch = false; }
+        refreshWornAttackFromCurrentWeapons();
+        refreshBackstabModsFromCurrentWeapons();
         updateBackstabModFromEquipment();
       }
-      [$('w1-damage'), $('w1-delay')].forEach(function (el) { if (el) el.addEventListener('input', function () { clearItemSearchOnManualEdit('w1'); refreshWornAttackFromCurrentWeapons(); updateWeaponNameDisplay('w1'); updateWeaponNameDisplay('w2'); }); });
-      [$('w2-damage'), $('w2-delay')].forEach(function (el) { if (el) el.addEventListener('input', function () { clearItemSearchOnManualEdit('w2'); refreshWornAttackFromCurrentWeapons(); updateWeaponNameDisplay('w2'); updateWeaponNameDisplay('w1'); }); });
+      [$('w1-damage'), $('w1-delay')].forEach(function (el) { if (el) el.addEventListener('input', function () { clearItemSearchOnManualEdit('w1'); updateWeaponNameDisplay('w1'); updateWeaponNameDisplay('w2'); }); });
+      [$('w2-damage'), $('w2-delay')].forEach(function (el) { if (el) el.addEventListener('input', function () { clearItemSearchOnManualEdit('w2'); updateWeaponNameDisplay('w2'); updateWeaponNameDisplay('w1'); }); });
       [$('w1-bane-body'), $('w1-bane-race')].forEach(function (el) { if (el) { el.addEventListener('input', function () { updateBaneLabels('w1'); }); el.addEventListener('change', function () { updateBaneLabels('w1'); }); } });
       [$('w2-bane-body'), $('w2-bane-race')].forEach(function (el) { if (el) { el.addEventListener('input', function () { updateBaneLabels('w2'); }); el.addEventListener('change', function () { updateBaneLabels('w2'); }); } });
       function onWeaponIconClick(prefix) {
@@ -4862,7 +4867,7 @@
           let s = '<div class="item-search-section">Recent</div>';
           recent.forEach(function (w) {
             const label = renderItemLabel(w);
-            s += '<button type="button" class="item-search-item" data-item-id="' + (w.itemId != null ? String(w.itemId) : '') + '" data-name="' + (w.name || '').replace(/"/g, '&quot;') + '" data-damage="' + (w.damage != null ? w.damage : '') + '" data-delay="' + (w.delay != null ? w.delay : '') + '" data-weapon-type="' + (w.type || '').replace(/"/g, '&quot;') + '" data-item-type-num="' + (w.itemTypeNum != null ? String(w.itemTypeNum) : '') + '" data-slots="' + (w.slots != null ? String(w.slots) : '') + '" data-classes="' + (w.classes != null ? String(w.classes) : '') + '" data-proc="' + (w.proc || '').replace(/"/g, '&quot;') + '" data-procdamage="' + (w.procDamage != null ? w.procDamage : '') + '" data-proc-rate="' + (w.procRate != null ? w.procRate : '0') + '" data-proc-level="' + (w.procLevel != null ? w.procLevel : '') + '" data-proc-spell-id="' + (w.procSpellId != null ? w.procSpellId : '') + '" data-elemtype="' + (w.elemType || '').replace(/"/g, '&quot;') + '" data-elemdamage="' + (w.elemDamage != null ? w.elemDamage : '') + '" data-bane="' + (w.baneDamage != null ? w.baneDamage : '') + '" data-bane-body="' + (w.baneDamageBody != null ? w.baneDamageBody : '') + '" data-bane-race="' + (w.baneDamageRace != null ? w.baneDamageRace : '') + '" data-backstab-mod="' + (w.backstabModPercent != null ? String(w.backstabModPercent) : '') + '" data-icon="' + (w.icon != null && w.icon > 0 ? w.icon : '') + '" data-is2h="' + (w.is2H ? '1' : '0') + '" data-offhand-blocked="' + (w.offhandBlocked ? '1' : '0') + '"><span>' + (w.name || '').replace(/</g, '&lt;') + '</span><div class="item-search-item-detail">' + label.replace(/</g, '&lt;') + '</div></button>';
+            s += '<button type="button" class="item-search-item" data-item-id="' + (w.itemId != null ? String(w.itemId) : '') + '" data-name="' + (w.name || '').replace(/"/g, '&quot;') + '" data-damage="' + (w.damage != null ? w.damage : '') + '" data-delay="' + (w.delay != null ? w.delay : '') + '" data-weapon-type="' + (w.type || '').replace(/"/g, '&quot;') + '" data-item-type-num="' + (w.itemTypeNum != null ? String(w.itemTypeNum) : '') + '" data-slots="' + (w.slots != null ? String(w.slots) : '') + '" data-classes="' + (w.classes != null ? String(w.classes) : '') + '" data-proc="' + (w.proc || '').replace(/"/g, '&quot;') + '" data-procdamage="' + (w.procDamage != null ? w.procDamage : '') + '" data-proc-rate="' + (w.procRate != null ? w.procRate : '0') + '" data-proc-level="' + (w.procLevel != null ? w.procLevel : '') + '" data-proc-spell-id="' + (w.procSpellId != null ? w.procSpellId : '') + '" data-elemtype="' + (w.elemType || '').replace(/"/g, '&quot;') + '" data-elemdamage="' + (w.elemDamage != null ? w.elemDamage : '') + '" data-bane="' + (w.baneDamage != null ? w.baneDamage : '') + '" data-bane-body="' + (w.baneDamageBody != null ? w.baneDamageBody : '') + '" data-bane-race="' + (w.baneDamageRace != null ? w.baneDamageRace : '') + '" data-backstab-mod="' + (w.backstabModPercent != null ? String(w.backstabModPercent) : '') + '" data-worn-attack="' + (w.wornAttackBonus != null && w.wornAttackBonus > 0 ? String(w.wornAttackBonus) : '') + '" data-icon="' + (w.icon != null && w.icon > 0 ? w.icon : '') + '" data-is2h="' + (w.is2H ? '1' : '0') + '" data-offhand-blocked="' + (w.offhandBlocked ? '1' : '0') + '"><span>' + (w.name || '').replace(/</g, '&lt;') + '</span><div class="item-search-item-detail">' + label.replace(/</g, '&lt;') + '</div></button>';
           });
           return s;
         }
@@ -4875,7 +4880,7 @@
           } else {
             results.forEach(function (w) {
               const label = renderItemLabel(w);
-              s += '<button type="button" class="item-search-item item-search-item-result" data-item-id="' + (w.itemId != null ? String(w.itemId) : '') + '" data-name="' + (w.name || '').replace(/"/g, '&quot;') + '" data-damage="' + (w.damage != null ? w.damage : '') + '" data-delay="' + (w.delay != null ? w.delay : '') + '" data-weapon-type="' + (w.type || '').replace(/"/g, '&quot;') + '" data-item-type-num="' + (w.itemTypeNum != null ? String(w.itemTypeNum) : '') + '" data-slots="' + (w.slots != null ? String(w.slots) : '') + '" data-classes="' + (w.classes != null ? String(w.classes) : '') + '" data-proc="' + (w.proc || '').replace(/"/g, '&quot;') + '" data-procdamage="' + (w.procDamage != null ? w.procDamage : '') + '" data-proc-rate="' + (w.procRate != null ? w.procRate : '0') + '" data-proc-level="' + (w.procLevel != null ? w.procLevel : '') + '" data-proc-spell-id="' + (w.procSpellId != null ? w.procSpellId : '') + '" data-elemtype="' + (w.elemType || '').replace(/"/g, '&quot;') + '" data-elemdamage="' + (w.elemDamage != null ? w.elemDamage : '') + '" data-bane="' + (w.baneDamage != null ? w.baneDamage : '') + '" data-bane-body="' + (w.baneDamageBody != null ? w.baneDamageBody : '') + '" data-bane-race="' + (w.baneDamageRace != null ? w.baneDamageRace : '') + '" data-backstab-mod="' + (w.backstabModPercent != null ? String(w.backstabModPercent) : '') + '" data-icon="' + (w.icon != null && w.icon > 0 ? w.icon : '') + '" data-is2h="' + (w.is2H ? '1' : '0') + '" data-offhand-blocked="' + (w.offhandBlocked ? '1' : '0') + '"><span>' + (w.name || '').replace(/</g, '&lt;') + '</span><div class="item-search-item-detail">' + label.replace(/</g, '&lt;') + '</div></button>';
+              s += '<button type="button" class="item-search-item item-search-item-result" data-item-id="' + (w.itemId != null ? String(w.itemId) : '') + '" data-name="' + (w.name || '').replace(/"/g, '&quot;') + '" data-damage="' + (w.damage != null ? w.damage : '') + '" data-delay="' + (w.delay != null ? w.delay : '') + '" data-weapon-type="' + (w.type || '').replace(/"/g, '&quot;') + '" data-item-type-num="' + (w.itemTypeNum != null ? String(w.itemTypeNum) : '') + '" data-slots="' + (w.slots != null ? String(w.slots) : '') + '" data-classes="' + (w.classes != null ? String(w.classes) : '') + '" data-proc="' + (w.proc || '').replace(/"/g, '&quot;') + '" data-procdamage="' + (w.procDamage != null ? w.procDamage : '') + '" data-proc-rate="' + (w.procRate != null ? w.procRate : '0') + '" data-proc-level="' + (w.procLevel != null ? w.procLevel : '') + '" data-proc-spell-id="' + (w.procSpellId != null ? w.procSpellId : '') + '" data-elemtype="' + (w.elemType || '').replace(/"/g, '&quot;') + '" data-elemdamage="' + (w.elemDamage != null ? w.elemDamage : '') + '" data-bane="' + (w.baneDamage != null ? w.baneDamage : '') + '" data-bane-body="' + (w.baneDamageBody != null ? w.baneDamageBody : '') + '" data-bane-race="' + (w.baneDamageRace != null ? w.baneDamageRace : '') + '" data-backstab-mod="' + (w.backstabModPercent != null ? String(w.backstabModPercent) : '') + '" data-worn-attack="' + (w.wornAttackBonus != null && w.wornAttackBonus > 0 ? String(w.wornAttackBonus) : '') + '" data-icon="' + (w.icon != null && w.icon > 0 ? w.icon : '') + '" data-is2h="' + (w.is2H ? '1' : '0') + '" data-offhand-blocked="' + (w.offhandBlocked ? '1' : '0') + '"><span>' + (w.name || '').replace(/</g, '&lt;') + '</span><div class="item-search-item-detail">' + label.replace(/</g, '&lt;') + '</div></button>';
             });
           }
           return s;
@@ -4913,6 +4918,7 @@
               baneDamageBody: numOrNull(btn.getAttribute('data-bane-body')),
               baneDamageRace: numOrNull(btn.getAttribute('data-bane-race')),
               backstabModPercent: numOrNull(btn.getAttribute('data-backstab-mod')),
+              wornAttackBonus: numOrNull(btn.getAttribute('data-worn-attack')),
               icon: iconVal > 0 ? iconVal : null,
               is2H: btn.getAttribute('data-is2h') === '1' || derived2H,
               offhandBlocked: btn.getAttribute('data-offhand-blocked') === '1' || derived2H,
