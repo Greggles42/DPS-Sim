@@ -342,7 +342,95 @@
     </div>
 
     <div class="card">
-      <h2>9) What ATK and AC Usually Do (Prioritization)</h2>
+      <h2>9) Ranged (Bow + Arrow) DPS Attribution and Ranking</h2>
+      <p>
+        The ranged tab simulates <strong>bow + arrow</strong> combinations for a level 60 ranger and needs to answer two questions:
+      </p>
+      <ol>
+        <li>What is the total DPS of a given bow+arrow pair?</li>
+        <li>How much of that DPS should be credited to the bow vs the arrow so they can be ranked independently?</li>
+      </ol>
+      <h3>9.1) Separating base vs proc damage</h3>
+      <p>
+        For each bow+arrow combination, the simulator runs <code>runRangedFight(options)</code> and inspects the returned report:
+      </p>
+      <div class="formula">
+        rangedTotal = report.ranged.totalDamage<br>
+        procTotal   = report.ranged.procDamageTotal<br>
+        baseTotal   = max(0, rangedTotal - procTotal)
+      </div>
+      <p>
+        Here:
+      </p>
+      <ul>
+        <li><strong>baseTotal</strong> is all hit damage that comes from the bow's base damage + arrow damage + any bane or elemental terms.</li>
+        <li><strong>procTotal</strong> is all damage from bow procs (spell procs tied to the bow).</li>
+      </ul>
+      <div class="formula">
+        baseDps = baseTotal / durationSec<br>
+        procDps = procTotal / durationSec
+      </div>
+      <h3>9.2) Splitting base DPS between bow and arrow</h3>
+      <p>
+        The simulator assumes that, before procs, the bow and arrow contribute proportionally to base DPS according to their relative base damages.
+        For each bow (with optional bane) and arrow, it computes:
+      </p>
+      <div class="formula">
+        bowBase   = bowDamage (+ bane if "Apply Bane" is checked)<br>
+        arrowBase = arrow.damage<br>
+        sumBase   = max(1, bowBase + arrowBase)<br>
+        bowShare   = bowBase   / sumBase<br>
+        arrowShare = arrowBase / sumBase
+      </div>
+      <p>
+        Base DPS is then split using these shares, while all proc DPS is credited to the bow:
+      </p>
+      <div class="formula">
+        arrowDps = baseDps &times; arrowShare<br>
+        bowDps   = baseDps &times; bowShare + procDps<br>
+        totalDps = bowDps + arrowDps
+      </div>
+      <p>
+        This preserves the total ranged DPS from the full simulation while giving a per-combo breakdown of how much the bow and arrow contribute.
+        The ranged ranking UI shows these values as <strong>Bow DPS</strong>, <strong>Arrow DPS</strong>, and <strong>Total DPS</strong>.
+      </p>
+      <h3>9.3) Ranking bows and arrows separately (slot mode)</h3>
+      <p>
+        To rank bows and arrows independently, the simulator first computes DPS for a grid of bow+arrow combinations, then derives
+        <em>slot values</em> from those combos:
+      </p>
+      <ul>
+        <li><strong>Bow slot DPS:</strong> for each bow ID, find the bow+arrow combo with the highest <code>totalDps</code> using that bow.</li>
+        <li><strong>Arrow slot DPS:</strong> for each arrow ID, find the bow+arrow combo with the highest <code>totalDps</code> using that arrow.</li>
+      </ul>
+      <p>
+        In <strong>slot mode</strong>, the ranged ranking table then shows:
+      </p>
+      <ul>
+        <li>Rows labeled <code>Bow: &lt;name&gt;</code> with the best total DPS that bow can achieve in any tested combo (and its bow/arrow DPS split).</li>
+        <li>Rows labeled <code>Arrow: &lt;name&gt;</code> with the best total DPS that arrow can achieve in any tested combo (and its bow/arrow DPS split).</li>
+      </ul>
+      <p>
+        This mirrors the melee slot-ranking behavior but is tailored for bows/arrows.
+      </p>
+      <h3>9.4) Reducing permutations: top-K bow selection</h3>
+      <p>
+        The full grid of combinations is <code>#bows × #arrows</code>. To keep the simulation responsive while still ranking
+        arrows meaningfully, the simulator prunes bows using a simple damage/delay heuristic:
+      </p>
+      <div class="formula">
+        baseDmg = bow.damage + (bow.baneDamage or 0)<br>
+        score   = baseDmg / max(1, bow.delay)
+      </div>
+      <p>
+        Bows are sorted descending by <code>score</code>, and only the top K (currently 40) are used when building the bow+arrow
+        combination grid for ranged ranking. Arrows are still tested against these high-quality bows, which is sufficient to
+        determine a good relative ordering for arrows while dramatically reducing total simulations.
+      </p>
+    </div>
+
+    <div class="card">
+      <h2>10) What ATK and AC Usually Do (Prioritization)</h2>
       <table>
         <thead>
           <tr>
@@ -381,7 +469,7 @@
     </div>
 
     <div class="card">
-      <h2>10) Displayed ATK in Report</h2>
+      <h2>11) Displayed ATK in Report</h2>
       <div class="formula">displayedATK = floor((offenseRating + toHit) * 1000 / 744)</div>
       <p class="muted">
         This is a reporting transform and not itself the core swing resolution formula.

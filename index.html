@@ -3331,7 +3331,25 @@
           var races = raw && raw.races != null ? parseInt(raw.races, 10) : NaN;
           if (!isNaN(races) && races === 0) return;
           var norm = normalizeBowFromList(id, raw);
-          if (norm) bows.push({ id: id, name: norm.name, damage: norm.damage, delay: norm.delay, proc: norm.proc, procDamage: norm.procDamage, procRate: norm.procRate, procLevel: norm.procLevel, elemType: norm.elemType, elemDamage: norm.elemDamage, baneDamage: norm.baneDamage, procBuffDurationTicks: norm.procBuffDurationTicks });
+          if (norm) {
+            var baseDmg = norm.damage + (norm.baneDamage || 0);
+            var score = baseDmg / Math.max(1, norm.delay || 1);
+            bows.push({
+              id: id,
+              name: norm.name,
+              damage: norm.damage,
+              delay: norm.delay,
+              proc: norm.proc,
+              procDamage: norm.procDamage,
+              procRate: norm.procRate,
+              procLevel: norm.procLevel,
+              elemType: norm.elemType,
+              elemDamage: norm.elemDamage,
+              baneDamage: norm.baneDamage,
+              procBuffDurationTicks: norm.procBuffDurationTicks,
+              score: score
+            });
+          }
         });
         var arrows = [];
         Object.keys(weaponListData).forEach(function (id) {
@@ -3347,6 +3365,11 @@
           $('report').textContent = 'No ranger-usable arrows found in weaponlist.json (itemtype 27, name contains "Arrow").';
           return;
         }
+        // Reduce permutations: keep only the top K bows by simple damage/delay score
+        bows.sort(function (a, b) { return (b.score || 0) - (a.score || 0); });
+        var MAX_RANGED_RANK_BOWS = 40;
+        bows = bows.slice(0, MAX_RANGED_RANK_BOWS);
+
         var level = parseInt($('ranged-level').value, 10) || 60;
         var durationSec = parseInt($('ranged-duration').value, 10) || 6000;
         var applyBane = $('ranged-apply-bane').checked;
@@ -3411,7 +3434,33 @@
             var opts = Object.assign({}, baseOptions, { rangedWeapon: rangedWeapon, arrow: arrowObj });
             var r = EQCombat.runRangedFight(opts);
             var key = bow.id + '_' + arrow.id;
-            comboDps[key] = r.error ? 0 : (r.totalDamage / durationSec);
+            if (r.error) {
+              comboDps[key] = {
+                totalDps: 0,
+                bowDps: 0,
+                arrowDps: 0
+              };
+            } else {
+              var rangedTotal = r.ranged && r.ranged.totalDamage != null ? r.ranged.totalDamage : 0;
+              var procTotal = r.ranged && r.ranged.procDamageTotal != null ? r.ranged.procDamageTotal : 0;
+              var baseTotal = Math.max(0, rangedTotal - procTotal);
+              var baseDps = baseTotal / durationSec;
+              var procDps = procTotal / durationSec;
+              var bowBase = bowDamage;
+              var arrowBase = arrow.damage || 0;
+              var sumBase = bowBase + arrowBase;
+              if (sumBase <= 0) sumBase = 1;
+              var bowShare = bowBase / sumBase;
+              var arrowShare = arrowBase / sumBase;
+              var arrowDps = baseDps * arrowShare;
+              var bowDps = baseDps * bowShare + procDps;
+              var totalDps = bowDps + arrowDps;
+              comboDps[key] = {
+                totalDps: totalDps,
+                bowDps: bowDps,
+                arrowDps: arrowDps
+              };
+            }
           }
           var pctFloor = totalSims > 0 ? Math.floor((simIndex / totalSims) * 100) : 100;
           if (pctFloor > lastDisplayedPct) {
@@ -3424,9 +3473,16 @@
           }
           var results = combinations.map(function (comb) {
             var key = comb.bow.id + '_' + comb.arrow.id;
-            var dps = comboDps[key] != null ? comboDps[key] : 0;
+            var entry = comboDps[key] || { totalDps: 0, bowDps: 0, arrowDps: 0 };
             var label = (comb.bow.name || comb.bow.id) + ' + ' + (comb.arrow.name || comb.arrow.id);
-            return { bowId: comb.bow.id, arrowId: comb.arrow.id, label: label, mainhandDps: 0, offhandDps: 0, totalDps: dps };
+            return {
+              bowId: comb.bow.id,
+              arrowId: comb.arrow.id,
+              label: label,
+              mainhandDps: entry.bowDps,
+              offhandDps: entry.arrowDps,
+              totalDps: entry.totalDps
+            };
           });
           results.sort(function (a, b) { return (b.totalDps || 0) - (a.totalDps || 0); });
           var runsCount = Math.max(1, Math.min(1000, parseInt($('ranged-runs').value, 10) || 20));
@@ -3458,12 +3514,14 @@
                   arrowBest[row.arrowId] = row;
                 }
               });
-              var bowRows = Object.keys(bowBest).map(function (id) {
+            var bowRows = Object.keys(bowBest).map(function (id) {
                 var row = bowBest[id];
                 return {
                   slotType: 'Bow',
                   label: (row.label || '').split(' + ')[0],
-                  totalDps: row.totalDps
+                totalDps: row.totalDps,
+                mainhandDps: row.mainhandDps,
+                offhandDps: row.offhandDps
                 };
               });
               var arrowRows = Object.keys(arrowBest).map(function (id) {
@@ -3471,7 +3529,9 @@
                 return {
                   slotType: 'Arrow',
                   label: (row.label || '').split(' + ')[1] || ('Arrow ' + id),
-                  totalDps: row.totalDps
+                totalDps: row.totalDps,
+                mainhandDps: row.mainhandDps,
+                offhandDps: row.offhandDps
                 };
               });
               rowsForTable = bowRows.concat(arrowRows);
@@ -3492,7 +3552,9 @@
               if (currentMode === 'slot') {
                 label = (row.slotType || '') + ': ' + label;
               }
-              return '<tr><td>' + rank + '</td><td>' + label + '</td><td style="text-align:right;">—</td><td style="text-align:right;">—</td><td style="text-align:right;">' + totalDpsStr + '</td></tr>';
+              var bowDpsStr = row.mainhandDps != null ? row.mainhandDps.toFixed(2) : '—';
+              var arrowDpsStr = row.offhandDps != null ? row.offhandDps.toFixed(2) : '—';
+              return '<tr><td>' + rank + '</td><td>' + label + '</td><td style="text-align:right;">' + bowDpsStr + '</td><td style="text-align:right;">' + arrowDpsStr + '</td><td style="text-align:right;">' + totalDpsStr + '</td></tr>';
             });
             var chartRows = rowsForTable.slice(0, 40).map(function (row, i) {
               var pct = row.totalDps != null && maxDps > 0 ? (row.totalDps / maxDps * 100) : 0;
@@ -3509,7 +3571,7 @@
             var chartHtml = chartRows.length > 0 ? '<div class="rank-weapons-chart"><h3>Top 40 by DPS (X scale = #1)</h3>' + chartHeader + chartRows.join('') + '</div>' : '';
             var histContainer = $('histogram-container');
             if (histContainer) histContainer.innerHTML = chartHtml;
-            $('report').innerHTML = '<pre style="margin:0;">' + lines.join('\n') + '</pre><table class="rank-weapons-table" style="margin-top:0.5rem; border-collapse:collapse; width:100%; font-size:0.9rem;"><thead><tr><th style="text-align:left;">#</th><th style="text-align:left;">' + chartLabel + '</th><th style="text-align:right;">Mainhand DPS</th><th style="text-align:right;">Offhand DPS</th><th style="text-align:right;">Total DPS</th></tr></thead><tbody>' + tableRows.join('') + '</tbody></table>';
+            $('report').innerHTML = '<pre style="margin:0;">' + lines.join('\n') + '</pre><table class="rank-weapons-table" style="margin-top:0.5rem; border-collapse:collapse; width:100%; font-size:0.9rem;"><thead><tr><th style="text-align:left;">#</th><th style="text-align:left;">' + chartLabel + '</th><th style="text-align:right;">Bow DPS</th><th style="text-align:right;">Arrow DPS</th><th style="text-align:right;">Total DPS</th></tr></thead><tbody>' + tableRows.join('') + '</tbody></table>';
           }
           if (top40.length === 0) {
             renderRankReport();
