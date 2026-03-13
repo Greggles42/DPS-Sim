@@ -612,6 +612,7 @@
    * @param {number} [options.archeryMastery=2] - 1, 2, or 3 (AA)
    * @param {boolean} [options.mobStationary=false]
    * @param {boolean} [options.useWalledMobPenalty=false] - track damage lost to wall penalty
+   * @param {boolean} [options.trueshot=false] - ranger: 2 min random window: +105% archery damage, +12% archery skill (accuracy)
    * @param {number} [options.seed]
    */
   function runRangedFight(options) {
@@ -630,6 +631,14 @@
     const OFFENSE_SKILL = options.offenseSkill != null ? Math.min(255, Math.max(0, options.offenseSkill)) : 252;
     const ARCHERY_SKILL = 252;
     const toHit = 7 + OFFENSE_SKILL + ARCHERY_SKILL;
+    const trueshot = !!options.trueshot;
+    const TRUESHOT_DURATION_MS = 120000;
+    const durationMs = Math.floor(options.fightDurationSec * 1000);
+    const trueshotStartMs = trueshot
+      ? (durationMs <= TRUESHOT_DURATION_MS ? 0 : Math.floor(rng() * (durationMs - TRUESHOT_DURATION_MS)))
+      : 0;
+    const trueshotEndMs = trueshot ? (trueshotStartMs + Math.min(TRUESHOT_DURATION_MS, durationMs)) : 0;
+    const toHitTrueshot = 7 + OFFENSE_SKILL + Math.floor(ARCHERY_SKILL * 1.12);
     const offenseRating = OFFENSE_SKILL + strBonus + wornAttack + spellAttack;
 
     const bow = options.rangedWeapon;
@@ -700,10 +709,11 @@
       report.ranged.anticipatedProcsPerMinute = procChance * (60 * 1000 / delayMs);
     }
 
-    const durationMs = Math.floor(options.fightDurationSec * 1000);
     let nextRangedAtMs = 0;
 
     while (nextRangedAtMs < durationMs) {
+      const trueshotActive = trueshot && nextRangedAtMs >= trueshotStartMs && nextRangedAtMs < trueshotEndMs;
+      const currentToHit = trueshotActive ? toHitTrueshot : toHit;
       report.ranged.swings++;
       // Proc is attempted every swing (even on miss)
       let procDamageThisShot = 0;
@@ -730,7 +740,7 @@
           report.ranged.procResistDamageLost += (procDmg - actualProcDmg);
         }
       }
-      const hit = rollHit(toHit, avoidance, rng, true);
+      const hit = rollHit(currentToHit, avoidance, rng, true);
       if (!hit) {
         nextRangedAtMs += delayMs;
         if (procDamageThisShot > 0) {
@@ -748,6 +758,7 @@
       const rangedBaseWithElem = baseDamagePerShot + rangedElemAdder;
       let baseDmg = calcMeleeDamage(rangedBaseWithElem, offenseRating, mitigation, rng, 0);
       baseDmg = Math.max(1, baseDmg);
+      if (trueshotActive) baseDmg = Math.floor(baseDmg * 2.05);
       const mult = rollDamageMultiplier(offenseRating, baseDmg, level, 'ranger', true, rng);
       let dmg = mult.damage;
       const beforeCrit = dmg;
@@ -909,7 +920,7 @@
    * @param {boolean} [options.fromBehind] - if true, skip block/parry/dodge/riposte only
    * @param {boolean} [options.specialAttacks] - if true, fire class special on cooldown
    * @param {string} [options.specialAttackType] - 'flying_kick'|'backstab'|'kick'|'bash'; must be valid for class (Warrior: kick/bash; Pally/SK/Cleric: bash; Ranger/Beastlord: kick; Monk: flying_kick; Rogue: backstab)
-   * @param {number} [options.backstabModPercent] - increase effective backstab skill by this % (e.g. 20 for 20%), capped at 255
+   * @param {number} [options.backstabModPercent] - increase effective backstab skill by this % (e.g. 20 for 20%); effective skill capped at 252
    * @param {number} [options.backstabSkill] - backstab skill for base damage (skill*0.02+2)*weapon_damage; also enforces minHit by level
    * @param {number} [options.backstabReuseSec] - override backstab base reuse time in seconds (default: 10); haste is applied to this base
    * @param {number} [options.flyingKickReuseSec] - override flying kick base reuse time in seconds (default: 8); haste is applied to this base
@@ -1119,7 +1130,7 @@
         const isRogueBackstab = specialConfig.fromBehindOnly === true;
         const backstabSkill = options.backstabSkill != null ? options.backstabSkill : 225;
         const backstabModPct = options.backstabModPercent || 0;
-        const effectiveBackstabSkill = Math.min(255, Math.floor(backstabSkill * (100 + backstabModPct) / 100));
+        const effectiveBackstabSkill = Math.min(252, Math.floor(backstabSkill * (100 + backstabModPct) / 100));
         // EQMacEmu GetToHit(skill): toHit = 7 + Offense SKILL + skill (Backstab for backstab). Use raw backstab skill, not modded.
         const backstabToHit = isRogueBackstab ? (7 + OFFENSE_SKILL + backstabSkill) : toHit;
 
@@ -1139,7 +1150,7 @@
           const specElemAdder = (specialConfig.useWeaponDamage === false) ? 0 : getElementalBaseAdder(w1, options, rng);
           if (specElemAdder > 0) report.elementalDamageTotal += specElemAdder;
           if (isRogueBackstab) {
-            const effectiveSkill = Math.min(255, Math.floor(backstabSkill * (100 + backstabModPct) / 100));
+            const effectiveSkill = Math.min(252, Math.floor(backstabSkill * (100 + backstabModPct) / 100));
             const backstabOffenseRating = effectiveSkill + strBonus + wornAttack + spellAttack;
             const backstabBaseRaw = Math.floor(((effectiveSkill * 0.02) + 2) * cappedW1Damage) + specElemAdder;
             const duelistBackstabRound = duelist && tMs >= duelistStartMs && tMs < duelistEndMs;
@@ -1771,7 +1782,7 @@
       lines.push(padLine('    Max hit:', String(sp.maxDamage)));
       lines.push(padLine(`    ${dpsLabel}:`, (sp.totalDamage / dur).toFixed(2)));
       if (sp.backstabSkill != null) {
-        const effectiveSkill = Math.min(255, Math.floor(sp.backstabSkill * (100 + (sp.backstabModPercent || 0)) / 100));
+        const effectiveSkill = Math.min(252, Math.floor(sp.backstabSkill * (100 + (sp.backstabModPercent || 0)) / 100));
         lines.push(padLine('    Effective backstab skill:', String(effectiveSkill)));
         if ((sp.backstabModPercent || 0) > 0) {
           lines.push(padLine('    Backstab weapon modifier applied:', '+' + sp.backstabModPercent + '%'));

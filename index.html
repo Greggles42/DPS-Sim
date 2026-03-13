@@ -961,6 +961,7 @@
         <label class="checkbox-label"><input type="checkbox" id="mob-stationary" checked> Mob stationary</label>
         <p class="hint">When checked, target is not moving (affects hit/damage if sim uses it).</p>
         <label class="checkbox-label"><input type="checkbox" id="use-walled-mob-penalty"> Use Walled Mob Penalty</label>
+        <label class="checkbox-label"><input type="checkbox" id="trueshot"> Trueshot (2 min random window: +105% archery damage, +12% archery skill)</label>
         <p class="hint">When checked, the report tracks damage lost due to wall penalty vs a standard hit.</p>
       </details>
         </div>
@@ -1559,6 +1560,8 @@
       let w2BackstabModPercent = null;
       let w1WornAttackBonus = null;
       let w2WornAttackBonus = null;
+      /** When a weapon with backstab mod is equipped, we show effective skill in the input; this stores the base to restore when unequipped. */
+      let backstabSkillBaseForRestore = null;
 
       function getBackstabModPercentFromRawItem(raw) {
         if (!raw || typeof raw !== 'object') return null;
@@ -1623,7 +1626,24 @@
         if (!backstabModEl) return;
         const v1 = (w1BackstabModPercent != null && !isNaN(w1BackstabModPercent)) ? w1BackstabModPercent : 0;
         const v2 = (w2BackstabModPercent != null && !isNaN(w2BackstabModPercent)) ? w2BackstabModPercent : 0;
-        backstabModEl.value = Math.max(v1, v2);
+        const mod = Math.max(v1, v2);
+        backstabModEl.value = mod;
+        const skillEl = $('backstab-skill');
+        if (!skillEl) return;
+        if (mod > 0) {
+          if (backstabSkillBaseForRestore == null) {
+            const current = parseInt(skillEl.value, 10);
+            backstabSkillBaseForRestore = (isNaN(current) || current < 0) ? 225 : current;
+          }
+          const base = backstabSkillBaseForRestore;
+          const effective = Math.min(252, Math.floor(base * (100 + mod) / 100));
+          skillEl.value = String(effective);
+        } else {
+          if (backstabSkillBaseForRestore != null) {
+            skillEl.value = String(backstabSkillBaseForRestore);
+            backstabSkillBaseForRestore = null;
+          }
+        }
       }
       function refreshBackstabModsFromCurrentWeapons() {
         function resolveSlotMod(prefix) {
@@ -2095,7 +2115,7 @@
           specialAttackType: specialAttacks ? specialAttackType : undefined,
           classId: classId || undefined,
           weaponSkillForToHit: weaponSkillForToHit,
-          backstabModPercent: classId === 'rogue' ? (equippedBackstabModPercent || 0) : undefined,
+          backstabModPercent: classId === 'rogue' ? 0 : undefined,
           backstabSkill: classId === 'rogue' ? (parseInt($('backstab-skill').value, 10) || 0) : undefined,
           duelist: classId === 'rogue' && $('duelist').checked,
           innerFlame: classId === 'monk' && $('innerflame').checked,
@@ -3328,6 +3348,7 @@
           archeryMastery: parseInt(document.querySelector('input[name="archery-mastery"]:checked').value, 10) || 3,
           mobStationary: $('mob-stationary').checked,
           useWalledMobPenalty: $('use-walled-mob-penalty').checked,
+          trueshot: $('trueshot').checked,
           classId: 'ranger',
           spellCastingFury: (function () { var el = document.querySelector('input[name="spell-casting-fury"]:checked'); return el ? (parseInt(el.value, 10) || 0) : 0; })(),
         };
@@ -4155,6 +4176,7 @@
           archeryMastery: parseInt(document.querySelector('input[name="archery-mastery"]:checked').value, 10) || 3,
           mobStationary: $('mob-stationary').checked,
           useWalledMobPenalty: $('use-walled-mob-penalty').checked,
+          trueshot: $('trueshot').checked,
         };
         const reports = [];
         for (let i = 0; i < runs; i++) {
