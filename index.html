@@ -3432,32 +3432,84 @@
           var runsCount = Math.max(1, Math.min(1000, parseInt($('ranged-runs').value, 10) || 20));
           var top40 = results.slice(0, 40);
           function renderRankReport() {
+            var currentMode = (window._rankWeaponsReportViewMode === 'slot') ? 'slot' : 'combinations';
             results.sort(function (a, b) { return (b.totalDps || 0) - (a.totalDps || 0); });
             window._lastRankWeaponsResults = results;
+            window._rankWeaponsReportViewMode = currentMode;
+            window._renderRankWeaponsReportView = renderRankReport;
+            var viewToggleBtn = $('btn-rank-view-toggle');
+            if (viewToggleBtn) {
+              viewToggleBtn.style.display = '';
+              viewToggleBtn.textContent = 'Combos/Slots';
+              viewToggleBtn.title = 'Toggle rank view (current: ' + (currentMode === 'slot' ? 'Slot Ranking' : 'Combinations') + ')';
+            }
             var subText = top40.length > 0 ? ' Top 40 averaged over ' + runsCount + ' runs.' : '';
             var sourceLabel = includePop ? 'Bows from popweapons.json.' : 'Bows from luclinweapons.json. Arrows from weaponlist.json.';
-            var lines = ['=== Ranged (bow + arrow) rank (by DPS) ===', 'Class: Ranger, Level: ' + level + ', Duration: ' + durationSec + 's', sourceLabel + subText, ''];
-            var maxDps = results[0] && results[0].totalDps > 0 ? results[0].totalDps : 1;
-            var tableRows = results.slice(0, 400).map(function (row, i) {
+            var heading, rowsForTable, chartLabel;
+            if (currentMode === 'slot') {
+              // Slot mode: derive best-per-bow and best-per-arrow from combos.
+              var bowBest = {};
+              var arrowBest = {};
+              results.forEach(function (row) {
+                if (row.bowId != null && (bowBest[row.bowId] == null || row.totalDps > bowBest[row.bowId].totalDps)) {
+                  bowBest[row.bowId] = row;
+                }
+                if (row.arrowId != null && (arrowBest[row.arrowId] == null || row.totalDps > arrowBest[row.arrowId].totalDps)) {
+                  arrowBest[row.arrowId] = row;
+                }
+              });
+              var bowRows = Object.keys(bowBest).map(function (id) {
+                var row = bowBest[id];
+                return {
+                  slotType: 'Bow',
+                  label: (row.label || '').split(' + ')[0],
+                  totalDps: row.totalDps
+                };
+              });
+              var arrowRows = Object.keys(arrowBest).map(function (id) {
+                var row = arrowBest[id];
+                return {
+                  slotType: 'Arrow',
+                  label: (row.label || '').split(' + ')[1] || ('Arrow ' + id),
+                  totalDps: row.totalDps
+                };
+              });
+              rowsForTable = bowRows.concat(arrowRows);
+              rowsForTable.sort(function (a, b) { return (b.totalDps || 0) - (a.totalDps || 0); });
+              heading = '=== Ranged slot rank (by DPS) ===';
+              chartLabel = 'Bow / Arrow slot';
+            } else {
+              rowsForTable = results;
+              heading = '=== Ranged (bow + arrow) rank (by DPS) ===';
+              chartLabel = 'Bow + Arrow';
+            }
+            var maxDps = rowsForTable[0] && rowsForTable[0].totalDps > 0 ? rowsForTable[0].totalDps : 1;
+            var lines = [heading, 'Class: Ranger, Level: ' + level + ', Duration: ' + durationSec + 's', sourceLabel + subText, ''];
+            var tableRows = rowsForTable.slice(0, 400).map(function (row, i) {
               var rank = i + 1;
-              var pctDiff = row.totalDps != null && maxDps > 0 ? (row.totalDps / maxDps * 100) : 0;
               var label = (row.label || '').replace(/</g, '&lt;').replace(/"/g, '&quot;');
               var totalDpsStr = row.totalDps != null ? row.totalDps.toFixed(2) : '—';
+              if (currentMode === 'slot') {
+                label = (row.slotType || '') + ': ' + label;
+              }
               return '<tr><td>' + rank + '</td><td>' + label + '</td><td style="text-align:right;">—</td><td style="text-align:right;">—</td><td style="text-align:right;">' + totalDpsStr + '</td></tr>';
             });
-            var chartRows = results.slice(0, 40).map(function (row, i) {
+            var chartRows = rowsForTable.slice(0, 40).map(function (row, i) {
               var pct = row.totalDps != null && maxDps > 0 ? (row.totalDps / maxDps * 100) : 0;
               var labelSafe = (row.label || '').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+              if (currentMode === 'slot') {
+                labelSafe = (row.slotType || '') + ': ' + labelSafe;
+              }
               var dpsStr = row.totalDps != null ? row.totalDps.toFixed(2) : '—';
               var pctStr = (i === 0) ? '100%' : (pct.toFixed(1) + '%');
               var barWidth = Math.max(0, Math.min(100, pct));
               return '<div class="rank-chart-row" title="' + labelSafe + '"><span class="rank-chart-label">' + labelSafe + '</span><span class="rank-chart-dps">' + dpsStr + '</span><span class="rank-chart-pct">' + pctStr + '</span><div class="rank-chart-bar-wrap"><div class="rank-chart-bar" style="width:' + barWidth + '%"></div></div></div>';
             });
-            var chartHeader = '<div class="rank-chart-row rank-chart-header"><span class="rank-chart-label">Bow + Arrow</span><span class="rank-chart-dps">DPS</span><span class="rank-chart-pct">% of BIS</span><div class="rank-chart-bar-wrap"></div></div>';
+            var chartHeader = '<div class="rank-chart-row rank-chart-header"><span class="rank-chart-label">' + chartLabel + '</span><span class="rank-chart-dps">DPS</span><span class="rank-chart-pct">% of BIS</span><div class="rank-chart-bar-wrap"></div></div>';
             var chartHtml = chartRows.length > 0 ? '<div class="rank-weapons-chart"><h3>Top 40 by DPS (X scale = #1)</h3>' + chartHeader + chartRows.join('') + '</div>' : '';
             var histContainer = $('histogram-container');
             if (histContainer) histContainer.innerHTML = chartHtml;
-            $('report').innerHTML = '<pre style="margin:0;">' + lines.join('\n') + '</pre><table class="rank-weapons-table" style="margin-top:0.5rem; border-collapse:collapse; width:100%; font-size:0.9rem;"><thead><tr><th style="text-align:left;">#</th><th style="text-align:left;">Bow + Arrow</th><th style="text-align:right;">Mainhand DPS</th><th style="text-align:right;">Offhand DPS</th><th style="text-align:right;">Total DPS</th></tr></thead><tbody>' + tableRows.join('') + '</tbody></table>';
+            $('report').innerHTML = '<pre style="margin:0;">' + lines.join('\n') + '</pre><table class="rank-weapons-table" style="margin-top:0.5rem; border-collapse:collapse; width:100%; font-size:0.9rem;"><thead><tr><th style="text-align:left;">#</th><th style="text-align:left;">' + chartLabel + '</th><th style="text-align:right;">Mainhand DPS</th><th style="text-align:right;">Offhand DPS</th><th style="text-align:right;">Total DPS</th></tr></thead><tbody>' + tableRows.join('') + '</tbody></table>';
           }
           if (top40.length === 0) {
             renderRankReport();
