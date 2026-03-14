@@ -882,7 +882,10 @@
       const modNote = report.archeryModPercent > 0 ? `  (bow +${report.archeryModPercent}%)` : '';
       lines.push(padLine('  Modified archery skill:', `${report.archerySkillModified}${modNote}`));
     }
-    if (report.archerySkillEffective != null) lines.push(padLine('  Effective archery skill:', `${report.archerySkillEffective}  (capped at 252, used in to-hit)`));
+    if (report.archerySkillEffective != null) {
+      const effNote = report.archeryModPercent > 0 ? '  (with bow mod, capped at 252, used in to-hit)' : '  (capped at 252, used in to-hit)';
+      lines.push(padLine('  Effective archery skill:', `${report.archerySkillEffective}${effNote}`));
+    }
     if (report.offenseRating != null) lines.push(padLine('  Offense rating:', `${report.offenseRating}  (used for damage)`));
     if (report.offenseRatingFromDex != null) lines.push(padLine('    From DEX:', String(report.offenseRatingFromDex)));
     if (report.rangerOffenseBonus != null && report.rangerOffenseBonus > 0) lines.push(padLine('    Ranger level>54 bonus:', `+${report.rangerOffenseBonus}`));

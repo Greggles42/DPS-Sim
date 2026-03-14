@@ -533,7 +533,7 @@
 <body data-ui-mode="easy">
   <div class="banner">
     <div class="banner-left">
-      <h1>Gabbiz's Project Quarm EQ DPS Simulator <span id="app-version" style="font-weight: 400; color: var(--muted); font-size: 0.85rem;">v1.02</span></h1>
+      <h1>Gabbiz's Project Quarm EQ DPS Simulator <span id="app-version" style="font-weight: 400; color: var(--muted); font-size: 0.85rem;">v1.04</span></h1>
     </div>
     <div id="dps-display" title="Total DPS from last run">
       <div class="dps-label">Total DPS</div>
@@ -1114,6 +1114,7 @@
   <section class="advanced-only" style="margin-top: 1rem;">
     <h2>Version log</h2>
     <ul style="font-size: 0.9rem; color: var(--muted); margin: 0; padding-left: 1.25rem;">
+      <li><strong>1.04</strong> — Updated a lot of the ranged damage simulation in advanced mode. Weapon search is improved and filters are better, quiver WR calculations are in. Ranger atk rating bonus is in. Elemental damage from bows and arrows now works. Archery skill modifiers are now in. Updated backstab damage model to address a fencepost issue.</li>
       <li><strong>1.03</strong> — Added some previously unsearchable or missing weapons (including monk Velious fists). Removed use of the external ItemSearch API in favor of the integrated item lists only. Implemented quick weapon swap on the Easy mode UI. Updated backstab reporting data. Simulations can now be run with only one weapon equipped. Ranged damage simulation now searches correctly. Trueshot can be toggled on the ranged simulator.</li>
       <li><strong>1.02</strong> — Easy mode has group content/raid content toggle. Fixed some worn attack values on weapons from being ignored (such as from Ragebringer or Bloodbath). Adjusted Slay Undead chances to be 2.25%/2.35%/2.4% per level and 15×/16×/17× damage multipliers. Added weapon swap button to easy mode UI.</li>
       <li><strong>1.01</strong> — Race-specific procs (e.g. undead, summoned) now only land on matching target body types. Bane damage auto-applies by target type (race/body); no bane on generic target. Only classes with the double attack skill can double attack.</li>
@@ -1354,7 +1355,7 @@
       }
 
       // When releasing: 1) Bump VERSION below. 2) Add a new <li> at the top of the Version log section above.
-      const VERSION = '1.03';
+      const VERSION = '1.04';
       const versionEl = $('app-version');
       if (versionEl) versionEl.textContent = 'v' + VERSION;
 
@@ -4454,6 +4455,12 @@
             calculatedToHit: r0.calculatedToHit,
             offenseSkill: r0.offenseSkill,
             offenseRating: r0.offenseRating,
+            offenseRatingFromDex: r0.offenseRatingFromDex,
+            rangerOffenseBonus: r0.rangerOffenseBonus,
+            archerySkill: r0.archerySkill,
+            archerySkillModified: r0.archerySkillModified,
+            archerySkillEffective: r0.archerySkillEffective,
+            archeryModPercent: r0.archeryModPercent,
             displayedAttack: r0.displayedAttack,
           };
         }
@@ -5103,6 +5110,7 @@
         let detail = (w.damage != null ? w.damage : 0) + ' / ' + (w.delay != null ? w.delay : 0);
         if (w.proc) detail += ' — ' + w.proc;
         if (w.elemType && (w.elemDamage || 0) > 0) detail += ' +' + (w.elemDamage || 0) + ' ' + w.elemType;
+        if ((w.archeryModPercent || 0) > 0) detail += ' Archery +' + w.archeryModPercent + '%';
         if ((w.baneDamage || 0) > 0) detail += ' bane ' + w.baneDamage;
         return detail;
       }
@@ -5150,7 +5158,7 @@
           let s = '<div class="item-search-section">Recent</div>';
           recent.forEach(function (w) {
             const label = renderItemLabel(w);
-            s += '<button type="button" class="item-search-item" data-item-id="' + (w.itemId != null ? String(w.itemId) : '') + '" data-name="' + (w.name || '').replace(/"/g, '&quot;') + '" data-damage="' + (w.damage != null ? w.damage : '') + '" data-delay="' + (w.delay != null ? w.delay : '') + '" data-weapon-type="' + (w.type || '').replace(/"/g, '&quot;') + '" data-item-type-num="' + (w.itemTypeNum != null ? String(w.itemTypeNum) : '') + '" data-slots="' + (w.slots != null ? String(w.slots) : '') + '" data-classes="' + (w.classes != null ? String(w.classes) : '') + '" data-proc="' + (w.proc || '').replace(/"/g, '&quot;') + '" data-procdamage="' + (w.procDamage != null ? w.procDamage : '') + '" data-proc-rate="' + (w.procRate != null ? w.procRate : '0') + '" data-proc-level="' + (w.procLevel != null ? w.procLevel : '') + '" data-proc-spell-id="' + (w.procSpellId != null ? w.procSpellId : '') + '" data-elemtype="' + (w.elemType || '').replace(/"/g, '&quot;') + '" data-elemdamage="' + (w.elemDamage != null ? w.elemDamage : '') + '" data-bane="' + (w.baneDamage != null ? w.baneDamage : '') + '" data-bane-body="' + (w.baneDamageBody != null ? w.baneDamageBody : '') + '" data-bane-race="' + (w.baneDamageRace != null ? w.baneDamageRace : '') + '" data-backstab-mod="' + (w.backstabModPercent != null ? String(w.backstabModPercent) : '') + '" data-worn-attack="' + (w.wornAttackBonus != null && w.wornAttackBonus > 0 ? String(w.wornAttackBonus) : '') + '" data-icon="' + (w.icon != null && w.icon > 0 ? w.icon : '') + '" data-is2h="' + (w.is2H ? '1' : '0') + '" data-offhand-blocked="' + (w.offhandBlocked ? '1' : '0') + '"><span>' + (w.name || '').replace(/</g, '&lt;') + '</span><div class="item-search-item-detail">' + label.replace(/</g, '&lt;') + '</div></button>';
+            s += '<button type="button" class="item-search-item" data-item-id="' + (w.itemId != null ? String(w.itemId) : '') + '" data-name="' + (w.name || '').replace(/"/g, '&quot;') + '" data-damage="' + (w.damage != null ? w.damage : '') + '" data-delay="' + (w.delay != null ? w.delay : '') + '" data-weapon-type="' + (w.type || '').replace(/"/g, '&quot;') + '" data-item-type-num="' + (w.itemTypeNum != null ? String(w.itemTypeNum) : '') + '" data-slots="' + (w.slots != null ? String(w.slots) : '') + '" data-classes="' + (w.classes != null ? String(w.classes) : '') + '" data-proc="' + (w.proc || '').replace(/"/g, '&quot;') + '" data-procdamage="' + (w.procDamage != null ? w.procDamage : '') + '" data-proc-rate="' + (w.procRate != null ? w.procRate : '0') + '" data-proc-level="' + (w.procLevel != null ? w.procLevel : '') + '" data-proc-spell-id="' + (w.procSpellId != null ? w.procSpellId : '') + '" data-elemtype="' + (w.elemType || '').replace(/"/g, '&quot;') + '" data-elemdamage="' + (w.elemDamage != null ? w.elemDamage : '') + '" data-bane="' + (w.baneDamage != null ? w.baneDamage : '') + '" data-bane-body="' + (w.baneDamageBody != null ? w.baneDamageBody : '') + '" data-bane-race="' + (w.baneDamageRace != null ? w.baneDamageRace : '') + '" data-backstab-mod="' + (w.backstabModPercent != null ? String(w.backstabModPercent) : '') + '" data-archery-mod="' + (w.archeryModPercent != null ? String(w.archeryModPercent) : '') + '" data-worn-attack="' + (w.wornAttackBonus != null && w.wornAttackBonus > 0 ? String(w.wornAttackBonus) : '') + '" data-icon="' + (w.icon != null && w.icon > 0 ? w.icon : '') + '" data-is2h="' + (w.is2H ? '1' : '0') + '" data-offhand-blocked="' + (w.offhandBlocked ? '1' : '0') + '"><span>' + (w.name || '').replace(/</g, '&lt;') + '</span><div class="item-search-item-detail">' + label.replace(/</g, '&lt;') + '</div></button>';
           });
           return s;
         }
@@ -5163,7 +5171,7 @@
           } else {
             results.forEach(function (w) {
               const label = renderItemLabel(w);
-              s += '<button type="button" class="item-search-item item-search-item-result" data-item-id="' + (w.itemId != null ? String(w.itemId) : '') + '" data-name="' + (w.name || '').replace(/"/g, '&quot;') + '" data-damage="' + (w.damage != null ? w.damage : '') + '" data-delay="' + (w.delay != null ? w.delay : '') + '" data-weapon-type="' + (w.type || '').replace(/"/g, '&quot;') + '" data-item-type-num="' + (w.itemTypeNum != null ? String(w.itemTypeNum) : '') + '" data-slots="' + (w.slots != null ? String(w.slots) : '') + '" data-classes="' + (w.classes != null ? String(w.classes) : '') + '" data-proc="' + (w.proc || '').replace(/"/g, '&quot;') + '" data-procdamage="' + (w.procDamage != null ? w.procDamage : '') + '" data-proc-rate="' + (w.procRate != null ? w.procRate : '0') + '" data-proc-level="' + (w.procLevel != null ? w.procLevel : '') + '" data-proc-spell-id="' + (w.procSpellId != null ? w.procSpellId : '') + '" data-elemtype="' + (w.elemType || '').replace(/"/g, '&quot;') + '" data-elemdamage="' + (w.elemDamage != null ? w.elemDamage : '') + '" data-bane="' + (w.baneDamage != null ? w.baneDamage : '') + '" data-bane-body="' + (w.baneDamageBody != null ? w.baneDamageBody : '') + '" data-bane-race="' + (w.baneDamageRace != null ? w.baneDamageRace : '') + '" data-backstab-mod="' + (w.backstabModPercent != null ? String(w.backstabModPercent) : '') + '" data-worn-attack="' + (w.wornAttackBonus != null && w.wornAttackBonus > 0 ? String(w.wornAttackBonus) : '') + '" data-icon="' + (w.icon != null && w.icon > 0 ? w.icon : '') + '" data-is2h="' + (w.is2H ? '1' : '0') + '" data-offhand-blocked="' + (w.offhandBlocked ? '1' : '0') + '"><span>' + (w.name || '').replace(/</g, '&lt;') + '</span><div class="item-search-item-detail">' + label.replace(/</g, '&lt;') + '</div></button>';
+              s += '<button type="button" class="item-search-item item-search-item-result" data-item-id="' + (w.itemId != null ? String(w.itemId) : '') + '" data-name="' + (w.name || '').replace(/"/g, '&quot;') + '" data-damage="' + (w.damage != null ? w.damage : '') + '" data-delay="' + (w.delay != null ? w.delay : '') + '" data-weapon-type="' + (w.type || '').replace(/"/g, '&quot;') + '" data-item-type-num="' + (w.itemTypeNum != null ? String(w.itemTypeNum) : '') + '" data-slots="' + (w.slots != null ? String(w.slots) : '') + '" data-classes="' + (w.classes != null ? String(w.classes) : '') + '" data-proc="' + (w.proc || '').replace(/"/g, '&quot;') + '" data-procdamage="' + (w.procDamage != null ? w.procDamage : '') + '" data-proc-rate="' + (w.procRate != null ? w.procRate : '0') + '" data-proc-level="' + (w.procLevel != null ? w.procLevel : '') + '" data-proc-spell-id="' + (w.procSpellId != null ? w.procSpellId : '') + '" data-elemtype="' + (w.elemType || '').replace(/"/g, '&quot;') + '" data-elemdamage="' + (w.elemDamage != null ? w.elemDamage : '') + '" data-bane="' + (w.baneDamage != null ? w.baneDamage : '') + '" data-bane-body="' + (w.baneDamageBody != null ? w.baneDamageBody : '') + '" data-bane-race="' + (w.baneDamageRace != null ? w.baneDamageRace : '') + '" data-backstab-mod="' + (w.backstabModPercent != null ? String(w.backstabModPercent) : '') + '" data-archery-mod="' + (w.archeryModPercent != null ? String(w.archeryModPercent) : '') + '" data-worn-attack="' + (w.wornAttackBonus != null && w.wornAttackBonus > 0 ? String(w.wornAttackBonus) : '') + '" data-icon="' + (w.icon != null && w.icon > 0 ? w.icon : '') + '" data-is2h="' + (w.is2H ? '1' : '0') + '" data-offhand-blocked="' + (w.offhandBlocked ? '1' : '0') + '"><span>' + (w.name || '').replace(/</g, '&lt;') + '</span><div class="item-search-item-detail">' + label.replace(/</g, '&lt;') + '</div></button>';
             });
           }
           return s;
@@ -5201,6 +5209,7 @@
               baneDamageBody: numOrNull(btn.getAttribute('data-bane-body')),
               baneDamageRace: numOrNull(btn.getAttribute('data-bane-race')),
               backstabModPercent: numOrNull(btn.getAttribute('data-backstab-mod')),
+              archeryModPercent: numOrNull(btn.getAttribute('data-archery-mod')),
               wornAttackBonus: numOrNull(btn.getAttribute('data-worn-attack')),
               icon: iconVal > 0 ? iconVal : null,
               is2H: btn.getAttribute('data-is2h') === '1' || derived2H,
