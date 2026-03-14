@@ -509,18 +509,18 @@
       if (!isNaN(pr2)) procRate = pr2;
     }
 
-    var eleDmgTypeNum = num(get(item, ['eleDmgType', 'elemType', 'elem_type']));
+    var eleDmgTypeNum = num(get(item, ['eleDmgType', 'elemType', 'elem_type', 'elemdmgtype']));
     var elemType = '';
     if (typeof eleDmgTypeNum === 'number' && ELE_DMG_TYPE_NUM[eleDmgTypeNum]) {
       elemType = ELE_DMG_TYPE_NUM[eleDmgTypeNum];
     } else {
-      elemType = str(get(item, ['eleDmgType', 'elemType', 'elem_type', 'element', 'Element', 'magic', 'Magic'])).toLowerCase();
+      elemType = str(get(item, ['eleDmgType', 'elemType', 'elem_type', 'elemdmgtype', 'element', 'Element', 'magic', 'Magic'])).toLowerCase();
       if (elemType && !['fire', 'cold', 'poison', 'disease', 'magic'].includes(elemType)) {
         var elemMap = { 'fr': 'fire', 'cr': 'cold', 'pr': 'poison', 'dr': 'disease', 'mr': 'magic' };
         elemType = elemMap[elemType] || elemType;
       }
     }
-    var elemDamage = num(get(item, ['eleDmgAmt', 'elemDamage', 'elem_damage', 'elementalDamage', 'ElementalDamage', 'elemental_damage']));
+    var elemDamage = num(get(item, ['eleDmgAmt', 'elemDamage', 'elem_damage', 'elemdmgamt', 'elementalDamage', 'ElementalDamage', 'elemental_damage']));
 
     var baneDamage = num(get(item, ['baneDmgAmt', 'baneDamage', 'bane_damage', 'BaneDamage', 'bane']));
     var baneDamageRaceRaw = get(item, ['baneDamageRace', 'banedamagerace', 'banedmgrace', 'baneDmgRace', 'bane_damage_race', 'BaneDamageRace']);

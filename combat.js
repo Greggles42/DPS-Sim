@@ -863,7 +863,7 @@
     lines.push('=== Offense & To-Hit Model ===', '');
     if (report.calculatedToHit != null) lines.push(padLine('  Calculated to-hit:', String(report.calculatedToHit)));
     if (report.offenseSkill != null) lines.push(padLine('  Offense skill:', `${report.offenseSkill}  (0–255, used for to-hit only)`));
-    if (report.archerySkill != null) lines.push(padLine('  Archery skill:', `${report.archerySkill}  (base, 0–252)`));
+    if (report.archerySkill != null) lines.push(padLine('  Archery skill level:', `${report.archerySkill}  (base, 0–252)`));
     if (report.archerySkillModified != null) {
       const modNote = report.archeryModPercent > 0 ? `  (bow +${report.archeryModPercent}%)` : '';
       lines.push(padLine('  Modified archery skill:', `${report.archerySkillModified}${modNote}`));

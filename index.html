@@ -955,6 +955,9 @@
           <label><input type="radio" name="archery-mastery" value="3" checked> 3</label>
         </div>
         <p class="hint">AA Archery Mastery rank (1, 2, or 3).</p>
+        <div class="char-field char-field-num"><label for="ranged-archery-skill" class="small-label">Archery level</label><input type="number" id="ranged-archery-skill" min="0" max="252" value="252" placeholder="252"></div>
+        <p class="hint">Archery skill level (0–252). Archery modifier (from weapon) is applied automatically when present.</p>
+        <div id="ranged-archery-mod-note" class="hint" style="display: none;"></div>
         <label class="checkbox-label"><input type="checkbox" id="mob-stationary" checked> Mob stationary</label>
         <p class="hint">When checked, target is not moving (affects hit/damage if sim uses it).</p>
         <label class="checkbox-label"><input type="checkbox" id="trueshot"> Trueshot (2 min random window: +105% archery damage, +12% archery skill)</label>
@@ -1764,8 +1767,21 @@
         const dmg = parseInt($('ranged-damage').value, 10) || 0;
         const dly = parseInt($('ranged-delay').value, 10) || 0;
         const isUnequipped = dmg <= 0 || dly <= 0;
-        const name = isUnequipped ? 'Unequipped' : (rangedWeaponDisplayName || 'Custom');
+        let name = isUnequipped ? 'Unequipped' : (rangedWeaponDisplayName || 'Custom');
+        const archeryModEl = $('ranged-archery-mod');
+        const archeryMod = archeryModEl && archeryModEl.value !== '' ? (parseInt(archeryModEl.value, 10) || 0) : 0;
+        if (!isUnequipped && archeryMod > 0) name += ' (+' + archeryMod + '% archery)';
         nameEl.textContent = name;
+        const modNoteEl = $('ranged-archery-mod-note');
+        if (modNoteEl) {
+          if (archeryMod > 0) {
+            modNoteEl.textContent = 'Archery modifier: +' + archeryMod + '% (from weapon)';
+            modNoteEl.style.display = '';
+          } else {
+            modNoteEl.textContent = '';
+            modNoteEl.style.display = 'none';
+          }
+        }
       }
 
       function updateArrowDisplay() {
@@ -3409,6 +3425,7 @@
           targetDR: parseResist('ranged-target-dr'),
           fightDurationSec: durationSec,
           offenseSkill: 252,
+          archerySkill: Math.min(252, Math.max(0, parseInt($('ranged-archery-skill').value, 10) || 252)),
           wornAttack: parseInt($('ranged-worn-attack').value, 10) || 0,
           spellAttack: parseInt($('ranged-spell-attack').value, 10) || 0,
           str: 255,
@@ -4358,6 +4375,7 @@
           targetDR: parseResist('ranged-target-dr'),
           fightDurationSec: parseInt($('ranged-duration').value, 10) || 6000,
           offenseSkill: 252,
+          archerySkill: Math.min(252, Math.max(0, parseInt($('ranged-archery-skill').value, 10) || 252)),
           wornAttack: parseInt($('ranged-worn-attack').value, 10) || 0,
           spellAttack: parseInt($('ranged-spell-attack').value, 10) || 0,
           dex: 255,
@@ -5204,7 +5222,7 @@
           var withId = Object.assign({}, item, { id: parseInt(id, 10) });
           if (withId.id !== withId.id) withId.id = id;
           // So ItemSearch.normalizeItemForWeapon picks up elemental: it expects eleDmgType (number) and eleDmgAmt (EQEmu raw uses elemdmgtype/elemdmgamt).
-          if (itemTypeVal === 27 && (item.elemdmgtype != null || item.elemdmgamt != null)) {
+          if ((itemTypeVal === 27 || itemTypeVal === 5) && (item.elemdmgtype != null || item.elemdmgamt != null)) {
             withId.eleDmgType = item.elemdmgtype != null ? parseInt(item.elemdmgtype, 10) : 0;
             withId.eleDmgAmt = item.elemdmgamt != null ? parseInt(item.elemdmgamt, 10) : 0;
           }
@@ -5503,7 +5521,7 @@
       initEasyModeUi();
 
       function clearRangedArrowItemSearchOnManualEdit(kind) {
-        if (kind === 'ranged') { rangedFromItemSearch = false; var ram = $('ranged-archery-mod'); if (ram) ram.value = '0'; updateWeaponIcon('ranged-weapon', null); updateRangedWeaponDisplay(); }
+        if (kind === 'ranged') { rangedFromItemSearch = false; var ram = $('ranged-archery-mod'); if (ram) ram.value = '0'; var modNote = $('ranged-archery-mod-note'); if (modNote) { modNote.textContent = ''; modNote.style.display = 'none'; } updateWeaponIcon('ranged-weapon', null); updateRangedWeaponDisplay(); }
         if (kind === 'arrow') { arrowFromItemSearch = false; updateWeaponIcon('arrow', null); updateArrowDisplay(); }
       }
       [$('ranged-damage'), $('ranged-delay'), $('ranged-proc'), $('ranged-proc-damage'), $('ranged-elem-type'), $('ranged-elem-damage'), $('ranged-bane')].forEach(function (el) {
