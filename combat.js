@@ -1225,13 +1225,14 @@
           report.special.count++;
           let baseDmg;
           let backstabDisciplineMinHit = null;
+          let duelistBackstabRound = false;
           const specElemAdder = (specialConfig.useWeaponDamage === false) ? 0 : getElementalBaseAdder(w1, options, rng);
           if (specElemAdder > 0) report.elementalDamageTotal += specElemAdder;
           if (isRogueBackstab) {
             const effectiveSkill = Math.min(252, Math.floor(backstabSkill * (100 + backstabModPct) / 100));
             const backstabOffenseRating = effectiveSkill + strBonus + wornAttack + spellAttack;
             const backstabBaseRaw = Math.floor(((effectiveSkill * 0.02) + 2) * cappedW1Damage) + specElemAdder;
-            const duelistBackstabRound = duelist && tMs >= duelistStartMs && tMs < duelistEndMs;
+            duelistBackstabRound = duelist && tMs >= duelistStartMs && tMs < duelistEndMs;
             backstabDisciplineMinHit = getDisciplineMinHit(backstabBaseRaw, 0, duelistBackstabRound);
             let backstabBase = applyDisciplineDamageMod(backstabBaseRaw, duelistBackstabRound);
             baseDmg = calcMeleeDamage(backstabBase, backstabOffenseRating, mitigation, rng, 0);
