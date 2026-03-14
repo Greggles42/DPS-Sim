@@ -894,7 +894,7 @@
       const eff = report.effectiveHastePercent != null ? Number(report.effectiveHastePercent).toFixed(1) : '—';
       lines.push(padLine('  Haste (raw / effective):', `${raw}% / ${eff}%  (standard cap; quiver separate)`));
     }
-    if (report.attackTimerMs != null) lines.push(padLine('  Attack timer interval (after haste):', `${report.attackTimerMs} ms between shots`));
+    if (report.attackTimerMs != null) lines.push(padLine('  Timer between rounds (after haste + quiver):', `${report.attackTimerMs} ms`));
     if (report.quiverHastePercent != null && report.quiverHastePercent > 0) {
       lines.push(padLine('  Quiver haste:', `${report.quiverHastePercent.toFixed(1)}%  (applied after standard, not subject to 125% cap)`));
     }

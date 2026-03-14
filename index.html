@@ -4430,6 +4430,8 @@
             durationSec: r0.durationSec,
             rawHastePercent: r0.rawHastePercent != null ? r0.rawHastePercent : 0,
             effectiveHastePercent: r0.effectiveHastePercent != null ? r0.effectiveHastePercent : 0,
+            quiverHastePercent: r0.quiverHastePercent != null ? r0.quiverHastePercent : undefined,
+            attackTimerMs: r0.attackTimerMs != null ? r0.attackTimerMs : undefined,
             totalDamage: Math.round(reports.reduce((s, r) => s + r.totalDamage, 0) / runs),
             critHits: Math.round(reports.reduce((s, r) => s + (r.critHits || 0), 0) / runs),
             critDamageGain: Math.round(reports.reduce((s, r) => s + (r.critDamageGain || 0), 0) / runs),
