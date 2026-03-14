@@ -971,6 +971,7 @@
       <div class="weapon-icon-wrap" id="ranged-weapon-weapon-icon-wrap" style="display:none"><img id="ranged-weapon-weapon-icon" class="weapon-icon" src="" alt=""></div>
       <div class="weapon-section-header"><h2>Ranged weapon</h2></div>
       <div id="ranged-weapon-name" class="weapon-name" aria-live="polite">Unequipped</div>
+      <div id="ranged-weapon-weapon-skill" class="weapon-skill"></div>
       <div class="item-search-wrap">
         <label for="ranged-weapon-item-search">Item Search</label>
         <input type="text" id="ranged-weapon-item-search" placeholder="Type 4+ characters to search..." autocomplete="off">
@@ -1009,6 +1010,7 @@
       <div class="weapon-icon-wrap" id="arrow-weapon-icon-wrap" style="display:none"><img id="arrow-weapon-icon" class="weapon-icon" src="" alt=""></div>
       <div class="weapon-section-header"><h2>Arrow type</h2></div>
       <div id="arrow-weapon-name" class="weapon-name" aria-live="polite">Unequipped</div>
+      <div id="arrow-weapon-skill" class="weapon-skill"></div>
       <div class="item-search-wrap">
         <label for="arrow-item-search">Item Search</label>
         <input type="text" id="arrow-item-search" placeholder="Type 4+ characters to search..." autocomplete="off">
@@ -1769,11 +1771,15 @@
         const dmg = parseInt($('ranged-damage').value, 10) || 0;
         const dly = parseInt($('ranged-delay').value, 10) || 0;
         const isUnequipped = dmg <= 0 || dly <= 0;
-        let name = isUnequipped ? 'Unequipped' : (rangedWeaponDisplayName || 'Custom');
+        const name = isUnequipped ? 'Unequipped' : (rangedWeaponDisplayName || 'Custom');
+        nameEl.textContent = name;
+        const skillEl = $('ranged-weapon-weapon-skill');
         const archeryModEl = $('ranged-archery-mod');
         const archeryMod = archeryModEl && archeryModEl.value !== '' ? (parseInt(archeryModEl.value, 10) || 0) : 0;
-        if (!isUnequipped && archeryMod > 0) name += ' (+' + archeryMod + '% archery)';
-        nameEl.textContent = name;
+        if (skillEl) {
+          if (isUnequipped) skillEl.textContent = '';
+          else skillEl.textContent = archeryMod > 0 ? 'Archery · +' + archeryMod + '%' : 'Archery';
+        }
         const modNoteEl = $('ranged-archery-mod-note');
         if (modNoteEl) {
           if (archeryMod > 0) {
@@ -1793,6 +1799,8 @@
         const isUnequipped = dmg <= 0;
         const name = isUnequipped ? 'Unequipped' : (arrowDisplayName || 'Custom');
         nameEl.textContent = name;
+        const skillEl = $('arrow-weapon-skill');
+        if (skillEl) skillEl.textContent = isUnequipped ? '' : 'Ammo';
       }
 
       function applyWeaponPreset(prefix, id) {
@@ -4743,10 +4751,41 @@
         updateWeaponSkillInputs();
         if (prefix === 'w1') { updateFistweavingVisibility(); updateWeapon2Disabled(); }
       }
+      function clearRangedWeapon() {
+        rangedFromItemSearch = false;
+        rangedWeaponDisplayName = '';
+        $('ranged-damage').value = '0';
+        $('ranged-delay').value = '0';
+        $('ranged-proc').value = '';
+        $('ranged-proc-damage').value = '0';
+        var ram = $('ranged-archery-mod'); if (ram) ram.value = '0';
+        var modNote = $('ranged-archery-mod-note'); if (modNote) { modNote.textContent = ''; modNote.style.display = 'none'; }
+        $('ranged-elem-type').value = '';
+        $('ranged-elem-damage').value = '0';
+        $('ranged-bane').value = '0';
+        var rbr = $('ranged-bane-race'); if (rbr) rbr.value = '';
+        var rbb = $('ranged-bane-body'); if (rbb) rbb.value = '';
+        var rpl = $('ranged-proc-level'); if (rpl) rpl.value = '';
+        updateWeaponIcon('ranged-weapon', null);
+        updateRangedWeaponDisplay();
+      }
+      function clearArrow() {
+        arrowFromItemSearch = false;
+        arrowDisplayName = '';
+        $('arrow-damage').value = '0';
+        $('arrow-elem-type').value = '';
+        $('arrow-elem-damage').value = '0';
+        updateWeaponIcon('arrow', null);
+        updateArrowDisplay();
+      }
       const w1Wrap = $('w1-weapon-icon-wrap');
       const w2Wrap = $('w2-weapon-icon-wrap');
       if (w1Wrap) { w1Wrap.title = 'Click to unequip'; w1Wrap.addEventListener('click', function () { onWeaponIconClick('w1'); }); }
       if (w2Wrap) { w2Wrap.title = 'Click to unequip'; w2Wrap.addEventListener('click', function () { onWeaponIconClick('w2'); }); }
+      const rangedWeaponWrap = $('ranged-weapon-weapon-icon-wrap');
+      if (rangedWeaponWrap) { rangedWeaponWrap.title = 'Click to unequip'; rangedWeaponWrap.addEventListener('click', function () { clearRangedWeapon(); }); }
+      const arrowWrap = $('arrow-weapon-icon-wrap');
+      if (arrowWrap) { arrowWrap.title = 'Click to unequip'; arrowWrap.addEventListener('click', function () { clearArrow(); }); }
       updateWeaponSkillInputs();
 
       // ----- Item search autofilter (API + recent items) -----

@@ -10,6 +10,9 @@
 (function (global) {
   'use strict';
 
+  /** When true and duelist is active, add +1 to backstab final damage (hidden debug, no UI). */
+  var FENCEPOSTBACKSTABDEBUG = true;
+
   // ----- Hit chance (AvoidanceCheck) -----
   // Server: toHit = GetToHit(skill) = 7 + Offense SKILL + Weapon skill + accuracy (typically 400–550). Offense skill is the 0–255 value; offense RATING is what affects damage (skill + STR + worn/spell).
   // toHit += 10, avoidance += 10
@@ -1254,6 +1257,7 @@
             dmg = Math.max(dmg, minHit);
           }
           if (backstabDisciplineMinHit != null && dmg < backstabDisciplineMinHit) dmg = backstabDisciplineMinHit;
+          if (FENCEPOSTBACKSTABDEBUG && duelistBackstabRound) dmg += 1;
           if (w1.noDamageVsTarget) { if (specElemAdder > 0) report.elementalDamageTotal -= specElemAdder; dmg = 0; }
           report.special.totalDamage += dmg;
           report.special.maxDamage = Math.max(report.special.maxDamage, dmg);
