@@ -1996,6 +1996,10 @@
       }
 
       function run() {
+        if (typeof EQCombat === 'undefined' || typeof EQCombat.runFight !== 'function') {
+          $('report').textContent = 'Combat simulator not loaded. Ensure combat.js loads correctly.';
+          return;
+        }
         var rankViewToggle = $('btn-rank-view-toggle');
         if (rankViewToggle) rankViewToggle.style.display = 'none';
         refreshBackstabModsFromCurrentWeapons();
@@ -2181,14 +2185,19 @@
         };
 
         const reports = [];
-        for (let i = 0; i < runs; i++) {
-          options.seed = runs === 1 ? undefined : (Date.now() + i);
-          const r = EQCombat.runFight(options);
-          if (r.error) {
-            $('report').textContent = r.error;
-            return;
+        try {
+          for (let i = 0; i < runs; i++) {
+            options.seed = runs === 1 ? undefined : (Date.now() + i);
+            const r = EQCombat.runFight(options);
+            if (r.error) {
+              $('report').textContent = r.error;
+              return;
+            }
+            reports.push(r);
           }
-          reports.push(r);
+        } catch (err) {
+          $('report').textContent = 'Simulation error: ' + (err && err.message ? err.message : String(err));
+          return;
         }
 
         let report;
@@ -2838,6 +2847,10 @@
           $('report').textContent = 'WeaponSkillCaps is required to rank weapons. Load weaponSkillCaps.js.';
           return;
         }
+        if (typeof EQCombat === 'undefined' || typeof EQCombat.runFight !== 'function') {
+          $('report').textContent = 'Combat simulator not loaded. Ensure combat.js loads correctly.';
+          return;
+        }
         var includePop = ($('rank-weapons-include-pop') && $('rank-weapons-include-pop').checked) === true;
         var ignoreNoDrop = ($('rank-weapons-ignore-nodrop') && $('rank-weapons-ignore-nodrop').checked) === true;
         if (!includePop) {
@@ -3048,8 +3061,13 @@
                 backstabModPercent: classId === 'rogue' ? Math.max(formBackstabModPercent, getBackstabModPercentForNorm(p)) : undefined,
                 fistweaving: classId === 'monk' && is2H && $('fistweaving').checked
               });
-              var r = EQCombat.runFight(options);
-              mainhand_dps[id] = r.error ? 0 : (r.totalDamage / durationSec);
+              try {
+                var r = EQCombat.runFight(options);
+                mainhand_dps[id] = r.error ? 0 : (r.totalDamage / durationSec);
+              } catch (err) {
+                $('report').textContent = 'Rank weapons error: ' + (err && err.message ? err.message : String(err));
+                return;
+              }
             }
             if (simIndex >= primaryWeapons.length) {
               phase = 'offhand';
@@ -3089,8 +3107,13 @@
                 backstabModPercent: classId === 'rogue' ? Math.max(formBackstabModPercent, getBackstabModPercentForNorm(refNorm), getBackstabModPercentForNorm(p2)) : undefined,
                 fistweaving: false
               });
-              var r2 = EQCombat.runFight(opts);
-              offhand_dps[secId] = r2.error ? 0 : (r2.weapon2 && r2.weapon2.totalDamage != null ? r2.weapon2.totalDamage / durationSec : 0);
+              try {
+                var r2 = EQCombat.runFight(opts);
+                offhand_dps[secId] = r2.error ? 0 : (r2.weapon2 && r2.weapon2.totalDamage != null ? r2.weapon2.totalDamage / durationSec : 0);
+              } catch (err) {
+                $('report').textContent = 'Rank weapons error: ' + (err && err.message ? err.message : String(err));
+                return;
+              }
             }
             if (simIndex >= secondaryWeapons.length) phase = 'done';
           } else if (phase === 'offhand') {
@@ -4301,6 +4324,10 @@
       }
 
       function runRanged() {
+        if (typeof EQCombat === 'undefined' || typeof EQCombat.runRangedFight !== 'function') {
+          $('report').textContent = 'Combat simulator not loaded. Ensure combat.js loads correctly.';
+          return;
+        }
         var rankViewToggle = $('btn-rank-view-toggle');
         if (rankViewToggle) rankViewToggle.style.display = 'none';
         let damage = parseInt($('ranged-damage').value, 10) || 12;
@@ -4399,15 +4426,20 @@
           trueshot: $('trueshot').checked,
         };
         const reports = [];
-        for (let i = 0; i < runs; i++) {
-          options.seed = runs === 1 ? undefined : (Date.now() + i + 10000);
-          const r = EQCombat.runRangedFight(options);
-          if (r.error) {
-            $('report').textContent = r.error;
-            $('histogram-container').innerHTML = '';
-            return;
+        try {
+          for (let i = 0; i < runs; i++) {
+            options.seed = runs === 1 ? undefined : (Date.now() + i + 10000);
+            const r = EQCombat.runRangedFight(options);
+            if (r.error) {
+              $('report').textContent = r.error;
+              $('histogram-container').innerHTML = '';
+              return;
+            }
+            reports.push(r);
           }
-          reports.push(r);
+        } catch (err) {
+          $('report').textContent = 'Ranged simulation error: ' + (err && err.message ? err.message : String(err));
+          return;
         }
         let report;
         if (runs === 1) {
