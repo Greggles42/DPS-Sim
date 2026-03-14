@@ -894,6 +894,7 @@
       const eff = report.effectiveHastePercent != null ? Number(report.effectiveHastePercent).toFixed(1) : '—';
       lines.push(padLine('  Haste (raw / effective):', `${raw}% / ${eff}%  (standard cap; quiver separate)`));
     }
+    if (report.attackTimerMs != null) lines.push(padLine('  Attack timer interval (after haste):', `${report.attackTimerMs} ms between shots`));
     if (report.quiverHastePercent != null && report.quiverHastePercent > 0) {
       lines.push(padLine('  Quiver haste:', `${report.quiverHastePercent.toFixed(1)}%  (applied after standard, not subject to 125% cap)`));
     }
@@ -902,7 +903,6 @@
     // 3. Weapon Overview (Ranged)
     lines.push('=== Weapon Overview ===', '');
     lines.push('  Ranged');
-    if (report.attackTimerMs != null) lines.push(padLine('    Attack timer (after haste):', `${report.attackTimerMs} ms between shots`));
     lines.push(padLine('    Total damage:', String(r.totalDamage)));
     lines.push(padLine('    Weapon DPS:', (r.totalDamage / dur).toFixed(2)));
     lines.push('');
