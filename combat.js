@@ -598,7 +598,8 @@
    * @param {Object} options
    * @param {Object} options.rangedWeapon - { damage, delay, procSpell?, procSpellDamage? }
    * @param {Object} options.arrow - { damage }
-   * @param {number} options.hastePercent - total haste (%)
+   * @param {number} options.hastePercent - standard haste % (worn + spell; subject to 125% cap)
+   * @param {number} [options.quiverHaste=0] - quiver haste as decimal (e.g. 0.15 = 15%); applied after standard haste, not subject to cap; reduction = quiver_haste*speed+1, only if speed−reduction>1000
    * @param {number} [options.level=60]
    * @param {number} options.targetAC - mob AC for mitigation
    * @param {number} [options.mobLevel=60]
@@ -663,7 +664,15 @@
     }
     const mobStationary = !!options.mobStationary;
 
-    const delayDecisec = effectiveDelayDecisec(bow.delay, effectiveHastePercent);
+    let delayDecisec = effectiveDelayDecisec(bow.delay, effectiveHastePercent);
+    const quiverHaste = (options.quiverHaste != null && !Number.isNaN(Number(options.quiverHaste)) && Number(options.quiverHaste) > 0) ? Number(options.quiverHaste) : 0;
+    if (quiverHaste > 0) {
+      const speedMs = delayDecisec * DECISEC_TO_MS;
+      const bowDelayReduction = Math.floor(quiverHaste * speedMs) + 1;
+      if (speedMs - bowDelayReduction > 1000) {
+        delayDecisec = (speedMs - bowDelayReduction) / DECISEC_TO_MS;
+      }
+    }
     const delayMs = delayDecisec * DECISEC_TO_MS;
     // Ranged procs use same chance as primary (main hand): (base + dex factor) * weapon_speed; no offhand penalty. Apply proc rate modifier.
     const baseRangedProcChance = (bow.procSpell != null && bow.procSpell !== '' && canTriggerProcAtLevel(bow, level))
@@ -698,6 +707,7 @@
       durationSec: options.fightDurationSec,
       rawHastePercent: !Number.isNaN(Number(options.hastePercent)) ? Number(options.hastePercent) : 0,
       effectiveHastePercent: effectiveHastePercent,
+      quiverHastePercent: quiverHaste > 0 ? (quiverHaste * 100) : undefined,
       totalDamage: 0,
       elementalDamageTotal: 0,
       critHits: 0,
@@ -713,6 +723,7 @@
       archerySkillEffective: ARCHERY_SKILL_EFFECTIVE,
       archeryModPercent: archeryModPercent,
       displayedAttack: Math.floor((offenseRating + toHit) * 1000 / 744),
+      attackTimerMs: Math.round(delayMs),
     };
     const rangedProcLevelReq = getProcLevelRequirement(bow);
     if (bow.procSpell != null && bow.procSpell !== '' && rangedProcLevelReq != null && level < rangedProcLevelReq) {
@@ -881,13 +892,17 @@
     if (report.rawHastePercent != null || report.effectiveHastePercent != null) {
       const raw = report.rawHastePercent != null ? Number(report.rawHastePercent).toFixed(1) : '—';
       const eff = report.effectiveHastePercent != null ? Number(report.effectiveHastePercent).toFixed(1) : '—';
-      lines.push(padLine('  Haste (raw / effective):', `${raw}% / ${eff}%`));
+      lines.push(padLine('  Haste (raw / effective):', `${raw}% / ${eff}%  (standard cap; quiver separate)`));
+    }
+    if (report.quiverHastePercent != null && report.quiverHastePercent > 0) {
+      lines.push(padLine('  Quiver haste:', `${report.quiverHastePercent.toFixed(1)}%  (applied after standard, not subject to 125% cap)`));
     }
     lines.push('');
 
     // 3. Weapon Overview (Ranged)
     lines.push('=== Weapon Overview ===', '');
     lines.push('  Ranged');
+    if (report.attackTimerMs != null) lines.push(padLine('    Attack timer (after haste):', `${report.attackTimerMs} ms between shots`));
     lines.push(padLine('    Total damage:', String(r.totalDamage)));
     lines.push(padLine('    Weapon DPS:', (r.totalDamage / dur).toFixed(2)));
     lines.push('');
