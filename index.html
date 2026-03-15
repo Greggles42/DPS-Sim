@@ -962,8 +962,9 @@
           <label><input type="radio" name="archery-accuracy" value="falcon"> Falcon Eye</label>
           <label><input type="radio" name="archery-accuracy" value="eagle"> Eagle Eye</label>
           <label class="checkbox-label" style="margin-left: 0.5rem;"><input type="checkbox" id="archery-accuracy-effect-modifier" title="When checked: spell adds % improved chance to land a hit after to-hit. When unchecked: spell adds flat Archery skill (Hawk +10, Falcon +20, Eagle +40)."> Effect Modifier</label>
+          <label class="checkbox-label" style="margin-left: 0.5rem;"><input type="checkbox" id="archery-accuracy-effect-modifier-2" title="When checked: X% of shots that would have missed instead land (Hawk 10%, Falcon 20%, Eagle 40%)."> Effect Modifier 2</label>
         </div>
-        <p class="hint">Hawk / Falcon / Eagle Eye: without Effect Modifier they add 10 / 20 / 40 Archery skill. With Effect Modifier they add 10% / 20% / 40% improved chance to land a hit after the standard to-hit roll.</p>
+        <p class="hint">Hawk / Falcon / Eagle Eye: without Effect Modifier they add 10 / 20 / 40 Archery skill. With Effect Modifier they add 10% / 20% / 40% improved chance to land a hit after the standard to-hit roll. With Effect Modifier 2: 10% / 20% / 40% of misses are converted to hits.</p>
         <div class="char-field char-field-num"><label for="ranged-archery-skill" class="small-label">Archery level</label><input type="number" id="ranged-archery-skill" min="0" max="240" value="240" placeholder="240"></div>
         <p class="hint" style="margin-top: 0.5rem;">Archery skill (0–cap). Ranger cap = min(240, level×4); autoscales with level.</p>
         <div id="ranged-archery-mod-note" class="hint" style="display: none;"></div>
@@ -1870,16 +1871,19 @@
           const elemDamageEl = $(prefix + '-elem-damage');
           if (elemDamageEl) elemDamageEl.value = (p.elemDamage != null ? p.elemDamage : 0) || '';
           const baneEl = $(prefix + '-bane');
-          if (baneEl) baneEl.value = (p.baneDamage != null ? p.baneDamage : 0) || '';
+          if (baneEl) {
+            var baneAmt = (p && p.baneDamage != null) ? p.baneDamage : (raw && (raw.banedmgamt != null || raw.baneDmgAmt != null) ? (raw.banedmgamt != null ? Number(raw.banedmgamt) : Number(raw.baneDmgAmt)) : null);
+            baneEl.value = (baneAmt != null && !isNaN(baneAmt)) ? String(Math.floor(baneAmt)) : '0';
+          }
           const baneBodyEl = $(prefix + '-bane-body');
           if (baneBodyEl) {
-            var bb = raw && raw.banedmgbody != null ? Number(raw.banedmgbody) : (raw && raw.baneDamageBody != null ? Number(raw.baneDamageBody) : null);
-            baneBodyEl.value = (bb != null && !isNaN(bb) && bb > 0) ? String(Math.floor(bb)) : '0';
+            var bb = (raw && raw.banedmgbody != null) ? Number(raw.banedmgbody) : (raw && raw.baneDamageBody != null ? Number(raw.baneDamageBody) : (p && p.baneDamageBody != null ? Number(p.baneDamageBody) : null));
+            baneBodyEl.value = (bb != null && !isNaN(bb)) ? String(Math.floor(bb)) : '0';
           }
           const baneRaceEl = $(prefix + '-bane-race');
           if (baneRaceEl) {
-            const br = raw && raw.banedamagerace != null ? Number(raw.banedamagerace) : (raw && raw.banedmgrace != null ? Number(raw.banedmgrace) : (raw && raw.baneDamageRace != null ? Number(raw.baneDamageRace) : null));
-            baneRaceEl.value = (br != null && !isNaN(br) && br > 0) ? String(Math.floor(br)) : '0';
+            const br = (raw && (raw.banedamagerace != null || raw.banedmgrace != null)) ? Number(raw.banedmgrace != null ? raw.banedmgrace : raw.banedamagerace) : (raw && raw.baneDamageRace != null ? Number(raw.baneDamageRace) : (p && p.baneDamageRace != null ? Number(p.baneDamageRace) : null));
+            baneRaceEl.value = (br != null && !isNaN(br)) ? String(Math.floor(br)) : '0';
           }
           updateBaneLabels(prefix);
           if (prefix === 'w1' && (p.is2H || pType2H)) {
@@ -2818,6 +2822,7 @@
           elemType: elemType || undefined,
           elemDamage: elemDamage,
           baneDamage: (raw.banedmgamt != null ? parseInt(raw.banedmgamt, 10) : 0) || 0,
+          baneDamageBody: (raw.banedmgbody != null && !isNaN(parseInt(raw.banedmgbody, 10))) ? parseInt(raw.banedmgbody, 10) : undefined,
           baneDamageRace: (raw.banedmgrace != null ? parseInt(raw.banedmgrace, 10) : 0) || 0,
           backstabModPercent: getBackstabModPercentFromRawItem(raw),
           wornAttackBonus: getWornAttackBonusFromRawItem(raw),
@@ -3489,6 +3494,7 @@
           archeryMastery: parseInt(document.querySelector('input[name="archery-mastery"]:checked').value, 10) || 3,
           archeryAccuracy: (document.querySelector('input[name="archery-accuracy"]:checked') || {}).value || 'none',
           archeryAccuracyEffectModifier: !!($('archery-accuracy-effect-modifier') && $('archery-accuracy-effect-modifier').checked),
+          archeryAccuracyEffectModifier2: !!($('archery-accuracy-effect-modifier-2') && $('archery-accuracy-effect-modifier-2').checked),
           mobStationary: $('mob-stationary').checked,
           trueshot: $('trueshot').checked,
           classId: 'ranger',
@@ -4450,6 +4456,7 @@
           archeryMastery: parseInt(document.querySelector('input[name="archery-mastery"]:checked').value, 10) || 3,
           archeryAccuracy: (document.querySelector('input[name="archery-accuracy"]:checked') || {}).value || 'none',
           archeryAccuracyEffectModifier: !!($('archery-accuracy-effect-modifier') && $('archery-accuracy-effect-modifier').checked),
+          archeryAccuracyEffectModifier2: !!($('archery-accuracy-effect-modifier-2') && $('archery-accuracy-effect-modifier-2').checked),
           mobStationary: $('mob-stationary').checked,
           trueshot: $('trueshot').checked,
         };
@@ -5412,6 +5419,19 @@
         });
         var skillmodType7 = function (it) { var st = it.skillmodtype != null ? it.skillmodtype : it.skillmodType; return (Number(st) === 7); };
         var skillmodValNum = function (it) { var sv = it.skillmodvalue != null ? it.skillmodvalue : it.skillmodValue; var v = (typeof sv === 'number') ? sv : parseInt(sv, 10); return isNaN(v) ? null : v; };
+        function ensureBaneFromRaw(weapon, raw) {
+          if (!weapon || !raw) return;
+          if (raw.banedmgamt != null || raw.baneDmgAmt != null)
+            weapon.baneDamage = num(raw.banedmgamt != null ? raw.banedmgamt : raw.baneDmgAmt);
+          if (raw.banedmgbody != null || raw.baneDamageBody != null) {
+            var bb = parseInt(raw.banedmgbody != null ? raw.banedmgbody : raw.baneDamageBody, 10);
+            if (!isNaN(bb)) weapon.baneDamageBody = bb;
+          }
+          if (raw.banedmgrace != null || raw.baneDamageRace != null || raw.banedamagerace != null) {
+            var br = parseInt(raw.banedmgrace != null ? raw.banedmgrace : (raw.baneDamageRace != null ? raw.baneDamageRace : raw.banedamagerace), 10);
+            if (!isNaN(br)) weapon.baneDamageRace = br;
+          }
+        }
         if (typeof ItemSearch === 'undefined' || !ItemSearch.normalizeItemForWeapon) {
           raw.forEach(function (item) {
             if (item.archeryModPercent != null) return;
@@ -5419,11 +5439,24 @@
             var v = skillmodValNum(item);
             if (v != null) item.archeryModPercent = v;
           });
+          raw.forEach(function (item) {
+            if (item.banedmgamt != null || item.baneDmgAmt != null)
+              item.baneDamage = num(item.banedmgamt != null ? item.banedmgamt : item.baneDmgAmt);
+            if (item.banedmgbody != null || item.baneDamageBody != null) {
+              var bb = parseInt(item.banedmgbody != null ? item.banedmgbody : item.baneDamageBody, 10);
+              if (!isNaN(bb)) item.baneDamageBody = bb;
+            }
+            if (item.banedmgrace != null || item.baneDamageRace != null || item.banedamagerace != null) {
+              var br = parseInt(item.banedmgrace != null ? item.banedmgrace : (item.baneDamageRace != null ? item.baneDamageRace : item.banedamagerace), 10);
+              if (!isNaN(br)) item.baneDamageRace = br;
+            }
+          });
           return Promise.resolve(raw);
         }
         var results = raw.map(function (item) {
           var norm = ItemSearch.normalizeItemForWeapon(item);
           if (!norm) return null;
+          ensureBaneFromRaw(norm, item);
           if (norm.archeryModPercent == null && skillmodType7(item)) {
             var v = skillmodValNum(item);
             if (v != null) norm.archeryModPercent = v;
