@@ -1792,7 +1792,7 @@
         const archeryMod = archeryModEl && archeryModEl.value !== '' ? (parseInt(archeryModEl.value, 10) || 0) : 0;
         if (skillEl) {
           if (isUnequipped) skillEl.textContent = '';
-          else skillEl.textContent = archeryMod > 0 ? 'Archery · +' + archeryMod + '%' : 'Archery';
+          else skillEl.textContent = archeryMod > 0 ? 'Archery · Archery +' + archeryMod + '%' : 'Archery';
         }
         const modNoteEl = $('ranged-archery-mod-note');
         if (modNoteEl) {
