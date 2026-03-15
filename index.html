@@ -4962,7 +4962,8 @@
             const gatedChance = levelAllowsProc ? modifiedChance : 0;
             modifiedProcChanceLine = 'Modified proc chance: ' + (gatedChance * 100).toFixed(2) + '% (base ' + (baseChance * 100).toFixed(2) + '% × (100 + ' + procRate + ') / 100' + (levelAllowsProc ? '' : '; blocked by proclevel') + ')';
           }
-          return 'Slot: ' + label + '\nName: ' + (w.name || '—') + '\nAPI itemType: ' + apiType + '\nMapped type: ' + mapped + '\nSlots bitmask: ' + slots + '\nProc spell name: ' + procName + '\nProceffect: ' + proceffect + '\nProc spell damage: ' + procDmg + '\nProc level: ' + (procLevel != null ? procLevel : '—') + '\nCharacter level check: ' + currentLevel + (levelAllowsProc ? ' (can proc)' : ' (cannot proc)') + '\n' + procChanceLine + '\n' + modifiedProcChanceLine;
+          const archeryModStr = (label === 'Ranged weapon') ? ('\nArchery mod: ' + ((w.archeryModPercent != null && !isNaN(Number(w.archeryModPercent))) ? (Number(w.archeryModPercent) + '%') : '—')) : '';
+          return 'Slot: ' + label + '\nName: ' + (w.name || '—') + '\nAPI itemType: ' + apiType + '\nMapped type: ' + mapped + '\nSlots bitmask: ' + slots + '\nProc spell name: ' + procName + '\nProceffect: ' + proceffect + '\nProc spell damage: ' + procDmg + '\nProc level: ' + (procLevel != null ? procLevel : '—') + '\nCharacter level check: ' + currentLevel + (levelAllowsProc ? ' (can proc)' : ' (cannot proc)') + '\n' + procChanceLine + '\n' + modifiedProcChanceLine + archeryModStr;
         }
         const parts = [];
         const hasAny = !!(itemSearchDebugSlots.W1 || itemSearchDebugSlots.W2 || itemSearchDebugSlots['Ranged weapon'] || itemSearchDebugSlots.Arrow);
