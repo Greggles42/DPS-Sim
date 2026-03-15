@@ -955,8 +955,17 @@
           <label><input type="radio" name="archery-mastery" value="3" checked> 3</label>
         </div>
         <p class="hint">AA Archery Mastery rank (1, 2, or 3).</p>
-        <div class="char-field char-field-num"><label for="ranged-archery-skill" class="small-label">Archery level</label><input type="number" id="ranged-archery-skill" min="0" max="252" value="252" placeholder="252"></div>
-        <p class="hint">Archery skill level (0–252). Archery modifier (from weapon) is applied automatically when present.</p>
+        <label>Archery accuracy spell</label>
+        <div class="radio-group" style="display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 1rem;">
+          <label><input type="radio" name="archery-accuracy" value="none" checked> None</label>
+          <label><input type="radio" name="archery-accuracy" value="hawk"> Hawk Eye</label>
+          <label><input type="radio" name="archery-accuracy" value="falcon"> Falcon Eye</label>
+          <label><input type="radio" name="archery-accuracy" value="eagle"> Eagle Eye</label>
+          <label class="checkbox-label" style="margin-left: 0.5rem;"><input type="checkbox" id="archery-accuracy-effect-modifier" title="When checked: spell adds % improved chance to land a hit after to-hit. When unchecked: spell adds flat Archery skill (Hawk +10, Falcon +20, Eagle +40)."> Effect Modifier</label>
+        </div>
+        <p class="hint">Hawk / Falcon / Eagle Eye: without Effect Modifier they add 10 / 20 / 40 Archery skill. With Effect Modifier they add 10% / 20% / 40% improved chance to land a hit after the standard to-hit roll.</p>
+        <div class="char-field char-field-num"><label for="ranged-archery-skill" class="small-label">Archery level</label><input type="number" id="ranged-archery-skill" min="0" max="240" value="240" placeholder="240"></div>
+        <p class="hint">Archery skill (0–cap). Ranger cap = min(240, level×4); autoscales with level.</p>
         <div id="ranged-archery-mod-note" class="hint" style="display: none;"></div>
         <label class="checkbox-label"><input type="checkbox" id="mob-stationary" checked> Mob stationary</label>
         <p class="hint">When checked, target is not moving (affects hit/damage if sim uses it).</p>
@@ -3466,6 +3475,8 @@
           str: 255,
           dex: 255,
           archeryMastery: parseInt(document.querySelector('input[name="archery-mastery"]:checked').value, 10) || 3,
+          archeryAccuracy: (document.querySelector('input[name="archery-accuracy"]:checked') || {}).value || 'none',
+          archeryAccuracyEffectModifier: !!($('archery-accuracy-effect-modifier') && $('archery-accuracy-effect-modifier').checked),
           mobStationary: $('mob-stationary').checked,
           trueshot: $('trueshot').checked,
           classId: 'ranger',
@@ -4422,6 +4433,8 @@
           critChanceMult: 0,
           classId: 'ranger',
           archeryMastery: parseInt(document.querySelector('input[name="archery-mastery"]:checked').value, 10) || 3,
+          archeryAccuracy: (document.querySelector('input[name="archery-accuracy"]:checked') || {}).value || 'none',
+          archeryAccuracyEffectModifier: !!($('archery-accuracy-effect-modifier') && $('archery-accuracy-effect-modifier').checked),
           mobStationary: $('mob-stationary').checked,
           trueshot: $('trueshot').checked,
         };
@@ -4696,10 +4709,23 @@
       }
       $('level').addEventListener('change', onMeleeLevelEdited);
       $('level').addEventListener('input', onMeleeLevelEdited);
+      function getRangerArcheryCap(lvl) { return Math.min(240, Math.floor((lvl || 60) * 4)); }
+      function syncRangedArcheryCap() {
+        var levelEl = $('ranged-level');
+        var archeryEl = $('ranged-archery-skill');
+        if (!levelEl || !archeryEl) return;
+        var level = parseInt(levelEl.value, 10) || 60;
+        var cap = getRangerArcheryCap(level);
+        archeryEl.max = cap;
+        archeryEl.placeholder = String(cap);
+        var val = parseInt(archeryEl.value, 10);
+        if (!isNaN(val) && val > cap) archeryEl.value = String(cap);
+      }
       var rangedLevelEl = $('ranged-level');
       if (rangedLevelEl) {
-        rangedLevelEl.addEventListener('change', function () { applyGenericTargetIfNoneSelected(); updateItemSearchDebug(); });
-        rangedLevelEl.addEventListener('input', function () { applyGenericTargetIfNoneSelected(); updateItemSearchDebug(); });
+        rangedLevelEl.addEventListener('change', function () { syncRangedArcheryCap(); applyGenericTargetIfNoneSelected(); updateItemSearchDebug(); });
+        rangedLevelEl.addEventListener('input', function () { syncRangedArcheryCap(); applyGenericTargetIfNoneSelected(); updateItemSearchDebug(); });
+        syncRangedArcheryCap();
       }
       updateClassIcon();
       ['worn-haste', 'spell-haste'].forEach(function (id) {

@@ -641,11 +641,18 @@
     if (!bow || bow.damage == null || bow.delay == null || !arrow || arrow.damage == null) {
       return { error: 'Missing rangedWeapon (damage, delay) or arrow (damage)' };
     }
-    const ARCHERY_SKILL_BASE = options.archerySkill != null ? Math.min(252, Math.max(0, Math.floor(options.archerySkill))) : 252;
+    const rangerArcheryCap = Math.min(240, Math.floor(level * 4));
+    const rawArchery = options.archerySkill != null ? Math.max(0, Math.floor(options.archerySkill)) : rangerArcheryCap;
+    const ARCHERY_SKILL_BASE = Math.min(rangerArcheryCap, Math.min(252, rawArchery));
+    const archeryAccuracy = options.archeryAccuracy || 'none';
+    const archeryAccuracyEffectModifier = !!options.archeryAccuracyEffectModifier;
+    const accuracySkillBonus = (!archeryAccuracyEffectModifier && archeryAccuracy === 'hawk') ? 10 : (!archeryAccuracyEffectModifier && archeryAccuracy === 'falcon') ? 20 : (!archeryAccuracyEffectModifier && archeryAccuracy === 'eagle') ? 40 : 0;
+    const archeryBaseWithAccuracy = Math.min(252, ARCHERY_SKILL_BASE + accuracySkillBonus);
     const archeryModPercent = (bow.archeryModPercent != null && !Number.isNaN(Number(bow.archeryModPercent))) ? Number(bow.archeryModPercent) : 0;
-    const ARCHERY_SKILL_MODIFIED = Math.floor(ARCHERY_SKILL_BASE * (100 + archeryModPercent) / 100);
+    const ARCHERY_SKILL_MODIFIED = Math.floor(archeryBaseWithAccuracy * (100 + archeryModPercent) / 100);
     const ARCHERY_SKILL_EFFECTIVE = Math.min(252, ARCHERY_SKILL_MODIFIED);
     const toHit = 7 + OFFENSE_SKILL + ARCHERY_SKILL_EFFECTIVE;
+    const accuracyHitChanceBonus = (archeryAccuracyEffectModifier && archeryAccuracy === 'hawk') ? 0.10 : (archeryAccuracyEffectModifier && archeryAccuracy === 'falcon') ? 0.20 : (archeryAccuracyEffectModifier && archeryAccuracy === 'eagle') ? 0.40 : 0;
     const trueshot = !!options.trueshot;
     const TRUESHOT_DURATION_MS = 120000;
     const durationMs = Math.floor(options.fightDurationSec * 1000);
@@ -769,7 +776,8 @@
           report.ranged.procResistDamageLost += (procDmg - actualProcDmg);
         }
       }
-      const hit = rollHit(currentToHit, avoidance, rng, true);
+      let hit = rollHit(currentToHit, avoidance, rng, true);
+      if (!hit && accuracyHitChanceBonus > 0 && rng() < accuracyHitChanceBonus) hit = true;
       if (!hit) {
         nextRangedAtMs += delayMs;
         if (procDamageThisShot > 0) {
