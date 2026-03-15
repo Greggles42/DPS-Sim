@@ -522,7 +522,7 @@
     }
     var elemDamage = num(get(item, ['eleDmgAmt', 'elemDamage', 'elem_damage', 'elemdmgamt', 'elementalDamage', 'ElementalDamage', 'elemental_damage']));
 
-    var baneDamage = num(get(item, ['baneDmgAmt', 'baneDamage', 'bane_damage', 'BaneDamage', 'bane']));
+    var baneDamage = num(get(item, ['banedmgamt', 'baneDmgAmt', 'baneDamage', 'bane_damage', 'BaneDamage', 'bane']));
     var baneDamageRaceRaw = get(item, ['baneDamageRace', 'banedamagerace', 'banedmgrace', 'baneDmgRace', 'bane_damage_race', 'BaneDamageRace']);
     var baneDamageRace = (baneDamageRaceRaw != null && baneDamageRaceRaw !== '') ? parseInt(baneDamageRaceRaw, 10) : null;
     if (isNaN(baneDamageRace)) baneDamageRace = null;

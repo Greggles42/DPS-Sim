@@ -2362,7 +2362,10 @@
           : 'Weapon 2';
         let reportText = EQCombat.formatReport(report, w1LabelWithAtk, w2LabelWithAtk, runs);
         if (window.selectedTargetNpc && window.selectedTargetNpc.name) {
-          reportText = '  Target: ' + String(window.selectedTargetNpc.name).replace(/_/g, ' ') + '\n\n' + reportText;
+          var npc = window.selectedTargetNpc;
+          var npcLevelStr = (npc.level != null && npc.level !== '') ? String(npc.level) : '?';
+          var npcACStr = (npc.AC != null && npc.AC !== '') ? String(npc.AC) : '?';
+          reportText = '  Target: ' + String(npc.name).replace(/_/g, ' ') + ', Level ' + npcLevelStr + ', AC ' + npcACStr + '\n\n' + reportText;
         }
         if (typeof WeaponSkillCaps !== 'undefined' && classId && level) {
           const capSkillKey = skillKeyForCap(w1WeaponType, weapon1.is2H);
@@ -2671,7 +2674,7 @@
         if (!isNaN(classes) && (classes & 8) === 0) return null;
         var dmg = parseInt(raw.damage, 10); var dly = parseInt(raw.delay, 10);
         if (isNaN(dmg) || dmg < 1 || isNaN(dly) || dly < 1) return null;
-        var item = { id: id, Name: raw.Name, name: raw.Name, damage: raw.damage, delay: raw.delay, itemtype: raw.itemtype, slots: raw.slots, classes: raw.classes, lore: raw.lore, proceffect: raw.proceffect, procrate: raw.procrate, proclevel: raw.proclevel, elemdmgtype: raw.elemdmgtype, elemdmgamt: raw.elemdmgamt, banedmgamt: raw.banedmgamt, banedmgrace: raw.banedmgrace, eleDmgType: raw.elemdmgtype, eleDmgAmt: raw.elemdmgamt, baneDmgAmt: raw.banedmgamt, baneDmgRace: raw.banedmgrace, skillmodtype: raw.skillmodtype, skillmodvalue: raw.skillmodvalue, skillmodType: raw.skillmodType, skillmodValue: raw.skillmodValue };
+        var item = { id: id, Name: raw.Name, name: raw.Name, damage: raw.damage, delay: raw.delay, itemtype: raw.itemtype, slots: raw.slots, classes: raw.classes, lore: raw.lore, proceffect: raw.proceffect, procrate: raw.procrate, proclevel: raw.proclevel, elemdmgtype: raw.elemdmgtype, elemdmgamt: raw.elemdmgamt, banedmgamt: raw.banedmgamt, banedmgbody: raw.banedmgbody, banedmgrace: raw.banedmgrace, eleDmgType: raw.elemdmgtype, eleDmgAmt: raw.elemdmgamt, baneDmgAmt: raw.banedmgamt, baneDmgBody: raw.banedmgbody, baneDmgRace: raw.banedmgrace, skillmodtype: raw.skillmodtype, skillmodvalue: raw.skillmodvalue, skillmodType: raw.skillmodType, skillmodValue: raw.skillmodValue };
         var norm = (typeof ItemSearch !== 'undefined' && ItemSearch.normalizeItemForWeapon) ? ItemSearch.normalizeItemForWeapon(item) : null;
         if (norm && norm.damage >= 1 && norm.delay >= 1) {
           if (norm.backstabModPercent == null) {
@@ -2718,6 +2721,7 @@
           elemType: elemType || undefined,
           elemDamage: elemDamage,
           baneDamage: (raw.banedmgamt != null ? parseInt(raw.banedmgamt, 10) : 0) || 0,
+          baneDamageBody: (raw.banedmgbody != null && !isNaN(parseInt(raw.banedmgbody, 10))) ? parseInt(raw.banedmgbody, 10) : undefined,
           baneDamageRace: (raw.banedmgrace != null ? parseInt(raw.banedmgrace, 10) : 0) || 0,
           type: 'bow'
         };
@@ -2768,7 +2772,7 @@
         if (!raw || typeof raw !== 'object') return null;
         var dmg = parseInt(raw.damage, 10); var dly = parseInt(raw.delay, 10);
         if (isNaN(dmg) || dmg < 1 || isNaN(dly) || dly < 1) return null;
-        var item = { id: id, Name: raw.Name, name: raw.Name, damage: raw.damage, delay: raw.delay, itemtype: raw.itemtype, slots: raw.slots, classes: raw.classes, lore: raw.lore, proceffect: raw.proceffect, procrate: raw.procrate, proclevel: raw.proclevel, elemdmgtype: raw.elemdmgtype, elemdmgamt: raw.elemdmgamt, banedmgamt: raw.banedmgamt, banedmgrace: raw.banedmgrace, eleDmgType: raw.elemdmgtype, eleDmgAmt: raw.elemdmgamt, baneDmgAmt: raw.banedmgamt, baneDmgRace: raw.banedmgrace, skillmodtype: raw.skillmodtype, skillmodvalue: raw.skillmodvalue, skillmodType: raw.skillmodType, skillmodValue: raw.skillmodValue };
+        var item = { id: id, Name: raw.Name, name: raw.Name, damage: raw.damage, delay: raw.delay, itemtype: raw.itemtype, slots: raw.slots, classes: raw.classes, lore: raw.lore, proceffect: raw.proceffect, procrate: raw.procrate, proclevel: raw.proclevel, elemdmgtype: raw.elemdmgtype, elemdmgamt: raw.elemdmgamt, banedmgamt: raw.banedmgamt, banedmgbody: raw.banedmgbody, banedmgrace: raw.banedmgrace, eleDmgType: raw.elemdmgtype, eleDmgAmt: raw.elemdmgamt, baneDmgAmt: raw.banedmgamt, baneDmgBody: raw.banedmgbody, baneDmgRace: raw.banedmgrace, skillmodtype: raw.skillmodtype, skillmodvalue: raw.skillmodvalue, skillmodType: raw.skillmodType, skillmodValue: raw.skillmodValue };
         var norm = (typeof ItemSearch !== 'undefined' && ItemSearch.normalizeItemForWeapon) ? ItemSearch.normalizeItemForWeapon(item) : null;
         if (norm && norm.damage >= 1 && norm.delay >= 1) {
           if (norm.backstabModPercent == null) {
@@ -4522,7 +4526,10 @@
         };
         let rangedReportText = EQCombat.formatRangedReport(report, runs);
         if (window.selectedTargetNpc && window.selectedTargetNpc.name) {
-          rangedReportText = '  Target: ' + String(window.selectedTargetNpc.name).replace(/_/g, ' ') + '\n\n' + rangedReportText;
+          var npc = window.selectedTargetNpc;
+          var npcLevelStr = (npc.level != null && npc.level !== '') ? String(npc.level) : '?';
+          var npcACStr = (npc.AC != null && npc.AC !== '') ? String(npc.AC) : '?';
+          rangedReportText = '  Target: ' + String(npc.name).replace(/_/g, ' ') + ', Level ' + npcLevelStr + ', AC ' + npcACStr + '\n\n' + rangedReportText;
         }
         $('report').textContent = rangedReportText;
         const dpsEl = $('dps-value');
@@ -4933,6 +4940,19 @@
         if (slotLabel) itemSearchDebugSlots[slotLabel] = weapon || null;
         function formatSlotDebug(label, w) {
           if (!w) return 'Slot: ' + label + '\nName: —';
+          const dmg = (w.damage != null && !isNaN(Number(w.damage))) ? Number(w.damage) : null;
+          const dly = (w.delay != null && !isNaN(Number(w.delay))) ? Number(w.delay) : null;
+          const damageLine = 'Damage: ' + (dmg != null ? dmg : '—') + ' / Delay: ' + (dly != null ? dly : '—');
+          const baneAmt = (w.baneDamage != null && !isNaN(Number(w.baneDamage)) && Number(w.baneDamage) > 0) ? Number(w.baneDamage) : null;
+          const baneBody = (w.baneDamageBody != null && !isNaN(Number(w.baneDamageBody))) ? Number(w.baneDamageBody) : null;
+          const baneRace = (w.baneDamageRace != null && !isNaN(Number(w.baneDamageRace))) ? Number(w.baneDamageRace) : null;
+          let baneLine = 'Bane: —';
+          if (baneAmt != null) {
+            var baneParts = [];
+            if (baneBody != null && baneBody > 0) baneParts.push('body ' + baneBody);
+            if (baneRace != null && baneRace > 0) baneParts.push('race ' + baneRace);
+            baneLine = 'Bane: ' + baneAmt + (baneParts.length ? ' (' + baneParts.join(', ') + ')' : '');
+          }
           const apiType = w.itemTypeNum != null ? w.itemTypeNum : '(not set)';
           const mapped = (w.type != null && w.type !== '') ? w.type : '(undefined)';
           const slots = w.slots != null ? w.slots : '(not set)';
@@ -4962,7 +4982,7 @@
             modifiedProcChanceLine = 'Modified proc chance: ' + (gatedChance * 100).toFixed(2) + '% (base ' + (baseChance * 100).toFixed(2) + '% × (100 + ' + procRate + ') / 100' + (levelAllowsProc ? '' : '; blocked by proclevel') + ')';
           }
           const archeryModStr = (label === 'Ranged weapon') ? ('\nArchery mod: ' + ((w.archeryModPercent != null && !isNaN(Number(w.archeryModPercent))) ? (Number(w.archeryModPercent) + '%') : '—')) : '';
-          return 'Slot: ' + label + '\nName: ' + (w.name || '—') + '\nAPI itemType: ' + apiType + '\nMapped type: ' + mapped + '\nSlots bitmask: ' + slots + '\nProc spell name: ' + procName + '\nProceffect: ' + proceffect + '\nProc spell damage: ' + procDmg + '\nProc level: ' + (procLevel != null ? procLevel : '—') + '\nCharacter level check: ' + currentLevel + (levelAllowsProc ? ' (can proc)' : ' (cannot proc)') + '\n' + procChanceLine + '\n' + modifiedProcChanceLine + archeryModStr;
+          return 'Slot: ' + label + '\nName: ' + (w.name || '—') + '\n' + damageLine + '\n' + baneLine + '\nAPI itemType: ' + apiType + '\nMapped type: ' + mapped + '\nSlots bitmask: ' + slots + '\nProc spell name: ' + procName + '\nProceffect: ' + proceffect + '\nProc spell damage: ' + procDmg + '\nProc level: ' + (procLevel != null ? procLevel : '—') + '\nCharacter level check: ' + currentLevel + (levelAllowsProc ? ' (can proc)' : ' (cannot proc)') + '\n' + procChanceLine + '\n' + modifiedProcChanceLine + archeryModStr;
         }
         const parts = [];
         const hasAny = !!(itemSearchDebugSlots.W1 || itemSearchDebugSlots.W2 || itemSearchDebugSlots['Ranged weapon'] || itemSearchDebugSlots.Arrow);
