@@ -1079,6 +1079,10 @@
         <button type="button" id="btn-rank-ranged-weapons" title="Rank bow + arrow combinations by DPS (ranger, bows and arrows only)">Rank weapons</button>
         <label class="checkbox-label"><input type="checkbox" id="rank-ranged-include-pop" title="When checked, rank bows from popweapons.json instead of luclinweapons.json"> Include PoP weapons</label>
       </span>
+      <details id="item-search-debug-ranged" class="item-search-debug" style="margin-top: 0.75rem; padding: 0.5rem; background: var(--panel); border: 1px solid var(--border); border-radius: 4px;">
+        <summary style="cursor: pointer; font-size: 0.85rem; color: var(--muted);">Item search debug</summary>
+        <pre id="item-search-debug-ranged-content" style="margin: 0.5rem 0 0; font-size: 0.8rem; color: var(--muted); white-space: pre-wrap; word-break: break-word;">Select a ranged weapon or arrow from search above to see API itemType and mapped type.</pre>
+      </details>
     </section>
   </div>
   </div>
@@ -4963,7 +4967,10 @@
         const parts = [];
         const hasAny = !!(itemSearchDebugSlots.W1 || itemSearchDebugSlots.W2 || itemSearchDebugSlots['Ranged weapon'] || itemSearchDebugSlots.Arrow);
         if (!hasAny) {
-          el.textContent = 'Select an item from search to see API itemType and mapped type.';
+          const placeholder = 'Select an item from search to see API itemType and mapped type.';
+          el.textContent = placeholder;
+          var rangedDebugEl = $('item-search-debug-ranged-content');
+          if (rangedDebugEl) rangedDebugEl.textContent = 'Select a ranged weapon or arrow from search above to see API itemType and mapped type.';
           return;
         }
         parts.push(formatSlotDebug('W1', itemSearchDebugSlots.W1));
@@ -4977,7 +4984,10 @@
           parts.push('');
           parts.push(formatSlotDebug('Arrow', itemSearchDebugSlots.Arrow));
         }
-        el.textContent = parts.join('\n');
+        const text = parts.join('\n');
+        el.textContent = text;
+        var rangedDebugEl = $('item-search-debug-ranged-content');
+        if (rangedDebugEl) rangedDebugEl.textContent = text;
       }
 
       /** Populate weapon form fields from selected item (JSON/normalized weapon: damage, delay, proc, procDamage, elemType, elemDamage, baneDamage). */
