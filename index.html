@@ -5192,6 +5192,18 @@
         return detail;
       }
 
+      /** For ranged-weapon dropdown: ensure archeryModPercent is set from weaponListData when missing (e.g. old recent or API result). */
+      function ensureRangedWeaponArcheryMod(w) {
+        if (!w || (w.archeryModPercent != null && !isNaN(Number(w.archeryModPercent)))) return w;
+        var id = w.itemId != null ? w.itemId : (w.id != null ? w.id : null);
+        if (id == null || typeof weaponListData === 'undefined' || !weaponListData[String(id)]) return w;
+        var raw = weaponListData[String(id)];
+        if (Number(raw.skillmodtype) !== 7 && Number(raw.skillmodType) !== 7) return w;
+        var sv = raw.skillmodvalue != null ? raw.skillmodvalue : raw.skillmodValue;
+        var v = (typeof sv === 'number') ? sv : parseInt(sv, 10);
+        if (!isNaN(v)) w.archeryModPercent = v;
+        return w;
+      }
       function slotOkForPrefix(prefix, w) {
         if (!w || typeof ItemSearch === 'undefined' || !ItemSearch.itemMatchesSlot) return true;
         if (prefix === 'w1') return ItemSearch.itemMatchesSlot(w, ItemSearch.SLOT_PRIMARY);
@@ -5216,6 +5228,10 @@
         recent = recent || getRecent(prefix);
         recent = recent.filter(function (w) { return slotOkForPrefix(prefix, w) && classOkForSelected(w, prefix); });
         results = results ? results.filter(function (w) { return slotOkForPrefix(prefix, w) && classOkForSelected(w, prefix); }) : [];
+        if (prefix === 'ranged-weapon') {
+          recent = recent.map(function (w) { return ensureRangedWeaponArcheryMod(w); });
+          if (results && results.length) results = results.map(function (w) { return ensureRangedWeaponArcheryMod(w); });
+        }
         const omit2H = prefix === 'w2';
         if (omit2H) {
           const offhandBlockedTypes = { '2hs': 1, '2hp': 1, '2hb': 1, 'archery': 1, 'bow': 1 };
@@ -5306,6 +5322,7 @@
             }
             const inputEl = $(prefix + '-item-search');
             if (prefix === 'ranged-weapon') {
+              ensureRangedWeaponArcheryMod(w);
               saveRecentRangedWeapon(w);
               applyRangedWeaponFromSearch(w);
             } else if (prefix === 'arrow') {
