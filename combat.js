@@ -646,8 +646,10 @@
     const ARCHERY_SKILL_BASE = Math.min(rangerArcheryCap, Math.min(252, rawArchery));
     const archeryAccuracy = options.archeryAccuracy || 'none';
     const archeryAccuracyEffectModifier = !!options.archeryAccuracyEffectModifier;
+    // When Effect Modifier is off: Hawk +10, Falcon +20, Eagle +40 archery skill, capped at 252
+    const ARCHERY_ABSOLUTE_CAP = 252;
     const accuracySkillBonus = (!archeryAccuracyEffectModifier && archeryAccuracy === 'hawk') ? 10 : (!archeryAccuracyEffectModifier && archeryAccuracy === 'falcon') ? 20 : (!archeryAccuracyEffectModifier && archeryAccuracy === 'eagle') ? 40 : 0;
-    const archeryBaseWithAccuracy = Math.min(252, ARCHERY_SKILL_BASE + accuracySkillBonus);
+    const archeryBaseWithAccuracy = Math.min(ARCHERY_ABSOLUTE_CAP, ARCHERY_SKILL_BASE + accuracySkillBonus);
     const archeryModPercent = (bow.archeryModPercent != null && !Number.isNaN(Number(bow.archeryModPercent))) ? Number(bow.archeryModPercent) : 0;
     const ARCHERY_SKILL_MODIFIED = Math.floor(archeryBaseWithAccuracy * (100 + archeryModPercent) / 100);
     const ARCHERY_SKILL_EFFECTIVE = Math.min(252, ARCHERY_SKILL_MODIFIED);
