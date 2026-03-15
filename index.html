@@ -961,10 +961,10 @@
           <label><input type="radio" name="archery-accuracy" value="hawk"> Hawk Eye</label>
           <label><input type="radio" name="archery-accuracy" value="falcon"> Falcon Eye</label>
           <label><input type="radio" name="archery-accuracy" value="eagle"> Eagle Eye</label>
-          <label class="checkbox-label" style="margin-left: 0.5rem;"><input type="checkbox" id="archery-accuracy-effect-modifier" title="When checked: spell adds % improved chance to land a hit after to-hit. When unchecked: spell adds flat Archery skill (Hawk +10, Falcon +20, Eagle +40)."> Effect Modifier</label>
-          <label class="checkbox-label" style="margin-left: 0.5rem;"><input type="checkbox" id="archery-accuracy-effect-modifier-2" title="When checked: Hawk / Falcon / Eagle Eye result in 10% / 20% / 40% fewer misses."> Effect Modifier 2</label>
+          <label class="checkbox-label" style="margin-left: 0.5rem;"><input type="checkbox" id="archery-accuracy-effect-modifier" title="When checked: Hawk/Falcon/Eagle Eye use server HitChanceEffect-style toHit percent (+10% / +20% / +40%) before one hit roll. When unchecked: spell adds flat Archery skill (Hawk +10, Falcon +20, Eagle +40)."> Effect Modifier</label>
+          <label class="checkbox-label" style="margin-left: 0.5rem;"><input type="checkbox" id="archery-accuracy-effect-modifier-2" title="When checked: same as Effect Modifier — toHit percent (+10% / +20% / +40%), single roll (server-style)."> Effect Modifier 2</label>
         </div>
-        <p class="hint">Hawk / Falcon / Eagle Eye: without Effect Modifier they add 10 / 20 / 40 Archery skill. With Effect Modifier they add 10% / 20% / 40% improved chance to land a hit after the standard to-hit roll. With Effect Modifier 2: 10% / 20% / 40% fewer misses (Hawk / Falcon / Eagle).</p>
+        <p class="hint">Hawk / Falcon / Eagle Eye: without modifiers they add 10 / 20 / 40 Archery skill. With Effect Modifier or Effect Modifier 2 they use the server’s HitChanceEffect-style toHit percent (Hawk +10%, Falcon +20%, Eagle +40%) before a single hit roll.</p>
         <div class="char-field char-field-num"><label for="ranged-archery-skill" class="small-label">Archery level</label><input type="number" id="ranged-archery-skill" min="0" max="240" value="240" placeholder="240"></div>
         <p class="hint" style="margin-top: 0.5rem;">Archery skill (0–cap). Ranger cap = min(240, level×4); autoscales with level.</p>
         <div id="ranged-archery-mod-note" class="hint" style="display: none;"></div>

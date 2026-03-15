@@ -18,10 +18,9 @@
   // toHit += 10, avoidance += 10
   // if (toHit * 1.21 > avoidance) hitChance = 1.0 - avoidance / (toHit * 1.21 * 2.0)
   // else hitChance = toHit * 1.21 / (avoidance * 2.0)
-  // Cap effective toHit so very high attack values don't overstate hit rate (avoidance causes misses).
-  const TO_HIT_CAP_FOR_AVOIDANCE = 550;
+  // No cap on toHit (matches server AvoidanceCheck; Eagle Eye / high skill can exceed 550).
   function getHitChance(toHit, avoidance) {
-    const effectiveToHit = Math.min(toHit != null ? toHit : 400, TO_HIT_CAP_FOR_AVOIDANCE);
+    const effectiveToHit = toHit != null ? toHit : 400;
     const a = effectiveToHit + 10;
     const b = (avoidance != null ? avoidance : 460) + 10;
     if (a * 1.21 > b) {
@@ -647,17 +646,17 @@
     const archeryAccuracy = options.archeryAccuracy || 'none';
     const archeryAccuracyEffectModifier = !!options.archeryAccuracyEffectModifier;
     const archeryAccuracyEffectModifier2 = !!options.archeryAccuracyEffectModifier2;
-    // When Effect Modifier is off (and Effect Modifier 2 off): Hawk +10, Falcon +20, Eagle +40 archery skill, capped at 252
+    // When Effect Modifier and Effect Modifier 2 are both off: Hawk +10, Falcon +20, Eagle +40 archery skill, capped at 252. When either is on: toHit percent modifier (HitChanceEffect), single roll.
     const ARCHERY_ABSOLUTE_CAP = 252;
     const accuracySkillBonus = (!archeryAccuracyEffectModifier && !archeryAccuracyEffectModifier2 && archeryAccuracy === 'hawk') ? 10 : (!archeryAccuracyEffectModifier && !archeryAccuracyEffectModifier2 && archeryAccuracy === 'falcon') ? 20 : (!archeryAccuracyEffectModifier && !archeryAccuracyEffectModifier2 && archeryAccuracy === 'eagle') ? 40 : 0;
     const archeryBaseWithAccuracy = Math.min(ARCHERY_ABSOLUTE_CAP, ARCHERY_SKILL_BASE + accuracySkillBonus);
     const archeryModPercent = (bow.archeryModPercent != null && !Number.isNaN(Number(bow.archeryModPercent))) ? Number(bow.archeryModPercent) : 0;
     const ARCHERY_SKILL_MODIFIED = Math.floor(archeryBaseWithAccuracy * (100 + archeryModPercent) / 100);
     const ARCHERY_SKILL_EFFECTIVE = Math.min(252, ARCHERY_SKILL_MODIFIED);
-    const toHit = 7 + OFFENSE_SKILL + ARCHERY_SKILL_EFFECTIVE;
-    const accuracyHitChanceBonus = (archeryAccuracyEffectModifier && archeryAccuracy === 'hawk') ? 0.10 : (archeryAccuracyEffectModifier && archeryAccuracy === 'falcon') ? 0.20 : (archeryAccuracyEffectModifier && archeryAccuracy === 'eagle') ? 0.40 : 0;
-    // Effect Modifier 2: 10/20/40% fewer misses (Hawk/Falcon/Eagle) — that fraction of misses are converted to hits
-    const accuracyMissSalvageChance = (archeryAccuracyEffectModifier2 && archeryAccuracy === 'hawk') ? 0.10 : (archeryAccuracyEffectModifier2 && archeryAccuracy === 'falcon') ? 0.20 : (archeryAccuracyEffectModifier2 && archeryAccuracy === 'eagle') ? 0.40 : 0;
+    const baseToHit = 7 + OFFENSE_SKILL + ARCHERY_SKILL_EFFECTIVE;
+    // Effect Modifier / Effect Modifier 2: server HitChanceEffect-style toHit percent (Hawk +10%, Falcon +20%, Eagle +40%). Single roll, no salvage.
+    const accuracyToHitPct = (archeryAccuracyEffectModifier || archeryAccuracyEffectModifier2) && archeryAccuracy === 'hawk' ? 10 : (archeryAccuracyEffectModifier || archeryAccuracyEffectModifier2) && archeryAccuracy === 'falcon' ? 20 : (archeryAccuracyEffectModifier || archeryAccuracyEffectModifier2) && archeryAccuracy === 'eagle' ? 40 : 0;
+    const toHit = accuracyToHitPct > 0 ? Math.floor(baseToHit * (100 + accuracyToHitPct) / 100) : baseToHit;
     const trueshot = !!options.trueshot;
     const TRUESHOT_DURATION_MS = 120000;
     const durationMs = Math.floor(options.fightDurationSec * 1000);
@@ -666,7 +665,8 @@
       : 0;
     const trueshotEndMs = trueshot ? (trueshotStartMs + Math.min(TRUESHOT_DURATION_MS, durationMs)) : 0;
     const archerySkillTrueshot = Math.min(252, Math.floor(ARCHERY_SKILL_EFFECTIVE * 1.12));
-    const toHitTrueshot = 7 + OFFENSE_SKILL + archerySkillTrueshot;
+    const baseToHitTrueshot = 7 + OFFENSE_SKILL + archerySkillTrueshot;
+    const toHitTrueshot = accuracyToHitPct > 0 ? Math.floor(baseToHitTrueshot * (100 + accuracyToHitPct) / 100) : baseToHitTrueshot;
     let offenseRating = OFFENSE_SKILL + dexBonus + wornAttack + spellAttack;
     if (offenseRating < 1) offenseRating = 1;
     const rangerOffenseBonus = (options.classId === 'ranger' && level > 54) ? (level * 4 - 216) : 0;
@@ -782,8 +782,6 @@
         }
       }
       let hit = rollHit(currentToHit, avoidance, rng, true);
-      const salvageChance = accuracyMissSalvageChance || accuracyHitChanceBonus;
-      if (!hit && salvageChance > 0 && rng() < salvageChance) hit = true;
       if (!hit) {
         nextRangedAtMs += delayMs;
         if (procDamageThisShot > 0) {
