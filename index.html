@@ -4722,8 +4722,7 @@
         var cap = getRangerArcheryCap(level);
         archeryEl.max = cap;
         archeryEl.placeholder = String(cap);
-        var val = parseInt(archeryEl.value, 10);
-        if (!isNaN(val) && val > cap) archeryEl.value = String(cap);
+        archeryEl.value = String(cap);
       }
       var rangedLevelEl = $('ranged-level');
       if (rangedLevelEl) {
