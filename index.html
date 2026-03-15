@@ -5138,7 +5138,15 @@
         var rangedBaneBodyEl = $('ranged-bane-body');
         if (rangedBaneBodyEl) rangedBaneBodyEl.value = (weapon.baneDamageBody != null && !isNaN(Number(weapon.baneDamageBody))) ? String(Math.floor(weapon.baneDamageBody)) : '';
         var rangedArcheryModEl = $('ranged-archery-mod');
-        if (rangedArcheryModEl) rangedArcheryModEl.value = (weapon.archeryModPercent != null && !isNaN(Number(weapon.archeryModPercent))) ? String(Math.floor(Number(weapon.archeryModPercent))) : '0';
+        if (rangedArcheryModEl) {
+          var archeryModVal = (weapon.archeryModPercent != null && !isNaN(Number(weapon.archeryModPercent))) ? Number(weapon.archeryModPercent) : null;
+          if (archeryModVal == null && (Number(weapon.skillmodtype) === 7 || Number(weapon.skillmodType) === 7)) {
+            var sv = weapon.skillmodvalue != null ? weapon.skillmodvalue : weapon.skillmodValue;
+            var v = (typeof sv === 'number') ? sv : parseInt(sv, 10);
+            if (!isNaN(v)) archeryModVal = v;
+          }
+          rangedArcheryModEl.value = (archeryModVal != null && !isNaN(archeryModVal)) ? String(Math.floor(archeryModVal)) : '0';
+        }
         rangedWeaponDisplayName = (weapon.name || '').trim() || 'Custom';
         rangedFromItemSearch = true;
         updateWeaponIcon('ranged-weapon', weapon.icon != null ? Number(weapon.icon) : null);
@@ -5359,8 +5367,26 @@
           if (mask && classes != null && !isNaN(classes) && (classes & mask) === 0) return;
           raw.push(Object.assign({}, item));
         });
-        if (typeof ItemSearch === 'undefined' || !ItemSearch.normalizeItemForWeapon) return Promise.resolve(raw);
-        var results = raw.map(function (item) { return ItemSearch.normalizeItemForWeapon(item); }).filter(Boolean);
+        var skillmodType7 = function (it) { var st = it.skillmodtype != null ? it.skillmodtype : it.skillmodType; return (Number(st) === 7); };
+        var skillmodValNum = function (it) { var sv = it.skillmodvalue != null ? it.skillmodvalue : it.skillmodValue; var v = (typeof sv === 'number') ? sv : parseInt(sv, 10); return isNaN(v) ? null : v; };
+        if (typeof ItemSearch === 'undefined' || !ItemSearch.normalizeItemForWeapon) {
+          raw.forEach(function (item) {
+            if (item.archeryModPercent != null) return;
+            if (!skillmodType7(item)) return;
+            var v = skillmodValNum(item);
+            if (v != null) item.archeryModPercent = v;
+          });
+          return Promise.resolve(raw);
+        }
+        var results = raw.map(function (item) {
+          var norm = ItemSearch.normalizeItemForWeapon(item);
+          if (!norm) return null;
+          if (norm.archeryModPercent == null && skillmodType7(item)) {
+            var v = skillmodValNum(item);
+            if (v != null) norm.archeryModPercent = v;
+          }
+          return norm;
+        }).filter(Boolean);
         return Promise.resolve(results);
       }
       function runItemSearch(prefix) {
