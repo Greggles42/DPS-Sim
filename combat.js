@@ -656,7 +656,7 @@
     const ARCHERY_SKILL_EFFECTIVE = Math.min(252, ARCHERY_SKILL_MODIFIED);
     const toHit = 7 + OFFENSE_SKILL + ARCHERY_SKILL_EFFECTIVE;
     const accuracyHitChanceBonus = (archeryAccuracyEffectModifier && archeryAccuracy === 'hawk') ? 0.10 : (archeryAccuracyEffectModifier && archeryAccuracy === 'falcon') ? 0.20 : (archeryAccuracyEffectModifier && archeryAccuracy === 'eagle') ? 0.40 : 0;
-    // Effect Modifier 2: X% of misses are converted to hits (Hawk 10%, Falcon 20%, Eagle 40%)
+    // Effect Modifier 2: 10/20/40% fewer misses (Hawk/Falcon/Eagle) — that fraction of misses are converted to hits
     const accuracyMissSalvageChance = (archeryAccuracyEffectModifier2 && archeryAccuracy === 'hawk') ? 0.10 : (archeryAccuracyEffectModifier2 && archeryAccuracy === 'falcon') ? 0.20 : (archeryAccuracyEffectModifier2 && archeryAccuracy === 'eagle') ? 0.40 : 0;
     const trueshot = !!options.trueshot;
     const TRUESHOT_DURATION_MS = 120000;

@@ -962,9 +962,9 @@
           <label><input type="radio" name="archery-accuracy" value="falcon"> Falcon Eye</label>
           <label><input type="radio" name="archery-accuracy" value="eagle"> Eagle Eye</label>
           <label class="checkbox-label" style="margin-left: 0.5rem;"><input type="checkbox" id="archery-accuracy-effect-modifier" title="When checked: spell adds % improved chance to land a hit after to-hit. When unchecked: spell adds flat Archery skill (Hawk +10, Falcon +20, Eagle +40)."> Effect Modifier</label>
-          <label class="checkbox-label" style="margin-left: 0.5rem;"><input type="checkbox" id="archery-accuracy-effect-modifier-2" title="When checked: X% of shots that would have missed instead land (Hawk 10%, Falcon 20%, Eagle 40%)."> Effect Modifier 2</label>
+          <label class="checkbox-label" style="margin-left: 0.5rem;"><input type="checkbox" id="archery-accuracy-effect-modifier-2" title="When checked: Hawk / Falcon / Eagle Eye result in 10% / 20% / 40% fewer misses."> Effect Modifier 2</label>
         </div>
-        <p class="hint">Hawk / Falcon / Eagle Eye: without Effect Modifier they add 10 / 20 / 40 Archery skill. With Effect Modifier they add 10% / 20% / 40% improved chance to land a hit after the standard to-hit roll. With Effect Modifier 2: 10% / 20% / 40% of misses are converted to hits.</p>
+        <p class="hint">Hawk / Falcon / Eagle Eye: without Effect Modifier they add 10 / 20 / 40 Archery skill. With Effect Modifier they add 10% / 20% / 40% improved chance to land a hit after the standard to-hit roll. With Effect Modifier 2: 10% / 20% / 40% fewer misses (Hawk / Falcon / Eagle).</p>
         <div class="char-field char-field-num"><label for="ranged-archery-skill" class="small-label">Archery level</label><input type="number" id="ranged-archery-skill" min="0" max="240" value="240" placeholder="240"></div>
         <p class="hint" style="margin-top: 0.5rem;">Archery skill (0–cap). Ranger cap = min(240, level×4); autoscales with level.</p>
         <div id="ranged-archery-mod-note" class="hint" style="display: none;"></div>
@@ -4957,16 +4957,10 @@
           const dmg = (w.damage != null && !isNaN(Number(w.damage))) ? Number(w.damage) : null;
           const dly = (w.delay != null && !isNaN(Number(w.delay))) ? Number(w.delay) : null;
           const damageLine = 'Damage: ' + (dmg != null ? dmg : '—') + ' / Delay: ' + (dly != null ? dly : '—');
-          const baneAmt = (w.baneDamage != null && !isNaN(Number(w.baneDamage)) && Number(w.baneDamage) > 0) ? Number(w.baneDamage) : null;
+          const baneAmt = (w.baneDamage != null && !isNaN(Number(w.baneDamage))) ? Number(w.baneDamage) : null;
           const baneBody = (w.baneDamageBody != null && !isNaN(Number(w.baneDamageBody))) ? Number(w.baneDamageBody) : null;
           const baneRace = (w.baneDamageRace != null && !isNaN(Number(w.baneDamageRace))) ? Number(w.baneDamageRace) : null;
-          let baneLine = 'Bane: —';
-          if (baneAmt != null) {
-            var baneParts = [];
-            if (baneBody != null && baneBody > 0) baneParts.push('body ' + baneBody);
-            if (baneRace != null && baneRace > 0) baneParts.push('race ' + baneRace);
-            baneLine = 'Bane: ' + baneAmt + (baneParts.length ? ' (' + baneParts.join(', ') + ')' : '');
-          }
+          const baneLine = 'Bane amount: ' + (baneAmt != null ? baneAmt : '—') + ', Bane body: ' + (baneBody != null ? baneBody : '—') + ', Bane race: ' + (baneRace != null ? baneRace : '—');
           const apiType = w.itemTypeNum != null ? w.itemTypeNum : '(not set)';
           const mapped = (w.type != null && w.type !== '') ? w.type : '(undefined)';
           const slots = w.slots != null ? w.slots : '(not set)';
@@ -4998,6 +4992,21 @@
           const archeryModStr = (label === 'Ranged weapon') ? ('\nArchery mod: ' + ((w.archeryModPercent != null && !isNaN(Number(w.archeryModPercent))) ? (Number(w.archeryModPercent) + '%') : '—')) : '';
           return 'Slot: ' + label + '\nName: ' + (w.name || '—') + '\n' + damageLine + '\n' + baneLine + '\nAPI itemType: ' + apiType + '\nMapped type: ' + mapped + '\nSlots bitmask: ' + slots + '\nProc spell name: ' + procName + '\nProceffect: ' + proceffect + '\nProc spell damage: ' + procDmg + '\nProc level: ' + (procLevel != null ? procLevel : '—') + '\nCharacter level check: ' + currentLevel + (levelAllowsProc ? ' (can proc)' : ' (cannot proc)') + '\n' + procChanceLine + '\n' + modifiedProcChanceLine + archeryModStr;
         }
+        function weaponWithFormBane(prefix, weapon) {
+          if (!weapon) return weapon;
+          var baneEl = $(prefix + '-bane');
+          var bodyEl = $(prefix + '-bane-body');
+          var raceEl = $(prefix + '-bane-race');
+          var amt = baneEl && baneEl.value !== '' ? (parseInt(baneEl.value, 10)) : undefined;
+          var body = bodyEl && bodyEl.value !== '' ? (parseInt(bodyEl.value, 10)) : undefined;
+          var race = raceEl && raceEl.value !== '' ? (parseInt(raceEl.value, 10)) : undefined;
+          if (amt === undefined && body === undefined && race === undefined) return weapon;
+          var merged = Object.assign({}, weapon);
+          if (amt !== undefined && !isNaN(amt)) merged.baneDamage = amt;
+          if (body !== undefined && !isNaN(body)) merged.baneDamageBody = body;
+          if (race !== undefined && !isNaN(race)) merged.baneDamageRace = race;
+          return merged;
+        }
         const parts = [];
         const hasAny = !!(itemSearchDebugSlots.W1 || itemSearchDebugSlots.W2 || itemSearchDebugSlots['Ranged weapon'] || itemSearchDebugSlots.Arrow);
         if (!hasAny) {
@@ -5007,12 +5016,27 @@
           if (rangedDebugEl) rangedDebugEl.textContent = 'Select a ranged weapon or arrow from search above to see API itemType and mapped type.';
           return;
         }
-        parts.push(formatSlotDebug('W1', itemSearchDebugSlots.W1));
+        parts.push(formatSlotDebug('W1', weaponWithFormBane('w1', itemSearchDebugSlots.W1)));
         parts.push('');
-        parts.push(formatSlotDebug('W2', itemSearchDebugSlots.W2));
+        parts.push(formatSlotDebug('W2', weaponWithFormBane('w2', itemSearchDebugSlots.W2)));
         if (itemSearchDebugSlots['Ranged weapon']) {
           parts.push('');
-          parts.push(formatSlotDebug('Ranged weapon', itemSearchDebugSlots['Ranged weapon']));
+          var rangedW = itemSearchDebugSlots['Ranged weapon'];
+          var rangedBaneEl = $('ranged-bane');
+          var rangedBodyEl = $('ranged-bane-body');
+          var rangedRaceEl = $('ranged-bane-race');
+          if (rangedW && (rangedBaneEl || rangedBodyEl || rangedRaceEl)) {
+            var rAmt = rangedBaneEl && rangedBaneEl.value !== '' ? parseInt(rangedBaneEl.value, 10) : undefined;
+            var rBody = rangedBodyEl && rangedBodyEl.value !== '' ? parseInt(rangedBodyEl.value, 10) : undefined;
+            var rRace = rangedRaceEl && rangedRaceEl.value !== '' ? parseInt(rangedRaceEl.value, 10) : undefined;
+            if (rAmt !== undefined || rBody !== undefined || rRace !== undefined) {
+              rangedW = Object.assign({}, rangedW);
+              if (rAmt !== undefined && !isNaN(rAmt)) rangedW.baneDamage = rAmt;
+              if (rBody !== undefined && !isNaN(rBody)) rangedW.baneDamageBody = rBody;
+              if (rRace !== undefined && !isNaN(rRace)) rangedW.baneDamageRace = rRace;
+            }
+          }
+          parts.push(formatSlotDebug('Ranged weapon', rangedW));
         }
         if (itemSearchDebugSlots.Arrow) {
           parts.push('');
