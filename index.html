@@ -2064,15 +2064,19 @@
           var n = parseInt(id, 10);
           return isNaN(n) ? null : n;
         })();
-        // Targets with special_abilities 1^22 (immune to bane): only the matching bane can damage. Lord Inquisitor Seru (159000) = Seru body bane only; Emperor Ssraeshza (162065) = Shissar race bane only.
-        var BANE_ONLY_TARGETS = { 162065: { type: 'race', value: 217 }, 159000: { type: 'body', value: 16 } };
+        // Targets with special_abilities 1^22 (immune to bane): only the matching bane can damage. Lord Inquisitor Seru (159000) = Seru body 16 or race 236; Emperor Ssraeshza (162065) = Shissar race bane only.
+        var BANE_ONLY_TARGETS = { 162065: { type: 'race', value: 217 }, 159000: [{ type: 'body', value: 16 }, { type: 'race', value: 236 }] };
+        function baneMatchesReq(weapon, req) {
+          return (req.type === 'race' && weapon.baneDamageRace === req.value && weapon.baneDamage > 0) ||
+            (req.type === 'body' && weapon.baneDamageBody === req.value && weapon.baneDamage > 0);
+        }
         function applyBaneForTarget(weapon, isTargetSelected) {
           if (!weapon || !isTargetSelected) return;
           var npcId = targetNpcId;
           var req = npcId != null ? BANE_ONLY_TARGETS[npcId] : null;
           if (req) {
-            var hasBane = (req.type === 'race' && weapon.baneDamageRace === req.value && weapon.baneDamage > 0) ||
-              (req.type === 'body' && weapon.baneDamageBody === req.value && weapon.baneDamage > 0);
+            var reqs = Array.isArray(req) ? req : [req];
+            var hasBane = reqs.some(function (r) { return baneMatchesReq(weapon, r); });
             if (hasBane) {
               if (weapon.baneDamage) weapon.damage += weapon.baneDamage;
             } else {
@@ -4384,15 +4388,18 @@
           var bn = parseInt(bt, 10);
           return isNaN(bn) ? null : bn;
         })();
-        // Same as BANE_ONLY_TARGETS: 1^22 immune to bane; only Seru bane damages Seru, only Shissar bane damages Emperor Ssraeshza.
-        var RANGED_BANE_ONLY_TARGETS = { 162065: { type: 'race', value: 217 }, 159000: { type: 'body', value: 16 } };
+        // Same as BANE_ONLY_TARGETS: 1^22 immune to bane; Seru (159000) accepts body 16 or race 236; Emperor Ssraeshza = Shissar race only.
+        var RANGED_BANE_ONLY_TARGETS = { 162065: { type: 'race', value: 217 }, 159000: [{ type: 'body', value: 16 }, { type: 'race', value: 236 }] };
         var rangedTargetSelected = rangedTargetNpcId != null || rangedTargetRace != null || rangedTargetBodyType != null;
         var rangedNoDamageVsTarget = false;
         if (rangedTargetSelected) {
           var req = rangedTargetNpcId != null ? RANGED_BANE_ONLY_TARGETS[rangedTargetNpcId] : null;
           if (req) {
-            var hasBane = (req.type === 'race' && rangedBaneRace === req.value && rangedBane > 0) ||
-              (req.type === 'body' && rangedBaneBody === req.value && rangedBane > 0);
+            var reqs = Array.isArray(req) ? req : [req];
+            var hasBane = reqs.some(function (r) {
+              return (r.type === 'race' && rangedBaneRace === r.value && rangedBane > 0) ||
+                (r.type === 'body' && rangedBaneBody === r.value && rangedBane > 0);
+            });
             if (hasBane) damage += rangedBane; else { damage = 0; rangedNoDamageVsTarget = true; }
           } else {
             var raceMatch = rangedTargetRace != null && rangedBaneRace != null && rangedBaneRace === rangedTargetRace && rangedBane > 0;
