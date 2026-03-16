@@ -3350,6 +3350,7 @@
             var p1 = rankWeaponMap[row.primaryId];
             var is2H = !!(p1.is2H || (p1.type && offhandBlockedTypes[p1.type]));
             var w1 = normalizedToWeapon1(p1, applyBane);
+            applyBaneOnlyForRankWeapon(w1, p1);
             var skillKey = skillKeyForCap(p1.type, is2H);
             var weaponSkillForToHit = WeaponSkillCaps.getCapForSimClass(classId, skillKey, level) || 252;
             var opts = Object.assign({}, baseOptions, {
@@ -3378,6 +3379,7 @@
               };
               if (p2.procBuffDurationTicks != null && p2.procBuffDurationTicks > 0)
                 opts.weapon2.procBuffDurationTicks = p2.procBuffDurationTicks;
+              applyBaneOnlyForRankWeapon(opts.weapon2, p2);
               opts.dualWieldSkill = dualWieldSkillForm;
               opts.wornAttack = (baseOptions.wornAttack || 0) + getWornAttackBonusForNorm(p1) + getWornAttackBonusForNorm(p2);
               opts.backstabModPercent = classId === 'rogue' ? Math.max(formBackstabModPercent, getBackstabModPercentForNorm(p1), getBackstabModPercentForNorm(p2)) : undefined;
