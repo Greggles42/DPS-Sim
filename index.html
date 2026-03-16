@@ -2972,6 +2972,30 @@
         };
         var formBackstabModPercent = 0;
         const offhandBlockedTypes = { '2hb': 1, '2hs': 1, '2hp': 1, 'archery': 1, 'bow': 1 };
+        var rankTargetNpcId = (function () {
+          var npc = window.selectedTargetNpc;
+          if (!npc || typeof npc !== 'object') return null;
+          var id = npc.id != null ? npc.id : (npc.id === 0 ? 0 : null);
+          if (id == null && id !== 0) return null;
+          var n = parseInt(id, 10);
+          return isNaN(n) ? null : n;
+        })();
+        var RANK_BANE_ONLY_TARGETS = { 162065: { type: 'race', value: 217 }, 159000: [{ type: 'body', value: 16 }, { type: 'race', value: 236 }] };
+        function rankBaneMatchesReq(norm, req) {
+          return (req.type === 'race' && norm.baneDamageRace === req.value && (norm.baneDamage || 0) > 0) ||
+            (req.type === 'body' && norm.baneDamageBody === req.value && (norm.baneDamage || 0) > 0);
+        }
+        function applyBaneOnlyForRankWeapon(weaponObj, norm) {
+          if (!weaponObj || rankTargetNpcId == null) return;
+          var req = RANK_BANE_ONLY_TARGETS[rankTargetNpcId];
+          if (!req) return;
+          var reqs = Array.isArray(req) ? req : [req];
+          var hasBane = reqs.some(function (r) { return rankBaneMatchesReq(norm, r); });
+          if (!hasBane) {
+            weaponObj.damage = 0;
+            weaponObj.noDamageVsTarget = true;
+          }
+        }
         if (USAGE_LOG_URL) {
           logUsage({
             event: 'rank_weapons',
@@ -3087,6 +3111,7 @@
               var p = rankWeaponMap[id];
               var is2H = !!(p.is2H || (p.type && offhandBlockedTypes[p.type]));
               var w1 = normalizedToWeapon1(p, applyBane);
+              applyBaneOnlyForRankWeapon(w1, p);
               var skillKey = skillKeyForCap(p.type, is2H);
               var weaponSkillForToHit = WeaponSkillCaps.getCapForSimClass(classId, skillKey, level) || 252;
               var options = Object.assign({}, baseOptions, {
@@ -3116,6 +3141,7 @@
             end = Math.min(simIndex + chunkSize, secondaryWeapons.length);
             var refNorm = rankWeaponMap[refMainId];
             var refW1 = normalizedToWeapon1(refNorm, applyBane);
+            applyBaneOnlyForRankWeapon(refW1, refNorm);
             var refSkillKey = skillKeyForCap(refNorm.type, false);
             var refWeaponSkillForToHit = WeaponSkillCaps.getCapForSimClass(classId, refSkillKey, level) || 252;
             for (; simIndex < end; simIndex++) {
@@ -3135,6 +3161,7 @@
               };
               if (p2.procBuffDurationTicks != null && p2.procBuffDurationTicks > 0)
                 w2.procBuffDurationTicks = p2.procBuffDurationTicks;
+              applyBaneOnlyForRankWeapon(w2, p2);
               var opts = Object.assign({}, baseOptions, {
                 weapon1: refW1,
                 weapon2: w2,
