@@ -961,10 +961,8 @@
           <label><input type="radio" name="archery-accuracy" value="hawk"> Hawk Eye</label>
           <label><input type="radio" name="archery-accuracy" value="falcon"> Falcon Eye</label>
           <label><input type="radio" name="archery-accuracy" value="eagle"> Eagle Eye</label>
-          <label class="checkbox-label" style="margin-left: 0.5rem;"><input type="checkbox" id="archery-accuracy-effect-modifier" title="When checked: Hawk/Falcon/Eagle Eye use server HitChanceEffect-style toHit percent (+10% / +20% / +40%) before one hit roll. When unchecked: spell adds flat Archery skill (Hawk +10, Falcon +20, Eagle +40)."> Effect Modifier</label>
-          <label class="checkbox-label" style="margin-left: 0.5rem;"><input type="checkbox" id="archery-accuracy-effect-modifier-2" title="When checked: same as Effect Modifier — toHit percent (+10% / +20% / +40%), single roll (server-style)."> Effect Modifier 2</label>
         </div>
-        <p class="hint">Hawk / Falcon / Eagle Eye: without modifiers they add 10 / 20 / 40 Archery skill. With Effect Modifier or Effect Modifier 2 they use the server’s HitChanceEffect-style toHit percent (Hawk +10%, Falcon +20%, Eagle +40%) before a single hit roll.</p>
+        <p class="hint">Hawk / Falcon / Eagle Eye use the server’s HitChanceEffect-style toHit percent (Hawk +10%, Falcon +20%, Eagle +40%) before a single hit roll.</p>
         <div class="char-field char-field-num"><label for="ranged-archery-skill" class="small-label">Archery level</label><input type="number" id="ranged-archery-skill" min="0" max="240" value="240" placeholder="240"></div>
         <p class="hint" style="margin-top: 0.5rem;">Archery skill (0–cap). Ranger cap = min(240, level×4); autoscales with level.</p>
         <div id="ranged-archery-mod-note" class="hint" style="display: none;"></div>
@@ -1872,7 +1870,11 @@
           if (elemDamageEl) elemDamageEl.value = (p.elemDamage != null ? p.elemDamage : 0) || '';
           const baneEl = $(prefix + '-bane');
           if (baneEl) {
-            var baneAmt = (p && p.baneDamage != null) ? p.baneDamage : (raw && (raw.banedmgamt != null || raw.baneDmgAmt != null) ? (raw.banedmgamt != null ? Number(raw.banedmgamt) : Number(raw.baneDmgAmt)) : null);
+            var baneAmt = (p && p.baneDamage != null && !isNaN(Number(p.baneDamage))) ? Number(p.baneDamage) : null;
+            if (baneAmt == null && raw && typeof raw === 'object') {
+              var rawAmt = raw.banedmgamt != null ? raw.banedmgamt : (raw.baneDmgAmt != null ? raw.baneDmgAmt : (raw.baneDamage != null ? raw.baneDamage : (raw.BaneDmgAmt != null ? raw.BaneDmgAmt : (raw.bane_damage_amt != null ? raw.bane_damage_amt : null))));
+              baneAmt = (rawAmt != null && rawAmt !== '') ? Number(rawAmt) : null;
+            }
             baneEl.value = (baneAmt != null && !isNaN(baneAmt)) ? String(Math.floor(baneAmt)) : '0';
           }
           const baneBodyEl = $(prefix + '-bane-body');
@@ -2592,10 +2594,20 @@
         if (!raw || typeof raw !== 'object') return 0;
         return getWornAttackBonusFromRawItem(raw);
       }
+      function getItemBaneAmountById(itemId) {
+        if (itemId == null || itemId === '') return null;
+        var id = String(itemId);
+        var raw = (weaponListData && weaponListData[id]) || (luclinWeaponsData && luclinWeaponsData[id]) || (popWeaponsData && popWeaponsData[id]) || (typeof procRatesByItemId !== 'undefined' && procRatesByItemId && procRatesByItemId[id]) || null;
+        if (!raw || typeof raw !== 'object') return null;
+        var amt = raw.banedmgamt != null ? raw.banedmgamt : (raw.baneDmgAmt != null ? raw.baneDmgAmt : (raw.baneDamage != null ? raw.baneDamage : (raw.BaneDmgAmt != null ? raw.BaneDmgAmt : (raw.bane_damage_amt != null ? raw.bane_damage_amt : null))));
+        if (amt == null || amt === '') return null;
+        var n = parseInt(amt, 10);
+        return isNaN(n) ? null : n;
+      }
       function getItemBaneRaceById(itemId) {
         if (itemId == null || itemId === '') return null;
         var id = String(itemId);
-        var raw = (weaponListData && weaponListData[id]) || (luclinWeaponsData && luclinWeaponsData[id]) || (popWeaponsData && popWeaponsData[id]) || null;
+        var raw = (weaponListData && weaponListData[id]) || (luclinWeaponsData && luclinWeaponsData[id]) || (popWeaponsData && popWeaponsData[id]) || (typeof procRatesByItemId !== 'undefined' && procRatesByItemId && procRatesByItemId[id]) || null;
         if (!raw || typeof raw !== 'object') return null;
         var rr = raw.banedamagerace != null ? raw.banedamagerace : (raw.banedmgrace != null ? raw.banedmgrace : (raw.baneDamageRace != null ? raw.baneDamageRace : null));
         if (rr == null || rr === '') return null;
@@ -2605,7 +2617,7 @@
       function getItemBaneBodyById(itemId) {
         if (itemId == null || itemId === '') return null;
         var id = String(itemId);
-        var raw = (weaponListData && weaponListData[id]) || (luclinWeaponsData && luclinWeaponsData[id]) || (popWeaponsData && popWeaponsData[id]) || null;
+        var raw = (weaponListData && weaponListData[id]) || (luclinWeaponsData && luclinWeaponsData[id]) || (popWeaponsData && popWeaponsData[id]) || (typeof procRatesByItemId !== 'undefined' && procRatesByItemId && procRatesByItemId[id]) || null;
         if (!raw || typeof raw !== 'object') return null;
         var bb = raw.banedmgbody !== undefined && raw.banedmgbody !== null ? raw.banedmgbody : (raw.baneDamageBody !== undefined && raw.baneDamageBody !== null ? raw.baneDamageBody : null);
         if (bb === null || bb === undefined || bb === '') return null;
@@ -3493,8 +3505,6 @@
           dex: 255,
           archeryMastery: parseInt(document.querySelector('input[name="archery-mastery"]:checked').value, 10) || 3,
           archeryAccuracy: (document.querySelector('input[name="archery-accuracy"]:checked') || {}).value || 'none',
-          archeryAccuracyEffectModifier: !!($('archery-accuracy-effect-modifier') && $('archery-accuracy-effect-modifier').checked),
-          archeryAccuracyEffectModifier2: !!($('archery-accuracy-effect-modifier-2') && $('archery-accuracy-effect-modifier-2').checked),
           mobStationary: $('mob-stationary').checked,
           trueshot: $('trueshot').checked,
           classId: 'ranger',
@@ -3685,7 +3695,7 @@
               $('report').innerHTML =
                 '<pre style="margin:0;">' + linesSlot.join('\n') + '</pre>' +
                 bowTableHtml +
-                '<pre style="margin-top:0.75rem; margin-bottom:0;">' + arrowHeadingLine + '\n' + arrowDescriptionLine + '</pre>' +
+                '<pre style="margin-top:0.75rem; margin-bottom:0; white-space:pre-wrap; overflow-wrap:break-word; max-width:100%;">' + arrowHeadingLine + '\n' + arrowDescriptionLine + '</pre>' +
                 arrowTableHtml;
               return;
             }
@@ -4455,8 +4465,6 @@
           classId: 'ranger',
           archeryMastery: parseInt(document.querySelector('input[name="archery-mastery"]:checked').value, 10) || 3,
           archeryAccuracy: (document.querySelector('input[name="archery-accuracy"]:checked') || {}).value || 'none',
-          archeryAccuracyEffectModifier: !!($('archery-accuracy-effect-modifier') && $('archery-accuracy-effect-modifier').checked),
-          archeryAccuracyEffectModifier2: !!($('archery-accuracy-effect-modifier-2') && $('archery-accuracy-effect-modifier-2').checked),
           mobStationary: $('mob-stationary').checked,
           trueshot: $('trueshot').checked,
         };
@@ -5118,7 +5126,11 @@
         const elemDamageEl = $(prefix + '-elem-damage');
         if (elemDamageEl) elemDamageEl.value = isNaN(elemDmg) ? '' : elemDmg;
         const baneEl = $(prefix + '-bane');
-        if (baneEl) baneEl.value = isNaN(bane) ? '' : bane;
+        if (baneEl) {
+          var baneVal = (bane != null && !isNaN(bane) && bane > 0) ? bane : null;
+          if ((baneVal == null || baneVal === 0) && weapon.itemId != null) baneVal = getItemBaneAmountById(weapon.itemId);
+          baneEl.value = (baneVal != null && !isNaN(baneVal)) ? String(Math.floor(baneVal)) : '0';
+        }
         const baneBodyEl = $(prefix + '-bane-body');
         if (baneBodyEl) {
           var bbody = (weapon.baneDamageBody !== undefined && weapon.baneDamageBody !== null && !isNaN(Number(weapon.baneDamageBody))) ? Number(weapon.baneDamageBody) : null;
@@ -5185,7 +5197,9 @@
         $('ranged-proc-level').value = (weapon.procLevel != null && !isNaN(Number(weapon.procLevel)) && Number(weapon.procLevel) > 0) ? String(Number(weapon.procLevel)) : '';
         $('ranged-elem-type').value = (weapon.elemType != null ? String(weapon.elemType) : '') || '';
         $('ranged-elem-damage').value = (weapon.elemDamage != null && !isNaN(Number(weapon.elemDamage)) ? Number(weapon.elemDamage) : 0) || '';
-        $('ranged-bane').value = (weapon.baneDamage != null && !isNaN(Number(weapon.baneDamage)) ? Number(weapon.baneDamage) : 0) || '';
+        var rangedBaneVal = (weapon.baneDamage != null && !isNaN(Number(weapon.baneDamage)) && Number(weapon.baneDamage) > 0) ? Number(weapon.baneDamage) : null;
+        if ((rangedBaneVal == null || rangedBaneVal === 0) && weapon.itemId != null) rangedBaneVal = getItemBaneAmountById(weapon.itemId);
+        $('ranged-bane').value = (rangedBaneVal != null && !isNaN(rangedBaneVal)) ? String(Math.floor(rangedBaneVal)) : '0';
         var rangedBaneRaceEl = $('ranged-bane-race');
         if (rangedBaneRaceEl) {
           var rangedBr = (weapon.baneDamageRace != null && !isNaN(Number(weapon.baneDamageRace))) ? Number(weapon.baneDamageRace) : null;
@@ -5406,33 +5420,38 @@
 
       function searchWeaponsFromWeaponList(query, classId) {
         var q = (query || '').toLowerCase();
-        var list = weaponListData || {};
         var mask = classId && typeof ItemSearch !== 'undefined' && ItemSearch.CLASS_BITMASK ? ItemSearch.CLASS_BITMASK[classId] : 0;
         var num = function (v) { var n = parseInt(v, 10); return isNaN(n) ? 0 : n; };
         var raw = [];
-        for (var id in list) {
-          if (!list.hasOwnProperty(id)) continue;
-          var item = list[id];
-          if (!item || typeof item !== 'object') continue;
-          var dmgVal = num(item.damage);
-          var dlyVal = num(item.delay);
-          var itemTypeVal = num(item.itemtype);
-          if (dmgVal < 1) continue;
-          // Allow arrows (itemtype 27, ammo) to have delay = 0; require delay >= 1 for all other items.
-          if (dlyVal < 1 && itemTypeVal !== 27) continue;
-          var name = (item.Name != null ? String(item.Name) : (item.name != null ? String(item.name) : '')).toLowerCase();
-          if (q && name.indexOf(q) < 0) continue;
-          var classes = item.classes != null ? parseInt(item.classes, 10) : (item.Classes != null ? parseInt(item.Classes, 10) : null);
-          if (mask && classes != null && !isNaN(classes) && (classes & mask) === 0) continue;
-          var withId = Object.assign({}, item, { id: parseInt(id, 10) });
-          if (withId.id !== withId.id) withId.id = id;
-          // So ItemSearch.normalizeItemForWeapon picks up elemental: it expects eleDmgType (number) and eleDmgAmt (EQEmu raw uses elemdmgtype/elemdmgamt).
-          if ((itemTypeVal === 27 || itemTypeVal === 5) && (item.elemdmgtype != null || item.elemdmgamt != null)) {
-            withId.eleDmgType = item.elemdmgtype != null ? parseInt(item.elemdmgtype, 10) : 0;
-            withId.eleDmgAmt = item.elemdmgamt != null ? parseInt(item.elemdmgamt, 10) : 0;
+        var seenIds = {};
+        function addFromList(list) {
+          if (!list || typeof list !== 'object') return;
+          for (var id in list) {
+            if (!list.hasOwnProperty(id) || seenIds[id]) continue;
+            var item = list[id];
+            if (!item || typeof item !== 'object') continue;
+            var dmgVal = num(item.damage);
+            var dlyVal = num(item.delay);
+            var itemTypeVal = num(item.itemtype);
+            if (dmgVal < 1) continue;
+            if (dlyVal < 1 && itemTypeVal !== 27) continue;
+            var name = (item.Name != null ? String(item.Name) : (item.name != null ? String(item.name) : '')).toLowerCase();
+            if (q && name.indexOf(q) < 0) continue;
+            var classes = item.classes != null ? parseInt(item.classes, 10) : (item.Classes != null ? parseInt(item.Classes, 10) : null);
+            if (mask && classes != null && !isNaN(classes) && (classes & mask) === 0) continue;
+            seenIds[id] = true;
+            var withId = Object.assign({}, item, { id: parseInt(id, 10) });
+            if (withId.id !== withId.id) withId.id = id;
+            if ((itemTypeVal === 27 || itemTypeVal === 5) && (item.elemdmgtype != null || item.elemdmgamt != null)) {
+              withId.eleDmgType = item.elemdmgtype != null ? parseInt(item.elemdmgtype, 10) : 0;
+              withId.eleDmgAmt = item.elemdmgamt != null ? parseInt(item.elemdmgamt, 10) : 0;
+            }
+            raw.push(withId);
           }
-          raw.push(withId);
         }
+        addFromList(weaponListData);
+        addFromList(typeof luclinWeaponsData !== 'undefined' ? luclinWeaponsData : null);
+        addFromList(typeof popWeaponsData !== 'undefined' ? popWeaponsData : null);
         CUSTOM_MONK_WEAPONS.forEach(function (item) {
           if (!item) return;
           var name = (item.Name != null ? String(item.Name) : '').toLowerCase();
@@ -5445,15 +5464,17 @@
         var skillmodValNum = function (it) { var sv = it.skillmodvalue != null ? it.skillmodvalue : it.skillmodValue; var v = (typeof sv === 'number') ? sv : parseInt(sv, 10); return isNaN(v) ? null : v; };
         function ensureBaneFromRaw(weapon, raw) {
           if (!weapon || !raw) return;
-          if (raw.banedmgamt != null || raw.baneDmgAmt != null)
-            weapon.baneDamage = num(raw.banedmgamt != null ? raw.banedmgamt : raw.baneDmgAmt);
-          if (raw.banedmgbody != null || raw.baneDamageBody != null) {
-            var bb = parseInt(raw.banedmgbody != null ? raw.banedmgbody : raw.baneDamageBody, 10);
-            if (!isNaN(bb)) weapon.baneDamageBody = bb;
+          var amt = raw.banedmgamt != null ? raw.banedmgamt : (raw.baneDmgAmt != null ? raw.baneDmgAmt : (raw.baneDamage != null ? raw.baneDamage : (raw.BaneDmgAmt != null ? raw.BaneDmgAmt : (raw.bane_damage_amt != null ? raw.bane_damage_amt : null))));
+          if (amt != null && amt !== '') weapon.baneDamage = num(amt);
+          var bb = raw.banedmgbody != null ? raw.banedmgbody : (raw.baneDamageBody != null ? raw.baneDamageBody : (raw.BaneDamageBody != null ? raw.BaneDamageBody : null));
+          if (bb != null && bb !== '') {
+            var bbNum = parseInt(bb, 10);
+            if (!isNaN(bbNum)) weapon.baneDamageBody = bbNum;
           }
-          if (raw.banedmgrace != null || raw.baneDamageRace != null || raw.banedamagerace != null) {
-            var br = parseInt(raw.banedmgrace != null ? raw.banedmgrace : (raw.baneDamageRace != null ? raw.baneDamageRace : raw.banedamagerace), 10);
-            if (!isNaN(br)) weapon.baneDamageRace = br;
+          var br = raw.banedmgrace != null ? raw.banedmgrace : (raw.baneDamageRace != null ? raw.baneDamageRace : (raw.banedamagerace != null ? raw.banedamagerace : (raw.BaneDamageRace != null ? raw.BaneDamageRace : null)));
+          if (br != null && br !== '') {
+            var brNum = parseInt(br, 10);
+            if (!isNaN(brNum)) weapon.baneDamageRace = brNum;
           }
         }
         if (typeof ItemSearch === 'undefined' || !ItemSearch.normalizeItemForWeapon) {
@@ -5464,16 +5485,12 @@
             if (v != null) item.archeryModPercent = v;
           });
           raw.forEach(function (item) {
-            if (item.banedmgamt != null || item.baneDmgAmt != null)
-              item.baneDamage = num(item.banedmgamt != null ? item.banedmgamt : item.baneDmgAmt);
-            if (item.banedmgbody != null || item.baneDamageBody != null) {
-              var bb = parseInt(item.banedmgbody != null ? item.banedmgbody : item.baneDamageBody, 10);
-              if (!isNaN(bb)) item.baneDamageBody = bb;
-            }
-            if (item.banedmgrace != null || item.baneDamageRace != null || item.banedamagerace != null) {
-              var br = parseInt(item.banedmgrace != null ? item.banedmgrace : (item.baneDamageRace != null ? item.baneDamageRace : item.banedamagerace), 10);
-              if (!isNaN(br)) item.baneDamageRace = br;
-            }
+            var amt = item.banedmgamt != null ? item.banedmgamt : (item.baneDmgAmt != null ? item.baneDmgAmt : (item.baneDamage != null ? item.baneDamage : null));
+            if (amt != null && amt !== '') item.baneDamage = num(amt);
+            var bb = item.banedmgbody != null ? item.banedmgbody : (item.baneDamageBody != null ? item.baneDamageBody : null);
+            if (bb != null && bb !== '') { var bbNum = parseInt(bb, 10); if (!isNaN(bbNum)) item.baneDamageBody = bbNum; }
+            var br = item.banedmgrace != null ? item.banedmgrace : (item.baneDamageRace != null ? item.baneDamageRace : item.banedamagerace);
+            if (br != null && br !== '') { var brNum = parseInt(br, 10); if (!isNaN(brNum)) item.baneDamageRace = brNum; }
           });
           return Promise.resolve(raw);
         }

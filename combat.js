@@ -644,18 +644,15 @@
     const rawArchery = options.archerySkill != null ? Math.max(0, Math.floor(options.archerySkill)) : rangerArcheryCap;
     const ARCHERY_SKILL_BASE = Math.min(rangerArcheryCap, Math.min(252, rawArchery));
     const archeryAccuracy = options.archeryAccuracy || 'none';
-    const archeryAccuracyEffectModifier = !!options.archeryAccuracyEffectModifier;
-    const archeryAccuracyEffectModifier2 = !!options.archeryAccuracyEffectModifier2;
-    // When Effect Modifier and Effect Modifier 2 are both off: Hawk +10, Falcon +20, Eagle +40 archery skill, capped at 252. When either is on: toHit percent modifier (HitChanceEffect), single roll.
+    // Hawk/Falcon/Eagle Eye: server HitChanceEffect-style toHit percent (+10% / +20% / +40%), single roll (default behavior).
     const ARCHERY_ABSOLUTE_CAP = 252;
-    const accuracySkillBonus = (!archeryAccuracyEffectModifier && !archeryAccuracyEffectModifier2 && archeryAccuracy === 'hawk') ? 10 : (!archeryAccuracyEffectModifier && !archeryAccuracyEffectModifier2 && archeryAccuracy === 'falcon') ? 20 : (!archeryAccuracyEffectModifier && !archeryAccuracyEffectModifier2 && archeryAccuracy === 'eagle') ? 40 : 0;
+    const accuracySkillBonus = 0;
     const archeryBaseWithAccuracy = Math.min(ARCHERY_ABSOLUTE_CAP, ARCHERY_SKILL_BASE + accuracySkillBonus);
     const archeryModPercent = (bow.archeryModPercent != null && !Number.isNaN(Number(bow.archeryModPercent))) ? Number(bow.archeryModPercent) : 0;
     const ARCHERY_SKILL_MODIFIED = Math.floor(archeryBaseWithAccuracy * (100 + archeryModPercent) / 100);
     const ARCHERY_SKILL_EFFECTIVE = Math.min(252, ARCHERY_SKILL_MODIFIED);
     const baseToHit = 7 + OFFENSE_SKILL + ARCHERY_SKILL_EFFECTIVE;
-    // Effect Modifier / Effect Modifier 2: server HitChanceEffect-style toHit percent (Hawk +10%, Falcon +20%, Eagle +40%). Single roll, no salvage.
-    const accuracyToHitPct = (archeryAccuracyEffectModifier || archeryAccuracyEffectModifier2) && archeryAccuracy === 'hawk' ? 10 : (archeryAccuracyEffectModifier || archeryAccuracyEffectModifier2) && archeryAccuracy === 'falcon' ? 20 : (archeryAccuracyEffectModifier || archeryAccuracyEffectModifier2) && archeryAccuracy === 'eagle' ? 40 : 0;
+    const accuracyToHitPct = archeryAccuracy === 'hawk' ? 10 : archeryAccuracy === 'falcon' ? 20 : archeryAccuracy === 'eagle' ? 40 : 0;
     const toHit = accuracyToHitPct > 0 ? Math.floor(baseToHit * (100 + accuracyToHitPct) / 100) : baseToHit;
     const trueshot = !!options.trueshot;
     const TRUESHOT_DURATION_MS = 120000;
