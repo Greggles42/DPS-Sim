@@ -2070,7 +2070,7 @@
           var n = parseInt(id, 10);
           return isNaN(n) ? null : n;
         })();
-        // Targets with special_abilities 1^22 (immune to bane): only the matching bane can damage. Lord Inquisitor Seru (159000) = Seru body 16 or race 236; Emperor Ssraeshza (162065) = Shissar race bane only.
+        // Targets with special_abilities 1^22: only weapons with the appropriate bane can damage them. If the weapon has matching bane, both base and bane damage land. No matching bane = immune. Lord Inquisitor Seru (159000) = Seru body 16 or race 236; Emperor Ssraeshza (162065) = Shissar race bane only.
         var BANE_ONLY_TARGETS = { 162065: { type: 'race', value: 217 }, 159000: [{ type: 'body', value: 16 }, { type: 'race', value: 236 }] };
         function baneMatchesReq(weapon, req) {
           return (req.type === 'race' && weapon.baneDamageRace === req.value && weapon.baneDamage > 0) ||
@@ -4404,7 +4404,7 @@
           var bn = parseInt(bt, 10);
           return isNaN(bn) ? null : bn;
         })();
-        // Same as BANE_ONLY_TARGETS: 1^22 immune to bane; Seru (159000) accepts body 16 or race 236; Emperor Ssraeshza = Shissar race only.
+        // Same as BANE_ONLY_TARGETS: only weapons with the appropriate bane can damage these targets; with matching bane, base + bane both land. No matching bane = immune. Seru (159000) = body 16 or race 236; Emperor Ssraeshza (162065) = Shissar race only.
         var RANGED_BANE_ONLY_TARGETS = { 162065: { type: 'race', value: 217 }, 159000: [{ type: 'body', value: 16 }, { type: 'race', value: 236 }] };
         var rangedTargetSelected = rangedTargetNpcId != null || rangedTargetRace != null || rangedTargetBodyType != null;
         var rangedNoDamageVsTarget = false;
