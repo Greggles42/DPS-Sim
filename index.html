@@ -2905,6 +2905,7 @@
             return;
           }
         }
+        if (typeof weaponListLoadPromise !== 'undefined' && weaponListLoadPromise) await weaponListLoadPromise;
         await ensureLocalSpellDataLoaded();
         const level = parseInt($('level').value, 10) || 60;
         const durationSec = parseInt($('duration').value, 10) || 6000;
@@ -3048,6 +3049,13 @@
         } else {
           addToRankMap(luclinWeaponsData);
         }
+        // Only add specific weaponlist-only melee weapons (e.g. Corrupted Shissar Warsword, Dagger, Ulak) that are missing from luclin/pop; do not add the full weaponlist.
+        var RANK_WEAPONLIST_ADDITION_IDS = ['7960', '7961', '7963', '7964', '7965'];
+        if (weaponListData && typeof weaponListData === 'object') {
+          var weaponListAdditions = {};
+          RANK_WEAPONLIST_ADDITION_IDS.forEach(function (id) { if (weaponListData[id]) weaponListAdditions[id] = weaponListData[id]; });
+          if (Object.keys(weaponListAdditions).length > 0) addToRankMap(weaponListAdditions);
+        }
         if (classId === 'monk') {
           CUSTOM_MONK_WEAPONS.forEach(function (item) {
             if (!item || !item.id) return;
@@ -3065,7 +3073,7 @@
         allIds.forEach(function (id) {
           var norm = rankWeaponMap[id];
           var is2H = !!(norm.is2H || (norm.type && offhandBlockedTypes[norm.type]));
-          var raw = includePop ? (popWeaponsData && popWeaponsData[id]) : (luclinWeaponsData && luclinWeaponsData[id]);
+          var raw = (includePop ? (popWeaponsData && popWeaponsData[id]) : (luclinWeaponsData && luclinWeaponsData[id])) || (weaponListData && weaponListData[id]);
           var slots = (raw && raw.slots != null) ? parseInt(raw.slots, 10) : null;
           if (slots !== slots) slots = null;
           var primOk = primarySlotAllowed(slots, is2H);
