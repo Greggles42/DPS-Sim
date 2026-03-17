@@ -1474,11 +1474,11 @@
         else if (attacksThisRound === 2) report.weapon1.double++;
         else report.weapon1.triple++;
 
-        // Fistweaving (monk 2H): after each primary hand round, one offhand round with 9 damage; can double attack, no proc
+        // Fistweaving (monk 2H): after each primary hand round, one offhand round; epic 9/16, non-epic 14/27; can double attack, no proc
         if (report.fistweaving) {
           report.fistweaving.rounds++;
           let fwAttacks = 1;
-          const FIST_DAMAGE = 9;
+          const FIST_DAMAGE = options.fistweavingNonEpic ? 14 : 9;
           if (rollHit(toHit, avoidance, rng, fromBehind)) {
             let dmg = calcMeleeDamage(FIST_DAMAGE, offenseRating, mitigation, rng, 0);
             const mult = rollDamageMultiplier(offenseRating, dmg, level, options.classId, false, rng);

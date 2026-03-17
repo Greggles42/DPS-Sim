@@ -733,7 +733,8 @@
           </div>
         </div>
         <div id="fistweaving-row" style="display: none;">
-          <label class="checkbox-label char-checkbox"><input type="checkbox" id="fistweaving"> Fistweaving</label>
+          <label class="checkbox-label char-checkbox"><input type="checkbox" id="fistweaving"> Force Fistweaving (2H Only)</label>
+          <label class="checkbox-label char-checkbox"><input type="checkbox" id="fistweaving-nonepic"> Non-Epic FW</label>
         </div>
         <div id="innerflame-row" style="display: none;">
           <label class="checkbox-label char-checkbox"><input type="checkbox" id="innerflame"> Inner Flame (12s random window: bonus melee damage)</label>
@@ -2207,6 +2208,7 @@
           spellCastingFury: (function () { var el = document.querySelector('input[name="spell-casting-fury"]:checked'); return el ? (parseInt(el.value, 10) || 0) : 0; })(),
           slayUndead: (function () { var el = document.querySelector('input[name="slay-undead"]:checked'); return el ? (parseInt(el.value, 10) || 0) : 0; })(),
           fistweaving: hasMainHand && classId === 'monk' && weapon1.is2H && $('fistweaving').checked,
+          fistweavingNonEpic: ($('fistweaving-nonepic') && $('fistweaving-nonepic').checked) || false,
           critChanceMult: critChanceMult || undefined,
           backstabReuseEffectiveSec: (backstabReuseManual && (() => { const v = parseFloat($('backstab-reuse-sec').value); return v > 0 && !isNaN(v) ? v : undefined; })()) || undefined,
           flyingKickReuseEffectiveSec: (flyingKickReuseManual && (() => { const v = parseFloat($('flyingkick-reuse-sec').value); return v > 0 && !isNaN(v) ? v : undefined; })()) || undefined,
@@ -2982,6 +2984,7 @@
           flyingKickReuseEffectiveSec: (flyingKickReuseManual && (() => { const v = parseFloat($('flyingkick-reuse-sec').value); return v > 0 && !isNaN(v) ? v : undefined; })()) || undefined,
           kickReuseEffectiveSec: (kickReuseManual && (() => { const v = parseFloat($('kick-reuse-sec').value); return v > 0 && !isNaN(v) ? v : undefined; })()) || undefined,
           bashReuseEffectiveSec: (bashReuseManual && (() => { const v = parseFloat($('bash-reuse-sec').value); return v > 0 && !isNaN(v) ? v : undefined; })()) || undefined,
+          fistweavingNonEpic: ($('fistweaving-nonepic') && $('fistweaving-nonepic').checked) || false,
         };
         var formBackstabModPercent = 0;
         function getRankComboWornAndBackstab(norm1, norm2) {
@@ -3166,7 +3169,8 @@
                 weaponSkillForToHit: weaponSkillForToHit,
                 wornAttack: comboWornBackstab.wornAttack,
                 backstabModPercent: comboWornBackstab.backstabModPercent,
-                fistweaving: classId === 'monk' && is2H && $('fistweaving').checked
+                fistweaving: classId === 'monk' && is2H && $('fistweaving').checked,
+                fistweavingNonEpic: ($('fistweaving-nonepic') && $('fistweaving-nonepic').checked) || false
               });
               try {
                 var r = EQCombat.runFight(options);
@@ -3212,7 +3216,8 @@
                 weaponSkillForToHit: secWeaponSkillForToHit,
                 wornAttack: comboWornBackstabOff.wornAttack,
                 backstabModPercent: comboWornBackstabOff.backstabModPercent,
-                fistweaving: false
+                fistweaving: false,
+                fistweavingNonEpic: ($('fistweaving-nonepic') && $('fistweaving-nonepic').checked) || false
               });
               try {
                 var r2 = EQCombat.runFight(opts);
@@ -3443,7 +3448,8 @@
                 weaponSkillForToHit: weaponSkillForToHit,
                 wornAttack: comboWornBackstabTop.wornAttack,
                 backstabModPercent: comboWornBackstabTop.backstabModPercent,
-                fistweaving: classId === 'monk' && is2H && $('fistweaving').checked
+                fistweaving: classId === 'monk' && is2H && $('fistweaving').checked,
+                fistweavingNonEpic: ($('fistweaving-nonepic') && $('fistweaving-nonepic').checked) || false
               });
               if (row.secondaryId) {
                 var p2 = rankWeaponMap[row.secondaryId];
@@ -4899,9 +4905,8 @@
       });
       function updateFistweavingVisibility() {
         const classId = ($('class').value || '').toLowerCase();
-        const is2H = isW1TwoHanded();
         const row = $('fistweaving-row');
-        if (row) row.style.display = classId === 'monk' && is2H ? '' : 'none';
+        if (row) row.style.display = classId === 'monk' ? '' : 'none';
       }
       function updateWeapon2Disabled() {
         const is2H = isW1TwoHanded();
