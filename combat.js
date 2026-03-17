@@ -1061,7 +1061,10 @@
     const hasMainHand = !!mainHandEquipped;
     if (specialType === 'backstab' && options.classId === 'rogue' && canFireSpecial && hasMainHand) {
       const mainHandType = (options.weapon1Type != null ? String(options.weapon1Type) : (w1.type != null ? String(w1.type) : '')).toLowerCase();
-      if (mainHandType !== '1hp') canFireSpecial = false;
+      // Allow backstab when simulating primary only (no offhand): if type is unknown, assume piercing so rogue can still backstab
+      const primaryOnly = !offhandEquipped;
+      const assumedPiercing = primaryOnly && (mainHandType === '' || mainHandType === 'undefined');
+      if (mainHandType !== '1hp' && mainHandType !== '2hp' && !assumedPiercing) canFireSpecial = false;
     }
     const baseDamageCap = getBaseDamageCap(level, options.classId);
     const cappedW1Damage = hasMainHand ? (baseDamageCap != null ? Math.min(w1.damage, baseDamageCap) : w1.damage) : 0;
