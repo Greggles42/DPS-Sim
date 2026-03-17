@@ -1127,7 +1127,7 @@
         backstabSkill: specialConfig.fromBehindOnly ? Math.min(255, options.backstabSkill != null ? options.backstabSkill : 225) : undefined,
         backstabModPercent: specialConfig.fromBehindOnly ? (options.backstabModPercent || 0) : undefined,
       } : null,
-      fistweaving: (options.classId === 'monk' && hasMainHand && w1.is2H && options.fistweaving) ? { rounds: 0, swings: 0, hits: 0, totalDamage: 0, maxDamage: 0, single: 0, double: 0 } : null,
+      fistweaving: (options.classId === 'monk' && hasMainHand && w1.is2H && options.fistweaving) ? { baseDamage: options.fistweavingNonEpic ? 14 : 9, rounds: 0, swings: 0, hits: 0, totalDamage: 0, maxDamage: 0, single: 0, double: 0 } : null,
       classId: options.classId || undefined,
     };
     report.weapon1.procLevelBlocked = false;
@@ -1901,7 +1901,8 @@
     if (report.fistweaving && report.fistweaving.rounds > 0) {
       const fw = report.fistweaving;
       const fwAcc = fw.swings > 0 ? (fw.hits / fw.swings * 100).toFixed(1) : '0';
-      lines.push('  Fistweaving (9 dmg, no proc)');
+      const fwDmg = fw.baseDamage != null ? fw.baseDamage : 9;
+      lines.push('  Fistweaving (' + fwDmg + ' dmg, no proc)');
       lines.push(padLine('    Rounds:', String(fw.rounds)));
       lines.push(padLine('    Single / Double:', `${fw.single ?? '—'} / ${fw.double ?? '—'}`));
       lines.push(padLine('    Swings:', String(fw.swings)));

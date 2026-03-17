@@ -882,6 +882,7 @@
 
     <section class="section--core">
       <h2>Target & Fight</h2>
+      <div id="target-npc-name" class="weapon-name" aria-live="polite"></div>
       <div class="item-search-wrap target-npc-wrap">
         <label for="target-npc-search">Target NPC</label>
         <input type="text" id="target-npc-search" placeholder="Search by name (e.g. grimling, dragon)..." autocomplete="off">
@@ -1041,6 +1042,7 @@
 
     <section class="section--core">
       <h2>Target & Fight</h2>
+      <div id="ranged-target-npc-name" class="weapon-name" aria-live="polite"></div>
       <div class="item-search-wrap target-npc-wrap">
         <label for="ranged-target-npc-search">Target NPC</label>
         <input type="text" id="ranged-target-npc-search" placeholder="Search by name (e.g. grimling, dragon)..." autocomplete="off">
@@ -2350,6 +2352,7 @@
               : null,
             fistweaving: reports[0].fistweaving
               ? {
+                  baseDamage: reports[0].fistweaving.baseDamage != null ? reports[0].fistweaving.baseDamage : 9,
                   rounds: Math.round(reports.reduce((s, r) => s + (r.fistweaving ? r.fistweaving.rounds : 0), 0) / runs),
                   swings: Math.round(reports.reduce((s, r) => s + (r.fistweaving ? r.fistweaving.swings : 0), 0) / runs),
                   hits: Math.round(reports.reduce((s, r) => s + (r.fistweaving ? r.fistweaving.hits : 0), 0) / runs),
@@ -4364,6 +4367,7 @@
       function runEasyModeSimulation() {
         syncAdvancedFromEasyBasics();
         window.selectedTargetNpc = null;
+        updateTargetNpcNameDisplay();
         var targetSearch = $('target-npc-search'); var rangedTargetSearch = $('ranged-target-npc-search');
         if (targetSearch) targetSearch.value = ''; if (rangedTargetSearch) rangedTargetSearch.value = '';
         var easyTarget = document.querySelector('input[name="easy-target-type"]:checked');
@@ -5811,7 +5815,7 @@
             if (npc) {
               applyTargetNpc(npc);
               saveRecentTargetNpc(npc);
-              inputEl.value = npcNameForDisplay(npc.name).trim();
+              inputEl.value = '';
             }
             closeDropdown();
           });
@@ -5832,6 +5836,14 @@
       function openRangedTargetNpcDropdown() {
         var listEl = $('ranged-target-npc-search-list');
         if (listEl) listEl.classList.add('is-open');
+      }
+      function updateTargetNpcNameDisplay() {
+        var npc = window.selectedTargetNpc;
+        var name = (npc && npc.name != null) ? String(npc.name).replace(/_/g, ' ') : '';
+        var el = $('target-npc-name');
+        var elRanged = $('ranged-target-npc-name');
+        if (el) el.textContent = name;
+        if (elRanged) elRanged.textContent = name;
       }
       function applyTargetNpc(npc) {
         if (!npc || typeof npc !== 'object') return;
@@ -5854,6 +5866,7 @@
         set('ranged-target-cr', npc.CR);
         set('ranged-target-pr', npc.PR);
         set('ranged-target-dr', npc.DR);
+        updateTargetNpcNameDisplay();
       }
       (function initTargetNpcSearch() {
         var inputEl = $('target-npc-search');
@@ -5869,6 +5882,7 @@
         inputEl.addEventListener('input', function () {
           if ((inputEl.value || '').trim() === '') {
             window.selectedTargetNpc = null;
+            updateTargetNpcNameDisplay();
             applyGenericTargetIfNoneSelected();
           }
           var q = (inputEl.value || '').trim().replace(/_/g, ' ').toLowerCase();
@@ -5925,6 +5939,7 @@
         inputEl.addEventListener('input', function () {
           if ((inputEl.value || '').trim() === '') {
             window.selectedTargetNpc = null;
+            updateTargetNpcNameDisplay();
             applyGenericTargetIfNoneSelected();
           }
           var q = (inputEl.value || '').trim().replace(/_/g, ' ').toLowerCase();
