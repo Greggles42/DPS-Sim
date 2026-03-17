@@ -2802,6 +2802,11 @@
         var item = { id: id, Name: raw.Name, name: raw.Name, damage: raw.damage, delay: raw.delay, itemtype: raw.itemtype, slots: raw.slots, classes: raw.classes, lore: raw.lore, proceffect: raw.proceffect, procrate: raw.procrate, proclevel: raw.proclevel, elemdmgtype: raw.elemdmgtype, elemdmgamt: raw.elemdmgamt, banedmgamt: raw.banedmgamt, banedmgbody: raw.banedmgbody, banedmgrace: raw.banedmgrace, eleDmgType: raw.elemdmgtype, eleDmgAmt: raw.elemdmgamt, baneDmgAmt: raw.banedmgamt, baneDmgBody: raw.banedmgbody, baneDmgRace: raw.banedmgrace, skillmodtype: raw.skillmodtype, skillmodvalue: raw.skillmodvalue, skillmodType: raw.skillmodType, skillmodValue: raw.skillmodValue };
         var norm = (typeof ItemSearch !== 'undefined' && ItemSearch.normalizeItemForWeapon) ? ItemSearch.normalizeItemForWeapon(item) : null;
         if (norm && norm.damage >= 1 && norm.delay >= 1) {
+          var rawIt = raw.itemtype != null ? parseInt(raw.itemtype, 10) : NaN;
+          if (!isNaN(rawIt) && RANK_ITEM_TYPE_NUM_TO_TYPE[rawIt]) {
+            norm.type = RANK_ITEM_TYPE_NUM_TO_TYPE[rawIt];
+            norm.is2H = (norm.type === '2hb' || norm.type === '2hs' || norm.type === '2hp');
+          }
           if (norm.backstabModPercent == null) {
             var normBackstab = getBackstabModPercentFromRawItem(raw);
             if (normBackstab != null) norm.backstabModPercent = normBackstab;
