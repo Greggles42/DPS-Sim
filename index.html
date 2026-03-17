@@ -86,6 +86,37 @@
       color: var(--muted);
       margin: 0 0 0.6rem 0;
     }
+    .target-npc-name-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.5rem;
+      margin: -0.35rem 0 0.15rem 0;
+      min-height: 1.4em;
+    }
+    .target-npc-name-row .weapon-name { margin: 0; min-height: 0; flex: 1; min-width: 0; }
+    .target-npc-clear-btn {
+      flex-shrink: 0;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 1.4rem;
+      height: 1.4rem;
+      padding: 0;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      background: var(--input-bg);
+      color: var(--muted);
+      font-size: 1rem;
+      line-height: 1;
+      cursor: pointer;
+      transition: color 0.15s, background 0.15s, border-color 0.15s;
+    }
+    .target-npc-clear-btn:hover {
+      color: var(--text);
+      background: var(--hover-bg, rgba(255,255,255,0.06));
+      border-color: var(--border);
+    }
     .collapse-summary {
       font-size: 0.8rem;
       color: var(--muted);
@@ -882,7 +913,10 @@
 
     <section class="section--core">
       <h2>Target & Fight</h2>
-      <div id="target-npc-name" class="weapon-name" aria-live="polite"></div>
+      <div class="target-npc-name-row">
+        <div id="target-npc-name" class="weapon-name" aria-live="polite"></div>
+        <button type="button" id="target-npc-clear" class="target-npc-clear-btn" title="Click to clear target" aria-label="Clear target" style="display: none">×</button>
+      </div>
       <div class="item-search-wrap target-npc-wrap">
         <label for="target-npc-search">Target NPC</label>
         <input type="text" id="target-npc-search" placeholder="Search by name (e.g. grimling, dragon)..." autocomplete="off">
@@ -1042,7 +1076,10 @@
 
     <section class="section--core">
       <h2>Target & Fight</h2>
-      <div id="ranged-target-npc-name" class="weapon-name" aria-live="polite"></div>
+      <div class="target-npc-name-row">
+        <div id="ranged-target-npc-name" class="weapon-name" aria-live="polite"></div>
+        <button type="button" id="ranged-target-npc-clear" class="target-npc-clear-btn" title="Click to clear target" aria-label="Clear target" style="display: none">×</button>
+      </div>
       <div class="item-search-wrap target-npc-wrap">
         <label for="ranged-target-npc-search">Target NPC</label>
         <input type="text" id="ranged-target-npc-search" placeholder="Search by name (e.g. grimling, dragon)..." autocomplete="off">
@@ -5844,7 +5881,26 @@
         var elRanged = $('ranged-target-npc-name');
         if (el) el.textContent = name;
         if (elRanged) elRanged.textContent = name;
+        var clearBtn = $('target-npc-clear');
+        var clearBtnRanged = $('ranged-target-npc-clear');
+        if (clearBtn) clearBtn.style.display = name ? '' : 'none';
+        if (clearBtnRanged) clearBtnRanged.style.display = name ? '' : 'none';
       }
+      function clearTargetNpc() {
+        window.selectedTargetNpc = null;
+        var targetSearch = $('target-npc-search');
+        var rangedTargetSearch = $('ranged-target-npc-search');
+        if (targetSearch) targetSearch.value = '';
+        if (rangedTargetSearch) rangedTargetSearch.value = '';
+        updateTargetNpcNameDisplay();
+        applyGenericTargetIfNoneSelected();
+      }
+      (function initTargetNpcClearButtons() {
+        var btn = $('target-npc-clear');
+        var btnRanged = $('ranged-target-npc-clear');
+        if (btn) btn.addEventListener('click', clearTargetNpc);
+        if (btnRanged) btnRanged.addEventListener('click', clearTargetNpc);
+      })();
       function applyTargetNpc(npc) {
         if (!npc || typeof npc !== 'object') return;
         window.selectedTargetNpc = npc;
