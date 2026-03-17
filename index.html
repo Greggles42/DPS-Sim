@@ -3134,9 +3134,9 @@
             combinations.push({ primaryId: null, secondaryId: secondaryId });
           });
         }
-        if (rankTargetNpcId != null && RANK_BANE_ONLY_TARGETS[rankTargetNpcId]) {
-          combinations = combinations.filter(rankComboCanHitBaneOnly);
-        }
+        var combinationsToUse = (rankTargetNpcId != null && RANK_BANE_ONLY_TARGETS[rankTargetNpcId])
+          ? combinations.filter(rankComboCanHitBaneOnly)
+          : combinations;
         var mainhand_dps = {};
         var offhand_dps = {};
         var totalSims = primaryWeapons.length + (canDualWield ? secondaryWeapons.length : 0);
@@ -3240,7 +3240,7 @@
             return;
           }
 
-          var results = combinations.map(function (comb) {
+          var results = combinationsToUse.map(function (comb) {
             var isOffhandOnly = comb.primaryId == null;
             var mainDps = isOffhandOnly ? 0 : (mainhand_dps[comb.primaryId] != null ? mainhand_dps[comb.primaryId] : 0);
             var offDps = comb.secondaryId && (offhand_dps[comb.secondaryId] != null) ? offhand_dps[comb.secondaryId] : 0;
