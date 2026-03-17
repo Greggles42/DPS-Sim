@@ -2984,6 +2984,16 @@
           bashReuseEffectiveSec: (bashReuseManual && (() => { const v = parseFloat($('bash-reuse-sec').value); return v > 0 && !isNaN(v) ? v : undefined; })()) || undefined,
         };
         var formBackstabModPercent = 0;
+        function getRankComboWornAndBackstab(norm1, norm2) {
+          var baseWorn = (baseOptions.wornAttack != null && !isNaN(Number(baseOptions.wornAttack))) ? Number(baseOptions.wornAttack) : 0;
+          var w1 = (norm1 != null ? getWornAttackBonusForNorm(norm1) : 0) || 0;
+          var w2 = (norm2 != null ? getWornAttackBonusForNorm(norm2) : 0) || 0;
+          var wornAttack = baseWorn + w1 + w2;
+          var bs1 = (norm1 != null && classId === 'rogue') ? getBackstabModPercentForNorm(norm1) : 0;
+          var bs2 = (norm2 != null && classId === 'rogue') ? getBackstabModPercentForNorm(norm2) : 0;
+          var backstabModPercent = (classId === 'rogue') ? Math.max(0, formBackstabModPercent || 0, bs1, bs2) : undefined;
+          return { wornAttack: wornAttack, backstabModPercent: backstabModPercent };
+        }
         const offhandBlockedTypes = { '2hb': 1, '2hs': 1, '2hp': 1, 'archery': 1, 'bow': 1 };
         var rankTargetNpcId = (function () {
           var npc = window.selectedTargetNpc;
@@ -3008,6 +3018,15 @@
             weaponObj.damage = 0;
             weaponObj.noDamageVsTarget = true;
           }
+        }
+        function rankComboCanHitBaneOnly(comb) {
+          if (rankTargetNpcId == null) return true;
+          var req = RANK_BANE_ONLY_TARGETS[rankTargetNpcId];
+          if (!req) return true;
+          var reqs = Array.isArray(req) ? req : [req];
+          var primaryHasBane = comb.primaryId && rankWeaponMap[comb.primaryId] && reqs.some(function (r) { return rankBaneMatchesReq(rankWeaponMap[comb.primaryId], r); });
+          var secondaryHasBane = comb.secondaryId && rankWeaponMap[comb.secondaryId] && reqs.some(function (r) { return rankBaneMatchesReq(rankWeaponMap[comb.secondaryId], r); });
+          return primaryHasBane || secondaryHasBane;
         }
         if (USAGE_LOG_URL) {
           logUsage({
@@ -3110,6 +3129,14 @@
             }
           }
         });
+        if (canDualWield) {
+          secondaryWeapons.forEach(function (secondaryId) {
+            combinations.push({ primaryId: null, secondaryId: secondaryId });
+          });
+        }
+        if (rankTargetNpcId != null && RANK_BANE_ONLY_TARGETS[rankTargetNpcId]) {
+          combinations = combinations.filter(rankComboCanHitBaneOnly);
+        }
         var mainhand_dps = {};
         var offhand_dps = {};
         var totalSims = primaryWeapons.length + (canDualWield ? secondaryWeapons.length : 0);
@@ -3130,14 +3157,15 @@
               applyBaneOnlyForRankWeapon(w1, p);
               var skillKey = skillKeyForCap(p.type, is2H);
               var weaponSkillForToHit = WeaponSkillCaps.getCapForSimClass(classId, skillKey, level) || 252;
+              var comboWornBackstab = getRankComboWornAndBackstab(p, null);
               var options = Object.assign({}, baseOptions, {
                 weapon1: w1,
                 weapon2: undefined,
                 weapon1Type: p.type || undefined,
                 dualWieldSkill: 0,
                 weaponSkillForToHit: weaponSkillForToHit,
-                wornAttack: getWornAttackBonusForNorm(p) || 0,
-                backstabModPercent: classId === 'rogue' ? Math.max(formBackstabModPercent, getBackstabModPercentForNorm(p)) : undefined,
+                wornAttack: comboWornBackstab.wornAttack,
+                backstabModPercent: comboWornBackstab.backstabModPercent,
                 fistweaving: classId === 'monk' && is2H && $('fistweaving').checked
               });
               try {
@@ -3175,14 +3203,15 @@
               applyBaneOnlyForRankWeapon(w2, p2);
               var secSkillKey = skillKeyForCap(p2.type, false);
               var secWeaponSkillForToHit = WeaponSkillCaps.getCapForSimClass(classId, secSkillKey, level) || 252;
+              var comboWornBackstabOff = getRankComboWornAndBackstab(null, p2);
               var opts = Object.assign({}, baseOptions, {
                 weapon1: undefined,
                 weapon2: w2,
                 weapon1Type: undefined,
                 dualWieldSkill: dualWieldSkillForm,
                 weaponSkillForToHit: secWeaponSkillForToHit,
-                wornAttack: getWornAttackBonusForNorm(p2) || 0,
-                backstabModPercent: classId === 'rogue' ? Math.max(formBackstabModPercent, getBackstabModPercentForNorm(p2)) : undefined,
+                wornAttack: comboWornBackstabOff.wornAttack,
+                backstabModPercent: comboWornBackstabOff.backstabModPercent,
                 fistweaving: false
               });
               try {
@@ -3212,11 +3241,12 @@
           }
 
           var results = combinations.map(function (comb) {
-            var mainDps = mainhand_dps[comb.primaryId] != null ? mainhand_dps[comb.primaryId] : 0;
+            var isOffhandOnly = comb.primaryId == null;
+            var mainDps = isOffhandOnly ? 0 : (mainhand_dps[comb.primaryId] != null ? mainhand_dps[comb.primaryId] : 0);
             var offDps = comb.secondaryId && (offhand_dps[comb.secondaryId] != null) ? offhand_dps[comb.secondaryId] : 0;
             var totalDps = mainDps + offDps;
-            var p1 = rankWeaponMap[comb.primaryId];
-            var name1 = p1.name || comb.primaryId;
+            var p1 = comb.primaryId != null ? rankWeaponMap[comb.primaryId] : null;
+            var name1 = p1 ? (p1.name || comb.primaryId) : '';
             var name2 = comb.secondaryId ? (rankWeaponMap[comb.secondaryId] && rankWeaponMap[comb.secondaryId].name) || comb.secondaryId : '';
             var p2 = comb.secondaryId ? rankWeaponMap[comb.secondaryId] : null;
             var atk1 = getWornAttackBonusForNorm(p1);
@@ -3227,10 +3257,10 @@
             var primaryType = (p1 && p1.type != null ? String(p1.type) : '').toLowerCase();
             var backstabContributes = classId === 'rogue' && fromBehind && rankSpecialAttacks && rankSpecialAttackType === 'backstab' && primaryType === '1hp' && bs1 > 0;
             var backstabModApplied = backstabContributes ? bs1 : 0;
-            var primaryLabel = backstabModApplied > 0
+            var primaryLabel = (p1 && backstabModApplied > 0)
               ? ((p1.name || comb.primaryId) + ' [BS+' + backstabModApplied + '%]' + (atk1 > 0 ? (' [ATK+' + atk1 + ']') : ''))
               : name1WithAtk;
-            var label = comb.secondaryId ? (primaryLabel + ' + ' + name2WithAtk) : primaryLabel;
+            var label = isOffhandOnly ? ('Offhand: ' + name2WithAtk) : (comb.secondaryId ? (primaryLabel + ' + ' + name2WithAtk) : primaryLabel);
             return { primaryId: comb.primaryId, secondaryId: comb.secondaryId, label: label, mainhandDps: mainDps, offhandDps: offDps, totalDps: totalDps, backstabModApplied: backstabModApplied };
           });
           results.sort(function (a, b) { return (b.totalDps || 0) - (a.totalDps || 0); });
@@ -3324,6 +3354,9 @@
                 var atkBonus = getWornAttackBonusForNorm(w);
                 return { id: id, label: (w && w.name) || id, dps: mainhand_dps[id] != null ? mainhand_dps[id] : 0, is2H: is2H, backstabModApplied: backstabContributes ? bs1 : 0, wornAttackBonus: atkBonus };
               });
+              if (rankTargetNpcId != null && RANK_BANE_ONLY_TARGETS[rankTargetNpcId]) {
+                mainhandSlotRows = mainhandSlotRows.filter(function (r) { return rankComboCanHitBaneOnly({ primaryId: r.id, secondaryId: null }); });
+              }
               mainhandSlotRows = dedupeBestById(mainhandSlotRows);
               var oneHandMainRows = dedupeBestById(mainhandSlotRows.filter(function (r) { return !r.is2H; }));
               var twoHandMainRows = dedupeBestById(mainhandSlotRows.filter(function (r) { return r.is2H; }));
@@ -3332,6 +3365,9 @@
                 var atkBonus = getWornAttackBonusForNorm(w);
                 return { id: id, label: (w && w.name) || id, dps: offhand_dps[id] != null ? offhand_dps[id] : 0, backstabModApplied: 0, wornAttackBonus: atkBonus };
               });
+              if (rankTargetNpcId != null && RANK_BANE_ONLY_TARGETS[rankTargetNpcId]) {
+                offhandRows = offhandRows.filter(function (r) { return rankComboCanHitBaneOnly({ primaryId: null, secondaryId: r.id }); });
+              }
               offhandRows = dedupeBestById(offhandRows);
               var slotTables = '';
               slotTables += renderSlotTable('Best Mainhand (1H) - Top 40', oneHandMainRows, 'Mainhand weapon');
@@ -3360,42 +3396,76 @@
             }
             if (reportEl) reportEl.textContent = 'Averaging top 40 results over multiple runs';
             var row = top40[avgIndex];
-            var p1 = rankWeaponMap[row.primaryId];
-            var is2H = !!(p1.is2H || (p1.type && offhandBlockedTypes[p1.type]));
-            var w1 = normalizedToWeapon1(p1, applyBane);
-            applyBaneOnlyForRankWeapon(w1, p1);
-            var skillKey = skillKeyForCap(p1.type, is2H);
-            var weaponSkillForToHit = WeaponSkillCaps.getCapForSimClass(classId, skillKey, level) || 252;
-            var opts = Object.assign({}, baseOptions, {
-              weapon1: w1,
-              weapon2: undefined,
-              weapon1Type: p1.type || undefined,
-              dualWieldSkill: 0,
-              weaponSkillForToHit: weaponSkillForToHit,
-              wornAttack: (baseOptions.wornAttack || 0) + getWornAttackBonusForNorm(p1),
-              backstabModPercent: classId === 'rogue' ? Math.max(formBackstabModPercent, getBackstabModPercentForNorm(p1)) : undefined,
-              fistweaving: classId === 'monk' && is2H && $('fistweaving').checked
-            });
-            if (row.secondaryId) {
-              var p2 = rankWeaponMap[row.secondaryId];
-              var d2 = p2.damage;
-              if (applyBane && p2.baneDamage) d2 += p2.baneDamage;
-              opts.weapon2 = {
-                damage: d2,
-                delay: p2.delay,
-                procSpell: (p2.proc != null ? p2.proc : '') || (p2.procSpell != null ? p2.procSpell : ''),
-                procSpellDamage: p2.procDamage || 0,
-                procRate: (p2.procRate != null && !Number.isNaN(Number(p2.procRate))) ? Number(p2.procRate) : 0,
-                procLevel: (p2.procLevel != null && !Number.isNaN(Number(p2.procLevel)) && Number(p2.procLevel) > 0) ? Number(p2.procLevel) : undefined,
-                elemType: p2.elemType || undefined,
-                elemDamage: (p2.elemDamage != null ? p2.elemDamage : 0) || 0
+            var opts;
+            if (row.primaryId == null) {
+              var p2Only = rankWeaponMap[row.secondaryId];
+              var d2Only = p2Only.damage;
+              if (applyBane && p2Only.baneDamage) d2Only += p2Only.baneDamage;
+              var w2Only = {
+                damage: d2Only,
+                delay: p2Only.delay,
+                procSpell: (p2Only.proc != null ? p2Only.proc : '') || (p2Only.procSpell != null ? p2Only.procSpell : ''),
+                procSpellDamage: p2Only.procDamage || 0,
+                procRate: (p2Only.procRate != null && !Number.isNaN(Number(p2Only.procRate))) ? Number(p2Only.procRate) : 0,
+                procLevel: (p2Only.procLevel != null && !Number.isNaN(Number(p2Only.procLevel)) && Number(p2Only.procLevel) > 0) ? Number(p2Only.procLevel) : undefined,
+                elemType: p2Only.elemType || undefined,
+                elemDamage: (p2Only.elemDamage != null ? p2Only.elemDamage : 0) || 0
               };
-              if (p2.procBuffDurationTicks != null && p2.procBuffDurationTicks > 0)
-                opts.weapon2.procBuffDurationTicks = p2.procBuffDurationTicks;
-              applyBaneOnlyForRankWeapon(opts.weapon2, p2);
-              opts.dualWieldSkill = dualWieldSkillForm;
-              opts.wornAttack = (baseOptions.wornAttack || 0) + getWornAttackBonusForNorm(p1) + getWornAttackBonusForNorm(p2);
-              opts.backstabModPercent = classId === 'rogue' ? Math.max(formBackstabModPercent, getBackstabModPercentForNorm(p1), getBackstabModPercentForNorm(p2)) : undefined;
+              if (p2Only.procBuffDurationTicks != null && p2Only.procBuffDurationTicks > 0)
+                w2Only.procBuffDurationTicks = p2Only.procBuffDurationTicks;
+              applyBaneOnlyForRankWeapon(w2Only, p2Only);
+              var secSkillKeyOnly = skillKeyForCap(p2Only.type, false);
+              var secWeaponSkillOnly = WeaponSkillCaps.getCapForSimClass(classId, secSkillKeyOnly, level) || 252;
+              var comboOffOnly = getRankComboWornAndBackstab(null, p2Only);
+              opts = Object.assign({}, baseOptions, {
+                weapon1: undefined,
+                weapon2: w2Only,
+                weapon1Type: undefined,
+                dualWieldSkill: dualWieldSkillForm,
+                weaponSkillForToHit: secWeaponSkillOnly,
+                wornAttack: comboOffOnly.wornAttack,
+                backstabModPercent: comboOffOnly.backstabModPercent,
+                fistweaving: false
+              });
+            } else {
+              var p1 = rankWeaponMap[row.primaryId];
+              var is2H = !!(p1.is2H || (p1.type && offhandBlockedTypes[p1.type]));
+              var w1 = normalizedToWeapon1(p1, applyBane);
+              applyBaneOnlyForRankWeapon(w1, p1);
+              var skillKey = skillKeyForCap(p1.type, is2H);
+              var weaponSkillForToHit = WeaponSkillCaps.getCapForSimClass(classId, skillKey, level) || 252;
+              var comboWornBackstabTop = getRankComboWornAndBackstab(p1, row.secondaryId ? rankWeaponMap[row.secondaryId] : null);
+              opts = Object.assign({}, baseOptions, {
+                weapon1: w1,
+                weapon2: undefined,
+                weapon1Type: p1.type || undefined,
+                dualWieldSkill: 0,
+                weaponSkillForToHit: weaponSkillForToHit,
+                wornAttack: comboWornBackstabTop.wornAttack,
+                backstabModPercent: comboWornBackstabTop.backstabModPercent,
+                fistweaving: classId === 'monk' && is2H && $('fistweaving').checked
+              });
+              if (row.secondaryId) {
+                var p2 = rankWeaponMap[row.secondaryId];
+                var d2 = p2.damage;
+                if (applyBane && p2.baneDamage) d2 += p2.baneDamage;
+                opts.weapon2 = {
+                  damage: d2,
+                  delay: p2.delay,
+                  procSpell: (p2.proc != null ? p2.proc : '') || (p2.procSpell != null ? p2.procSpell : ''),
+                  procSpellDamage: p2.procDamage || 0,
+                  procRate: (p2.procRate != null && !Number.isNaN(Number(p2.procRate))) ? Number(p2.procRate) : 0,
+                  procLevel: (p2.procLevel != null && !Number.isNaN(Number(p2.procLevel)) && Number(p2.procLevel) > 0) ? Number(p2.procLevel) : undefined,
+                  elemType: p2.elemType || undefined,
+                  elemDamage: (p2.elemDamage != null ? p2.elemDamage : 0) || 0
+                };
+                if (p2.procBuffDurationTicks != null && p2.procBuffDurationTicks > 0)
+                  opts.weapon2.procBuffDurationTicks = p2.procBuffDurationTicks;
+                applyBaneOnlyForRankWeapon(opts.weapon2, p2);
+                opts.dualWieldSkill = dualWieldSkillForm;
+                opts.wornAttack = comboWornBackstabTop.wornAttack;
+                opts.backstabModPercent = comboWornBackstabTop.backstabModPercent;
+              }
             }
             var reports = [];
             for (var ri = 0; ri < runsCount; ri++) {
