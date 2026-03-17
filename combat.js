@@ -1063,7 +1063,8 @@
       const mainHandType = (options.weapon1Type != null ? String(options.weapon1Type) : (w1.type != null ? String(w1.type) : '')).toLowerCase();
       // Only the primary weapon must be piercing for backstab; offhand type is irrelevant. If primary type is unknown, allow backstab.
       const mainHandTypeUnknown = mainHandType === '' || mainHandType === 'undefined';
-      const assumedPiercing = mainHandTypeUnknown;
+      const hasBackstabMod = (options.backstabModPercent != null && !isNaN(Number(options.backstabModPercent)) && Number(options.backstabModPercent) > 0);
+      const assumedPiercing = mainHandTypeUnknown || hasBackstabMod;
       if (mainHandType !== '1hp' && mainHandType !== '2hp' && !assumedPiercing) canFireSpecial = false;
     }
     const baseDamageCap = getBaseDamageCap(level, options.classId);
