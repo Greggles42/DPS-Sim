@@ -1494,13 +1494,13 @@
         '32333': { damage: 12, delay: 23, proc: '', procDamage: 0, name: 'Goranga Spiked Club', type: '1hb' },
         '6610': { damage: 17, delay: 28, proc: 'Major Shielding', procDamage: 0, name: 'Stave of Shielding', is2H: true, type: '2hb' },
         '31224': { damage: 15, delay: 19, proc: 'Feast of Blood', procDamage: 90, name: 'Mrylokar\'s Dagger of Vengeance', type: '1hp' },
-        '2509': { damage: 15, delay: 20, proc: 'Combust', procDamage: 182, name: 'Massive Heartwood Thorn', type: '1hp' },
+        '2509': { damage: 15, delay: 20, proc: 'Combust', procDamage: 182, name: 'Massive Heartwood Thorn', type: '1hp', backstabModPercent: 10 },
         '31379': { damage: 14, delay: 18, proc: '', procDamage: 0, name: 'Claw of Lightning', type: '1hs' },
         '31301': { damage: 13, delay: 17, proc: '', procDamage: 0, name: 'Vyemm\'s Fang', type: '1hp' },
         '1158': { damage: 13, delay: 18, proc: 'Thunder Strike', procDamage: 263, name: 'Salindrite Dagger', type: '1hp' },
         '11057': { damage: 15, delay: 25, proc: '', procDamage: 0, name: 'Ragebringer', type: '1hp', wornAttackBonus: 40 },
-        '28806': { damage: 16, delay: 20, proc: 'Khalshazar\'s Deceit', procDamage: 0, name: 'Khalshazar', type: '1hp' },
-        '28805': { damage: 16, delay: 21, proc: '', procDamage: 0, name: 'Bloodbath', type: '1hp', wornAttackBonus: 25 },
+        '28806': { damage: 16, delay: 20, proc: 'Khalshazar\'s Deceit', procDamage: 0, name: 'Khalshazar', type: '1hp', backstabModPercent: 15 },
+        '28805': { damage: 16, delay: 21, proc: '', procDamage: 0, name: 'Bloodbath', type: '1hp', wornAttackBonus: 25, backstabModPercent: 12 },
         '26585': { damage: 16, delay: 19, proc: 'Serpent\'s Bite', procDamage: 100, name: 'Acrylia Handled Broadsword', type: '1hs' },
         '8495': { damage: 13, delay: 22, proc: '', procDamage: 0, name: 'Claw of the Savage Spirit', type: '1hp', wornAttackBonus: 30 },
         '10909': { damage: 14, delay: 24, proc: '', procDamage: 0, name: 'Blade of Tactics', type: '1hs', wornAttackBonus: 30 },
@@ -1683,6 +1683,9 @@
             var raw = (weaponListData && weaponListData[presetId]) || (luclinWeaponsData && luclinWeaponsData[presetId]) || (popWeaponsData && popWeaponsData[presetId]) || (procRatesByItemId && procRatesByItemId[presetId]) || null;
             var modFromRaw = getBackstabModPercentFromRawItem(raw);
             if (modFromRaw != null && modFromRaw > 0) return modFromRaw;
+            var preset = (typeof WEAPON_PRESETS !== 'undefined' && WEAPON_PRESETS && WEAPON_PRESETS[presetId]) ? WEAPON_PRESETS[presetId] : null;
+            if (preset && preset.backstabModPercent != null && !isNaN(Number(preset.backstabModPercent)) && Number(preset.backstabModPercent) > 0)
+              return Number(preset.backstabModPercent);
           }
           if (typeof itemSearchDebugSlots !== 'undefined' && itemSearchDebugSlots) {
             var slotKey = prefix === 'w1' ? 'W1' : 'W2';
@@ -1826,6 +1829,8 @@
           var p1Type = ((p && p.type) ? String(p.type) : '').toLowerCase();
           var p1Piercing = p1Type === '1hp' || p1Type === '2hp';
           var p1Backstab = getBackstabModPercentFromRawItem(raw);
+          if (p1Backstab == null && p && p.backstabModPercent != null && !isNaN(Number(p.backstabModPercent)) && Number(p.backstabModPercent) > 0)
+            p1Backstab = Number(p.backstabModPercent);
           w1BackstabModPercent = (p1Piercing && p1Backstab != null) ? p1Backstab : null;
           var p1WornAtk = getWornAttackBonusFromRawItem(raw);
           if (p1WornAtk <= 0 && p && p.wornAttackBonus != null && !isNaN(Number(p.wornAttackBonus)) && Number(p.wornAttackBonus) > 0)
@@ -1841,6 +1846,8 @@
           var p2Type = ((p && p.type) ? String(p.type) : '').toLowerCase();
           var p2Piercing = p2Type === '1hp' || p2Type === '2hp';
           var p2Backstab = getBackstabModPercentFromRawItem(raw);
+          if (p2Backstab == null && p && p.backstabModPercent != null && !isNaN(Number(p.backstabModPercent)) && Number(p.backstabModPercent) > 0)
+            p2Backstab = Number(p.backstabModPercent);
           w2BackstabModPercent = (p2Piercing && p2Backstab != null) ? p2Backstab : null;
           var p2WornAtk = getWornAttackBonusFromRawItem(raw);
           if (p2WornAtk <= 0 && p && p.wornAttackBonus != null && !isNaN(Number(p.wornAttackBonus)) && Number(p.wornAttackBonus) > 0)
@@ -2193,7 +2200,7 @@
           specialAttackType: specialAttacks ? specialAttackType : undefined,
           classId: classId || undefined,
           weaponSkillForToHit: weaponSkillForToHit,
-          backstabModPercent: classId === 'rogue' ? 0 : undefined,
+          backstabModPercent: classId === 'rogue' ? equippedBackstabModPercent : undefined,
           backstabSkill: classId === 'rogue' ? (parseInt($('backstab-skill').value, 10) || 0) : undefined,
           duelist: classId === 'rogue' && $('duelist').checked,
           innerFlame: classId === 'monk' && $('innerflame').checked,
