@@ -3182,7 +3182,8 @@
           : combinations;
         var mainhand_dps = {};
         var offhand_dps = {};
-        var totalSims = primaryWeapons.length + (canDualWield ? secondaryWeapons.length : 0);
+        var comboResults = new Array(combinationsToUse.length);
+        var totalSims = primaryWeapons.length + (canDualWield ? secondaryWeapons.length : 0) + combinationsToUse.length;
         var phase = 'mainhand';
         var simIndex = 0;
         var lastDisplayedPct = -1;
@@ -3267,17 +3268,113 @@
                 return;
               }
             }
-            if (simIndex >= secondaryWeapons.length) phase = 'done';
+            if (simIndex >= secondaryWeapons.length) { phase = 'combinations'; simIndex = 0; }
           } else if (phase === 'offhand') {
-            phase = 'done';
+            phase = 'combinations';
+            simIndex = 0;
+          }
+          if (phase === 'combinations') {
+            end = Math.min(simIndex + chunkSize, combinationsToUse.length);
+            for (; simIndex < end; simIndex++) {
+              var comb = combinationsToUse[simIndex];
+              var primId = comb.primaryId;
+              var secId = comb.secondaryId;
+              var p1 = primId != null ? rankWeaponMap[primId] : null;
+              var p2 = secId != null ? rankWeaponMap[secId] : null;
+              var comboWornBackstab = getRankComboWornAndBackstab(p1, p2);
+              var opts;
+              if (primId == null) {
+                var d2Only = p2.damage;
+                if (applyBane && p2.baneDamage) d2Only += p2.baneDamage;
+                var w2Only = {
+                  damage: d2Only,
+                  delay: p2.delay,
+                  procSpell: (p2.proc != null ? p2.proc : '') || (p2.procSpell != null ? p2.procSpell : ''),
+                  procSpellDamage: p2.procDamage || 0,
+                  procRate: (p2.procRate != null && !Number.isNaN(Number(p2.procRate))) ? Number(p2.procRate) : 0,
+                  procLevel: (p2.procLevel != null && !Number.isNaN(Number(p2.procLevel)) && Number(p2.procLevel) > 0) ? Number(p2.procLevel) : undefined,
+                  elemType: p2.elemType || undefined,
+                  elemDamage: (p2.elemDamage != null ? p2.elemDamage : 0) || 0
+                };
+                if (p2.procBuffDurationTicks != null && p2.procBuffDurationTicks > 0)
+                  w2Only.procBuffDurationTicks = p2.procBuffDurationTicks;
+                applyBaneOnlyForRankWeapon(w2Only, p2);
+                var secSkillKeyOnly = skillKeyForCap(p2.type, false);
+                var secWeaponSkillOnly = WeaponSkillCaps.getCapForSimClass(classId, secSkillKeyOnly, level) || 252;
+                opts = Object.assign({}, baseOptions, {
+                  weapon1: undefined,
+                  weapon2: w2Only,
+                  weapon1Type: undefined,
+                  dualWieldSkill: dualWieldSkillForm,
+                  weaponSkillForToHit: secWeaponSkillOnly,
+                  wornAttack: comboWornBackstab.wornAttack,
+                  backstabModPercent: comboWornBackstab.backstabModPercent,
+                  fistweaving: false,
+                  fistweavingNonEpic: ($('fistweaving-nonepic') && $('fistweaving-nonepic').checked) || false
+                });
+              } else {
+                var is2H = !!(p1.is2H || (p1.type && offhandBlockedTypes[p1.type]));
+                var w1 = normalizedToWeapon1(p1, applyBane);
+                applyBaneOnlyForRankWeapon(w1, p1);
+                var skillKey = skillKeyForCap(p1.type, is2H);
+                var weaponSkillForToHit = WeaponSkillCaps.getCapForSimClass(classId, skillKey, level) || 252;
+                opts = Object.assign({}, baseOptions, {
+                  weapon1: w1,
+                  weapon2: undefined,
+                  weapon1Type: p1.type || undefined,
+                  dualWieldSkill: 0,
+                  weaponSkillForToHit: weaponSkillForToHit,
+                  wornAttack: comboWornBackstab.wornAttack,
+                  backstabModPercent: comboWornBackstab.backstabModPercent,
+                  fistweaving: classId === 'monk' && is2H && $('fistweaving').checked,
+                  fistweavingNonEpic: ($('fistweaving-nonepic') && $('fistweaving-nonepic').checked) || false
+                });
+                if (secId) {
+                  var d2 = p2.damage;
+                  if (applyBane && p2.baneDamage) d2 += p2.baneDamage;
+                  opts.weapon2 = {
+                    damage: d2,
+                    delay: p2.delay,
+                    procSpell: (p2.proc != null ? p2.proc : '') || (p2.procSpell != null ? p2.procSpell : ''),
+                    procSpellDamage: p2.procDamage || 0,
+                    procRate: (p2.procRate != null && !Number.isNaN(Number(p2.procRate))) ? Number(p2.procRate) : 0,
+                    procLevel: (p2.procLevel != null && !Number.isNaN(Number(p2.procLevel)) && Number(p2.procLevel) > 0) ? Number(p2.procLevel) : undefined,
+                    elemType: p2.elemType || undefined,
+                    elemDamage: (p2.elemDamage != null ? p2.elemDamage : 0) || 0
+                  };
+                  if (p2.procBuffDurationTicks != null && p2.procBuffDurationTicks > 0)
+                    opts.weapon2.procBuffDurationTicks = p2.procBuffDurationTicks;
+                  applyBaneOnlyForRankWeapon(opts.weapon2, p2);
+                  opts.dualWieldSkill = dualWieldSkillForm;
+                }
+              }
+              try {
+                var rr = EQCombat.runFight(opts);
+                if (rr.error) {
+                  comboResults[simIndex] = { totalDps: 0, mainhandDps: 0, offhandDps: 0 };
+                } else {
+                  var w1Dmg = rr.weapon1 && rr.weapon1.totalDamage != null ? rr.weapon1.totalDamage : 0;
+                  var w2Dmg = rr.weapon2 && rr.weapon2.totalDamage != null ? rr.weapon2.totalDamage : 0;
+                  comboResults[simIndex] = {
+                    totalDps: rr.totalDamage / durationSec,
+                    mainhandDps: w1Dmg / durationSec,
+                    offhandDps: w2Dmg / durationSec
+                  };
+                }
+              } catch (err) {
+                $('report').textContent = 'Rank weapons error: ' + (err && err.message ? err.message : String(err));
+                return;
+              }
+            }
+            if (simIndex >= combinationsToUse.length) phase = 'done';
           }
 
-          var completedSims = (phase === 'mainhand' ? simIndex : primaryWeapons.length) + (phase === 'offhand' ? simIndex : (phase === 'done' ? secondaryWeapons.length : 0));
+          var completedSims = phase === 'mainhand' ? simIndex : (phase === 'offhand' ? primaryWeapons.length + simIndex : (phase === 'combinations' ? primaryWeapons.length + (canDualWield ? secondaryWeapons.length : 0) + simIndex : totalSims));
           var pctFloor = Math.floor((completedSims / totalSims) * 100);
           if (totalSims > 0 && pctFloor > lastDisplayedPct) {
             lastDisplayedPct = pctFloor;
-            var phaseLabel = phase === 'mainhand' ? 'Measuring mainhand DPS…' : (phase === 'offhand' ? 'Measuring offhand DPS…' : 'Building list…');
-            $('report').textContent = phaseLabel + ' ' + pctFloor + '% complete (' + completedSims + ' / ' + totalSims + ' weapons)';
+            var phaseLabel = phase === 'mainhand' ? 'Measuring mainhand DPS…' : (phase === 'offhand' ? 'Measuring offhand DPS…' : (phase === 'combinations' ? 'Measuring combinations…' : 'Building list…'));
+            $('report').textContent = phaseLabel + ' ' + pctFloor + '% complete (' + completedSims + ' / ' + totalSims + ' sims)';
           }
 
           if (phase !== 'done') {
@@ -3285,11 +3382,9 @@
             return;
           }
 
-          var results = combinationsToUse.map(function (comb) {
+          var results = combinationsToUse.map(function (comb, i) {
+            var cr = comboResults[i] || { totalDps: 0, mainhandDps: 0, offhandDps: 0 };
             var isOffhandOnly = comb.primaryId == null;
-            var mainDps = isOffhandOnly ? 0 : (mainhand_dps[comb.primaryId] != null ? mainhand_dps[comb.primaryId] : 0);
-            var offDps = comb.secondaryId && (offhand_dps[comb.secondaryId] != null) ? offhand_dps[comb.secondaryId] : 0;
-            var totalDps = mainDps + offDps;
             var p1 = comb.primaryId != null ? rankWeaponMap[comb.primaryId] : null;
             var name1 = p1 ? (p1.name || comb.primaryId) : '';
             var name2 = comb.secondaryId ? (rankWeaponMap[comb.secondaryId] && rankWeaponMap[comb.secondaryId].name) || comb.secondaryId : '';
@@ -3299,14 +3394,14 @@
             var name1WithAtk = atk1 > 0 ? (name1 + ' [ATK+' + atk1 + ']') : name1;
             var name2WithAtk = atk2 > 0 ? (name2 + ' [ATK+' + atk2 + ']') : name2;
             var bs1 = classId === 'rogue' ? getBackstabModPercentForNorm(p1) : 0;
+            var bs2 = classId === 'rogue' ? getBackstabModPercentForNorm(p2) : 0;
+            var backstabModApplied = (classId === 'rogue' && fromBehind && rankSpecialAttacks && rankSpecialAttackType === 'backstab') ? Math.max(0, bs1, bs2) : 0;
             var primaryType = (p1 && p1.type != null ? String(p1.type) : '').toLowerCase();
-            var backstabContributes = classId === 'rogue' && fromBehind && rankSpecialAttacks && rankSpecialAttackType === 'backstab' && primaryType === '1hp' && bs1 > 0;
-            var backstabModApplied = backstabContributes ? bs1 : 0;
             var primaryLabel = (p1 && backstabModApplied > 0)
               ? ((p1.name || comb.primaryId) + ' [BS+' + backstabModApplied + '%]' + (atk1 > 0 ? (' [ATK+' + atk1 + ']') : ''))
               : name1WithAtk;
             var label = isOffhandOnly ? ('Offhand: ' + name2WithAtk) : (comb.secondaryId ? (primaryLabel + ' + ' + name2WithAtk) : primaryLabel);
-            return { primaryId: comb.primaryId, secondaryId: comb.secondaryId, label: label, mainhandDps: mainDps, offhandDps: offDps, totalDps: totalDps, backstabModApplied: backstabModApplied };
+            return { primaryId: comb.primaryId, secondaryId: comb.secondaryId, label: label, mainhandDps: cr.mainhandDps, offhandDps: cr.offhandDps, totalDps: cr.totalDps, backstabModApplied: backstabModApplied };
           });
           results.sort(function (a, b) { return (b.totalDps || 0) - (a.totalDps || 0); });
 
@@ -3332,7 +3427,7 @@
             sourceLabel += ' Items requiring level above character level excluded (reqlevel).';
             sourceLabel += ' Items unusable by all races excluded (races = 0).';
             var heading = currentMode === 'slot' ? '=== Weapon slot rank (by DPS) ===' : '=== Weapon combination rank (by DPS) ===';
-            var modeDesc = currentMode === 'slot' ? ' Slot Ranking mode shows best single-slot options.' : ' DPS = mainhand + offhand (additive).';
+            var modeDesc = currentMode === 'slot' ? ' Slot Ranking mode shows best single-slot options.' : ' Combo DPS from full sim (worn ATK from both weapons, highest backstab mod).';
             if (classId === 'rogue') modeDesc += ' [BS+X%] marker indicates an item backstab modifier factored into that result.';
             var targetName = (window.selectedTargetNpc && window.selectedTargetNpc.name) ? String(window.selectedTargetNpc.name).replace(/_/g, ' ') : 'Generic Mob';
             var effectiveHastePct = (typeof EQCombat !== 'undefined' && typeof EQCombat.getEffectiveHastePercent === 'function')
