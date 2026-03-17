@@ -4270,7 +4270,7 @@
         if (query.length < ITEM_SEARCH_MIN_CHARS) { renderEasyDropdown(prefix, [], false, query); openEasyDropdown(prefix); return; }
         renderEasyDropdown(prefix, [], true, query); openEasyDropdown(prefix);
         var selectedClassId = getEasySelectedClassId();
-        searchWeaponsFromWeaponList(query, selectedClassId).then(function (results) { renderEasyDropdown(prefix, results || [], false, query); }).catch(function () { renderEasyDropdown(prefix, [], false, query); });
+        tryItemSearchThenWeaponListFallback(query, selectedClassId).then(function (results) { renderEasyDropdown(prefix, results || [], false, query); }).catch(function () { renderEasyDropdown(prefix, [], false, query); });
       }
       function setupEasyItemSearch(prefix) {
         var inputEl = $('easy-' + prefix + '-item-search'); var listEl = $('easy-' + prefix + '-item-search-list'); if (!inputEl || !listEl) return;
@@ -5543,6 +5543,93 @@
         }).filter(Boolean);
         return Promise.resolve(results);
       }
+      /** Search only weaponlist.json (fallback when dndquarm API is unreachable). Rank weapons continue to use luclin/pop filtered lists. */
+      function searchWeaponsFromWeaponListOnly(query, classId) {
+        var q = (query || '').toLowerCase();
+        var mask = classId && typeof ItemSearch !== 'undefined' && ItemSearch.CLASS_BITMASK ? ItemSearch.CLASS_BITMASK[classId] : 0;
+        var num = function (v) { var n = parseInt(v, 10); return isNaN(n) ? 0 : n; };
+        var raw = [];
+        var seenIds = {};
+        function addFromList(list) {
+          if (!list || typeof list !== 'object') return;
+          for (var id in list) {
+            if (!list.hasOwnProperty(id) || seenIds[id]) continue;
+            var item = list[id];
+            if (!item || typeof item !== 'object') continue;
+            var dmgVal = num(item.damage);
+            var dlyVal = num(item.delay);
+            var itemTypeVal = num(item.itemtype);
+            if (dmgVal < 1) continue;
+            if (dlyVal < 1 && itemTypeVal !== 27) continue;
+            var name = (item.Name != null ? String(item.Name) : (item.name != null ? String(item.name) : '')).toLowerCase();
+            if (q && name.indexOf(q) < 0) continue;
+            var classes = item.classes != null ? parseInt(item.classes, 10) : (item.Classes != null ? parseInt(item.Classes, 10) : null);
+            if (mask && classes != null && !isNaN(classes) && (classes & mask) === 0) continue;
+            seenIds[id] = true;
+            var withId = Object.assign({}, item, { id: parseInt(id, 10) });
+            if (withId.id !== withId.id) withId.id = id;
+            if ((itemTypeVal === 27 || itemTypeVal === 5) && (item.elemdmgtype != null || item.elemdmgamt != null)) {
+              withId.eleDmgType = item.elemdmgtype != null ? parseInt(item.elemdmgtype, 10) : 0;
+              withId.eleDmgAmt = item.elemdmgamt != null ? parseInt(item.elemdmgamt, 10) : 0;
+            }
+            raw.push(withId);
+          }
+        }
+        addFromList(weaponListData);
+        var skillmodType7 = function (it) { var st = it.skillmodtype != null ? it.skillmodtype : it.skillmodType; return (Number(st) === 7); };
+        var skillmodValNum = function (it) { var sv = it.skillmodvalue != null ? it.skillmodvalue : it.skillmodValue; var v = (typeof sv === 'number') ? sv : parseInt(sv, 10); return isNaN(v) ? null : v; };
+        function ensureBaneFromRaw(weapon, rawItem) {
+          if (!weapon || !rawItem) return;
+          var amt = rawItem.banedmgamt != null ? rawItem.banedmgamt : (rawItem.baneDmgAmt != null ? rawItem.baneDmgAmt : (rawItem.baneDamage != null ? rawItem.baneDamage : (rawItem.BaneDmgAmt != null ? rawItem.BaneDmgAmt : (rawItem.bane_damage_amt != null ? rawItem.bane_damage_amt : null))));
+          if (amt != null && amt !== '') weapon.baneDamage = num(amt);
+          var bb = rawItem.banedmgbody != null ? rawItem.banedmgbody : (rawItem.baneDamageBody != null ? rawItem.baneDamageBody : (rawItem.BaneDamageBody != null ? rawItem.BaneDamageBody : null));
+          if (bb != null && bb !== '') { var bbNum = parseInt(bb, 10); if (!isNaN(bbNum)) weapon.baneDamageBody = bbNum; }
+          var br = rawItem.banedmgrace != null ? rawItem.banedmgrace : (rawItem.baneDamageRace != null ? rawItem.baneDamageRace : (rawItem.banedamagerace != null ? rawItem.banedamagerace : (rawItem.BaneDamageRace != null ? rawItem.BaneDamageRace : null)));
+          if (br != null && br !== '') { var brNum = parseInt(br, 10); if (!isNaN(brNum)) weapon.baneDamageRace = brNum; }
+        }
+        if (typeof ItemSearch === 'undefined' || !ItemSearch.normalizeItemForWeapon) {
+          raw.forEach(function (item) {
+            if (item.archeryModPercent != null) return;
+            if (!skillmodType7(item)) return;
+            var v = skillmodValNum(item);
+            if (v != null) item.archeryModPercent = v;
+          });
+          raw.forEach(function (item) {
+            var amt = item.banedmgamt != null ? item.banedmgamt : (item.baneDmgAmt != null ? item.baneDmgAmt : (item.baneDamage != null ? item.baneDamage : null));
+            if (amt != null && amt !== '') item.baneDamage = num(amt);
+            var bb = item.banedmgbody != null ? item.banedmgbody : (item.baneDamageBody != null ? item.baneDamageBody : null);
+            if (bb != null && bb !== '') { var bbNum = parseInt(bb, 10); if (!isNaN(bbNum)) item.baneDamageBody = bbNum; }
+            var br = item.banedmgrace != null ? item.banedmgrace : (item.baneDamageRace != null ? item.baneDamageRace : item.banedamagerace);
+            if (br != null && br !== '') { var brNum = parseInt(br, 10); if (!isNaN(brNum)) item.baneDamageRace = brNum; }
+          });
+          return Promise.resolve(raw);
+        }
+        var results = raw.map(function (item) {
+          var norm = ItemSearch.normalizeItemForWeapon(item);
+          if (!norm) return null;
+          ensureBaneFromRaw(norm, item);
+          if (norm.archeryModPercent == null && skillmodType7(item)) {
+            var v = skillmodValNum(item);
+            if (v != null) norm.archeryModPercent = v;
+          }
+          return norm;
+        }).filter(Boolean);
+        return Promise.resolve(results);
+      }
+      var ITEM_SEARCH_API_TIMEOUT_MS = 8000;
+      function tryItemSearchThenWeaponListFallback(query, selectedClassId) {
+        var useFallback = function () { return searchWeaponsFromWeaponListOnly(query, selectedClassId); };
+        if (typeof ItemSearch === 'undefined' || !ItemSearch.searchWeapons) return useFallback();
+        var apiPromise = ItemSearch.searchWeapons(query, selectedClassId);
+        var timeoutPromise = new Promise(function (_, reject) {
+          setTimeout(function () { reject(new Error('Item search timeout')); }, ITEM_SEARCH_API_TIMEOUT_MS);
+        });
+        return Promise.race([apiPromise, timeoutPromise]).then(function (results) {
+          return Array.isArray(results) ? results : [];
+        }).catch(function () {
+          return useFallback();
+        });
+      }
       function runItemSearch(prefix) {
         const inputEl = $(prefix + '-item-search');
         const query = (inputEl && inputEl.value || '').trim();
@@ -5557,7 +5644,7 @@
         const selectedClassId = (prefix === 'ranged-weapon' || prefix === 'arrow')
           ? 'ranger'
           : (($('class').value || '').trim().toLowerCase());
-        searchWeaponsFromWeaponList(query, selectedClassId).then(function (results) {
+        tryItemSearchThenWeaponListFallback(query, selectedClassId).then(function (results) {
           const recentNow = getRecent(prefix);
           renderDropdown(prefix, recentNow, results || [], false, query);
         }).catch(function () { renderDropdown(prefix, getRecent(prefix), [], false, query); });
