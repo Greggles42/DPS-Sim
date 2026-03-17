@@ -3113,10 +3113,6 @@
         var mainhand_dps = {};
         var offhand_dps = {};
         var totalSims = primaryWeapons.length + (canDualWield ? secondaryWeapons.length : 0);
-        var refMainId = canDualWield && secondaryWeapons.length > 0 ? primaryWeapons.filter(function (id) {
-          var n = rankWeaponMap[id];
-          return n && !(n.is2H || (n.type && offhandBlockedTypes[n.type]));
-        })[0] : null;
         var phase = 'mainhand';
         var simIndex = 0;
         var lastDisplayedPct = -1;
@@ -3157,13 +3153,8 @@
               simIndex = 0;
             }
           }
-          if (phase === 'offhand' && canDualWield && refMainId != null) {
+          if (phase === 'offhand' && canDualWield) {
             end = Math.min(simIndex + chunkSize, secondaryWeapons.length);
-            var refNorm = rankWeaponMap[refMainId];
-            var refW1 = normalizedToWeapon1(refNorm, applyBane);
-            applyBaneOnlyForRankWeapon(refW1, refNorm);
-            var refSkillKey = skillKeyForCap(refNorm.type, false);
-            var refWeaponSkillForToHit = WeaponSkillCaps.getCapForSimClass(classId, refSkillKey, level) || 252;
             for (; simIndex < end; simIndex++) {
               var secId = secondaryWeapons[simIndex];
               var p2 = rankWeaponMap[secId];
@@ -3182,19 +3173,21 @@
               if (p2.procBuffDurationTicks != null && p2.procBuffDurationTicks > 0)
                 w2.procBuffDurationTicks = p2.procBuffDurationTicks;
               applyBaneOnlyForRankWeapon(w2, p2);
+              var secSkillKey = skillKeyForCap(p2.type, false);
+              var secWeaponSkillForToHit = WeaponSkillCaps.getCapForSimClass(classId, secSkillKey, level) || 252;
               var opts = Object.assign({}, baseOptions, {
-                weapon1: refW1,
+                weapon1: undefined,
                 weapon2: w2,
-                weapon1Type: refNorm.type || undefined,
+                weapon1Type: undefined,
                 dualWieldSkill: dualWieldSkillForm,
-                weaponSkillForToHit: refWeaponSkillForToHit,
-                wornAttack: (getWornAttackBonusForNorm(refNorm) || 0) + (getWornAttackBonusForNorm(p2) || 0),
-                backstabModPercent: classId === 'rogue' ? Math.max(formBackstabModPercent, getBackstabModPercentForNorm(refNorm), getBackstabModPercentForNorm(p2)) : undefined,
+                weaponSkillForToHit: secWeaponSkillForToHit,
+                wornAttack: getWornAttackBonusForNorm(p2) || 0,
+                backstabModPercent: classId === 'rogue' ? Math.max(formBackstabModPercent, getBackstabModPercentForNorm(p2)) : undefined,
                 fistweaving: false
               });
               try {
                 var r2 = EQCombat.runFight(opts);
-                offhand_dps[secId] = r2.error ? 0 : (r2.weapon2 && r2.weapon2.totalDamage != null ? r2.weapon2.totalDamage / durationSec : 0);
+                offhand_dps[secId] = r2.error ? 0 : (r2.totalDamage != null ? r2.totalDamage / durationSec : 0);
               } catch (err) {
                 $('report').textContent = 'Rank weapons error: ' + (err && err.message ? err.message : String(err));
                 return;
