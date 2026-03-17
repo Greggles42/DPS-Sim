@@ -1676,7 +1676,17 @@
         var wornEffectRaw = raw.worneffect != null ? raw.worneffect : raw.wornEffect;
         var wornEffectId = (typeof wornEffectRaw === 'number') ? wornEffectRaw : parseInt(String(wornEffectRaw), 10);
         var spellAttack = (!isNaN(wornEffectId) && wornEffectId > 0) ? getSpellAttackBonusFromLocalSpellData(wornEffectId) : 0;
-        return Math.max(0, directAttack) + Math.max(0, spellAttack);
+        var itemEffectAttack = 0;
+        for (var i = 1; i <= 12; i++) {
+          var eidRaw = raw['effectid' + i] != null ? raw['effectid' + i] : raw['EffectID' + i];
+          if (eidRaw == null) continue;
+          var eid = (typeof eidRaw === 'number') ? eidRaw : parseInt(String(eidRaw), 10);
+          if (eid !== 2) continue;
+          var baseRaw = raw['effect_base_value' + i] != null ? raw['effect_base_value' + i] : raw['Effect_Base_Value' + i];
+          var base = (typeof baseRaw === 'number') ? baseRaw : parseInt(String(baseRaw), 10);
+          if (!isNaN(base) && base > 0) itemEffectAttack += base;
+        }
+        return Math.max(0, directAttack) + Math.max(0, spellAttack) + Math.max(0, itemEffectAttack);
       }
       function getWornAttackBonusForNorm(norm) {
         if (!norm) return 0;
@@ -2852,6 +2862,10 @@
           if (norm.backstabModPercent == null) {
             var normBackstab = getBackstabModPercentFromRawItem(raw);
             if (normBackstab != null) norm.backstabModPercent = normBackstab;
+          }
+          if (norm.wornAttackBonus == null) {
+            var normWornAttack = getWornAttackBonusFromRawItem(raw);
+            if (normWornAttack > 0) norm.wornAttackBonus = normWornAttack;
           }
           var normProcLevel = raw.proclevel != null ? parseInt(raw.proclevel, 10) : NaN;
           norm.procLevel = (!isNaN(normProcLevel) && normProcLevel > 0) ? normProcLevel : undefined;
