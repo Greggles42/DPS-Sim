@@ -3196,8 +3196,8 @@
           : combinations;
         var mainhand_dps = {};
         var offhand_dps = {};
-        const TOP_COMBO_SIMS = 100;
-        var top100Combos = [];
+        const TOP_COMBO_SIMS = 500;
+        var topCombosToSim = [];
         var comboResults = [];
         var coarseResults = [];
         var totalSims = primaryWeapons.length + (canDualWield ? secondaryWeapons.length : 0) + Math.min(TOP_COMBO_SIMS, combinationsToUse.length);
@@ -3311,8 +3311,8 @@
                 return buildResultRow(comb, mainDps + offDps, mainDps, offDps);
               });
               coarseResults.sort(function (a, b) { return (b.totalDps || 0) - (a.totalDps || 0); });
-              top100Combos = coarseResults.slice(0, Math.min(TOP_COMBO_SIMS, coarseResults.length));
-              comboResults = new Array(top100Combos.length);
+              topCombosToSim = coarseResults.slice(0, Math.min(TOP_COMBO_SIMS, coarseResults.length));
+              comboResults = new Array(topCombosToSim.length);
               phase = 'combinations';
               simIndex = 0;
             }
@@ -3323,15 +3323,15 @@
               return buildResultRow(comb, mainDps + offDps, mainDps, offDps);
             });
             coarseResults.sort(function (a, b) { return (b.totalDps || 0) - (a.totalDps || 0); });
-            top100Combos = coarseResults.slice(0, Math.min(TOP_COMBO_SIMS, coarseResults.length));
-            comboResults = new Array(top100Combos.length);
+            topCombosToSim = coarseResults.slice(0, Math.min(TOP_COMBO_SIMS, coarseResults.length));
+            comboResults = new Array(topCombosToSim.length);
             phase = 'combinations';
             simIndex = 0;
           }
           if (phase === 'combinations') {
-            end = Math.min(simIndex + chunkSize, top100Combos.length);
+            end = Math.min(simIndex + chunkSize, topCombosToSim.length);
             for (; simIndex < end; simIndex++) {
-              var comb = { primaryId: top100Combos[simIndex].primaryId, secondaryId: top100Combos[simIndex].secondaryId };
+              var comb = { primaryId: topCombosToSim[simIndex].primaryId, secondaryId: topCombosToSim[simIndex].secondaryId };
               var primId = comb.primaryId;
               var secId = comb.secondaryId;
               var p1 = primId != null ? rankWeaponMap[primId] : null;
@@ -3421,7 +3421,7 @@
                 return;
               }
             }
-            if (simIndex >= top100Combos.length) phase = 'done';
+            if (simIndex >= topCombosToSim.length) phase = 'done';
           }
 
           var completedSims = phase === 'mainhand' ? simIndex : (phase === 'offhand' ? primaryWeapons.length + simIndex : (phase === 'combinations' ? primaryWeapons.length + (canDualWield ? secondaryWeapons.length : 0) + simIndex : totalSims));
@@ -3467,7 +3467,7 @@
             sourceLabel += ' Items requiring level above character level excluded (reqlevel).';
             sourceLabel += ' Items unusable by all races excluded (races = 0).';
             var heading = currentMode === 'slot' ? '=== Weapon slot rank (by DPS) ===' : '=== Weapon combination rank (by DPS) ===';
-            var modeDesc = currentMode === 'slot' ? ' Slot Ranking mode shows best single-slot options.' : ' Top 100 combos: full sim (worn ATK + backstab). Rest: coarse estimate (main+off DPS sum).';
+            var modeDesc = currentMode === 'slot' ? ' Slot Ranking mode shows best single-slot options.' : ' Top 500 estimated combos: full sim (worn ATK + backstab). Rest: coarse estimate. Top 40 averaged over multiple runs.';
             if (classId === 'rogue') modeDesc += ' [BS+X%] marker indicates an item backstab modifier factored into that result.';
             var targetName = (window.selectedTargetNpc && window.selectedTargetNpc.name) ? String(window.selectedTargetNpc.name).replace(/_/g, ' ') : 'Generic Mob';
             var effectiveHastePct = (typeof EQCombat !== 'undefined' && typeof EQCombat.getEffectiveHastePercent === 'function')
