@@ -766,6 +766,10 @@
         <div id="fistweaving-row" style="display: none;">
           <label class="checkbox-label char-checkbox"><input type="checkbox" id="fistweaving"> Force Fistweaving (2H Only)</label>
           <label class="checkbox-label char-checkbox"><input type="checkbox" id="fistweaving-nonepic"> Non-Epic FW</label>
+          <div class="char-field char-field-num" style="margin-top:0.5rem;">
+            <label for="fistweaving-reaction-delay-ms" class="small-label">Fistweave reaction delay (ms)</label>
+            <input type="number" id="fistweaving-reaction-delay-ms" min="0" max="1000" step="10" value="200">
+          </div>
         </div>
         <div id="innerflame-row" style="display: none;">
           <label class="checkbox-label char-checkbox"><input type="checkbox" id="innerflame"> Inner Flame (12s random window: bonus melee damage)</label>
@@ -2327,6 +2331,12 @@
           slayUndead: (function () { var el = document.querySelector('input[name="slay-undead"]:checked'); return el ? (parseInt(el.value, 10) || 0) : 0; })(),
           fistweaving: hasMainHand && classId === 'monk' && weapon1.is2H && $('fistweaving').checked,
           fistweavingNonEpic: ($('fistweaving-nonepic') && $('fistweaving-nonepic').checked) || false,
+          fistweavingReactionDelayMs: (() => {
+            const el = $('fistweaving-reaction-delay-ms');
+            const v = el ? parseInt(el.value, 10) : 200;
+            if (isNaN(v)) return 200;
+            return Math.max(0, Math.min(1000, v));
+          })(),
           critChanceMult: critChanceMult || undefined,
           backstabReuseEffectiveSec: (backstabReuseManual && (() => { const v = parseFloat($('backstab-reuse-sec').value); return v > 0 && !isNaN(v) ? v : undefined; })()) || undefined,
           flyingKickReuseEffectiveSec: (flyingKickReuseManual && (() => { const v = parseFloat($('flyingkick-reuse-sec').value); return v > 0 && !isNaN(v) ? v : undefined; })()) || undefined,
@@ -3160,6 +3170,12 @@
           kickReuseEffectiveSec: (kickReuseManual && (() => { const v = parseFloat($('kick-reuse-sec').value); return v > 0 && !isNaN(v) ? v : undefined; })()) || undefined,
           bashReuseEffectiveSec: (bashReuseManual && (() => { const v = parseFloat($('bash-reuse-sec').value); return v > 0 && !isNaN(v) ? v : undefined; })()) || undefined,
           fistweavingNonEpic: ($('fistweaving-nonepic') && $('fistweaving-nonepic').checked) || false,
+          fistweavingReactionDelayMs: (() => {
+            const el = $('fistweaving-reaction-delay-ms');
+            const v = el ? parseInt(el.value, 10) : 200;
+            if (isNaN(v)) return 200;
+            return Math.max(0, Math.min(1000, v));
+          })(),
         };
         var formBackstabModPercent = 0;
         /** For rogue: base backstab skill from input (or 225 if empty). Used for every sim; weapon mod is applied per-combo in getRankComboWornAndBackstab. */
