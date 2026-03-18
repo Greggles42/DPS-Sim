@@ -3109,7 +3109,7 @@
             var raw = source[id];
             if (!raw || raw.damage < 1 || raw.delay < 1) return;
             var itemName = raw.Name != null ? String(raw.Name).trim().toLowerCase() : '';
-            if (itemName === 'fist of steel') return;
+            if (itemName === 'fist of steel' || itemName === 'dagger of the disciple') return;
             var reqlevel = raw.reqlevel != null ? parseInt(raw.reqlevel, 10) : NaN;
             if (!isNaN(reqlevel) && reqlevel > 0 && level < reqlevel) return;
             var races = raw.races != null ? parseInt(raw.races, 10) : NaN;
@@ -3213,16 +3213,24 @@
           var name2 = comb.secondaryId ? (rankWeaponMap[comb.secondaryId] && rankWeaponMap[comb.secondaryId].name) || comb.secondaryId : '';
           var atk1 = getWornAttackBonusForNorm(p1);
           var atk2 = getWornAttackBonusForNorm(p2);
-          var name1WithAtk = atk1 > 0 ? (name1 + ' [ATK+' + atk1 + ']') : name1;
-          var name2WithAtk = atk2 > 0 ? (name2 + ' [ATK+' + atk2 + ']') : name2;
           var bs1 = classId === 'rogue' ? getBackstabModPercentForNorm(p1) : 0;
           var bs2 = classId === 'rogue' ? getBackstabModPercentForNorm(p2) : 0;
-          var backstabModApplied = (classId === 'rogue' && fromBehind && rankSpecialAttacks && rankSpecialAttackType === 'backstab') ? Math.max(0, bs1, bs2) : 0;
-          var primaryLabel = (p1 && backstabModApplied > 0)
-            ? ((p1.name || comb.primaryId) + ' [BS+' + backstabModApplied + '%]' + (atk1 > 0 ? (' [ATK+' + atk1 + ']') : ''))
-            : name1WithAtk;
+          var backstabActive = (classId === 'rogue' && fromBehind && rankSpecialAttacks && rankSpecialAttackType === 'backstab');
+          var primaryBsTag = backstabActive && bs1 > 0 ? (' [BS+' + (bs1 >= bs2 ? bs1 : 0) + '%]') : '';
+          var offhandBsTag = backstabActive && bs2 > 0 ? (' [BS+' + (bs2 >= bs1 ? bs2 : 0) + '%]') : '';
+          var primaryLabel = name1 + primaryBsTag + (atk1 > 0 ? (' [ATK+' + atk1 + ']') : '');
+          var name2WithAtk = name2 + offhandBsTag + (atk2 > 0 ? (' [ATK+' + atk2 + ']') : '');
           var label = isOffhandOnly ? ('Offhand: ' + name2WithAtk) : (comb.secondaryId ? (primaryLabel + ' + ' + name2WithAtk) : primaryLabel);
-          return { primaryId: comb.primaryId, secondaryId: comb.secondaryId, label: label, mainhandDps: mainhandDps != null ? mainhandDps : 0, offhandDps: offhandDps != null ? offhandDps : 0, totalDps: totalDps != null ? totalDps : 0, backstabModApplied: backstabModApplied };
+          var backstabModApplied = backstabActive ? Math.max(0, bs1, bs2) : 0;
+          var is2HPrimary = !!(p1 && (p1.is2H || (p1.type && offhandBlockedTypes[p1.type])));
+          var primSkillKey = p1 ? skillKeyForCap(p1.type, is2HPrimary) : '';
+          var primCap = p1 && typeof WeaponSkillCaps !== 'undefined' ? (WeaponSkillCaps.getCapForSimClass(classId, primSkillKey, level) || 252) : 0;
+          var primarySkillLabel = p1 ? ((primSkillKey || '').toUpperCase() + '-' + primCap) : '—';
+          var secSkillKey = p2 ? skillKeyForCap(p2.type, false) : '';
+          var secCap = p2 && typeof WeaponSkillCaps !== 'undefined' ? (WeaponSkillCaps.getCapForSimClass(classId, secSkillKey, level) || 252) : 0;
+          var secondarySkillLabel = (comb.secondaryId && p2) ? ((secSkillKey || '').toUpperCase() + '-' + secCap) : '—';
+          var finalAtk = (baseOptions.spellAttack || 0) + (baseOptions.wornAttack || 0) + atk1 + atk2;
+          return { primaryId: comb.primaryId, secondaryId: comb.secondaryId, label: label, mainhandDps: mainhandDps != null ? mainhandDps : 0, offhandDps: offhandDps != null ? offhandDps : 0, totalDps: totalDps != null ? totalDps : 0, backstabModApplied: backstabModApplied, primarySkillLabel: primarySkillLabel, secondarySkillLabel: secondarySkillLabel, finalAtk: finalAtk };
         }
 
         function runNextChunk() {
@@ -3508,7 +3516,10 @@
               var mainDpsStr = row.mainhandDps != null ? row.mainhandDps.toFixed(2) : '—';
               var offDpsStr = row.offhandDps != null ? row.offhandDps.toFixed(2) : '—';
               var totalDpsStr = row.totalDps != null ? row.totalDps.toFixed(2) : '—';
-              return '<tr><td>' + rank + '</td><td>' + label + '</td><td style="text-align:right;">' + mainDpsStr + '</td><td style="text-align:right;">' + offDpsStr + '</td><td style="text-align:right;">' + totalDpsStr + '</td></tr>';
+              var primSkillStr = (row.primarySkillLabel != null ? row.primarySkillLabel : '—').replace(/&/g, '&amp;').replace(/</g, '&lt;');
+              var secSkillStr = (row.secondarySkillLabel != null ? row.secondarySkillLabel : '—').replace(/&/g, '&amp;').replace(/</g, '&lt;');
+              var finalAtkStr = row.finalAtk != null ? String(Math.round(row.finalAtk)) : '—';
+              return '<tr><td>' + rank + '</td><td>' + label + '</td><td style="text-align:right;">' + mainDpsStr + '</td><td style="text-align:right;">' + offDpsStr + '</td><td style="text-align:right;">' + totalDpsStr + '</td><td>' + primSkillStr + '</td><td>' + secSkillStr + '</td><td style="text-align:right;">' + finalAtkStr + '</td></tr>';
             });
             var maxDps = results.length > 0 && results[0].totalDps != null && results[0].totalDps > 0 ? results[0].totalDps : 1;
             var chartRows = results.slice(0, 40).map(function (row, i) {
@@ -3557,7 +3568,7 @@
               $('report').innerHTML = '<pre style="margin:0; white-space:pre-wrap; overflow-wrap:anywhere; word-break:break-word;">' + lines.join('\n') + '</pre>' + slotTables;
             } else {
               if (histContainer) histContainer.innerHTML = chartHtml;
-              $('report').innerHTML = '<pre style="margin:0; white-space:pre-wrap; overflow-wrap:anywhere; word-break:break-word;">' + lines.join('\n') + '</pre><table class="rank-weapons-table" style="margin-top:0.5rem; border-collapse:collapse; width:100%; font-size:0.9rem;"><thead><tr><th style="text-align:left;">#</th><th style="text-align:left;">Combination</th><th style="text-align:right;">Mainhand DPS</th><th style="text-align:right;">Offhand DPS</th><th style="text-align:right;">Total DPS</th></tr></thead><tbody>' + tableRows.join('') + '</tbody></table>';
+              $('report').innerHTML = '<pre style="margin:0; white-space:pre-wrap; overflow-wrap:anywhere; word-break:break-word;">' + lines.join('\n') + '</pre><table class="rank-weapons-table" style="margin-top:0.5rem; border-collapse:collapse; width:100%; font-size:0.9rem;"><thead><tr><th style="text-align:left;">#</th><th style="text-align:left;">Combination</th><th style="text-align:right;">Mainhand DPS</th><th style="text-align:right;">Offhand DPS</th><th style="text-align:right;">Total DPS</th><th style="text-align:left;">Primary skill</th><th style="text-align:left;">Secondary skill</th><th style="text-align:right;">Final +ATK</th></tr></thead><tbody>' + tableRows.join('') + '</tbody></table>';
             }
           }
           window._renderRankWeaponsReportView = renderRankReport;
@@ -4110,15 +4121,18 @@
           return;
         }
         var maxDps = results[0].totalDps != null && results[0].totalDps > 0 ? results[0].totalDps : 1;
-        var header = ['Rank', 'Weapon Combination', 'Mainhand DPS', 'Offhand DPS', 'Total DPS', '% of BIS'];
+        var header = ['Rank', 'Weapon Combination', 'Mainhand DPS', 'Offhand DPS', 'Total DPS', 'Primary skill', 'Secondary skill', 'Final +ATK', '% of BIS'];
         var csvRows = [header.map(escapeCsvField).join(',')];
         results.forEach(function (row, i) {
           var rank = i + 1;
           var mainDps = row.mainhandDps != null ? row.mainhandDps.toFixed(2) : '';
           var offDps = row.offhandDps != null ? row.offhandDps.toFixed(2) : '';
           var totalDps = row.totalDps != null ? row.totalDps.toFixed(2) : '';
+          var primSkill = row.primarySkillLabel != null ? row.primarySkillLabel : '';
+          var secSkill = row.secondarySkillLabel != null ? row.secondarySkillLabel : '';
+          var finalAtk = row.finalAtk != null ? String(Math.round(row.finalAtk)) : '';
           var pctBis = row.totalDps != null && maxDps > 0 ? (row.totalDps / maxDps * 100).toFixed(1) + '%' : '';
-          csvRows.push([rank, row.label || '', mainDps, offDps, totalDps, pctBis].map(escapeCsvField).join(','));
+          csvRows.push([rank, row.label || '', mainDps, offDps, totalDps, primSkill, secSkill, finalAtk, pctBis].map(escapeCsvField).join(','));
         });
         var csv = '\uFEFF' + csvRows.join('\r\n');
         var blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
