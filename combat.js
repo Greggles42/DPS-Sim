@@ -1156,9 +1156,13 @@
     const w1Verb = options.captureCombatLog ? getMeleeAttackVerb(options.weapon1Type) : '';
     const w2Verb = options.captureCombatLog ? getMeleeAttackVerb(options.weapon2Type) : '';
     const specialVerb = options.captureCombatLog ? getSpecialAttackVerb(specialType) : '';
-    function pushCombatLog(tMs, type, weapon, attackName, hit, damage) {
+    function pushCombatLog(tMs, type, weapon, attackName, hit, damage, logTags) {
       if (!report.combatLog) return;
-      report.combatLog.push({ tMs: tMs, type: type, weapon: weapon, attackName: attackName, hit: hit, damage: damage });
+      var entry = { tMs: tMs, type: type, weapon: weapon, attackName: attackName, hit: hit, damage: damage };
+      if (logTags && typeof logTags === 'object') {
+        Object.keys(logTags).forEach(function (k) { entry[k] = logTags[k]; });
+      }
+      report.combatLog.push(entry);
     }
     const w1ProcLevelReq = getProcLevelRequirement(hasMainHand ? w1 : null);
     if (hasMainHand && w1.procSpell != null && w1ProcLevelReq != null && level < w1ProcLevelReq) {
@@ -1233,6 +1237,8 @@
     let nextSwing1Ms = hasMainHand ? 0 : Infinity;
     let nextSwing2Ms = dualWielding && offhandEquipped ? rng() * delay2Ms : Infinity;
     let nextSpecialAtMs = (canFireSpecial && report.special) ? 0 : Infinity;
+    let mainHandRoundCounter = 0;
+    let offhandRoundCounter = 0;
 
     // Event-driven loop: timers in ms. Each swing: (1) AvoidanceCheck: rollHit(toHit, avoidance) → hit or miss. (2) If hit: CalcMeleeDamage uses RollD20(offense, mitigation) → damage.
     while (true) {
@@ -1254,11 +1260,11 @@
         const numBackstabRolls = isDoubleBackstabRound ? 2 : 1;
         if (isDoubleBackstabRound) report.special.doubleBackstabs++;
 
-        function processOneBackstabHit() {
+        function processOneBackstabHit(backstabAttemptNumber) {
           if (report.special.attemptedAttacks !== undefined) report.special.attemptedAttacks++;
           const specialHits = rollHit(backstabToHit, avoidance, rng, fromBehind);
           if (!specialHits) {
-            pushCombatLog(tMs, 'special', 'special', specialVerb, false);
+            pushCombatLog(tMs, 'special', 'special', specialVerb, false, undefined, { bsDA: isDoubleBackstabRound && backstabAttemptNumber === 2 });
             return;
           }
           report.special.hits++;
@@ -1308,10 +1314,10 @@
           report.special.hitList.push(dmg);
           report.weapon1.totalDamage += dmg;
           report.totalDamage += dmg;
-          pushCombatLog(tMs, 'special', 'special', specialVerb, true, dmg);
+          pushCombatLog(tMs, 'special', 'special', specialVerb, true, dmg, { bsDA: isDoubleBackstabRound && backstabAttemptNumber === 2 });
         }
 
-        for (let r = 0; r < numBackstabRolls; r++) processOneBackstabHit();
+        for (let r = 0; r < numBackstabRolls; r++) processOneBackstabHit(r + 1);
         nextSpecialAtMs = tMs + specialCooldownMs;
       }
 
@@ -1323,6 +1329,8 @@
 
         report.weapon1.rounds++;
         nextSwing1Ms = tMs + delay1Ms;
+        mainHandRoundCounter++;
+        const mhRoundLetter = (mainHandRoundCounter % 2 === 1) ? 'A' : 'B';
         let attacksThisRound = 1;
         let mainHandHitThisRound = false;
 
@@ -1362,10 +1370,10 @@
           report.weapon1.hitList.push(dmg);
           report.totalDamage += dmg;
           report.damageBonusTotal += mainHandDamageBonus;
-          pushCombatLog(tMs, 'melee', 1, w1Verb, true, dmg);
+          pushCombatLog(tMs, 'melee', 1, w1Verb, true, dmg, { roundLetter: mhRoundLetter, attemptNumber: 1, swingKind: 'BA' });
         } else {
           report.weapon1.swings++;
-          pushCombatLog(tMs, 'melee', 1, w1Verb, false);
+          pushCombatLog(tMs, 'melee', 1, w1Verb, false, undefined, { roundLetter: mhRoundLetter, attemptNumber: 1, swingKind: 'BA' });
         }
 
         if (checkDoubleAttack(doubleAttackEffective, rng, options.classId)) {
@@ -1405,10 +1413,10 @@
             report.weapon1.hitList.push(dmg);
             report.totalDamage += dmg;
             report.damageBonusTotal += mainHandDamageBonus;
-            pushCombatLog(tMs, 'melee', 1, w1Verb, true, dmg);
+            pushCombatLog(tMs, 'melee', 1, w1Verb, true, dmg, { roundLetter: mhRoundLetter, attemptNumber: 2, swingKind: 'DA' });
           } else {
             report.weapon1.swings++;
-            pushCombatLog(tMs, 'melee', 1, w1Verb, false);
+            pushCombatLog(tMs, 'melee', 1, w1Verb, false, undefined, { roundLetter: mhRoundLetter, attemptNumber: 2, swingKind: 'DA' });
           }
           if (checkTripleAttack(rng, level, options.classId)) {
             attacksThisRound = 3;
@@ -1447,10 +1455,10 @@
               report.weapon1.hitList.push(dmg);
               report.totalDamage += dmg;
               report.damageBonusTotal += mainHandDamageBonus;
-              pushCombatLog(tMs, 'melee', 1, w1Verb, true, dmg);
+              pushCombatLog(tMs, 'melee', 1, w1Verb, true, dmg, { roundLetter: mhRoundLetter, attemptNumber: 3, swingKind: 'TA' });
             } else {
               report.weapon1.swings++;
-              pushCombatLog(tMs, 'melee', 1, w1Verb, false);
+              pushCombatLog(tMs, 'melee', 1, w1Verb, false, undefined, { roundLetter: mhRoundLetter, attemptNumber: 3, swingKind: 'TA' });
             }
           }
         }
@@ -1560,6 +1568,8 @@
       // Offhand: one round per timer; 1 or 2 attacks (no triple)
       if (dualWielding && tMs >= nextSwing2Ms) {
         nextSwing2Ms = tMs + delay2Ms;
+        offhandRoundCounter++;
+        const ohRoundLetter = (offhandRoundCounter % 2 === 1) ? 'A' : 'B';
         const duelistOhRound = duelist && tMs >= duelistStartMs && tMs < duelistEndMs;
         const innerFlameOhRound = innerFlame && tMs >= innerFlameStartMs && tMs < innerFlameEndMs;
         const disciplineActiveOh = duelistOhRound || innerFlameOhRound;
@@ -1590,10 +1600,10 @@
             report.weapon2.minDamage = Math.min(report.weapon2.minDamage, dmg);
             report.weapon2.hitList.push(dmg);
             report.totalDamage += dmg;
-            pushCombatLog(tMs, 'melee', 2, w2Verb, true, dmg);
+            pushCombatLog(tMs, 'melee', 2, w2Verb, true, dmg, { roundLetter: ohRoundLetter, attemptNumber: 1, swingKind: 'BA', dualWieldGate: true });
           } else {
             report.weapon2.swings++;
-            pushCombatLog(tMs, 'melee', 2, w2Verb, false);
+            pushCombatLog(tMs, 'melee', 2, w2Verb, false, undefined, { roundLetter: ohRoundLetter, attemptNumber: 1, swingKind: 'BA', dualWieldGate: true });
           }
           if (checkDoubleAttack(doubleAttackEffective, rng, options.classId)) {
             attacksThisRound = 2;
@@ -1620,10 +1630,10 @@
               report.weapon2.minDamage = Math.min(report.weapon2.minDamage, dmg);
               report.weapon2.hitList.push(dmg);
               report.totalDamage += dmg;
-              pushCombatLog(tMs, 'melee', 2, w2Verb, true, dmg);
+              pushCombatLog(tMs, 'melee', 2, w2Verb, true, dmg, { roundLetter: ohRoundLetter, attemptNumber: 2, swingKind: 'DA', dualWieldGate: true });
             } else {
               report.weapon2.swings++;
-              pushCombatLog(tMs, 'melee', 2, w2Verb, false);
+              pushCombatLog(tMs, 'melee', 2, w2Verb, false, undefined, { roundLetter: ohRoundLetter, attemptNumber: 2, swingKind: 'DA', dualWieldGate: true });
             }
           }
           // Proc once per round (only if at least one hit landed)

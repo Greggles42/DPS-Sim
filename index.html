@@ -1134,7 +1134,7 @@
         <button type="button" id="btn-rank-view-toggle" class="sim-history-clear-btn" style="display:none;" title="Switch rank report view mode">Combos/Slots</button>
         <button type="button" id="btn-rank-export-csv" class="sim-history-clear-btn" title="Export weapon rank list to CSV (run Rank weapons first)">Export to .csv</button>
         <button type="button" id="btn-export-combatlog" class="sim-history-clear-btn" title="Download combat log (.txt) in EQ format (seconds). Single run only.">Combat log (.txt)</button>
-        <button type="button" id="btn-export-combatlog-ms" class="sim-history-clear-btn" title="Download combat log (.txt) in EQ format (milliseconds). Single run only.">Combat log ms (.txt)</button>
+        <button type="button" id="btn-export-combatlog-ms" class="sim-history-clear-btn" title="Download detailed combat log (.txt) in EQ format (milliseconds). Single run only.">combat log - detailed (.txt)</button>
         <button type="button" id="export-report-txt" class="sim-history-clear-btn" title="Download current report as a .txt file">Export to .txt</button>
       </span>
     </div>
@@ -2448,7 +2448,7 @@
         }
         $('report').textContent = reportText;
         (function () {
-          function formatCombatLogAsEQ(combatLog, targetName, baseTimeMs, resolution) {
+          function formatCombatLogAsEQ(combatLog, targetName, baseTimeMs, resolution, detailed) {
             if (!combatLog || combatLog.length === 0) return '';
             var target = (targetName && String(targetName).trim()) ? String(targetName).trim() : 'the mob';
             var days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -2465,10 +2465,25 @@
             combatLog.forEach(function (ev) {
               var prefix = '[' + timestamp(ev) + '] You ';
               var verb = (ev.attackName || 'hit');
+              var swingSuffix = '';
+              var bsdaSuffix = '';
+              if (detailed) {
+                if (ev && ev.type === 'melee' && (ev.weapon === 1 || ev.weapon === 2)) {
+                  var weaponLetter = ev.weapon === 1 ? 'M' : 'O';
+                  var roundLetter = ev.roundLetter || 'A';
+                  var attemptNumber = ev.attemptNumber != null ? String(ev.attemptNumber) : '1';
+                  var swingKind = ev.swingKind || 'BA';
+                  var dualWieldSuffix = ev.dualWieldGate ? '-DW' : '';
+                  swingSuffix = '[' + weaponLetter + '-' + roundLetter + attemptNumber + '-' + swingKind + dualWieldSuffix + ']';
+                }
+                if (ev && ev.type === 'special' && ev.bsDA) {
+                  bsdaSuffix = ' [BSDA]';
+                }
+              }
               if (ev.hit && ev.damage != null) {
-                lines.push(prefix + verb + ' ' + target + ' for ' + ev.damage + ' points of damage.');
+                lines.push(prefix + verb + ' ' + target + ' for ' + ev.damage + ' points of damage.' + (detailed && swingSuffix ? (' ' + swingSuffix) : '') + bsdaSuffix);
               } else {
-                lines.push(prefix + 'try to ' + verb + ' ' + target + ', but miss!');
+                lines.push(prefix + 'try to ' + verb + ' ' + target + ', but miss!' + (detailed && swingSuffix ? (' ' + swingSuffix) : '') + bsdaSuffix);
               }
             });
             return lines.join('\n');
@@ -2477,8 +2492,8 @@
           window._lastCombatLogTxtMs = '';
           if (report && report.combatLog && report.combatLog.length > 0) {
             var baseTime = Date.now() - (report.durationSec != null ? report.durationSec * 1000 : 0);
-            window._lastCombatLogTxt = formatCombatLogAsEQ(report.combatLog, report.targetName, baseTime, 'second');
-            window._lastCombatLogTxtMs = formatCombatLogAsEQ(report.combatLog, report.targetName, baseTime, 'millisecond');
+            window._lastCombatLogTxt = formatCombatLogAsEQ(report.combatLog, report.targetName, baseTime, 'second', false);
+            window._lastCombatLogTxtMs = formatCombatLogAsEQ(report.combatLog, report.targetName, baseTime, 'millisecond', true);
           }
         })();
 
