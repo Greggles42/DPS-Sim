@@ -5798,6 +5798,18 @@
         updateBaneLabels(prefix);
         var normType = (weapon.type != null && weapon.type !== '') ? String(weapon.type).trim().toLowerCase() : null;
         var backstabModVal = (weapon.backstabModPercent != null && !isNaN(Number(weapon.backstabModPercent))) ? Number(weapon.backstabModPercent) : null;
+        // Some item-search results may not carry the computed backstab mod field.
+        // If we have an itemId, derive it from the underlying local weapon/raw item data.
+        if ((backstabModVal == null || !(backstabModVal > 0)) && weapon.itemId != null) {
+          var raw =
+            (weaponListData && weaponListData[String(weapon.itemId)]) ||
+            (luclinWeaponsData && luclinWeaponsData[String(weapon.itemId)]) ||
+            (popWeaponsData && popWeaponsData[String(weapon.itemId)]) ||
+            (procRatesByItemId && procRatesByItemId[String(weapon.itemId)]) ||
+            null;
+          var modFromRaw = getBackstabModPercentFromRawItem(raw);
+          if (modFromRaw != null && modFromRaw > 0) backstabModVal = modFromRaw;
+        }
         var tRaw = weapon.skillmodtype != null ? weapon.skillmodtype : weapon.skillmodType;
         var vRaw = weapon.skillmodvalue != null ? weapon.skillmodvalue : weapon.skillmodValue;
         var twoHsSkillModVal = null;
