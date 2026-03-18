@@ -1661,9 +1661,6 @@
       }
       function getBackstabModPercentForNorm(norm) {
         if (!norm) return 0;
-        var t = (norm.type != null ? String(norm.type) : '').toLowerCase();
-        var isPiercing = (t === '1hp' || t === '2hp');
-        if (!isPiercing) return 0;
         var v = norm.backstabModPercent;
         if (v == null || isNaN(Number(v))) return 0;
         v = Number(v);
@@ -1743,9 +1740,6 @@
       }
       function refreshBackstabModsFromCurrentWeapons() {
         function resolveSlotMod(prefix) {
-          var currentType = (prefix === 'w1' ? w1WeaponType : w2WeaponType);
-          var t = (currentType != null ? String(currentType) : '').toLowerCase();
-          if (t !== '1hp' && t !== '2hp') return null;
           var current = (prefix === 'w1' ? w1BackstabModPercent : w2BackstabModPercent);
           if (current != null && !isNaN(Number(current)) && Number(current) > 0) return Number(current);
           var presetEl = $(prefix + '-preset');
@@ -1941,11 +1935,10 @@
           w1WeaponType = (p && p.type) ? p.type : null;
           w1FromItemSearch = false;
           var p1Type = ((p && p.type) ? String(p.type) : '').toLowerCase();
-          var p1Piercing = p1Type === '1hp' || p1Type === '2hp';
           var p1Backstab = getBackstabModPercentFromRawItem(raw);
           if (p1Backstab == null && p && p.backstabModPercent != null && !isNaN(Number(p.backstabModPercent)) && Number(p.backstabModPercent) > 0)
             p1Backstab = Number(p.backstabModPercent);
-          w1BackstabModPercent = (p1Piercing && p1Backstab != null) ? p1Backstab : null;
+            w1BackstabModPercent = (p1Backstab != null) ? p1Backstab : null;
           var p1TwoHsSkillMod = getTwoHsSkillModFromRawItem(raw);
           w1TwoHsSkillMod = (p1TwoHsSkillMod != null && !isNaN(Number(p1TwoHsSkillMod)) && Number(p1TwoHsSkillMod) > 0) ? Number(p1TwoHsSkillMod) : null;
           var p1WornAtk = getWornAttackBonusFromRawItem(raw);
@@ -1960,11 +1953,10 @@
           w2WeaponType = (p && p.type) ? p.type : null;
           w2FromItemSearch = false;
           var p2Type = ((p && p.type) ? String(p.type) : '').toLowerCase();
-          var p2Piercing = p2Type === '1hp' || p2Type === '2hp';
           var p2Backstab = getBackstabModPercentFromRawItem(raw);
           if (p2Backstab == null && p && p.backstabModPercent != null && !isNaN(Number(p.backstabModPercent)) && Number(p.backstabModPercent) > 0)
             p2Backstab = Number(p.backstabModPercent);
-          w2BackstabModPercent = (p2Piercing && p2Backstab != null) ? p2Backstab : null;
+          w2BackstabModPercent = (p2Backstab != null) ? p2Backstab : null;
           var p2TwoHsSkillMod = getTwoHsSkillModFromRawItem(raw);
           w2TwoHsSkillMod = (p2TwoHsSkillMod != null && !isNaN(Number(p2TwoHsSkillMod)) && Number(p2TwoHsSkillMod) > 0) ? Number(p2TwoHsSkillMod) : null;
           var p2WornAtk = getWornAttackBonusFromRawItem(raw);
@@ -3810,8 +3802,7 @@
                 var w = rankWeaponMap[id];
                 var is2H = !!(w && (w.is2H || (w.type && offhandBlockedTypes[w.type])));
                 var bs1 = classId === 'rogue' ? getBackstabModPercentForNorm(w) : 0;
-                var primaryType = (w && w.type != null ? String(w.type) : '').toLowerCase();
-                var backstabContributes = classId === 'rogue' && fromBehind && rankSpecialAttacks && rankSpecialAttackType === 'backstab' && primaryType === '1hp' && bs1 > 0;
+                var backstabContributes = classId === 'rogue' && fromBehind && rankSpecialAttacks && rankSpecialAttackType === 'backstab' && bs1 > 0;
                 var atkBonus = getWornAttackBonusForNorm(w);
                 return { id: id, label: (w && w.name) || id, dps: mainhand_dps[id] != null ? mainhand_dps[id] : 0, is2H: is2H, backstabModApplied: backstabContributes ? bs1 : 0, wornAttackBonus: atkBonus };
               });
@@ -5749,7 +5740,6 @@
         }
         updateBaneLabels(prefix);
         var normType = (weapon.type != null && weapon.type !== '') ? String(weapon.type).trim().toLowerCase() : null;
-        var isPiercing = normType === '1hp' || normType === '2hp';
         var backstabModVal = (weapon.backstabModPercent != null && !isNaN(Number(weapon.backstabModPercent))) ? Number(weapon.backstabModPercent) : null;
         var tRaw = weapon.skillmodtype != null ? weapon.skillmodtype : weapon.skillmodType;
         var vRaw = weapon.skillmodvalue != null ? weapon.skillmodvalue : weapon.skillmodValue;
@@ -5765,11 +5755,11 @@
           wornAttackVal = resolvedWornAtk > 0 ? resolvedWornAtk : null;
         }
         if (prefix === 'w1') {
-          w1BackstabModPercent = (isPiercing && backstabModVal != null) ? backstabModVal : null;
+          w1BackstabModPercent = (backstabModVal != null) ? backstabModVal : null;
           w1TwoHsSkillMod = (twoHsSkillModVal != null && !isNaN(Number(twoHsSkillModVal)) && Number(twoHsSkillModVal) > 0) ? Number(twoHsSkillModVal) : null;
           w1WornAttackBonus = wornAttackVal != null ? wornAttackVal : null;
         } else {
-          w2BackstabModPercent = (isPiercing && backstabModVal != null) ? backstabModVal : null;
+          w2BackstabModPercent = (backstabModVal != null) ? backstabModVal : null;
           w2TwoHsSkillMod = (twoHsSkillModVal != null && !isNaN(Number(twoHsSkillModVal)) && Number(twoHsSkillModVal) > 0) ? Number(twoHsSkillModVal) : null;
           w2WornAttackBonus = wornAttackVal != null ? wornAttackVal : null;
         }
