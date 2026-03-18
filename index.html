@@ -3223,12 +3223,20 @@
           var label = isOffhandOnly ? ('Offhand: ' + name2WithAtk) : (comb.secondaryId ? (primaryLabel + ' + ' + name2WithAtk) : primaryLabel);
           var backstabModApplied = backstabActive ? Math.max(0, bs1, bs2) : 0;
           var is2HPrimary = !!(p1 && (p1.is2H || (p1.type && offhandBlockedTypes[p1.type])));
-          var primSkillKey = p1 ? skillKeyForCap(p1.type, is2HPrimary) : '';
-          var primCap = p1 && typeof WeaponSkillCaps !== 'undefined' ? (WeaponSkillCaps.getCapForSimClass(classId, primSkillKey, level) || 252) : 0;
-          var primarySkillLabel = p1 ? ((primSkillKey || '').toUpperCase() + '-' + primCap) : '—';
-          var secSkillKey = p2 ? skillKeyForCap(p2.type, false) : '';
-          var secCap = p2 && typeof WeaponSkillCaps !== 'undefined' ? (WeaponSkillCaps.getCapForSimClass(classId, secSkillKey, level) || 252) : 0;
-          var secondarySkillLabel = (comb.secondaryId && p2) ? ((secSkillKey || '').toUpperCase() + '-' + secCap) : '—';
+          var primarySkillLabel;
+          var secondarySkillLabel;
+          if (classId === 'rogue') {
+            var backstabSkill = (baseOptions.backstabSkill != null && !isNaN(Number(baseOptions.backstabSkill))) ? Number(baseOptions.backstabSkill) : 225;
+            primarySkillLabel = 'Backstab-' + backstabSkill;
+            secondarySkillLabel = '—';
+          } else {
+            var primSkillKey = p1 ? skillKeyForCap(p1.type, is2HPrimary) : '';
+            var primCap = p1 && typeof WeaponSkillCaps !== 'undefined' ? (WeaponSkillCaps.getCapForSimClass(classId, primSkillKey, level) || 252) : 0;
+            primarySkillLabel = p1 ? ((primSkillKey || '').toUpperCase() + '-' + primCap) : '—';
+            var secSkillKey = p2 ? skillKeyForCap(p2.type, false) : '';
+            var secCap = p2 && typeof WeaponSkillCaps !== 'undefined' ? (WeaponSkillCaps.getCapForSimClass(classId, secSkillKey, level) || 252) : 0;
+            secondarySkillLabel = (comb.secondaryId && p2) ? ((secSkillKey || '').toUpperCase() + '-' + secCap) : '—';
+          }
           var finalAtk = (baseOptions.spellAttack || 0) + (baseOptions.wornAttack || 0) + atk1 + atk2;
           return { primaryId: comb.primaryId, secondaryId: comb.secondaryId, label: label, mainhandDps: mainhandDps != null ? mainhandDps : 0, offhandDps: offhandDps != null ? offhandDps : 0, totalDps: totalDps != null ? totalDps : 0, backstabModApplied: backstabModApplied, primarySkillLabel: primarySkillLabel, secondarySkillLabel: secondarySkillLabel, finalAtk: finalAtk };
         }
