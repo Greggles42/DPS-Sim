@@ -2342,7 +2342,7 @@
           classId: classId || undefined,
           weaponSkillForToHit: weaponSkillForToHit,
           weaponSkillKeyForToHit: skillKey,
-          backstabModPercent: classId === 'rogue' ? getRogueEquippedBackstabModPercent() : undefined,
+          backstabModPercent: classId === 'rogue' ? (equippedBackstabModPercent > 0 ? equippedBackstabModPercent : getRogueEquippedBackstabModPercent()) : undefined,
           backstabSkill: classId === 'rogue' ? getRogueBackstabSkillBase() : undefined,
           duelist: classId === 'rogue' && $('duelist').checked,
           innerFlame: classId === 'monk' && $('innerflame').checked,
