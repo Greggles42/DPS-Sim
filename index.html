@@ -564,7 +564,7 @@
 <body data-ui-mode="easy">
   <div class="banner">
     <div class="banner-left">
-      <h1>Gabbiz's Project Quarm EQ DPS Simulator <span id="app-version" style="font-weight: 400; color: var(--muted); font-size: 0.85rem;">v1.04</span></h1>
+      <h1>Gabbiz's Project Quarm EQ DPS Simulator <span id="app-version" style="font-weight: 400; color: var(--muted); font-size: 0.85rem;">v1.05</span></h1>
     </div>
     <div id="dps-display" title="Total DPS from last run">
       <div class="dps-label">Total DPS</div>
@@ -1177,6 +1177,7 @@
   <section class="advanced-only" style="margin-top: 1rem;">
     <h2>Version log</h2>
     <ul style="font-size: 0.9rem; color: var(--muted); margin: 0; padding-left: 1.25rem;">
+      <li><strong>1.05</strong> — Improved BS mod application and worn ATK behavior in the `rankWeapons` function. Bane damage now auto-applies; Seru and Emp can only be hurt by bane weapons. Weapon rank now outputs phase-by-phase results. Added a synthetic combat-log mode (1 combat round) and `.txt` export compatible with normal fight-log parsers. Improved some Monk fistweaving logic.</li>
       <li><strong>1.04</strong> — Updated a lot of the ranged damage simulation in advanced mode. Weapon search is improved and filters are better, quiver WR calculations are in. Ranger atk rating bonus is in. Elemental damage from bows and arrows now works. Archery skill modifiers are now in. Updated backstab damage model to address a fencepost issue.</li>
       <li><strong>1.03</strong> — Added some previously unsearchable or missing weapons (including monk Velious fists). Removed use of the external ItemSearch API in favor of the integrated item lists only. Implemented quick weapon swap on the Easy mode UI. Updated backstab reporting data. Simulations can now be run with only one weapon equipped. Ranged damage simulation now searches correctly. Trueshot can be toggled on the ranged simulator.</li>
       <li><strong>1.02</strong> — Easy mode has group content/raid content toggle. Fixed some worn attack values on weapons from being ignored (such as from Ragebringer or Bloodbath). Adjusted Slay Undead chances to be 2.25%/2.35%/2.4% per level and 15×/16×/17× damage multipliers. Added weapon swap button to easy mode UI.</li>
@@ -1418,7 +1419,7 @@
       }
 
       // When releasing: 1) Bump VERSION below. 2) Add a new <li> at the top of the Version log section above.
-      const VERSION = '1.04';
+      const VERSION = '1.05';
       const versionEl = $('app-version');
       if (versionEl) versionEl.textContent = 'v' + VERSION;
 
