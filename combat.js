@@ -33,11 +33,39 @@
   // When false, after the hit roll we apply an avoid chance (block/parry/dodge/riposte).
   const AVOID_CHANCE_FROM_FRONT = 0.08;
 
+  // #region debug_mode_rng_inspection
+  var __eqDebugHitRollSeq = 0;
+  var __eqDebugD20Seq = 0;
+  var __eqLastHitRollSeq = null;
+  var __eqLastD20Seq = null;
+  var __eqDebugMaxHitRollLogs = 220;
+  var __eqDebugMaxD20Logs = 60;
+  var __eqDebugMaxMissCombatLogPushes = 80;
+  var __eqDebugMissCombatLogPushCount = 0;
+  // #endregion
+
   function rollHit(toHit, avoidance, rng, fromBehind) {
     const chance = getHitChance(toHit, avoidance);
-    if (rng() >= chance) return false;
-    if (fromBehind) return true;
-    return rng() >= AVOID_CHANCE_FROM_FRONT;
+    // #region agent_debug_rollHit
+    __eqLastHitRollSeq = ++__eqDebugHitRollSeq;
+    const r1 = rng();
+    const miss = r1 >= chance;
+    if (miss) {
+      if (__eqDebugHitRollSeq <= __eqDebugMaxHitRollLogs) {
+        fetch('http://127.0.0.1:7706/ingest/d1190414-776c-43b8-a3d3-9589f8d0a084', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '438894' }, body: JSON.stringify({ sessionId: '438894', runId: 'debug-438894', hypothesisId: 'H1', location: 'combat.js:rollHit', message: 'hitRoll_miss', data: { hitRollSeq: __eqLastHitRollSeq, toHit: toHit, avoidance: avoidance, chance: chance, r1: r1, fromBehind: fromBehind }, timestamp: Date.now() }) }).catch(function () { });
+      }
+      return false;
+    }
+    if (fromBehind) {
+      return true;
+    }
+    const r2 = rng();
+    const hit = r2 >= AVOID_CHANCE_FROM_FRONT;
+    if (!hit && __eqDebugHitRollSeq <= __eqDebugMaxHitRollLogs) {
+      fetch('http://127.0.0.1:7706/ingest/d1190414-776c-43b8-a3d3-9589f8d0a084', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '438894' }, body: JSON.stringify({ sessionId: '438894', runId: 'debug-438894', hypothesisId: 'H1', location: 'combat.js:rollHit', message: 'hitRoll_frontAvoid_miss', data: { hitRollSeq: __eqLastHitRollSeq, toHit: toHit, avoidance: avoidance, chance: chance, r1: r1, r2: r2, fromBehind: fromBehind }, timestamp: Date.now() }) }).catch(function () { });
+    }
+    return hit;
+    // #endregion
   }
 
   // ----- Defender GetAvoidance() – used for HIT CHANCE only (AvoidanceCheck), NOT for damage -----
@@ -77,14 +105,23 @@
   // RollD20: atkRoll = Roll0(offenseRating+5), defRoll = Roll0(mitigation+5)
   // Here "offense" is offense RATING (skill + STR + worn/spell), not the offense skill value alone.
   function rollD20(offenseRating, mitigation, rng) {
-    const atkRoll = Math.floor(rng() * (offenseRating + 5));
-    const defRoll = Math.floor(rng() * (mitigation + 5));
+    // #region agent_debug_rollD20
+    __eqLastD20Seq = ++__eqDebugD20Seq;
+    const r1 = rng();
+    const r2 = rng();
+    const atkRoll = Math.floor(r1 * (offenseRating + 5));
+    const defRoll = Math.floor(r2 * (mitigation + 5));
     const avg = Math.floor((offenseRating + mitigation + 10) / 2);
     if (avg <= 0) return 1;
     let index = Math.max(0, (atkRoll - defRoll) + Math.floor(avg / 2));
     index = Math.floor((index * 20) / avg);
     index = Math.max(0, Math.min(19, index));
-    return index + 1;
+    const result = index + 1;
+    if (__eqDebugD20Seq <= __eqDebugMaxD20Logs) {
+      fetch('http://127.0.0.1:7706/ingest/d1190414-776c-43b8-a3d3-9589f8d0a084', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '438894' }, body: JSON.stringify({ sessionId: '438894', runId: 'debug-438894', hypothesisId: 'H2', location: 'combat.js:rollD20', message: 'damage_rng', data: { d20Seq: __eqLastD20Seq, offenseRating: offenseRating, mitigation: mitigation, r1: r1, r2: r2, atkRoll: atkRoll, defRoll: defRoll, result: result }, timestamp: Date.now() }) }).catch(function () { });
+    }
+    return result;
+    // #endregion
   }
 
   function calcMeleeDamage(baseDamage, offenseRating, mitigation, rng, damageBonus) {
@@ -1162,6 +1199,12 @@
       if (logTags && typeof logTags === 'object') {
         Object.keys(logTags).forEach(function (k) { entry[k] = logTags[k]; });
       }
+      // #region agent_debug_combatLog_miss_push
+      if (!hit && __eqDebugMissCombatLogPushCount < __eqDebugMaxMissCombatLogPushes) {
+        __eqDebugMissCombatLogPushCount++;
+        fetch('http://127.0.0.1:7706/ingest/d1190414-776c-43b8-a3d3-9589f8d0a084', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '438894' }, body: JSON.stringify({ sessionId: '438894', runId: 'debug-438894', hypothesisId: 'H1', location: 'combat.js:pushCombatLog', message: 'combatLog_miss', data: { tMs: tMs, type: type, weapon: weapon, attackName: attackName, hitRollSeq: __eqLastHitRollSeq, roundLetter: entry.roundLetter, attemptNumber: entry.attemptNumber, swingKind: entry.swingKind, dualWieldGate: entry.dualWieldGate }, timestamp: Date.now() }) }).catch(function () { });
+      }
+      // #endregion
       report.combatLog.push(entry);
     }
     const w1ProcLevelReq = getProcLevelRequirement(hasMainHand ? w1 : null);
