@@ -960,6 +960,7 @@
         <input type="checkbox" id="rank-weapons-include-pop" style="display:none" tabindex="-1" aria-hidden="true">
         <label class="checkbox-label"><input type="checkbox" id="rank-weapons-ignore-nodrop" title="When checked, excludes items with nodrop = 0 from rank results"> Ignore No Drop items</label>
       </span>
+      <div id="rank-weapons-progress" class="hint" aria-live="polite" style="margin-top:0.5rem; min-height:1.25rem;"></div>
     </section>
   </div>
   </div>
@@ -1139,6 +1140,10 @@
       </span>
     </div>
     <div id="report">Run a simulation to see the report.</div>
+    <details id="rank-weapons-phase-breakdown" style="margin-top:1rem; display:none;">
+      <summary class="collapse-summary" style="cursor:pointer;">Phase breakdown</summary>
+      <div id="rank-weapons-phase-breakdown-content" style="padding-top:0.5rem;"></div>
+    </details>
   </section>
 
   <details id="item-search-debug" class="item-search-debug" style="margin-top: 0.75rem; padding: 0.5rem; background: var(--panel); border: 1px solid var(--border); border-radius: 4px;">
@@ -3262,6 +3267,20 @@
         var simIndex = 0;
         var lastDisplayedPct = -1;
         const chunkSize = 6;
+        const TOP_PHASE_BREAKDOWN = 10;
+        var phaseSnapshots = { mainhandTop: [], offhandTop: [], coarseTop: [], fullTop: [] };
+        var rankWeaponsProgressEl = $('rank-weapons-progress');
+        var rankWeaponsPhaseBreakdownDetailsEl = $('rank-weapons-phase-breakdown');
+        var rankWeaponsPhaseBreakdownContentEl = $('rank-weapons-phase-breakdown-content');
+        if (rankWeaponsPhaseBreakdownDetailsEl) {
+          rankWeaponsPhaseBreakdownDetailsEl.style.display = 'none';
+        }
+        if (rankWeaponsPhaseBreakdownContentEl) {
+          rankWeaponsPhaseBreakdownContentEl.innerHTML = '';
+        }
+        function setRankWeaponsProgressText(text) {
+          if (rankWeaponsProgressEl) rankWeaponsProgressEl.textContent = text;
+        }
         function buildResultRow(comb, totalDps, mainhandDps, offhandDps) {
           var isOffhandOnly = comb.primaryId == null;
           var p1 = comb.primaryId != null ? rankWeaponMap[comb.primaryId] : null;
@@ -3300,6 +3319,63 @@
           return { primaryId: comb.primaryId, secondaryId: comb.secondaryId, label: label, mainhandDps: mainhandDps != null ? mainhandDps : 0, offhandDps: offhandDps != null ? offhandDps : 0, totalDps: totalDps != null ? totalDps : 0, backstabModApplied: backstabModApplied, primarySkillLabel: primarySkillLabel, secondarySkillLabel: secondarySkillLabel, finalAtk: finalAtk };
         }
 
+        function snapshotMainhandTop() {
+          var ids = (primaryWeapons || []).filter(function (id) { return mainhand_dps[id] != null; });
+          ids.sort(function (a, b) { return (mainhand_dps[b] || 0) - (mainhand_dps[a] || 0); });
+          return ids.slice(0, TOP_PHASE_BREAKDOWN).map(function (id) {
+            var dps = mainhand_dps[id] != null ? mainhand_dps[id] : 0;
+            return buildResultRow({ primaryId: id, secondaryId: null }, dps, dps, 0);
+          });
+        }
+
+        function snapshotOffhandTop() {
+          var ids = (secondaryWeapons || []).filter(function (id) { return offhand_dps[id] != null; });
+          ids.sort(function (a, b) { return (offhand_dps[b] || 0) - (offhand_dps[a] || 0); });
+          return ids.slice(0, TOP_PHASE_BREAKDOWN).map(function (id) {
+            var dps = offhand_dps[id] != null ? offhand_dps[id] : 0;
+            return buildResultRow({ primaryId: null, secondaryId: id }, dps, 0, dps);
+          });
+        }
+
+        function renderRankWeaponsPhaseBreakdown() {
+          if (!rankWeaponsPhaseBreakdownDetailsEl || !rankWeaponsPhaseBreakdownContentEl) return;
+          function escapeHtml(s) {
+            return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+          }
+          function formatDps(v) { return v != null ? Number(v).toFixed(2) : '—'; }
+          function renderPhaseTable(title, rows) {
+            var safeTitle = escapeHtml(title);
+            var body = (rows || []).slice(0, TOP_PHASE_BREAKDOWN).map(function (row, i) {
+              var rank = i + 1;
+              var label = escapeHtml(row && row.label ? row.label : '');
+              var mainDpsStr = formatDps(row ? row.mainhandDps : null);
+              var offDpsStr = formatDps(row ? row.offhandDps : null);
+              var totalDpsStr = formatDps(row ? row.totalDps : null);
+              var bsStr = escapeHtml(row && row.primarySkillLabel ? row.primarySkillLabel : '—');
+              var finalAtkStr = row && row.finalAtk != null ? String(Math.round(row.finalAtk)) : '—';
+              return '<tr><td>' + rank + '</td><td>' + label + '</td><td style="text-align:right;">' + mainDpsStr + '</td><td style="text-align:right;">' + offDpsStr + '</td><td style="text-align:right;">' + totalDpsStr + '</td><td>' + bsStr + '</td><td style="text-align:right;">' + finalAtkStr + '</td></tr>';
+            }).join('');
+            return (
+              '<h3 style="margin:0.75rem 0 0.35rem;">' + safeTitle + '</h3>' +
+              '<table class="rank-weapons-table" style="margin-top:0.25rem; border-collapse:collapse; width:100%; font-size:0.85rem;"><thead><tr>' +
+              '<th style="text-align:left;">#</th>' +
+              '<th style="text-align:left;">Combination</th>' +
+              '<th style="text-align:right;">Mainhand DPS</th>' +
+              '<th style="text-align:right;">Offhand DPS</th>' +
+              '<th style="text-align:right;">Total DPS</th>' +
+              '<th style="text-align:left;">Backstab skill</th>' +
+              '<th style="text-align:right;">Final +ATK</th>' +
+              '</tr></thead><tbody>' + body + '</tbody></table>'
+            );
+          }
+          var html = renderPhaseTable('Mainhand phase top ' + TOP_PHASE_BREAKDOWN, phaseSnapshots.mainhandTop);
+          html += renderPhaseTable('Offhand phase top ' + TOP_PHASE_BREAKDOWN, phaseSnapshots.offhandTop);
+          html += renderPhaseTable('Coarse combos top ' + TOP_PHASE_BREAKDOWN, phaseSnapshots.coarseTop);
+          html += renderPhaseTable('Full combos top ' + TOP_PHASE_BREAKDOWN, phaseSnapshots.fullTop);
+          rankWeaponsPhaseBreakdownContentEl.innerHTML = html;
+          rankWeaponsPhaseBreakdownDetailsEl.style.display = '';
+        }
+
         function runNextChunk() {
           var end;
           if (phase === 'mainhand') {
@@ -3334,6 +3410,7 @@
               }
             }
             if (simIndex >= primaryWeapons.length) {
+              phaseSnapshots.mainhandTop = snapshotMainhandTop();
               phase = 'offhand';
               simIndex = 0;
             }
@@ -3382,6 +3459,7 @@
               }
             }
             if (simIndex >= secondaryWeapons.length) {
+              phaseSnapshots.offhandTop = snapshotOffhandTop();
               coarseResults = combinationsToUse.map(function (comb) {
                 var mainDps = comb.primaryId != null && mainhand_dps[comb.primaryId] != null ? mainhand_dps[comb.primaryId] : 0;
                 var offDps = comb.secondaryId && offhand_dps[comb.secondaryId] != null ? offhand_dps[comb.secondaryId] : 0;
@@ -3389,6 +3467,7 @@
               });
               coarseResults.sort(function (a, b) { return (b.totalDps || 0) - (a.totalDps || 0); });
               topCombosToSim = coarseResults.slice(0, Math.min(TOP_COMBO_SIMS, coarseResults.length));
+              phaseSnapshots.coarseTop = coarseResults.slice(0, TOP_PHASE_BREAKDOWN);
               comboResults = new Array(topCombosToSim.length);
               phase = 'combinations';
               simIndex = 0;
@@ -3401,6 +3480,7 @@
             });
             coarseResults.sort(function (a, b) { return (b.totalDps || 0) - (a.totalDps || 0); });
             topCombosToSim = coarseResults.slice(0, Math.min(TOP_COMBO_SIMS, coarseResults.length));
+            phaseSnapshots.coarseTop = coarseResults.slice(0, TOP_PHASE_BREAKDOWN);
             comboResults = new Array(topCombosToSim.length);
             phase = 'combinations';
             simIndex = 0;
@@ -3508,7 +3588,7 @@
           if (totalSims > 0 && pctFloor > lastDisplayedPct) {
             lastDisplayedPct = pctFloor;
             var phaseLabel = phase === 'mainhand' ? 'Measuring mainhand DPS…' : (phase === 'offhand' ? 'Measuring offhand DPS…' : (phase === 'combinations' ? 'Measuring combinations…' : 'Building list…'));
-            $('report').textContent = phaseLabel + ' ' + pctFloor + '% complete (' + completedSims + ' / ' + totalSims + ' sims)';
+            setRankWeaponsProgressText(phaseLabel + ' ' + pctFloor + '% complete (' + completedSims + ' / ' + totalSims + ' sims)');
           }
 
           if (phase !== 'done') {
@@ -3523,12 +3603,12 @@
           }
           var results = coarseResults.slice();
           results.sort(function (a, b) { return (b.totalDps || 0) - (a.totalDps || 0); });
+          phaseSnapshots.fullTop = results.slice(0, TOP_PHASE_BREAKDOWN);
 
           var runsCount = Math.max(1, Math.min(1000, parseInt($('runs').value, 10) || 20));
           var top40 = results.slice(0, 40);
           function renderRankReport() {
             var currentMode = (window._rankWeaponsReportViewMode === 'slot') ? 'slot' : 'combinations';
-            clearRankStatusDots();
             var reportEl = $('report');
             if (reportEl) reportEl.textContent = 'Generating chart...';
             results.sort(function (a, b) { return (b.totalDps || 0) - (a.totalDps || 0); });
@@ -3644,18 +3724,23 @@
           window._renderRankWeaponsReportView = renderRankReport;
           if (top40.length === 0) {
             renderRankReport();
+            phaseSnapshots.fullTop = results.slice(0, TOP_PHASE_BREAKDOWN);
+            renderRankWeaponsPhaseBreakdown();
+            setRankWeaponsProgressText('Ranking complete.');
             return;
           }
-          $('report').textContent = 'Averaging top 40 results over multiple runs';
+          setRankWeaponsProgressText('Averaging top 40 results over multiple runs…');
           var avgIndex = 0;
           function runNextTop40() {
-            var reportEl = $('report');
             if (avgIndex >= top40.length) {
-              if (reportEl) reportEl.textContent = 'Reordering results...';
+              phaseSnapshots.fullTop = results.slice(0, TOP_PHASE_BREAKDOWN);
+              setRankWeaponsProgressText('Reordering results…');
               renderRankReport();
+              renderRankWeaponsPhaseBreakdown();
+              setRankWeaponsProgressText('Ranking complete.');
               return;
             }
-            if (reportEl) reportEl.textContent = 'Averaging top 40 results over multiple runs';
+            setRankWeaponsProgressText('Averaging top 40 results… (' + (avgIndex + 1) + ' / ' + top40.length + ')');
             var row = top40[avgIndex];
             var opts;
             if (row.primaryId == null) {
@@ -3751,27 +3836,7 @@
           }
           requestAnimationFrame(runNextTop40);
         }
-        var statusDotsInterval = null;
-        function startRankStatusDots() {
-          if (statusDotsInterval) return;
-          statusDotsInterval = setInterval(function () {
-            var el = $('report');
-            if (!el || el.children.length > 0) return;
-            var t = (el.textContent || '');
-            var base = t.replace(/\.+$/, '');
-            var suffix = t.slice(base.length);
-            var next = (suffix === '.' ? '...' : suffix === '...' ? '.....' : '.');
-            el.textContent = base + next;
-          }, 500);
-        }
-        function clearRankStatusDots() {
-          if (statusDotsInterval) {
-            clearInterval(statusDotsInterval);
-            statusDotsInterval = null;
-          }
-        }
-        $('report').textContent = 'Measuring mainhand DPS… 0% complete (0 / ' + totalSims + ' weapons)';
-        startRankStatusDots();
+        setRankWeaponsProgressText('Measuring mainhand DPS… 0% complete (0 / ' + totalSims + ' weapons)');
         requestAnimationFrame(runNextChunk);
       }
 
