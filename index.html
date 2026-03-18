@@ -3028,7 +3028,7 @@
           specialAttackType: rankSpecialAttacks ? rankSpecialAttackType : undefined,
           classId: classId,
           backstabModPercent: classId === 'rogue' ? 0 : undefined,
-          backstabSkill: classId === 'rogue' ? (parseInt($('backstab-skill').value, 10) || 0) : undefined,
+          backstabSkill: classId === 'rogue' ? (parseInt($('backstab-skill').value, 10) || 225) : undefined,
           duelist: classId === 'rogue' && $('duelist').checked,
           innerFlame: classId === 'monk' && $('innerflame').checked,
           spellCastingFury: (function () { var el = document.querySelector('input[name="spell-casting-fury"]:checked'); return el ? (parseInt(el.value, 10) || 0) : 0; })(),
@@ -3041,6 +3041,8 @@
           fistweavingNonEpic: ($('fistweaving-nonepic') && $('fistweaving-nonepic').checked) || false,
         };
         var formBackstabModPercent = 0;
+        /** For rogue: base backstab skill from input (or 225 if empty). Used for every sim; weapon mod is applied per-combo in getRankComboWornAndBackstab. */
+        var rankBaseBackstabSkill = (classId === 'rogue') ? (parseInt($('backstab-skill').value, 10) || 225) : undefined;
         function getRankComboWornAndBackstab(norm1, norm2) {
           var baseWorn = (baseOptions.wornAttack != null && !isNaN(Number(baseOptions.wornAttack))) ? Number(baseOptions.wornAttack) : 0;
           var w1 = (norm1 != null ? getWornAttackBonusForNorm(norm1) : 0) || 0;
@@ -3048,6 +3050,7 @@
           var wornAttack = baseWorn + w1 + w2;
           var bs1 = (norm1 != null && classId === 'rogue') ? getBackstabModPercentForNorm(norm1) : 0;
           var bs2 = (norm2 != null && classId === 'rogue') ? getBackstabModPercentForNorm(norm2) : 0;
+          /* For rogue: use the greater of the two weapons' backstab mods (or 0); sim applies this to rankBaseBackstabSkill. */
           var backstabModPercent = (classId === 'rogue') ? Math.max(0, formBackstabModPercent || 0, bs1, bs2) : undefined;
           return { wornAttack: wornAttack, backstabModPercent: backstabModPercent };
         }
@@ -3262,6 +3265,7 @@
                 weaponSkillForToHit: weaponSkillForToHit,
                 wornAttack: comboWornBackstab.wornAttack,
                 backstabModPercent: comboWornBackstab.backstabModPercent,
+                backstabSkill: rankBaseBackstabSkill,
                 fistweaving: classId === 'monk' && is2H && $('fistweaving').checked,
                 fistweavingNonEpic: ($('fistweaving-nonepic') && $('fistweaving-nonepic').checked) || false
               });
@@ -3309,6 +3313,7 @@
                 weaponSkillForToHit: secWeaponSkillForToHit,
                 wornAttack: comboWornBackstabOff.wornAttack,
                 backstabModPercent: comboWornBackstabOff.backstabModPercent,
+                backstabSkill: rankBaseBackstabSkill,
                 fistweaving: false,
                 fistweavingNonEpic: ($('fistweaving-nonepic') && $('fistweaving-nonepic').checked) || false
               });
@@ -3380,6 +3385,7 @@
                   weaponSkillForToHit: secWeaponSkillOnly,
                   wornAttack: comboWornBackstab.wornAttack,
                   backstabModPercent: comboWornBackstab.backstabModPercent,
+                  backstabSkill: rankBaseBackstabSkill,
                   fistweaving: false,
                   fistweavingNonEpic: ($('fistweaving-nonepic') && $('fistweaving-nonepic').checked) || false
                 });
@@ -3397,6 +3403,7 @@
                   weaponSkillForToHit: weaponSkillForToHit,
                   wornAttack: comboWornBackstab.wornAttack,
                   backstabModPercent: comboWornBackstab.backstabModPercent,
+                  backstabSkill: rankBaseBackstabSkill,
                   fistweaving: classId === 'monk' && is2H && $('fistweaving').checked,
                   fistweavingNonEpic: ($('fistweaving-nonepic') && $('fistweaving-nonepic').checked) || false
                 });
@@ -3525,9 +3532,8 @@
               var offDpsStr = row.offhandDps != null ? row.offhandDps.toFixed(2) : '—';
               var totalDpsStr = row.totalDps != null ? row.totalDps.toFixed(2) : '—';
               var primSkillStr = (row.primarySkillLabel != null ? row.primarySkillLabel : '—').replace(/&/g, '&amp;').replace(/</g, '&lt;');
-              var secSkillStr = (row.secondarySkillLabel != null ? row.secondarySkillLabel : '—').replace(/&/g, '&amp;').replace(/</g, '&lt;');
               var finalAtkStr = row.finalAtk != null ? String(Math.round(row.finalAtk)) : '—';
-              return '<tr><td>' + rank + '</td><td>' + label + '</td><td style="text-align:right;">' + mainDpsStr + '</td><td style="text-align:right;">' + offDpsStr + '</td><td style="text-align:right;">' + totalDpsStr + '</td><td>' + primSkillStr + '</td><td>' + secSkillStr + '</td><td style="text-align:right;">' + finalAtkStr + '</td></tr>';
+              return '<tr><td>' + rank + '</td><td>' + label + '</td><td style="text-align:right;">' + mainDpsStr + '</td><td style="text-align:right;">' + offDpsStr + '</td><td style="text-align:right;">' + totalDpsStr + '</td><td>' + primSkillStr + '</td><td style="text-align:right;">' + finalAtkStr + '</td></tr>';
             });
             var maxDps = results.length > 0 && results[0].totalDps != null && results[0].totalDps > 0 ? results[0].totalDps : 1;
             var chartRows = results.slice(0, 40).map(function (row, i) {
@@ -3576,7 +3582,7 @@
               $('report').innerHTML = '<pre style="margin:0; white-space:pre-wrap; overflow-wrap:anywhere; word-break:break-word;">' + lines.join('\n') + '</pre>' + slotTables;
             } else {
               if (histContainer) histContainer.innerHTML = chartHtml;
-              $('report').innerHTML = '<pre style="margin:0; white-space:pre-wrap; overflow-wrap:anywhere; word-break:break-word;">' + lines.join('\n') + '</pre><table class="rank-weapons-table" style="margin-top:0.5rem; border-collapse:collapse; width:100%; font-size:0.9rem;"><thead><tr><th style="text-align:left;">#</th><th style="text-align:left;">Combination</th><th style="text-align:right;">Mainhand DPS</th><th style="text-align:right;">Offhand DPS</th><th style="text-align:right;">Total DPS</th><th style="text-align:left;">Primary skill</th><th style="text-align:left;">Secondary skill</th><th style="text-align:right;">Final +ATK</th></tr></thead><tbody>' + tableRows.join('') + '</tbody></table>';
+              $('report').innerHTML = '<pre style="margin:0; white-space:pre-wrap; overflow-wrap:anywhere; word-break:break-word;">' + lines.join('\n') + '</pre><table class="rank-weapons-table" style="margin-top:0.5rem; border-collapse:collapse; width:100%; font-size:0.9rem;"><thead><tr><th style="text-align:left;">#</th><th style="text-align:left;">Combination</th><th style="text-align:right;">Mainhand DPS</th><th style="text-align:right;">Offhand DPS</th><th style="text-align:right;">Total DPS</th><th style="text-align:left;">Primary skill</th><th style="text-align:right;">Final +ATK</th></tr></thead><tbody>' + tableRows.join('') + '</tbody></table>';
             }
           }
           window._renderRankWeaponsReportView = renderRankReport;
@@ -3624,6 +3630,7 @@
                 weaponSkillForToHit: secWeaponSkillOnly,
                 wornAttack: comboOffOnly.wornAttack,
                 backstabModPercent: comboOffOnly.backstabModPercent,
+                backstabSkill: rankBaseBackstabSkill,
                 fistweaving: false
               });
             } else {
@@ -3642,6 +3649,7 @@
                 weaponSkillForToHit: weaponSkillForToHit,
                 wornAttack: comboWornBackstabTop.wornAttack,
                 backstabModPercent: comboWornBackstabTop.backstabModPercent,
+                backstabSkill: rankBaseBackstabSkill,
                 fistweaving: classId === 'monk' && is2H && $('fistweaving').checked,
                 fistweavingNonEpic: ($('fistweaving-nonepic') && $('fistweaving-nonepic').checked) || false
               });
@@ -4129,7 +4137,7 @@
           return;
         }
         var maxDps = results[0].totalDps != null && results[0].totalDps > 0 ? results[0].totalDps : 1;
-        var header = ['Rank', 'Weapon Combination', 'Mainhand DPS', 'Offhand DPS', 'Total DPS', 'Primary skill', 'Secondary skill', 'Final +ATK', '% of BIS'];
+        var header = ['Rank', 'Weapon Combination', 'Mainhand DPS', 'Offhand DPS', 'Total DPS', 'Primary skill', 'Final +ATK', '% of BIS'];
         var csvRows = [header.map(escapeCsvField).join(',')];
         results.forEach(function (row, i) {
           var rank = i + 1;
@@ -4137,10 +4145,9 @@
           var offDps = row.offhandDps != null ? row.offhandDps.toFixed(2) : '';
           var totalDps = row.totalDps != null ? row.totalDps.toFixed(2) : '';
           var primSkill = row.primarySkillLabel != null ? row.primarySkillLabel : '';
-          var secSkill = row.secondarySkillLabel != null ? row.secondarySkillLabel : '';
           var finalAtk = row.finalAtk != null ? String(Math.round(row.finalAtk)) : '';
           var pctBis = row.totalDps != null && maxDps > 0 ? (row.totalDps / maxDps * 100).toFixed(1) + '%' : '';
-          csvRows.push([rank, row.label || '', mainDps, offDps, totalDps, primSkill, secSkill, finalAtk, pctBis].map(escapeCsvField).join(','));
+          csvRows.push([rank, row.label || '', mainDps, offDps, totalDps, primSkill, finalAtk, pctBis].map(escapeCsvField).join(','));
         });
         var csv = '\uFEFF' + csvRows.join('\r\n');
         var blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
