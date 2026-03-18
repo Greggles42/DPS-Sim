@@ -1133,17 +1133,12 @@
       <span style="display: flex; gap: 0.5rem;">
         <button type="button" id="btn-rank-view-toggle" class="sim-history-clear-btn" style="display:none;" title="Switch rank report view mode">Combos/Slots</button>
         <button type="button" id="btn-rank-export-csv" class="sim-history-clear-btn" title="Export weapon rank list to CSV (run Rank weapons first)">Export to .csv</button>
+        <button type="button" id="btn-export-combatlog" class="sim-history-clear-btn" title="Download combat log (.txt) in EQ format (seconds). Single run only.">Combat log (.txt)</button>
+        <button type="button" id="btn-export-combatlog-ms" class="sim-history-clear-btn" title="Download combat log (.txt) in EQ format (milliseconds). Single run only.">Combat log ms (.txt)</button>
         <button type="button" id="export-report-txt" class="sim-history-clear-btn" title="Download current report as a .txt file">Export to .txt</button>
       </span>
     </div>
     <div id="report">Run a simulation to see the report.</div>
-    <div id="combat-log-section" style="display:none; margin-top:1rem;">
-      <h3 style="margin:0 0 0.5rem;">Combat log (EQ format)</h3>
-      <p class="hint" style="margin:0 0 0.35rem;">Standard resolution (seconds). Single run only.</p>
-      <pre id="combat-log-standard" style="margin:0; white-space:pre-wrap; word-break:break-word; font-size:0.85rem; max-height:20rem; overflow:auto; padding:0.5rem; background:var(--panel); border:1px solid var(--border); border-radius:4px;"></pre>
-      <p class="hint" style="margin:0.75rem 0 0.35rem;">Millisecond resolution.</p>
-      <pre id="combat-log-ms" style="margin:0; white-space:pre-wrap; word-break:break-word; font-size:0.85rem; max-height:20rem; overflow:auto; padding:0.5rem; background:var(--panel); border:1px solid var(--border); border-radius:4px;"></pre>
-    </div>
   </section>
 
   <details id="item-search-debug" class="item-search-debug" style="margin-top: 0.75rem; padding: 0.5rem; background: var(--panel); border: 1px solid var(--border); border-radius: 4px;">
@@ -2452,7 +2447,6 @@
           reportText = '  Weapon skill cap (' + capSkillKey + '): ' + skillCap + ' (Quarm/TAKP)\n\n' + reportText;
         }
         $('report').textContent = reportText;
-
         (function () {
           function formatCombatLogAsEQ(combatLog, targetName, baseTimeMs, resolution) {
             if (!combatLog || combatLog.length === 0) return '';
@@ -2479,16 +2473,12 @@
             });
             return lines.join('\n');
           }
-          var logSection = $('combat-log-section');
-          var logStandard = $('combat-log-standard');
-          var logMs = $('combat-log-ms');
-          if (report.combatLog && report.combatLog.length > 0 && logSection && logStandard && logMs) {
+          window._lastCombatLogTxt = '';
+          window._lastCombatLogTxtMs = '';
+          if (report && report.combatLog && report.combatLog.length > 0) {
             var baseTime = Date.now() - (report.durationSec != null ? report.durationSec * 1000 : 0);
-            logStandard.textContent = formatCombatLogAsEQ(report.combatLog, report.targetName, baseTime, 'second');
-            logMs.textContent = formatCombatLogAsEQ(report.combatLog, report.targetName, baseTime, 'millisecond');
-            logSection.style.display = 'block';
-          } else if (logSection) {
-            logSection.style.display = 'none';
+            window._lastCombatLogTxt = formatCombatLogAsEQ(report.combatLog, report.targetName, baseTime, 'second');
+            window._lastCombatLogTxtMs = formatCombatLogAsEQ(report.combatLog, report.targetName, baseTime, 'millisecond');
           }
         })();
 
@@ -4355,6 +4345,40 @@
           a.download = 'dps-sim-report.txt';
           a.click();
           URL.revokeObjectURL(url);
+        });
+      }
+
+      function downloadTextFile(filename, text) {
+        if (!text || !String(text).trim()) return;
+        var blob = new Blob([String(text)], { type: 'text/plain' });
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        a.click();
+        URL.revokeObjectURL(url);
+      }
+
+      var btnCombatLog = $('btn-export-combatlog');
+      if (btnCombatLog) {
+        btnCombatLog.addEventListener('click', function () {
+          var text = window._lastCombatLogTxt || '';
+          if (!text || !String(text).trim()) {
+            if (typeof alert !== 'undefined') alert('No combat log available. Run a single (runs = 1) melee simulation first.');
+            return;
+          }
+          downloadTextFile('dps-sim-combat-log.txt', text);
+        });
+      }
+      var btnCombatLogMs = $('btn-export-combatlog-ms');
+      if (btnCombatLogMs) {
+        btnCombatLogMs.addEventListener('click', function () {
+          var text = window._lastCombatLogTxtMs || '';
+          if (!text || !String(text).trim()) {
+            if (typeof alert !== 'undefined') alert('No combat log available. Run a single (runs = 1) melee simulation first.');
+            return;
+          }
+          downloadTextFile('dps-sim-combat-log-ms.txt', text);
         });
       }
 
