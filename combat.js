@@ -1242,8 +1242,9 @@
     let mainHandRoundCounter = 0;
     let offhandRoundCounter = 0;
     // Monk fistweaving: reaction delay (human timing) + normal offhand swing cooldown gating.
-    // We arm the attempted weaved strike based on the mainhand swing timer (hit/miss irrelevant),
-    // then the weaved strike only executes if the weaved offhand timer is already ready.
+      // We arm the attempted weaved strike based on the mainhand swing timer (hit/miss irrelevant),
+      // then the weaved strike only executes if the weaved offhand timer is already ready.
+      // If another mainhand swing happens before the armed weaved attempt time, we discard/clip it.
     const fistweavingReactionDelayMs = (() => {
       const v = options.fistweavingReactionDelayMs != null ? parseInt(options.fistweavingReactionDelayMs, 10) : 200;
       if (isNaN(v)) return 200;
@@ -1255,12 +1256,15 @@
       : Infinity;
     let fistweavingAttemptAtMs = Infinity; // armed time for the next weaved strike attempt
     let fistweavingOffhandReadyAtMs = 0; // offhand cooldown completion time for the next weaved attempt
-    let fistweavingClippedAttempts = 0;
+    let fistweavingClippedDueToMainhand = 0;
+    let fistweavingClippedDueToOffhandNotReady = 0;
     if (report.fistweaving) {
       report.fistweaving.reactionDelayMs = fistweavingReactionDelayMs;
       report.fistweaving.offhandSwingDelayMs = fistweavingOffhandDelayMs;
       report.fistweaving.offhandSwingDelayDecisec = fistweavingOffhandDelayDecisec;
-      report.fistweaving.clippedAttempts = 0;
+      report.fistweaving.mainhandSwingDelayMs = delay1Ms;
+      report.fistweaving.clippedDueToMainhand = 0;
+      report.fistweaving.clippedDueToOffhandNotReady = 0;
     }
 
     // Event-driven loop: timers in ms. Each swing: (1) AvoidanceCheck: rollHit(toHit, avoidance) → hit or miss. (2) If hit: CalcMeleeDamage uses RollD20(offense, mitigation) → damage.
@@ -1408,10 +1412,9 @@
           // Start the offhand cooldown immediately when the weaved swing occurs.
           fistweavingOffhandReadyAtMs = tMs + fistweavingOffhandDelayMs;
         } else {
-          // Offhand cooldown hasn't finished yet; a mainhand swing re-armed another attempt,
-          // so this weaved attempt gets clipped.
-          fistweavingClippedAttempts++;
-          if (report.fistweaving) report.fistweaving.clippedAttempts = fistweavingClippedAttempts;
+          // Weaved attempt time arrived, but offhand cooldown isn't ready yet.
+          fistweavingClippedDueToOffhandNotReady++;
+          if (report.fistweaving) report.fistweaving.clippedDueToOffhandNotReady = fistweavingClippedDueToOffhandNotReady;
         }
       }
 
@@ -1609,10 +1612,14 @@
         if (attacksThisRound === 1) report.weapon1.single++;
         else if (attacksThisRound === 2) report.weapon1.double++;
         else report.weapon1.triple++;
-        // Arm weaved strike 200ms after a *successful* mainhand round.
-        // Actual weaved swing occurs later via the fistweavingAttemptAtMs timer, gated by offhand cooldown.
-        // Arm the weaved attempt based on the mainhand swing attempt time (hit/miss irrelevant).
-        if (report.fistweaving && fistweavingAttemptAtMs === Infinity) {
+        // Arm a weaved strike for this mainhand swing at (mainhandSwingTime + reactionDelayMs).
+        // If another mainhand swing happens before the previously-armed weaved attempt time,
+        // discard/clip the pending attempt and re-arm from the new mainhand swing.
+        if (report.fistweaving) {
+          if (fistweavingAttemptAtMs !== Infinity && tMs < fistweavingAttemptAtMs) {
+            fistweavingClippedDueToMainhand++;
+            if (report.fistweaving) report.fistweaving.clippedDueToMainhand = fistweavingClippedDueToMainhand;
+          }
           fistweavingAttemptAtMs = tMs + fistweavingReactionDelayMs;
         }
       }
@@ -2015,6 +2022,7 @@
       const fwDmg = fw.baseDamage != null ? fw.baseDamage : 9;
       lines.push('  Fistweaving (' + fwDmg + ' dmg, no proc)');
       if (fw.reactionDelayMs != null) lines.push(padLine('    Fistweave reaction delay:', String(fw.reactionDelayMs) + 'ms'));
+      if (fw.mainhandSwingDelayMs != null) lines.push(padLine('    Mainhand swing timer:', String(Number(fw.mainhandSwingDelayMs).toFixed(0)) + 'ms'));
       if (fw.offhandSwingDelayMs != null) {
         const msStr = (Number.isFinite(Number(fw.offhandSwingDelayMs)) ? Number(fw.offhandSwingDelayMs).toFixed(0) : String(fw.offhandSwingDelayMs));
         if (fw.offhandSwingDelayDecisec != null) {
@@ -2023,7 +2031,7 @@
           lines.push(padLine('    Weaved offhand swing timer:', msStr + 'ms'));
         }
       }
-      lines.push(padLine('    Clipped weaved attempts (offhand not ready):', String(fw.clippedAttempts != null ? fw.clippedAttempts : 0)));
+      lines.push(padLine('    Clipped weaved attempts (mainhand came around early):', String(fw.clippedDueToMainhand != null ? fw.clippedDueToMainhand : 0)));
       lines.push(padLine('    Rounds:', String(fw.rounds)));
       lines.push(padLine('    Single / Double:', `${fw.single ?? '—'} / ${fw.double ?? '—'}`));
       lines.push(padLine('    Swings:', String(fw.swings)));
