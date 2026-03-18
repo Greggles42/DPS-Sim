@@ -1137,6 +1137,13 @@
       </span>
     </div>
     <div id="report">Run a simulation to see the report.</div>
+    <div id="combat-log-section" style="display:none; margin-top:1rem;">
+      <h3 style="margin:0 0 0.5rem;">Combat log (EQ format)</h3>
+      <p class="hint" style="margin:0 0 0.35rem;">Standard resolution (seconds). Single run only.</p>
+      <pre id="combat-log-standard" style="margin:0; white-space:pre-wrap; word-break:break-word; font-size:0.85rem; max-height:20rem; overflow:auto; padding:0.5rem; background:var(--panel); border:1px solid var(--border); border-radius:4px;"></pre>
+      <p class="hint" style="margin:0.75rem 0 0.35rem;">Millisecond resolution.</p>
+      <pre id="combat-log-ms" style="margin:0; white-space:pre-wrap; word-break:break-word; font-size:0.85rem; max-height:20rem; overflow:auto; padding:0.5rem; background:var(--panel); border:1px solid var(--border); border-radius:4px;"></pre>
+    </div>
   </section>
 
   <details id="item-search-debug" class="item-search-debug" style="margin-top: 0.75rem; padding: 0.5rem; background: var(--panel); border: 1px solid var(--border); border-radius: 4px;">
@@ -2263,6 +2270,9 @@
           flyingKickReuseEffectiveSec: (flyingKickReuseManual && (() => { const v = parseFloat($('flyingkick-reuse-sec').value); return v > 0 && !isNaN(v) ? v : undefined; })()) || undefined,
           kickReuseEffectiveSec: (kickReuseManual && (() => { const v = parseFloat($('kick-reuse-sec').value); return v > 0 && !isNaN(v) ? v : undefined; })()) || undefined,
           bashReuseEffectiveSec: (bashReuseManual && (() => { const v = parseFloat($('bash-reuse-sec').value); return v > 0 && !isNaN(v) ? v : undefined; })()) || undefined,
+          weapon2Type: w2WeaponType || undefined,
+          captureCombatLog: runs === 1,
+          targetName: runs === 1 ? ((window.selectedTargetNpc && window.selectedTargetNpc.name) ? String(window.selectedTargetNpc.name).replace(/_/g, ' ') : 'the mob') : undefined,
         };
 
         const reports = [];
@@ -2442,6 +2452,45 @@
           reportText = '  Weapon skill cap (' + capSkillKey + '): ' + skillCap + ' (Quarm/TAKP)\n\n' + reportText;
         }
         $('report').textContent = reportText;
+
+        (function () {
+          function formatCombatLogAsEQ(combatLog, targetName, baseTimeMs, resolution) {
+            if (!combatLog || combatLog.length === 0) return '';
+            var target = (targetName && String(targetName).trim()) ? String(targetName).trim() : 'the mob';
+            var days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+            var months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            function pad(n, w) { var s = String(n); while (s.length < w) s = '0' + s; return s; }
+            function timestamp(ev) {
+              var t = resolution === 'millisecond' ? ev.tMs : Math.floor(ev.tMs / 1000) * 1000;
+              var d = new Date(baseTimeMs + t);
+              var ts = days[d.getDay()] + ' ' + months[d.getMonth()] + ' ' + d.getDate() + ' ' + pad(d.getHours(), 2) + ':' + pad(d.getMinutes(), 2) + ':' + pad(d.getSeconds(), 2);
+              if (resolution === 'millisecond') ts += '.' + pad(d.getMilliseconds(), 3);
+              return ts + ' ' + d.getFullYear();
+            }
+            var lines = [];
+            combatLog.forEach(function (ev) {
+              var prefix = '[' + timestamp(ev) + '] You ';
+              var verb = (ev.attackName || 'hit');
+              if (ev.hit && ev.damage != null) {
+                lines.push(prefix + verb + ' ' + target + ' for ' + ev.damage + ' points of damage.');
+              } else {
+                lines.push(prefix + 'try to ' + verb + ' ' + target + ', but miss!');
+              }
+            });
+            return lines.join('\n');
+          }
+          var logSection = $('combat-log-section');
+          var logStandard = $('combat-log-standard');
+          var logMs = $('combat-log-ms');
+          if (report.combatLog && report.combatLog.length > 0 && logSection && logStandard && logMs) {
+            var baseTime = Date.now() - (report.durationSec != null ? report.durationSec * 1000 : 0);
+            logStandard.textContent = formatCombatLogAsEQ(report.combatLog, report.targetName, baseTime, 'second');
+            logMs.textContent = formatCombatLogAsEQ(report.combatLog, report.targetName, baseTime, 'millisecond');
+            logSection.style.display = 'block';
+          } else if (logSection) {
+            logSection.style.display = 'none';
+          }
+        })();
 
         const dpsEl = $('dps-value');
         if (dpsEl && report.durationSec) dpsEl.textContent = (report.totalDamage / report.durationSec).toFixed(2);
