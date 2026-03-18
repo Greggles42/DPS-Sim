@@ -1108,6 +1108,8 @@
       damageBonusTotal: 0,
       calculatedToHit: toHit,
       offenseSkill: OFFENSE_SKILL,
+      weaponSkillKeyForToHit: options.weaponSkillKeyForToHit != null ? options.weaponSkillKeyForToHit : undefined,
+      weaponSkillForToHit: WEAPON_SKILL_FOR_TOHIT,
       offenseRating: offenseRating,
       offenseRatingFromStr: strBonus,
       displayedAttack: Math.floor((offenseRating + toHit) * 1000 / 744),
@@ -1775,6 +1777,13 @@
     lines.push('=== Offense & To-Hit Model ===', '');
     if (report.calculatedToHit != null) lines.push(padLine('  Calculated to-hit:', String(report.calculatedToHit)));
     if (report.offenseSkill != null) lines.push(padLine('  Offense skill:', `${report.offenseSkill}  (0–255, used for to-hit only)`));
+    if (report.weaponSkillForToHit != null && report.weaponSkillKeyForToHit != null) {
+      if (String(report.weaponSkillKeyForToHit) === '2hs') {
+        lines.push(padLine('  Effective 2HS skill (for to-hit):', String(report.weaponSkillForToHit)));
+      } else {
+        lines.push(padLine('  Weapon skill (for to-hit):', String(report.weaponSkillForToHit)));
+      }
+    }
     if (report.offenseRating != null) lines.push(padLine('  Offense rating:', `${report.offenseRating}  (used for damage)`));
     if (report.offenseRatingFromStr != null) lines.push(padLine('    From STR:', String(report.offenseRatingFromStr)));
     if (report.offenseRating != null && report.offenseRatingFromStr != null) {
