@@ -2295,6 +2295,24 @@
           (w1BackstabModPercent != null && !isNaN(Number(w1BackstabModPercent))) ? Number(w1BackstabModPercent) : 0,
           (w2BackstabModPercent != null && !isNaN(Number(w2BackstabModPercent))) ? Number(w2BackstabModPercent) : 0
         ) : 0;
+        function getRogueEquippedBackstabModPercent() {
+          // Always trust the computed hidden value (max of equipped item mods),
+          // rather than any potentially stale slot variables.
+          if (classId !== 'rogue') return 0;
+          var el = $('backstab-mod');
+          if (!el) return equippedBackstabModPercent || 0;
+          var v = parseInt(el.value, 10);
+          return (!isNaN(v) && v > 0) ? v : 0;
+        }
+        function getRogueBackstabSkillBase() {
+          // UI may have already adjusted `backstab-skill` to an effective value using item mods.
+          // combat.js expects the *base* skill and applies the weapon mod itself.
+          if (classId !== 'rogue') return 0;
+          if (backstabSkillBaseForRestore != null && !isNaN(Number(backstabSkillBaseForRestore))) {
+            return Number(backstabSkillBaseForRestore);
+          }
+          return parseInt($('backstab-skill').value, 10) || 0;
+        }
         var equippedWornAttackBonus = Math.max(0, (w1WornAttackBonus != null && !isNaN(Number(w1WornAttackBonus))) ? Number(w1WornAttackBonus) : 0)
           + Math.max(0, (w2WornAttackBonus != null && !isNaN(Number(w2WornAttackBonus))) ? Number(w2WornAttackBonus) : 0);
         const options = {
@@ -2324,8 +2342,8 @@
           classId: classId || undefined,
           weaponSkillForToHit: weaponSkillForToHit,
           weaponSkillKeyForToHit: skillKey,
-          backstabModPercent: classId === 'rogue' ? equippedBackstabModPercent : undefined,
-          backstabSkill: classId === 'rogue' ? (parseInt($('backstab-skill').value, 10) || 0) : undefined,
+          backstabModPercent: classId === 'rogue' ? getRogueEquippedBackstabModPercent() : undefined,
+          backstabSkill: classId === 'rogue' ? getRogueBackstabSkillBase() : undefined,
           duelist: classId === 'rogue' && $('duelist').checked,
           innerFlame: classId === 'monk' && $('innerflame').checked,
           spellCastingFury: (function () { var el = document.querySelector('input[name="spell-casting-fury"]:checked'); return el ? (parseInt(el.value, 10) || 0) : 0; })(),
@@ -3160,7 +3178,11 @@
           specialAttackType: rankSpecialAttacks ? rankSpecialAttackType : undefined,
           classId: classId,
           backstabModPercent: classId === 'rogue' ? 0 : undefined,
-          backstabSkill: classId === 'rogue' ? (parseInt($('backstab-skill').value, 10) || 225) : undefined,
+          backstabSkill: classId === 'rogue' ? (
+            backstabSkillBaseForRestore != null && !isNaN(Number(backstabSkillBaseForRestore))
+              ? Number(backstabSkillBaseForRestore)
+              : (parseInt($('backstab-skill').value, 10) || 225)
+          ) : undefined,
           duelist: classId === 'rogue' && $('duelist').checked,
           innerFlame: classId === 'monk' && $('innerflame').checked,
           spellCastingFury: (function () { var el = document.querySelector('input[name="spell-casting-fury"]:checked'); return el ? (parseInt(el.value, 10) || 0) : 0; })(),
@@ -3180,7 +3202,11 @@
         };
         var formBackstabModPercent = 0;
         /** For rogue: base backstab skill from input (or 225 if empty). Used for every sim; weapon mod is applied per-combo in getRankComboWornAndBackstab. */
-        var rankBaseBackstabSkill = (classId === 'rogue') ? (parseInt($('backstab-skill').value, 10) || 225) : undefined;
+        var rankBaseBackstabSkill = (classId === 'rogue') ? (
+          backstabSkillBaseForRestore != null && !isNaN(Number(backstabSkillBaseForRestore))
+            ? Number(backstabSkillBaseForRestore)
+            : (parseInt($('backstab-skill').value, 10) || 225)
+        ) : undefined;
         function getRankComboWornAndBackstab(norm1, norm2) {
           var baseWorn = (baseOptions.wornAttack != null && !isNaN(Number(baseOptions.wornAttack))) ? Number(baseOptions.wornAttack) : 0;
           var w1 = (norm1 != null ? getWornAttackBonusForNorm(norm1) : 0) || 0;
