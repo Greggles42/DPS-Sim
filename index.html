@@ -3185,6 +3185,13 @@
           return isNaN(n) ? null : n;
         })();
         var RANK_BANE_ONLY_TARGETS = { 162065: { type: 'race', value: 217 }, 162491: { type: 'race', value: 217 }, 159000: [{ type: 'body', value: 16 }, { type: 'race', value: 236 }] };
+        // Lord Inquisitor Seru banes should only apply when target matches both race+body.
+        // Otherwise, items like Yttrium Dagger (race bane 236) incorrectly apply to other race-236 mobs.
+        var SERU_BANE_TARGET_RACE = 236;
+        var SERU_BANE_TARGET_BODYTYPE = 16;
+        function isSeruBaneWeapon(norm) {
+          return !!(norm && (norm.baneDamageRace === SERU_BANE_TARGET_RACE || norm.baneDamageBody === SERU_BANE_TARGET_BODYTYPE) && (norm.baneDamage || 0) > 0);
+        }
         var targetRaceForBane = (function () {
           var npc = window.selectedTargetNpc;
           if (!npc || typeof npc !== 'object') return null;
@@ -3227,6 +3234,13 @@
 
           // Normal NPCs: auto-apply bane based on target race/body.
           // Checkbox override only applies here (not for bane-only NPCs).
+          if (isSeruBaneWeapon(norm)) {
+            var seruTargetMatches = (targetRaceForBane === SERU_BANE_TARGET_RACE && targetBodyTypeForBane === SERU_BANE_TARGET_BODYTYPE);
+            if (seruTargetMatches && (norm.baneDamage || 0) > 0) {
+              weaponObj.damage += norm.baneDamage;
+            }
+            return;
+          }
           var raceMatch = targetRaceForBane != null && norm.baneDamageRace != null && norm.baneDamageRace === targetRaceForBane && (norm.baneDamage || 0) > 0;
           var bodyMatch = targetBodyTypeForBane != null && norm.baneDamageBody != null && norm.baneDamageBody === targetBodyTypeForBane && (norm.baneDamage || 0) > 0;
           if (raceMatch || bodyMatch) {
