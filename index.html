@@ -3229,8 +3229,10 @@
           var primarySkillLabel;
           var secondarySkillLabel;
           if (classId === 'rogue') {
-            var backstabSkill = (baseOptions.backstabSkill != null && !isNaN(Number(baseOptions.backstabSkill))) ? Number(baseOptions.backstabSkill) : 225;
-            primarySkillLabel = 'Backstab-' + backstabSkill;
+            var backstabSkillBase = (baseOptions.backstabSkill != null && !isNaN(Number(baseOptions.backstabSkill))) ? Number(baseOptions.backstabSkill) : 225;
+            var backstabModPct = backstabActive ? Math.max(0, bs1, bs2) : 0;
+            var effectiveBackstabSkill = Math.min(252, Math.floor(backstabSkillBase * (100 + backstabModPct) / 100));
+            primarySkillLabel = 'Backstab-' + effectiveBackstabSkill;
             secondarySkillLabel = '—';
           } else {
             var primSkillKey = p1 ? skillKeyForCap(p1.type, is2HPrimary) : '';
@@ -3582,7 +3584,7 @@
               $('report').innerHTML = '<pre style="margin:0; white-space:pre-wrap; overflow-wrap:anywhere; word-break:break-word;">' + lines.join('\n') + '</pre>' + slotTables;
             } else {
               if (histContainer) histContainer.innerHTML = chartHtml;
-              $('report').innerHTML = '<pre style="margin:0; white-space:pre-wrap; overflow-wrap:anywhere; word-break:break-word;">' + lines.join('\n') + '</pre><table class="rank-weapons-table" style="margin-top:0.5rem; border-collapse:collapse; width:100%; font-size:0.9rem;"><thead><tr><th style="text-align:left;">#</th><th style="text-align:left;">Combination</th><th style="text-align:right;">Mainhand DPS</th><th style="text-align:right;">Offhand DPS</th><th style="text-align:right;">Total DPS</th><th style="text-align:left;">Primary skill</th><th style="text-align:right;">Final +ATK</th></tr></thead><tbody>' + tableRows.join('') + '</tbody></table>';
+              $('report').innerHTML = '<pre style="margin:0; white-space:pre-wrap; overflow-wrap:anywhere; word-break:break-word;">' + lines.join('\n') + '</pre><table class="rank-weapons-table" style="margin-top:0.5rem; border-collapse:collapse; width:100%; font-size:0.9rem;"><thead><tr><th style="text-align:left;">#</th><th style="text-align:left;">Combination</th><th style="text-align:right;">Mainhand DPS</th><th style="text-align:right;">Offhand DPS</th><th style="text-align:right;">Total DPS</th><th style="text-align:left;">Backstab skill</th><th style="text-align:right;">Final +ATK</th></tr></thead><tbody>' + tableRows.join('') + '</tbody></table>';
             }
           }
           window._renderRankWeaponsReportView = renderRankReport;
@@ -4137,7 +4139,7 @@
           return;
         }
         var maxDps = results[0].totalDps != null && results[0].totalDps > 0 ? results[0].totalDps : 1;
-        var header = ['Rank', 'Weapon Combination', 'Mainhand DPS', 'Offhand DPS', 'Total DPS', 'Primary skill', 'Final +ATK', '% of BIS'];
+        var header = ['Rank', 'Weapon Combination', 'Mainhand DPS', 'Offhand DPS', 'Total DPS', 'Backstab skill', 'Final +ATK', '% of BIS'];
         var csvRows = [header.map(escapeCsvField).join(',')];
         results.forEach(function (row, i) {
           var rank = i + 1;
