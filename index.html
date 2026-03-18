@@ -3467,7 +3467,8 @@
               });
               coarseResults.sort(function (a, b) { return (b.totalDps || 0) - (a.totalDps || 0); });
               topCombosToSim = coarseResults.slice(0, Math.min(TOP_COMBO_SIMS, coarseResults.length));
-              phaseSnapshots.coarseTop = coarseResults.slice(0, TOP_PHASE_BREAKDOWN);
+              // Clone so later full-combo decomposition updates don't mutate the coarse snapshot.
+              phaseSnapshots.coarseTop = coarseResults.slice(0, TOP_PHASE_BREAKDOWN).map(function (r) { return Object.assign({}, r); });
               comboResults = new Array(topCombosToSim.length);
               phase = 'combinations';
               simIndex = 0;
@@ -3480,7 +3481,8 @@
             });
             coarseResults.sort(function (a, b) { return (b.totalDps || 0) - (a.totalDps || 0); });
             topCombosToSim = coarseResults.slice(0, Math.min(TOP_COMBO_SIMS, coarseResults.length));
-            phaseSnapshots.coarseTop = coarseResults.slice(0, TOP_PHASE_BREAKDOWN);
+            // Clone so later full-combo decomposition updates don't mutate the coarse snapshot.
+            phaseSnapshots.coarseTop = coarseResults.slice(0, TOP_PHASE_BREAKDOWN).map(function (r) { return Object.assign({}, r); });
             comboResults = new Array(topCombosToSim.length);
             phase = 'combinations';
             simIndex = 0;
@@ -3603,7 +3605,6 @@
           }
           var results = coarseResults.slice();
           results.sort(function (a, b) { return (b.totalDps || 0) - (a.totalDps || 0); });
-          phaseSnapshots.fullTop = results.slice(0, TOP_PHASE_BREAKDOWN);
 
           var runsCount = Math.max(1, Math.min(1000, parseInt($('runs').value, 10) || 20));
           var top40 = results.slice(0, 40);
@@ -3724,7 +3725,9 @@
           window._renderRankWeaponsReportView = renderRankReport;
           if (top40.length === 0) {
             renderRankReport();
-            phaseSnapshots.fullTop = results.slice(0, TOP_PHASE_BREAKDOWN);
+            // Ensure snapshot matches report ordering.
+            results.sort(function (a, b) { return (b.totalDps || 0) - (a.totalDps || 0); });
+            phaseSnapshots.fullTop = results.slice(0, TOP_PHASE_BREAKDOWN).map(function (r) { return Object.assign({}, r); });
             renderRankWeaponsPhaseBreakdown();
             setRankWeaponsProgressText('Ranking complete.');
             return;
@@ -3733,7 +3736,9 @@
           var avgIndex = 0;
           function runNextTop40() {
             if (avgIndex >= top40.length) {
-              phaseSnapshots.fullTop = results.slice(0, TOP_PHASE_BREAKDOWN);
+              // Ensure snapshot matches report ordering after all DPS updates.
+              results.sort(function (a, b) { return (b.totalDps || 0) - (a.totalDps || 0); });
+              phaseSnapshots.fullTop = results.slice(0, TOP_PHASE_BREAKDOWN).map(function (r) { return Object.assign({}, r); });
               setRankWeaponsProgressText('Reordering results…');
               renderRankReport();
               renderRankWeaponsPhaseBreakdown();
