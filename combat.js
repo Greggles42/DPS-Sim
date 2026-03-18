@@ -1241,10 +1241,28 @@
     let nextSpecialAtMs = (canFireSpecial && report.special) ? 0 : Infinity;
     let mainHandRoundCounter = 0;
     let offhandRoundCounter = 0;
+    // Monk fistweaving: reaction delay (human timing) + normal offhand swing cooldown gating.
+    // - After each *successful* mainhand round: arm an attempted weaved strike at tMs + 200ms.
+    // - When that attempt time arrives: only execute if the offhand cooldown has completed.
+    // - If offhand cooldown completes before the next successful mainhand swing: do nothing
+    //   until the next mainhand success arms a new attempt (matches requested behavior).
+    const FISTWEAVE_REACTION_DELAY_MS = 200;
+    const fistweavingOffhandDelayDecisec = options.fistweavingNonEpic ? 27 : 16; // epic:16, non-epic:27
+    const fistweavingOffhandDelayMs = report.fistweaving
+      ? effectiveDelayMs(fistweavingOffhandDelayDecisec, effectiveHastePercent)
+      : Infinity;
+    let fistweavingAttemptAtMs = Infinity; // armed time for the next weaved strike attempt
+    let fistweavingOffhandReadyAtMs = 0; // offhand cooldown completion time for the next weaved attempt
 
     // Event-driven loop: timers in ms. Each swing: (1) AvoidanceCheck: rollHit(toHit, avoidance) → hit or miss. (2) If hit: CalcMeleeDamage uses RollD20(offense, mitigation) → damage.
     while (true) {
-      const tMs = Math.min(nextSpecialAtMs, nextSwing1Ms, dualWielding ? nextSwing2Ms : Infinity, durationMs);
+      const tMs = Math.min(
+        nextSpecialAtMs,
+        nextSwing1Ms,
+        dualWielding ? nextSwing2Ms : Infinity,
+        fistweavingAttemptAtMs,
+        durationMs
+      );
       if (tMs >= durationMs) break;
 
       // Special attack (Flying Kick / Backstab) on cooldown
@@ -1321,6 +1339,66 @@
 
         for (let r = 0; r < numBackstabRolls; r++) processOneBackstabHit(r + 1);
         nextSpecialAtMs = tMs + specialCooldownMs;
+      }
+
+      // Fistweaving attempted strike (monk 2H): reaction delay + offhand cooldown gating
+      if (report.fistweaving && tMs >= fistweavingAttemptAtMs) {
+        // Always clear the armed attempt when its scheduled time arrives.
+        const attemptTimeMs = tMs;
+        fistweavingAttemptAtMs = Infinity;
+
+        if (attemptTimeMs >= fistweavingOffhandReadyAtMs) {
+          report.fistweaving.rounds++;
+          let fwAttacks = 1;
+          const FIST_DAMAGE = options.fistweavingNonEpic ? 14 : 9;
+
+          if (rollHit(toHit, avoidance, rng, fromBehind)) {
+            let dmg = calcMeleeDamage(FIST_DAMAGE, offenseRating, mitigation, rng, 0);
+            const mult = rollDamageMultiplier(offenseRating, dmg, level, options.classId, false, rng);
+            dmg = mult.damage;
+            const beforeCrit = dmg;
+            const critResult = rollMeleeCrit(dmg, 0, level, options.classId, options.dex, options.critChanceMult, false, false, 0, options.critDmgDebugDmgBonus, rng);
+            dmg = critResult.damage;
+            if (critResult.isCrit) { report.critHits++; report.critDamageGain += (dmg - beforeCrit); }
+            report.fistweaving.swings++;
+            report.fistweaving.hits++;
+            report.fistweaving.totalDamage += dmg;
+            report.fistweaving.maxDamage = Math.max(report.fistweaving.maxDamage, dmg);
+            report.totalDamage += dmg;
+            pushCombatLog(tMs, 'melee', 'fist', 'punch', true, dmg);
+          } else {
+            report.fistweaving.swings++;
+            pushCombatLog(tMs, 'melee', 'fist', 'punch', false);
+          }
+
+          if (checkDoubleAttack(doubleAttackEffective, rng, options.classId)) {
+            fwAttacks = 2;
+            if (rollHit(toHit, avoidance, rng, fromBehind)) {
+              let dmg = calcMeleeDamage(FIST_DAMAGE, offenseRating, mitigation, rng, 0);
+              const mult = rollDamageMultiplier(offenseRating, dmg, level, options.classId, false, rng);
+              dmg = mult.damage;
+              const beforeCrit = dmg;
+              const critResult = rollMeleeCrit(dmg, 0, level, options.classId, options.dex, options.critChanceMult, false, false, 0, options.critDmgDebugDmgBonus, rng);
+              dmg = critResult.damage;
+              if (critResult.isCrit) { report.critHits++; report.critDamageGain += (dmg - beforeCrit); }
+              report.fistweaving.swings++;
+              report.fistweaving.hits++;
+              report.fistweaving.totalDamage += dmg;
+              report.fistweaving.maxDamage = Math.max(report.fistweaving.maxDamage, dmg);
+              report.totalDamage += dmg;
+              pushCombatLog(tMs, 'melee', 'fist', 'punch', true, dmg);
+            } else {
+              report.fistweaving.swings++;
+              pushCombatLog(tMs, 'melee', 'fist', 'punch', false);
+            }
+          }
+
+          if (fwAttacks === 1) report.fistweaving.single++;
+          else report.fistweaving.double++;
+
+          // Start the offhand cooldown immediately when the weaved swing occurs.
+          fistweavingOffhandReadyAtMs = tMs + fistweavingOffhandDelayMs;
+        }
       }
 
       // Main hand (one round = one swing opportunity; 1, 2, or 3 attacks per round)
@@ -1517,53 +1595,11 @@
         if (attacksThisRound === 1) report.weapon1.single++;
         else if (attacksThisRound === 2) report.weapon1.double++;
         else report.weapon1.triple++;
-
-        // Fistweaving (monk 2H): after each primary hand round, one offhand round; epic 9/16, non-epic 14/27; can double attack, no proc
-        if (report.fistweaving) {
-          report.fistweaving.rounds++;
-          let fwAttacks = 1;
-          const FIST_DAMAGE = options.fistweavingNonEpic ? 14 : 9;
-          if (rollHit(toHit, avoidance, rng, fromBehind)) {
-            let dmg = calcMeleeDamage(FIST_DAMAGE, offenseRating, mitigation, rng, 0);
-            const mult = rollDamageMultiplier(offenseRating, dmg, level, options.classId, false, rng);
-            dmg = mult.damage;
-            const beforeCrit = dmg;
-            const critResult = rollMeleeCrit(dmg, 0, level, options.classId, options.dex, options.critChanceMult, false, false, 0, options.critDmgDebugDmgBonus, rng);
-            dmg = critResult.damage;
-            if (critResult.isCrit) { report.critHits++; report.critDamageGain += (dmg - beforeCrit); }
-            report.fistweaving.swings++;
-            report.fistweaving.hits++;
-            report.fistweaving.totalDamage += dmg;
-            report.fistweaving.maxDamage = Math.max(report.fistweaving.maxDamage, dmg);
-            report.totalDamage += dmg;
-            pushCombatLog(tMs, 'melee', 'fist', 'punch', true, dmg);
-          } else {
-            report.fistweaving.swings++;
-            pushCombatLog(tMs, 'melee', 'fist', 'punch', false);
-          }
-          if (checkDoubleAttack(doubleAttackEffective, rng, options.classId)) {
-            fwAttacks = 2;
-            if (rollHit(toHit, avoidance, rng, fromBehind)) {
-              let dmg = calcMeleeDamage(FIST_DAMAGE, offenseRating, mitigation, rng, 0);
-              const mult = rollDamageMultiplier(offenseRating, dmg, level, options.classId, false, rng);
-              dmg = mult.damage;
-              const beforeCrit = dmg;
-              const critResult = rollMeleeCrit(dmg, 0, level, options.classId, options.dex, options.critChanceMult, false, false, 0, options.critDmgDebugDmgBonus, rng);
-              dmg = critResult.damage;
-              if (critResult.isCrit) { report.critHits++; report.critDamageGain += (dmg - beforeCrit); }
-              report.fistweaving.swings++;
-              report.fistweaving.hits++;
-              report.fistweaving.totalDamage += dmg;
-              report.fistweaving.maxDamage = Math.max(report.fistweaving.maxDamage, dmg);
-              report.totalDamage += dmg;
-              pushCombatLog(tMs, 'melee', 'fist', 'punch', true, dmg);
-            } else {
-              report.fistweaving.swings++;
-              pushCombatLog(tMs, 'melee', 'fist', 'punch', false);
-            }
-          }
-          if (fwAttacks === 1) report.fistweaving.single++;
-          else report.fistweaving.double++;
+        // Arm weaved strike 200ms after a *successful* mainhand round.
+        // Actual weaved swing occurs later via the fistweavingAttemptAtMs timer, gated by offhand cooldown.
+        // Arm the weaved attempt based on the mainhand swing attempt time (hit/miss irrelevant).
+        if (report.fistweaving && fistweavingAttemptAtMs === Infinity) {
+          fistweavingAttemptAtMs = tMs + FISTWEAVE_REACTION_DELAY_MS;
         }
       }
 
