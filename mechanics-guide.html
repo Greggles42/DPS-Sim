@@ -104,16 +104,84 @@
     <div class="card">
       <h2>2) Threat and TPS (not the same as DPS)</h2>
       <p>
-        The simulator reports <strong>TPS</strong> (threat per second) alongside DPS. Threat is modeled separately from damage:
-    </p>
-      <ul>
-        <li><strong>Melee swing hate:</strong> primary-hand uses weapon base + main-hand damage bonus; off-hand uses weapon base only; each swing attempt counts (hit or miss), per EQMacEmu <code>attack.cpp</code> swing hate.</li>
-        <li><strong>Backstab / fistweaving:</strong> additional swing-hate events on those timers.</li>
-        <li><strong>Proc spell hate:</strong> capped per proc event from actual proc damage (default cap 400).</li>
-        <li><strong>Ranged:</strong> bow + arrow base per shot; proc damage capped similarly.</li>
-      </ul>
+        The header shows <strong>Total TPS (Beta)</strong> — approximate <strong>threat per second</strong>. It is <strong>not</strong> your damage per second; it is a separate aggregate used to reason about tank snap aggro and weapon proc contribution.
+      </p>
+
+      <h3>2.1) What “total threat” is</h3>
+      <p>
+        Over a simulated fight of length <code>T</code> seconds, the sim accumulates integer <strong>threat</strong> from allowed sources. The report value is:
+      </p>
+      <div class="formula">totalThreat = swingThreatAcc + procThreatAcc</div>
+      <p class="muted">Ranged uses the same idea: bow shot swing threat plus ranged proc threat.</p>
+      <p>Displayed TPS uses:</p>
+      <div class="formula">TPS = totalThreat / T</div>
       <p class="muted">
-        Implementation: <code>threat.js</code> + <code>combat.js</code>. Reference: EQMacEmu hate generation (not identical to total damage dealt).
+        So TPS is an average rate over the whole fight. It scales with how often you generate swing hate and proc hate, not with the size of individual damage rolls (for swings).
+      </p>
+
+      <h3>2.2) Components of total threat (melee)</h3>
+      <ol>
+        <li>
+          <strong>Swing threat (primary hand)</strong> — On <strong>every</strong> main-hand swing attempt (hit or miss), add
+          <code>max(0, cappedWeaponDamage + mainHandDamageBonus)</code>. This matches EQMacEmu-style pre-roll hate from displayed base + damage bonus (<code>threat.js</code>: <code>meleeSwingThreatPrimary</code>).
+        </li>
+        <li>
+          <strong>Swing threat (off hand)</strong> — On each off-hand swing attempt (hit or miss), add
+          <code>max(0, cappedOffhandWeaponDamage)</code> only — no main-hand damage bonus on the secondary slot (<code>meleeSwingThreatOffhand</code>).
+        </li>
+        <li>
+          <strong>Special attacks (backstab, flying kick, kick, bash, etc.)</strong> — <strong>Yes, they count.</strong> Each time a special fires on its cooldown, the sim adds <strong>one primary-hand swing hate event</strong> — the <strong>same amount</strong> as a normal main-hand auto (weapon base + main-hand damage bonus), including on a miss. Special <strong>damage</strong> does not add extra threat in this model: a huge backstab number does not increase swing hate beyond that single MH-sized slice.
+        </li>
+        <li>
+          <strong>Monk fistweaving</strong> — Weaved punches add swing threat as their configured fist base (epic vs non-epic), using the same “primary style” helper as other MH swing hate for those events (<code>meleeSwingThreatPrimary(fistBase, 0)</code>).
+        </li>
+        <li>
+          <strong>Proc threat (direct damage spells)</strong> — When a weapon proc deals instant DD, hate from damage uses the spell’s <strong>base</strong> proc damage (before resists / Spell Casting Fury crit), then applies the per-event cap (default <strong>400</strong>). DoT procs accrue threat from <strong>unresisted per-tick base</strong> (total proc damage ÷ tick count), not from resisted tick damage.
+        </li>
+        <li>
+          <strong>Proc threat (detrimental, no HP damage)</strong> — For procs classified as detrimental with no SE_CurrentHP damage in spell data:
+          <code>min(1200, max(25, floor(targetMaxHp / 15)))</code>. <code>targetMaxHp</code> comes from the selected NPC’s <code>hp</code> when you pick a target from search; otherwise a generic HP curve (e.g. 22,105 at mob level 60, scaled by level).
+        </li>
+        <li>
+          <strong>Flat proc hate (e.g. SE 92)</strong> — Added once on the instant proc path (not every DoT tick), in addition to DD cap rules where applicable.
+        </li>
+      </ol>
+
+      <h3>2.3) Components of total threat (ranged)</h3>
+      <ul>
+        <li><strong>Per shot:</strong> swing threat ≈ bow displayed damage + arrow displayed damage (same idea as “base” before the hit roll).</li>
+        <li><strong>Procs:</strong> same DD base / cap / non-DD detrimental / flat hate rules as melee, on the bow object.</li>
+      </ul>
+
+      <h3>2.4) What is not in this TPS</h3>
+      <ul>
+        <li>Threat from casting player spells, heals, buffs, or non-weapon abilities (not simulated).</li>
+        <li>Separate “damage-based” hate for specials (the sim does not add threat equal to special hit damage).</li>
+        <li>Rune absorb, mez/root flat hate tables, etc., unless modeled elsewhere in the future.</li>
+      </ul>
+
+      <h3>2.5) Practical example (melee, rounded)</h3>
+      <p>
+        Suppose a 60-second fight, main hand only, no offhand, no procs, no specials: weapon shows <strong>15</strong> damage, main-hand damage bonus <strong>35</strong>, effective delay 2.0s → about <strong>30</strong> main-hand swings. Each swing adds swing hate <code>15 + 35 = 50</code>.
+      </p>
+      <ul>
+        <li><code>swingThreatAcc ≈ 30 × 50 = 1,500</code></li>
+        <li><code>procThreatAcc = 0</code></li>
+        <li><code>totalThreat = 1,500</code> → <strong>TPS ≈ 1,500 / 60 = 25.0</strong></li>
+      </ul>
+      <p>
+        If you <strong>also</strong> enable a special on cooldown (e.g. kick) and it fires <strong>6</strong> times in 60s, each attempt adds another <strong>50</strong> swing hate (same as one MH auto), even if some miss:
+      </p>
+      <ul>
+        <li>Extra from specials: <code>6 × 50 = 300</code></li>
+        <li><code>totalThreat ≈ 1,500 + 300 = 1,800</code> → <strong>TPS ≈ 30.0</strong></li>
+      </ul>
+      <p>
+        If the weapon then procs an instant DD with base <strong>200</strong> and default cap 400, each proc adds up to <strong>200</strong> to <code>procThreatAcc</code> (not reduced by resists in the threat math). Ten procs would add <strong>2,000</strong> proc threat on top of swing threat, pushing TPS up accordingly.
+      </p>
+
+      <p class="muted">
+        Implementation: <code>threat.js</code> + <code>combat.js</code>. Reference: EQMacEmu-style swing and proc hate (approximate; not identical to live in every edge case).
       </p>
     </div>
 

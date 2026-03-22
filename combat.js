@@ -598,13 +598,14 @@
   /**
    * Run a single ranged (archery) fight simulation.
    * @param {Object} options
-   * @param {Object} options.rangedWeapon - { damage, delay, procSpell?, procSpellDamage? }
+   * @param {Object} options.rangedWeapon - { damage, delay, procSpell?, procSpellDamage?, procSpellNonDamagingDetrimental? }
    * @param {Object} options.arrow - { damage }
    * @param {number} options.hastePercent - standard haste % (worn + spell; subject to 125% cap)
    * @param {number} [options.quiverHaste=0] - quiver haste as decimal (e.g. 0.15 = 15%); applied after standard haste, not subject to cap; reduction = quiver_haste*speed+1, only if speed−reduction>1000
    * @param {number} [options.level=60]
    * @param {number} options.targetAC - mob AC for mitigation
    * @param {number} [options.mobLevel=60]
+   * @param {number} [options.targetMaxHp] - mob max HP; if omitted, generic HP from mobLevel (22105 at 60)
    * @param {number} options.fightDurationSec
    * @param {number} [options.offenseSkill=252] - archery to-hit
    * @param {number} [options.wornAttack=0]
@@ -704,6 +705,8 @@
         maxDamage: 0,
         minDamage: Infinity,
         hitList: [],
+        swingThreat: 0,
+        procThreat: 0,
         procs: 0,
         procDamageTotal: 0,
         procResists: 0,
@@ -749,6 +752,12 @@
 
     const TR = global.EQThreat;
     const rangedProcCap = options.procThreatCap != null ? options.procThreatCap : 400;
+    function resolveTargetMaxHpRanged(opts) {
+      if (opts.targetMaxHp != null && opts.targetMaxHp > 0) return opts.targetMaxHp | 0;
+      if (TR && typeof TR.genericMobMaxHpForLevel === 'function') return TR.genericMobMaxHpForLevel(opts.mobLevel != null ? opts.mobLevel : 60);
+      const ml = opts.mobLevel != null ? opts.mobLevel : 60;
+      return Math.floor(22105 * Math.min(70, Math.max(1, ml | 0)) / 60);
+    }
     let rangedThreatAcc = 0;
     let rangedSwingThreatAcc = 0;
     let rangedProcThreatAcc = 0;
@@ -758,9 +767,17 @@
       rangedSwingThreatAcc += h;
       rangedThreatAcc += h;
     }
-    function addRangedProcThreat(dmg) {
-      if (!TR || !(dmg > 0)) return;
-      const h = TR.procSpellThreatFromDamage(dmg, rangedProcCap);
+    function addRangedProcThreat(baseProcDmg, isNonDamagingDetrimental) {
+      if (!TR) return;
+      let h = 0;
+      if (isNonDamagingDetrimental && bow.procSpellNonDamagingDetrimental && TR.detrimentalNonDamageSpellThreat) {
+        h += TR.detrimentalNonDamageSpellThreat(resolveTargetMaxHpRanged(options));
+      } else if (baseProcDmg > 0) {
+        h += TR.procSpellThreatFromDamage(baseProcDmg, rangedProcCap);
+      }
+      const flat = bow.procSpellBonusHate != null ? (bow.procSpellBonusHate | 0) : 0;
+      if (flat > 0) h += TR.procFlatHate ? TR.procFlatHate(flat) : Math.max(0, flat);
+      if (h <= 0) return;
       rangedProcThreatAcc += h;
       rangedThreatAcc += h;
     }
@@ -778,24 +795,29 @@
         report.ranged.procs++;
         const procDmg = bow.noDamageVsTarget ? 0 : ((bow.procSpellDamage != null ? bow.procSpellDamage : 0) || 0);
         const effectiveness = getProcSpellEffectiveness(bow, options, level, procRng);
-        let actualProcDmg = Math.floor(procDmg * effectiveness / 100);
-        const scfResult = applySpellCastingFuryProc(actualProcDmg, options, procRng);
-        actualProcDmg = scfResult.damage;
-        if (scfResult.isCrit) {
-          report.ranged.spellProcCrits++;
-          report.ranged.maxSpellProcCritDmg = Math.max(report.ranged.maxSpellProcCritDmg || 0, actualProcDmg);
-        }
-        report.ranged.procDamageTotal += actualProcDmg;
-        procDamageThisShot = actualProcDmg;
-        addRangedProcThreat(actualProcDmg);
-        if (actualProcDmg === 0) {
-          report.ranged.procFullResists++;
-          report.ranged.procResists++;
-          report.ranged.procResistDamageLost += procDmg;
-        } else if (actualProcDmg < procDmg) {
-          report.ranged.procPartialResists++;
-          report.ranged.procResists++;
-          report.ranged.procResistDamageLost += (procDmg - actualProcDmg);
+        if (bow.procSpellNonDamagingDetrimental) {
+          addRangedProcThreat(0, true);
+          procDamageThisShot = 0;
+        } else {
+          let actualProcDmg = Math.floor(procDmg * effectiveness / 100);
+          const scfResult = applySpellCastingFuryProc(actualProcDmg, options, procRng);
+          actualProcDmg = scfResult.damage;
+          if (scfResult.isCrit) {
+            report.ranged.spellProcCrits++;
+            report.ranged.maxSpellProcCritDmg = Math.max(report.ranged.maxSpellProcCritDmg || 0, actualProcDmg);
+          }
+          report.ranged.procDamageTotal += actualProcDmg;
+          procDamageThisShot = actualProcDmg;
+          addRangedProcThreat(procDmg, false);
+          if (actualProcDmg === 0) {
+            report.ranged.procFullResists++;
+            report.ranged.procResists++;
+            report.ranged.procResistDamageLost += procDmg;
+          } else if (actualProcDmg < procDmg) {
+            report.ranged.procPartialResists++;
+            report.ranged.procResists++;
+            report.ranged.procResistDamageLost += (procDmg - actualProcDmg);
+          }
         }
       }
       let hit = rollHit(currentToHit, avoidance, rng, true);
@@ -846,6 +868,8 @@
     report.totalThreat = rangedThreatAcc;
     report.swingThreat = rangedSwingThreatAcc;
     report.procThreat = rangedProcThreatAcc;
+    report.ranged.swingThreat = rangedSwingThreatAcc;
+    report.ranged.procThreat = rangedProcThreatAcc;
     return report;
   }
 
@@ -897,8 +921,14 @@
     lines.push(padLine('  Total damage:', String(report.totalDamage)));
     if (report.totalThreat != null && report.totalThreat >= 0) {
       const tps = dur ? (report.totalThreat / dur).toFixed(2) : '—';
+      const swT = report.swingThreat != null ? report.swingThreat : 0;
+      const prT = report.procThreat != null ? report.procThreat : 0;
       lines.push(padLine('  TPS (threat, approx):', tps));
       lines.push(padLine('  Total threat:', String(Math.round(report.totalThreat)) + '  (swing + proc; not equal to damage)'));
+      lines.push(padLine('  Swing TPS (threat, approx):', dur ? (swT / dur).toFixed(2) : '—'));
+      lines.push(padLine('  Proc TPS (threat, approx):', dur ? (prT / dur).toFixed(2) : '—'));
+      lines.push(padLine('  Swing threat (approx):', String(Math.round(swT))));
+      lines.push(padLine('  Proc threat (approx):', String(Math.round(prT))));
     }
     if (report.critHits != null && report.critHits >= 0) lines.push(padLine('  Critical hits:', String(report.critHits)));
     if (report.critDamageGain != null && report.critDamageGain >= 0) {
@@ -947,6 +977,14 @@
     lines.push('  Ranged');
     lines.push(padLine('    Total damage:', String(r.totalDamage)));
     lines.push(padLine('    Weapon DPS:', (r.totalDamage / dur).toFixed(2)));
+    {
+      const rSwingT = r.swingThreat != null ? r.swingThreat : 0;
+      const rProcT = r.procThreat != null ? r.procThreat : 0;
+      const rThreatTot = rSwingT + rProcT;
+      lines.push(padLine('    TPS (threat, approx):', dur ? (rThreatTot / dur).toFixed(2) : '—'));
+      lines.push(padLine('    Swing threat (approx):', String(Math.round(rSwingT))));
+      lines.push(padLine('    Swing TPS (threat, approx):', dur ? (rSwingT / dur).toFixed(2) : '—'));
+    }
     lines.push('');
 
     // 4. Attack Distribution
@@ -973,6 +1011,11 @@
     if (r.procs != null) lines.push(padLine('    Procs:', String(r.procs)));
     lines.push(padLine('    Proc damage:', String(r.procDamageTotal != null ? r.procDamageTotal : 0)));
     lines.push(padLine('    Proc DPS:', (r.procDamageTotal != null && dur > 0) ? (r.procDamageTotal / dur).toFixed(2) : '0.00'));
+    {
+      const rProcT = r.procThreat != null ? r.procThreat : 0;
+      lines.push(padLine('    Proc threat (approx):', String(Math.round(rProcT))));
+      lines.push(padLine('    Proc TPS (threat, approx):', dur ? (rProcT / dur).toFixed(2) : '—'));
+    }
     lines.push(padLine('    Proc full resists:', String(r.procFullResists != null ? r.procFullResists : 0)));
     lines.push(padLine('    Proc partial resists:', String(r.procPartialResists != null ? r.procPartialResists : 0)));
     if (r.procLevelBlocked) {
@@ -989,6 +1032,14 @@
     lines.push('=== Final Totals ===', '');
     lines.push(padLine('  Total damage:', String(report.totalDamage)));
     lines.push(padLine('  Total DPS:', totalDPS));
+    if (report.totalThreat != null && report.totalThreat >= 0) {
+      lines.push(padLine('  TPS (threat, approx):', dur ? (report.totalThreat / dur).toFixed(2) : '—'));
+      const swT = report.swingThreat != null ? report.swingThreat : 0;
+      const prT = report.procThreat != null ? report.procThreat : 0;
+      lines.push(padLine('  Swing TPS (threat, approx):', dur ? (swT / dur).toFixed(2) : '—'));
+      lines.push(padLine('  Proc TPS (threat, approx):', dur ? (prT / dur).toFixed(2) : '—'));
+      lines.push(padLine('  Total threat (approx):', String(Math.round(report.totalThreat))));
+    }
     return lines.join('\n');
   }
 
@@ -1007,7 +1058,7 @@
   /**
    * Run a single fight simulation.
    * @param {Object} options
-   * @param {Object} [options.weapon1] - { damage, delay, procSpell?, procSpellDamage?, procBuffDurationTicks?, is2H?, type? }. procBuffDurationTicks = DoT ticks (6s each); omit/0 = instant proc. type = weapon skill type (e.g. '1hp' for backstab requirement).
+   * @param {Object} [options.weapon1] - { damage, delay, procSpell?, procSpellDamage?, procBuffDurationTicks?, is2H?, type?, procSpellNonDamagingDetrimental? }. procBuffDurationTicks = DoT ticks (6s each); omit/0 = instant proc. type = weapon skill type (e.g. '1hp' for backstab requirement).
    * @param {string} [options.weapon1Type] - main hand weapon type (e.g. '1hp'); used for backstab (rogue requires 1HP in primary).
    * @param {Object} [options.weapon2] - optional offhand (required when weapon1 omitted)
    * @param {number} options.hastePercent - total haste (e.g. 40 for 40%)
@@ -1023,6 +1074,7 @@
    * @param {number} options.targetAC - defender AC for mitigation (damage roll). When level-based mit would be 200 and AC>200, use this. Higher = more mitigated damage, fewer max hits.
    * @param {number} [options.avoidance] - defender avoidance for HIT CHANCE. If omitted, uses getAvoidanceNPC(mobLevel) = level*9+5 capped 400/460
    * @param {number} [options.mobLevel=60] - mob level for getMitigation() and default avoidance
+   * @param {number} [options.targetMaxHp] - mob max HP (e.g. npc_types hp); if omitted, uses generic HP scaled from mobLevel (22105 at level 60)
    * @param {number} options.fightDurationSec - fight length in seconds
    * @param {number} [options.dex=255] - dexterity for proc
    * @param {boolean} [options.fromBehind] - if true, skip block/parry/dodge/riposte only
@@ -1100,6 +1152,12 @@
     const mainHandDamageBonus = hasMainHand ? getDamageBonusClient(level, options.classId, w1.delay, !!w1.is2H) : 0;
     const T = global.EQThreat;
     const procThreatCap = options.procThreatCap != null ? options.procThreatCap : 400;
+    function resolveTargetMaxHp(opts) {
+      if (opts.targetMaxHp != null && opts.targetMaxHp > 0) return opts.targetMaxHp | 0;
+      if (T && typeof T.genericMobMaxHpForLevel === 'function') return T.genericMobMaxHpForLevel(opts.mobLevel != null ? opts.mobLevel : 60);
+      const ml = opts.mobLevel != null ? opts.mobLevel : 60;
+      return Math.floor(22105 * Math.min(70, Math.max(1, ml | 0)) / 60);
+    }
     let totalThreatAcc = 0;
     let swingThreatAcc = 0;
     let procThreatAcc = 0;
@@ -1108,24 +1166,42 @@
       const h = T.meleeSwingThreatPrimary(cappedW1Damage, mainHandDamageBonus);
       swingThreatAcc += h;
       totalThreatAcc += h;
+      report.weapon1.swingThreat += h;
     }
     function addSwingThreatOH() {
       if (!T) return;
       const h = T.meleeSwingThreatOffhand(cappedW2Damage);
       swingThreatAcc += h;
       totalThreatAcc += h;
+      report.weapon2.swingThreat += h;
     }
     function addSwingThreatFist(baseDmg) {
       if (!T) return;
       const h = T.meleeSwingThreatPrimary(baseDmg, 0);
       swingThreatAcc += h;
       totalThreatAcc += h;
+      if (report.fistweaving) report.fistweaving.swingThreat += h;
     }
-    function addProcThreatAmt(dmg) {
-      if (!T || !(dmg > 0)) return;
-      const h = T.procSpellThreatFromDamage(dmg, procThreatCap);
+    /**
+     * includeFlatHate: false for DoT ticks (flat hate applies once on instant proc, not each tick).
+     * baseThreatDmg: spell base damage (before resists/crits). isNonDamagingDetrimental: detrimental CC/no-DD proc uses maxHP/15 hate.
+     */
+    function addProcThreatAmt(baseThreatDmg, weaponSlot, includeFlatHate, isNonDamagingDetrimental) {
+      if (!T) return;
+      const w = weaponSlot === 1 ? w1 : weaponSlot === 2 ? w2 : null;
+      let h = 0;
+      if (isNonDamagingDetrimental && w && w.procSpellNonDamagingDetrimental && T.detrimentalNonDamageSpellThreat) {
+        h += T.detrimentalNonDamageSpellThreat(resolveTargetMaxHp(options));
+      } else if (baseThreatDmg > 0) {
+        h += T.procSpellThreatFromDamage(baseThreatDmg, procThreatCap);
+      }
+      const flat = (includeFlatHate !== false && w && w.procSpellBonusHate != null) ? (w.procSpellBonusHate | 0) : 0;
+      if (flat > 0) h += T.procFlatHate ? T.procFlatHate(flat) : Math.max(0, flat);
+      if (h <= 0) return;
       procThreatAcc += h;
       totalThreatAcc += h;
+      if (weaponSlot === 1) report.weapon1.procThreat += h;
+      else if (weaponSlot === 2) report.weapon2.procThreat += h;
     }
     const dualWielding = offhandEquipped && (options.dualWieldSkill != null && options.dualWieldSkill > 0) &&
       options.classId !== 'paladin' && options.classId !== 'shadowknight';
@@ -1153,8 +1229,8 @@
     const roundsPerMinW1 = (delay1Ms > 0 && hasMainHand) ? (60 * 1000 / delay1Ms) : 0;
     const roundsPerMinW2 = (delay2Ms > 0 && offhandEquipped) ? (60 * 1000 / delay2Ms) : 0;
     const report = {
-      weapon1: { swings: 0, hits: 0, totalDamage: 0, maxDamage: 0, minDamage: Infinity, hitList: [], procs: 0, procDamageTotal: 0, procResists: 0, procFullResists: 0, procPartialResists: 0, procResistDamageLost: 0, spellProcCrits: 0, maxSpellProcCritDmg: 0, slayUndeadHits: 0, slayUndeadDamageTotal: 0, maxSlayUndeadHit: 0, rounds: 0, single: 0, double: 0, triple: 0 },
-      weapon2: { swings: 0, hits: 0, totalDamage: 0, maxDamage: 0, minDamage: Infinity, hitList: [], procs: 0, procDamageTotal: 0, procResists: 0, procFullResists: 0, procPartialResists: 0, procResistDamageLost: 0, spellProcCrits: 0, maxSpellProcCritDmg: 0, rounds: 0, single: 0, double: 0, triple: 0 },
+      weapon1: { swings: 0, hits: 0, totalDamage: 0, maxDamage: 0, minDamage: Infinity, hitList: [], swingThreat: 0, procThreat: 0, procs: 0, procDamageTotal: 0, procResists: 0, procFullResists: 0, procPartialResists: 0, procResistDamageLost: 0, spellProcCrits: 0, maxSpellProcCritDmg: 0, slayUndeadHits: 0, slayUndeadDamageTotal: 0, maxSlayUndeadHit: 0, rounds: 0, single: 0, double: 0, triple: 0 },
+      weapon2: { swings: 0, hits: 0, totalDamage: 0, maxDamage: 0, minDamage: Infinity, hitList: [], swingThreat: 0, procThreat: 0, procs: 0, procDamageTotal: 0, procResists: 0, procFullResists: 0, procPartialResists: 0, procResistDamageLost: 0, spellProcCrits: 0, maxSpellProcCritDmg: 0, rounds: 0, single: 0, double: 0, triple: 0 },
       durationSec: options.fightDurationSec,
       rawHastePercent: !Number.isNaN(Number(options.hastePercent)) ? Number(options.hastePercent) : 0,
       effectiveHastePercent: effectiveHastePercent,
@@ -1185,7 +1261,7 @@
         backstabSkill: specialConfig.fromBehindOnly ? Math.min(255, options.backstabSkill != null ? options.backstabSkill : 225) : undefined,
         backstabModPercent: specialConfig.fromBehindOnly ? (options.backstabModPercent || 0) : undefined,
       } : null,
-      fistweaving: (options.classId === 'monk' && hasMainHand && w1.is2H && options.fistweaving) ? { baseDamage: options.fistweavingNonEpic ? 14 : 9, rounds: 0, swings: 0, hits: 0, totalDamage: 0, maxDamage: 0, single: 0, double: 0 } : null,
+      fistweaving: (options.classId === 'monk' && hasMainHand && w1.is2H && options.fistweaving) ? { baseDamage: options.fistweavingNonEpic ? 14 : 9, rounds: 0, swings: 0, hits: 0, totalDamage: 0, maxDamage: 0, single: 0, double: 0, swingThreat: 0 } : null,
       classId: options.classId || undefined,
     };
     report.weapon1.procLevelBlocked = false;
@@ -1623,13 +1699,15 @@
           const effectiveness = getProcSpellEffectiveness(w1, options, level, procRng);
           if (procBuffTicks1 > 0 && procDmg > 0) {
             perTick1 = (procDmg / procBuffTicks1) * effectiveness / 100;
+            const basePerTickThreat1 = procBuffTicks1 > 0 ? procDmg / procBuffTicks1 : 0;
             if (dotEndMs1 > lastProcMs1) {
               const ticksRan = Math.floor((Math.min(dotEndMs1, tMs) - lastProcMs1) / PROC_TICK_INTERVAL_MS);
               const dotDmg = Math.floor(ticksRan * perTick1);
+              const threatDot = Math.floor(ticksRan * basePerTickThreat1);
               if (dotDmg > 0) {
                 report.weapon1.procDamageTotal += dotDmg;
                 report.totalDamage += dotDmg;
-                addProcThreatAmt(dotDmg);
+                addProcThreatAmt(threatDot, 1, false, false);
               }
             }
             lastProcMs1 = tMs;
@@ -1644,6 +1722,8 @@
               report.weapon1.procResists++;
               report.weapon1.procResistDamageLost += (procDmg - totalDoTDamage);
             }
+          } else if (w1.procSpellNonDamagingDetrimental) {
+            addProcThreatAmt(0, 1, true, true);
           } else {
             let actualDmg = Math.floor(procDmg * effectiveness / 100);
             const scfResult1 = applySpellCastingFuryProc(actualDmg, options, procRng);
@@ -1654,7 +1734,7 @@
             }
             report.weapon1.procDamageTotal += actualDmg;
             report.totalDamage += actualDmg;
-            addProcThreatAmt(actualDmg);
+            addProcThreatAmt(procDmg, 1, true, false);
             if (actualDmg === 0) {
               report.weapon1.procFullResists++;
               report.weapon1.procResists++;
@@ -1757,13 +1837,15 @@
             const effectiveness = getProcSpellEffectiveness(w2, options, level, procRng);
             if (procBuffTicks2 > 0 && procDmg > 0) {
               perTick2 = (procDmg / procBuffTicks2) * effectiveness / 100;
+              const basePerTickThreat2 = procBuffTicks2 > 0 ? procDmg / procBuffTicks2 : 0;
               if (dotEndMs2 > lastProcMs2) {
                 const ticksRan = Math.floor((Math.min(dotEndMs2, tMs) - lastProcMs2) / PROC_TICK_INTERVAL_MS);
                 const dotDmg = Math.floor(ticksRan * perTick2);
+                const threatDot = Math.floor(ticksRan * basePerTickThreat2);
                 if (dotDmg > 0) {
                   report.weapon2.procDamageTotal += dotDmg;
                   report.totalDamage += dotDmg;
-                  addProcThreatAmt(dotDmg);
+                  addProcThreatAmt(threatDot, 2, false, false);
                 }
               }
               lastProcMs2 = tMs;
@@ -1778,6 +1860,8 @@
                 report.weapon2.procResists++;
                 report.weapon2.procResistDamageLost += (procDmg - totalDoTDamage2);
               }
+            } else if (w2.procSpellNonDamagingDetrimental) {
+              addProcThreatAmt(0, 2, true, true);
             } else {
               let actualDmg = Math.floor(procDmg * effectiveness / 100);
               const scfResult2 = applySpellCastingFuryProc(actualDmg, options, procRng);
@@ -1788,7 +1872,7 @@
               }
               report.weapon2.procDamageTotal += actualDmg;
               report.totalDamage += actualDmg;
-              addProcThreatAmt(actualDmg);
+              addProcThreatAmt(procDmg, 2, true, false);
               if (actualDmg === 0) {
                 report.weapon2.procFullResists++;
                 report.weapon2.procResists++;
@@ -1810,19 +1894,23 @@
     if (procBuffTicks1 > 0 && dotEndMs1 > lastProcMs1 && perTick1 > 0) {
       const ticksRan = Math.floor((Math.min(dotEndMs1, durationMs) - lastProcMs1) / PROC_TICK_INTERVAL_MS);
       const dotDmg = Math.floor(ticksRan * perTick1);
+      const w1pd = hasMainHand && w1 && !w1.noDamageVsTarget ? ((w1.procSpellDamage != null ? w1.procSpellDamage : 0) | 0) : 0;
+      const threatDot = procBuffTicks1 > 0 && w1pd > 0 ? Math.floor(ticksRan * (w1pd / procBuffTicks1)) : 0;
       if (dotDmg > 0) {
         report.weapon1.procDamageTotal += dotDmg;
         report.totalDamage += dotDmg;
-        addProcThreatAmt(dotDmg);
+        addProcThreatAmt(threatDot, 1, false, false);
       }
     }
     if (procBuffTicks2 > 0 && dotEndMs2 > lastProcMs2 && perTick2 > 0) {
       const ticksRan = Math.floor((Math.min(dotEndMs2, durationMs) - lastProcMs2) / PROC_TICK_INTERVAL_MS);
       const dotDmg = Math.floor(ticksRan * perTick2);
+      const w2pd = offhandEquipped && w2 && !w2.noDamageVsTarget ? ((w2.procSpellDamage != null ? w2.procSpellDamage : 0) | 0) : 0;
+      const threatDot = procBuffTicks2 > 0 && w2pd > 0 ? Math.floor(ticksRan * (w2pd / procBuffTicks2)) : 0;
       if (dotDmg > 0) {
         report.weapon2.procDamageTotal += dotDmg;
         report.totalDamage += dotDmg;
-        addProcThreatAmt(dotDmg);
+        addProcThreatAmt(threatDot, 2, false, false);
       }
     }
 
@@ -1886,8 +1974,14 @@
     lines.push(padLine('  Total damage:', String(report.totalDamage)));
     if (report.totalThreat != null && report.totalThreat >= 0) {
       const tps = dur ? (report.totalThreat / dur).toFixed(2) : '—';
+      const swT = report.swingThreat != null ? report.swingThreat : 0;
+      const prT = report.procThreat != null ? report.procThreat : 0;
       lines.push(padLine('  TPS (threat, approx):', tps));
       lines.push(padLine('  Total threat:', String(Math.round(report.totalThreat)) + '  (swing + proc; not equal to damage)'));
+      lines.push(padLine('  Swing TPS (threat, approx):', dur ? (swT / dur).toFixed(2) : '—'));
+      lines.push(padLine('  Proc TPS (threat, approx):', dur ? (prT / dur).toFixed(2) : '—'));
+      lines.push(padLine('  Swing threat (approx):', String(Math.round(swT))));
+      lines.push(padLine('  Proc threat (approx):', String(Math.round(prT))));
     }
     if (report.critHits != null && report.critHits >= 0) lines.push(padLine('  Critical hits:', String(report.critHits)));
     if (report.critDamageGain != null && report.critDamageGain >= 0) {
@@ -1931,11 +2025,34 @@
     if (report.damageBonusTotal != null && report.damageBonusTotal > 0) lines.push(padLine('    Damage from bonus:', String(report.damageBonusTotal)));
     lines.push(padLine('    Total damage:', String(w1.totalDamage)));
     lines.push(padLine('    Weapon DPS:', (w1.totalDamage / dur).toFixed(2)));
+    if (report.totalThreat != null && report.totalThreat >= 0) {
+      const w1Swing = w1.swingThreat != null ? w1.swingThreat : 0;
+      const w1Proc = w1.procThreat != null ? w1.procThreat : 0;
+      const w1ThreatTot = w1Swing + w1Proc;
+      lines.push(padLine('    TPS (threat, approx):', dur ? (w1ThreatTot / dur).toFixed(2) : '—'));
+      lines.push(padLine('    Swing threat (approx):', String(Math.round(w1Swing))));
+      lines.push(padLine('    Swing TPS (threat, approx):', dur ? (w1Swing / dur).toFixed(2) : '—'));
+    }
     lines.push('');
     if (w2.swings > 0) {
       lines.push(`  ${weapon2Label || 'Weapon 2'}`);
       lines.push(padLine('    Total damage:', String(w2.totalDamage)));
       lines.push(padLine('    Weapon DPS:', (w2.totalDamage / dur).toFixed(2)));
+      if (report.totalThreat != null && report.totalThreat >= 0) {
+        const w2Swing = w2.swingThreat != null ? w2.swingThreat : 0;
+        const w2Proc = w2.procThreat != null ? w2.procThreat : 0;
+        const w2ThreatTot = w2Swing + w2Proc;
+        lines.push(padLine('    TPS (threat, approx):', dur ? (w2ThreatTot / dur).toFixed(2) : '—'));
+        lines.push(padLine('    Swing threat (approx):', String(Math.round(w2Swing))));
+        lines.push(padLine('    Swing TPS (threat, approx):', dur ? (w2Swing / dur).toFixed(2) : '—'));
+      }
+      lines.push('');
+    }
+    if (report.fistweaving && (report.fistweaving.swingThreat || 0) > 0) {
+      const fwSt = report.fistweaving.swingThreat || 0;
+      lines.push('  Fistweaving (unarmed swings)');
+      lines.push(padLine('    Swing threat (approx):', String(Math.round(fwSt))));
+      lines.push(padLine('    Swing TPS (threat, approx):', dur ? (fwSt / dur).toFixed(2) : '—'));
       lines.push('');
     }
 
@@ -2001,6 +2118,11 @@
     if (w1.procs != null) lines.push(padLine('    Procs:', String(w1.procs)));
     lines.push(padLine('    Proc damage:', String(w1.procDamageTotal != null ? w1.procDamageTotal : 0)));
     lines.push(padLine('    Proc DPS:', (w1.procDamageTotal != null && dur > 0) ? (w1.procDamageTotal / dur).toFixed(2) : '0.00'));
+    {
+      const w1p = w1.procThreat != null ? w1.procThreat : 0;
+      lines.push(padLine('    Proc threat (approx):', String(Math.round(w1p))));
+      lines.push(padLine('    Proc TPS (threat, approx):', dur ? (w1p / dur).toFixed(2) : '—'));
+    }
     lines.push(padLine('    Proc full resists:', String(w1.procFullResists != null ? w1.procFullResists : 0)));
     lines.push(padLine('    Proc partial resists:', String(w1.procPartialResists != null ? w1.procPartialResists : 0)));
     if (w1.procLevelBlocked) {
@@ -2019,6 +2141,11 @@
       if (w2.procs != null) lines.push(padLine('    Procs:', String(w2.procs)));
       lines.push(padLine('    Proc damage:', String(w2.procDamageTotal != null ? w2.procDamageTotal : 0)));
       lines.push(padLine('    Proc DPS:', (w2.procDamageTotal != null && dur > 0) ? (w2.procDamageTotal / dur).toFixed(2) : '0.00'));
+      {
+        const w2p = w2.procThreat != null ? w2.procThreat : 0;
+        lines.push(padLine('    Proc threat (approx):', String(Math.round(w2p))));
+        lines.push(padLine('    Proc TPS (threat, approx):', dur ? (w2p / dur).toFixed(2) : '—'));
+      }
       lines.push(padLine('    Proc full resists:', String(w2.procFullResists != null ? w2.procFullResists : 0)));
       lines.push(padLine('    Proc partial resists:', String(w2.procPartialResists != null ? w2.procPartialResists : 0)));
       if (w2.procLevelBlocked) {
@@ -2113,6 +2240,14 @@
     lines.push('=== Final Totals ===', '');
     lines.push(padLine('  Total damage:', String(report.totalDamage)));
     lines.push(padLine('  Total DPS:', totalDPS));
+    if (report.totalThreat != null && report.totalThreat >= 0) {
+      lines.push(padLine('  TPS (threat, approx):', dur ? (report.totalThreat / dur).toFixed(2) : '—'));
+      const swT = report.swingThreat != null ? report.swingThreat : 0;
+      const prT = report.procThreat != null ? report.procThreat : 0;
+      lines.push(padLine('  Swing TPS (threat, approx):', dur ? (swT / dur).toFixed(2) : '—'));
+      lines.push(padLine('  Proc TPS (threat, approx):', dur ? (prT / dur).toFixed(2) : '—'));
+      lines.push(padLine('  Total threat (approx):', String(Math.round(report.totalThreat))));
+    }
     return lines.join('\n');
   }
 

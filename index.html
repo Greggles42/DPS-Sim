@@ -492,6 +492,20 @@
       font-family: 'Cinzel', serif;
       font-weight: 700;
     }
+    .app-header #tps-value {
+      font-size: clamp(1rem, 2.5vw, 1.5rem);
+      display: inline;
+      font-family: 'Cinzel', serif;
+      font-weight: 700;
+      color: #7eb8c9;
+    }
+    .app-header .header-stat-label-tps {
+      font-size: 0.625rem;
+      color: #8a9aad;
+      letter-spacing: 0.08em;
+      font-weight: 600;
+      text-transform: none;
+    }
     #sim-history-list { max-height: 320px; overflow-y: auto; font-size: 0.85rem; }
     .sim-history-row { display: grid; grid-template-columns: 1fr 1fr minmax(0, 1fr) auto auto auto; gap: 0.5rem 0.75rem; align-items: center; padding: 0.5rem 0; border-bottom: 1px solid var(--border); }
     .sim-history-row:last-child { border-bottom: none; }
@@ -582,14 +596,22 @@
     #ranged-target-npc-search::placeholder {
       font-size: 0.75rem;
     }
-    /* Icon sits in flex row beside input — no left padding reserved for overlaid icon */
+    /* Symmetric padding + normal line-height — tall line-height on inputs top-aligns text in Chrome/Edge */
     #easy-mode-root .easy-weapon-search input[type="text"] {
       font-size: 0.75rem;
       box-sizing: border-box;
-      padding-top: 0.5rem;
-      padding-bottom: 0.5rem;
-      padding-right: 0.75rem;
-      padding-left: 0;
+      -webkit-appearance: none;
+      appearance: none;
+      width: auto;
+      flex: 1 1 auto;
+      min-width: 0;
+      align-self: center;
+      height: auto;
+      min-height: 0;
+      max-height: none;
+      margin: 0;
+      padding: 0.5rem 0.75rem 0.5rem 0;
+      line-height: 1.35;
     }
     #easy-mode-root .easy-weapon-search input[type="text"]::placeholder {
       font-size: 0.7rem;
@@ -724,7 +746,7 @@
     .easy-weapon-detail { font-size: 0.78rem; color: var(--muted); margin-top: 0.15rem; }
     .easy-weapon-icon { width: 36px; height: 36px; border: 1px solid var(--border); border-radius: 4px; object-fit: contain; background: #111; cursor: pointer; }
     .easy-weapon-icon.is-empty { display: none; }
-    /* Flex row: icon + field share one box so the glyph aligns with text (no absolute vs. line-box drift) */
+    /* Center icon + field vertically; stretch was stretching input and leaving text top-hugging */
     .easy-weapon-search {
       position: relative;
       display: flex;
@@ -739,6 +761,7 @@
       flex-shrink: 0;
       align-items: center;
       justify-content: center;
+      align-self: center;
       width: 2.25rem;
       padding-left: 0.25rem;
       line-height: 0;
@@ -1049,13 +1072,14 @@
       </div>
     </div>
     <div class="flex items-center gap-3 md:gap-8 flex-shrink-0">
-      <div id="dps-display" class="flex flex-col items-end min-w-0" title="Total DPS from last run">
-        <span class="text-[10px] text-gray-400 uppercase tracking-widest">Total Damage Per Second</span>
-        <div class="flex items-center gap-2">
+      <div id="dps-display" class="flex flex-row items-end gap-4 md:gap-8 min-w-0" title="DPS and threat per second from last run">
+        <div class="flex flex-col items-end min-w-0">
+          <span class="text-[10px] text-gray-400 uppercase tracking-widest">Total DPS</span>
           <span id="dps-value" class="text-xl md:text-2xl font-fantasy text-[#d4af37] leading-none">—</span>
-          <div class="w-24 md:w-32 h-1 bg-white/10 rounded-full overflow-hidden">
-            <div id="dps-header-bar-fill" class="h-full bg-[#d4af37] shadow-[0_0_8px_#d4af37] transition-[width] duration-300" style="width:0%"></div>
-          </div>
+        </div>
+        <div class="flex flex-col items-end min-w-0">
+          <span class="header-stat-label-tps">TOTAL TPS (Beta)</span>
+          <span id="tps-value" class="text-xl md:text-2xl font-fantasy leading-none">—</span>
         </div>
       </div>
       <div class="ui-mode-toggle-wrap" role="group" aria-label="Interface mode">
@@ -1129,7 +1153,7 @@
                   </div>
                   <div class="easy-weapon-search relative mt-2 rounded border border-white/5 bg-[#121216]/80 focus-within:border-[#d4af37]">
                     <span class="easy-weapon-search-icon" aria-hidden="true"><iconify-icon icon="lucide:search"></iconify-icon></span>
-                    <input type="text" id="easy-w1-item-search" placeholder="Search main hand (4+ chars)…" autocomplete="off" class="min-w-0 flex-1 border-0 bg-transparent py-2 pr-3 text-xs outline-none">
+                    <input type="text" id="easy-w1-item-search" placeholder="Search main hand (4+ chars)…" autocomplete="off" class="min-w-0 flex-1 border-0 bg-transparent pr-3 text-xs outline-none">
                     <div id="easy-w1-item-search-list" class="item-search-list" role="listbox"></div>
                   </div>
                 </div>
@@ -1151,7 +1175,7 @@
                   </div>
                   <div class="easy-weapon-search relative mt-2 rounded border border-white/5 bg-[#121216]/80 focus-within:border-[#d4af37]">
                     <span class="easy-weapon-search-icon" aria-hidden="true"><iconify-icon icon="lucide:search"></iconify-icon></span>
-                    <input type="text" id="easy-w2-item-search" placeholder="Search offhand (4+ chars)…" autocomplete="off" class="min-w-0 flex-1 border-0 bg-transparent py-2 pr-3 text-xs outline-none">
+                    <input type="text" id="easy-w2-item-search" placeholder="Search offhand (4+ chars)…" autocomplete="off" class="min-w-0 flex-1 border-0 bg-transparent pr-3 text-xs outline-none">
                     <div id="easy-w2-item-search-list" class="item-search-list" role="listbox"></div>
                   </div>
                 </div>
@@ -1581,6 +1605,7 @@
         <label for="ranged-proc-damage">Proc spell damage (on proc)</label>
         <input type="number" id="ranged-proc-damage" min="0" value="0" placeholder="0">
         <input type="hidden" id="ranged-proc-level" value="">
+        <input type="hidden" id="ranged-proc-spell-id" value="">
         <input type="hidden" id="ranged-archery-mod" value="0">
         <div class="row">
           <div><label for="ranged-elem-type" class="small-label">Elemental type</label><select id="ranged-elem-type">
@@ -1720,7 +1745,7 @@
   <section class="advanced-only" style="margin-top: 1rem;">
     <h2>Version log</h2>
     <ul style="font-size: 0.9rem; color: var(--muted); margin: 0; padding-left: 1.25rem;">
-      <li><strong>1.07</strong> — UI overhauled (Easy and Advanced: layout, theming, alignment, and controls). Weapon search system cleaned up and refined (merged offline data, filters, rank/search behavior, and related UX).</li>
+      <li><strong>1.07</strong> — UI overhauled (Easy and Advanced: layout, theming, alignment, and controls). Weapon search system cleaned up and refined (merged offline data, filters, rank/search behavior, and related UX). Added initial threat per second calculations.</li>
       <li><strong>1.06</strong> — Item search is fully offline using merged <code>resources/weapons.json</code> (no remote ItemSearch API). Weapon data is merged from weaponlist/luclin/pop with per-item <code>expansion</code> and <code>resources/weapon_exclusions.json</code> for rank/search filters. Reports show approximate <strong>TPS</strong> (threat per second) from swing hate + capped proc hate (<code>threat.js</code> / EQMacEmu-style). Run <code>node scripts/merge-weapons.mjs</code> after editing source JSON. Fixed JSON syntax in <code>popweapons.json</code> (missing comma).</li>
       <li><strong>1.05</strong> — Improved BS mod application and worn ATK behavior in the `rankWeapons` function. Bane damage now auto-applies; Seru and Emp can only be hurt by bane weapons. Weapon rank now outputs phase-by-phase results. Added a synthetic combat-log mode (1 run supported only) and `.txt` export compatible with normal fight-log parsers. Improved some Monk fistweaving logic.</li>
       <li><strong>1.04</strong> — Updated a lot of the ranged damage simulation in advanced mode. Weapon search is improved and filters are better, quiver WR calculations are in. Ranger atk rating bonus is in. Elemental damage from bows and arrows now works. Archery skill modifiers are now in. Updated backstab damage model to address a fencepost issue.</li>
@@ -2830,6 +2855,8 @@
             weapon1.procSpellNoPartialResist = sd1.noPartialResist;
             weapon1.procSpellMovementEffect = sd1.movementEffect;
             if (sd1.targettype != null) weapon1.procSpellTargetType = sd1.targettype;
+            if (sd1.bonusHate != null && sd1.bonusHate > 0) weapon1.procSpellBonusHate = sd1.bonusHate;
+            if (sd1.nonDamagingDetrimental) weapon1.procSpellNonDamagingDetrimental = true;
           }
         }
         if (weapon2 && weapon2.procSpellId && typeof ItemSearch !== 'undefined' && ItemSearch.getSpellFromLocalData) {
@@ -2840,6 +2867,8 @@
             weapon2.procSpellNoPartialResist = sd2.noPartialResist;
             weapon2.procSpellMovementEffect = sd2.movementEffect;
             if (sd2.targettype != null) weapon2.procSpellTargetType = sd2.targettype;
+            if (sd2.bonusHate != null && sd2.bonusHate > 0) weapon2.procSpellBonusHate = sd2.bonusHate;
+            if (sd2.nonDamagingDetrimental) weapon2.procSpellNonDamagingDetrimental = true;
           }
         }
         var targetRace = (function () {
@@ -2990,8 +3019,8 @@
         var equippedWornAttackBonus = Math.max(0, (w1WornAttackBonus != null && !isNaN(Number(w1WornAttackBonus))) ? Number(w1WornAttackBonus) : 0)
           + Math.max(0, (w2WornAttackBonus != null && !isNaN(Number(w2WornAttackBonus))) ? Number(w2WornAttackBonus) : 0);
         const options = {
-          weapon1: hasMainHand ? Object.assign({ damage: weapon1.damage, delay: weapon1.delay, procSpell: weapon1.procSpell, procSpellDamage: weapon1.procSpellDamage, procRate: weapon1.procRate, procLevel: weapon1.procLevel, procBuffDurationTicks: weapon1.procBuffDurationTicks, is2H: weapon1.is2H, elemType: weapon1.elemType, elemDamage: weapon1.elemDamage, type: w1WeaponType || undefined, noDamageVsTarget: !!weapon1.noDamageVsTarget }, w1ProcResist) : undefined,
-          weapon2: useWeapon2 ? Object.assign({ damage: weapon2.damage, delay: weapon2.delay, procSpell: weapon2.procSpell, procSpellDamage: weapon2.procSpellDamage, procRate: weapon2.procRate, procLevel: weapon2.procLevel, procBuffDurationTicks: weapon2.procBuffDurationTicks, elemType: weapon2.elemType, elemDamage: weapon2.elemDamage, noDamageVsTarget: !!weapon2.noDamageVsTarget }, w2ProcResist) : undefined,
+          weapon1: hasMainHand ? Object.assign({ damage: weapon1.damage, delay: weapon1.delay, procSpell: weapon1.procSpell, procSpellDamage: weapon1.procSpellDamage, procRate: weapon1.procRate, procLevel: weapon1.procLevel, procBuffDurationTicks: weapon1.procBuffDurationTicks, is2H: weapon1.is2H, elemType: weapon1.elemType, elemDamage: weapon1.elemDamage, type: w1WeaponType || undefined, noDamageVsTarget: !!weapon1.noDamageVsTarget, procSpellBonusHate: weapon1.procSpellBonusHate, procSpellNonDamagingDetrimental: weapon1.procSpellNonDamagingDetrimental }, w1ProcResist) : undefined,
+          weapon2: useWeapon2 ? Object.assign({ damage: weapon2.damage, delay: weapon2.delay, procSpell: weapon2.procSpell, procSpellDamage: weapon2.procSpellDamage, procRate: weapon2.procRate, procLevel: weapon2.procLevel, procBuffDurationTicks: weapon2.procBuffDurationTicks, elemType: weapon2.elemType, elemDamage: weapon2.elemDamage, noDamageVsTarget: !!weapon2.noDamageVsTarget, procSpellBonusHate: weapon2.procSpellBonusHate, procSpellNonDamagingDetrimental: weapon2.procSpellNonDamagingDetrimental }, w2ProcResist) : undefined,
           weapon1Type: w1WeaponType || undefined,
           hastePercent,
           offenseSkill,
@@ -3005,6 +3034,14 @@
           level,
           targetAC,
           mobLevel,
+          targetMaxHp: (function () {
+            var npc = window.selectedTargetNpc;
+            if (npc && npc.hp != null) {
+              var th = parseInt(npc.hp, 10);
+              if (!isNaN(th) && th > 0) return th;
+            }
+            return undefined;
+          })(),
           targetBodyType: targetBodyType,
           targetMR, targetFR, targetCR, targetPR, targetDR,
           fightDurationSec: durationSec,
@@ -3079,6 +3116,8 @@
               minDamage: w1Mins.length ? Math.min(...w1Mins) : null,
               procs: Math.round(reports.reduce((s, r) => s + (r.weapon1.procs || 0), 0) / runs),
               procDamageTotal: Math.round(reports.reduce((s, r) => s + (r.weapon1.procDamageTotal || 0), 0) / runs),
+              swingThreat: Math.round(reports.reduce((s, r) => s + (r.weapon1.swingThreat || 0), 0) / runs),
+              procThreat: Math.round(reports.reduce((s, r) => s + (r.weapon1.procThreat || 0), 0) / runs),
               procResists: Math.round(reports.reduce((s, r) => s + (r.weapon1.procResists || 0), 0) / runs),
               procFullResists: Math.round(reports.reduce((s, r) => s + (r.weapon1.procFullResists || 0), 0) / runs),
               procPartialResists: Math.round(reports.reduce((s, r) => s + (r.weapon1.procPartialResists || 0), 0) / runs),
@@ -3113,6 +3152,8 @@
               minDamage: w2Mins.length ? Math.min(...w2Mins) : null,
               procs: Math.round(reports.reduce((s, r) => s + (r.weapon2.procs || 0), 0) / runs),
               procDamageTotal: Math.round(reports.reduce((s, r) => s + (r.weapon2.procDamageTotal || 0), 0) / runs),
+              swingThreat: Math.round(reports.reduce((s, r) => s + (r.weapon2.swingThreat || 0), 0) / runs),
+              procThreat: Math.round(reports.reduce((s, r) => s + (r.weapon2.procThreat || 0), 0) / runs),
               procResists: Math.round(reports.reduce((s, r) => s + (r.weapon2.procResists || 0), 0) / runs),
               procFullResists: Math.round(reports.reduce((s, r) => s + (r.weapon2.procFullResists || 0), 0) / runs),
               procPartialResists: Math.round(reports.reduce((s, r) => s + (r.weapon2.procPartialResists || 0), 0) / runs),
@@ -3136,6 +3177,9 @@
             rawHastePercent: reports[0].rawHastePercent != null ? reports[0].rawHastePercent : 0,
             effectiveHastePercent: reports[0].effectiveHastePercent != null ? reports[0].effectiveHastePercent : 0,
             totalDamage: Math.round(reports.reduce((s, r) => s + r.totalDamage, 0) / runs),
+            totalThreat: Math.round(reports.reduce((s, r) => s + (r.totalThreat || 0), 0) / runs),
+            swingThreat: Math.round(reports.reduce((s, r) => s + (r.swingThreat || 0), 0) / runs),
+            procThreat: Math.round(reports.reduce((s, r) => s + (r.procThreat || 0), 0) / runs),
             damageBonus: reports[0].damageBonus != null ? reports[0].damageBonus : 0,
             damageBonusTotal: Math.round(reports.reduce((s, r) => s + (r.damageBonusTotal || 0), 0) / runs),
             calculatedToHit: reports[0].calculatedToHit,
@@ -3182,6 +3226,7 @@
                   maxDamage: reports.some(r => r.fistweaving && r.fistweaving.hits > 0) ? Math.max(...reports.map(r => (r.fistweaving && r.fistweaving.maxDamage != null) ? r.fistweaving.maxDamage : 0)) : 0,
                   single: Math.round(reports.reduce((s, r) => s + (r.fistweaving ? (r.fistweaving.single || 0) : 0), 0) / runs),
                   double: Math.round(reports.reduce((s, r) => s + (r.fistweaving ? (r.fistweaving.double || 0) : 0), 0) / runs),
+                  swingThreat: Math.round(reports.reduce((s, r) => s + (r.fistweaving ? (r.fistweaving.swingThreat || 0) : 0), 0) / runs),
                 }
               : null,
           };
@@ -3269,6 +3314,7 @@
 
         const dpsEl = $('dps-value');
         if (dpsEl && report.durationSec) dpsEl.textContent = (report.totalDamage / report.durationSec).toFixed(2);
+        setHeaderTpsFromReport(report);
         updateEasyDpsFromGlobal();
 
         const histContainer = $('histogram-container');
@@ -3603,7 +3649,16 @@
                 norm.procDamage = (spellData.damage != null && spellData.damage > 0) ? spellData.damage : 0;
                 if (spellData.buffdurationTicks != null && spellData.buffdurationTicks > 0)
                   norm.procBuffDurationTicks = spellData.buffdurationTicks;
+                if (spellData.nonDamagingDetrimental) norm.procSpellNonDamagingDetrimental = true;
               }
+            }
+          }
+          if (typeof ItemSearch !== 'undefined' && ItemSearch.getSpellFromLocalData) {
+            var bowPid = norm.procSpellId != null ? norm.procSpellId : (raw.proceffect != null ? parseInt(raw.proceffect, 10) : NaN);
+            if (!isNaN(bowPid) && bowPid > 0) {
+              var bowSd = ItemSearch.getSpellFromLocalData(bowPid);
+              if (bowSd && bowSd.bonusHate != null && bowSd.bonusHate > 0) norm.procSpellBonusHate = bowSd.bonusHate;
+              if (bowSd && bowSd.nonDamagingDetrimental) norm.procSpellNonDamagingDetrimental = true;
             }
           }
           return norm;
@@ -3641,6 +3696,8 @@
               result.procDamage = (spellData.damage != null && spellData.damage > 0) ? spellData.damage : 0;
               if (spellData.buffdurationTicks != null && spellData.buffdurationTicks > 0)
                 result.procBuffDurationTicks = spellData.buffdurationTicks;
+              if (spellData.bonusHate != null && spellData.bonusHate > 0) result.procSpellBonusHate = spellData.bonusHate;
+              if (spellData.nonDamagingDetrimental) result.procSpellNonDamagingDetrimental = true;
             }
           }
         }
@@ -3702,7 +3759,16 @@
                 norm.procDamage = (spellData.damage != null && spellData.damage > 0) ? spellData.damage : 0;
                 if (spellData.buffdurationTicks != null && spellData.buffdurationTicks > 0)
                   norm.procBuffDurationTicks = spellData.buffdurationTicks;
+                if (spellData.nonDamagingDetrimental) norm.procSpellNonDamagingDetrimental = true;
               }
+            }
+          }
+          if (typeof ItemSearch !== 'undefined' && ItemSearch.getSpellFromLocalData) {
+            var mwPid = norm.procSpellId != null ? norm.procSpellId : (raw.proceffect != null ? parseInt(raw.proceffect, 10) : NaN);
+            if (!isNaN(mwPid) && mwPid > 0) {
+              var mwSd = ItemSearch.getSpellFromLocalData(mwPid);
+              if (mwSd && mwSd.bonusHate != null && mwSd.bonusHate > 0) norm.procSpellBonusHate = mwSd.bonusHate;
+              if (mwSd && mwSd.nonDamagingDetrimental) norm.procSpellNonDamagingDetrimental = true;
             }
           }
           return norm;
@@ -3742,6 +3808,8 @@
               result.procDamage = (spellData.damage != null && spellData.damage > 0) ? spellData.damage : 0;
               if (spellData.buffdurationTicks != null && spellData.buffdurationTicks > 0)
                 result.procBuffDurationTicks = spellData.buffdurationTicks;
+              if (spellData.bonusHate != null && spellData.bonusHate > 0) result.procSpellBonusHate = spellData.bonusHate;
+              if (spellData.nonDamagingDetrimental) result.procSpellNonDamagingDetrimental = true;
             }
           }
         }
@@ -3765,6 +3833,8 @@
         };
         if (norm.procBuffDurationTicks != null && norm.procBuffDurationTicks > 0)
           w.procBuffDurationTicks = norm.procBuffDurationTicks;
+        if (norm.procSpellBonusHate != null && norm.procSpellBonusHate > 0) w.procSpellBonusHate = norm.procSpellBonusHate;
+        if (norm.procSpellNonDamagingDetrimental) w.procSpellNonDamagingDetrimental = true;
         return w;
       }
       async function rankWeapons() {
@@ -3831,6 +3901,14 @@
           level,
           targetAC,
           mobLevel,
+          targetMaxHp: (function () {
+            var npc = window.selectedTargetNpc;
+            if (npc && npc.hp != null) {
+              var th = parseInt(npc.hp, 10);
+              if (!isNaN(th) && th > 0) return th;
+            }
+            return undefined;
+          })(),
           targetBodyType: ($('target-undead-mob') && $('target-undead-mob').checked) ? 3 : null,
           targetMR, targetFR, targetCR, targetPR, targetDR,
           fightDurationSec: durationSec,
@@ -4757,6 +4835,14 @@
           level: level,
           targetAC: parseInt($('ranged-target-ac').value, 10) || 300,
           mobLevel: parseInt($('ranged-mob-level').value, 10) || 60,
+          targetMaxHp: (function () {
+            var npc = window.selectedTargetNpc;
+            if (npc && npc.hp != null) {
+              var th = parseInt(npc.hp, 10);
+              if (!isNaN(th) && th > 0) return th;
+            }
+            return undefined;
+          })(),
           targetMR: parseResist('ranged-target-mr'),
           targetFR: parseResist('ranged-target-fr'),
           targetCR: parseResist('ranged-target-cr'),
@@ -4808,6 +4894,8 @@
             };
             if (bow.procBuffDurationTicks != null && bow.procBuffDurationTicks > 0)
               rangedWeapon.procBuffDurationTicks = bow.procBuffDurationTicks;
+            if (bow.procSpellBonusHate != null && bow.procSpellBonusHate > 0) rangedWeapon.procSpellBonusHate = bow.procSpellBonusHate;
+            if (bow.procSpellNonDamagingDetrimental) rangedWeapon.procSpellNonDamagingDetrimental = true;
             var arrowObj = {
               damage: arrow.damage,
               elemType: arrow.elemType || undefined,
@@ -5026,6 +5114,8 @@
             };
             if (bow.procBuffDurationTicks != null && bow.procBuffDurationTicks > 0)
               rangedWeapon.procBuffDurationTicks = bow.procBuffDurationTicks;
+            if (bow.procSpellBonusHate != null && bow.procSpellBonusHate > 0) rangedWeapon.procSpellBonusHate = bow.procSpellBonusHate;
+            if (bow.procSpellNonDamagingDetrimental) rangedWeapon.procSpellNonDamagingDetrimental = true;
             var arrowObj = { damage: arrow.damage, elemType: arrow.elemType || undefined, elemDamage: (arrow.elemDamage != null ? arrow.elemDamage : 0) || 0 };
             var opts = Object.assign({}, baseOptions, { rangedWeapon: rangedWeapon, arrow: arrowObj });
             var reports = [];
@@ -5334,16 +5424,15 @@
         warrior: 'ra:viking-helmet',
         wizard: 'ra:fireball'
       };
-      var DPS_HEADER_BAR_MAX = 5000;
       function titleCaseClassName(classId) { return classId ? (classId.charAt(0).toUpperCase() + classId.slice(1)) : 'Unknown'; }
-      function updateDpsHeaderBar() {
-        var el = $('dps-value');
-        var fill = $('dps-header-bar-fill');
-        if (!fill) return;
-        var txt = (el && el.textContent) ? String(el.textContent).trim() : '';
-        var n = parseFloat(txt.replace(/[^\d.\-]/g, ''));
-        if (isNaN(n) || n < 0) { fill.style.width = '0%'; return; }
-        fill.style.width = Math.min(100, (n / DPS_HEADER_BAR_MAX) * 100) + '%';
+      function setHeaderTpsFromReport(report) {
+        var tpsEl = $('tps-value');
+        if (!tpsEl) return;
+        if (report && report.durationSec && report.totalThreat != null && report.totalThreat >= 0) {
+          tpsEl.textContent = (report.totalThreat / report.durationSec).toFixed(2);
+        } else {
+          tpsEl.textContent = '—';
+        }
       }
       function buildEasyClassButtons() {
         var wrap = $('easy-class-buttons');
@@ -5584,7 +5673,6 @@
         var easyDps = $('easy-dps-value');
         var dps = $('dps-value');
         if (easyDps && dps) easyDps.textContent = dps.textContent || '—';
-        updateDpsHeaderBar();
       }
       function runEasyModeSimulation() {
         syncAdvancedFromEasyBasics();
@@ -5782,6 +5870,15 @@
           archeryModPercent: parseInt($('ranged-archery-mod').value, 10) || 0,
           noDamageVsTarget: rangedNoDamageVsTarget,
         };
+        var rpsiEl = $('ranged-proc-spell-id');
+        if (rpsiEl && rpsiEl.value !== '' && typeof ItemSearch !== 'undefined' && ItemSearch.getSpellFromLocalData) {
+          var rProcId = parseInt(rpsiEl.value, 10);
+          if (!isNaN(rProcId) && rProcId > 0) {
+            var rSpellData = ItemSearch.getSpellFromLocalData(rProcId);
+            if (rSpellData && rSpellData.bonusHate != null && rSpellData.bonusHate > 0) rangedWeapon.procSpellBonusHate = rSpellData.bonusHate;
+            if (rSpellData && rSpellData.nonDamagingDetrimental) rangedWeapon.procSpellNonDamagingDetrimental = true;
+          }
+        }
         const rangedElemType = ($('ranged-elem-type').value || '').trim();
         const rangedElemDamage = parseInt($('ranged-elem-damage').value, 10) || 0;
         if (rangedElemType && rangedElemDamage > 0) { rangedWeapon.elemType = rangedElemType; rangedWeapon.elemDamage = rangedElemDamage; }
@@ -5797,6 +5894,14 @@
           level: parseInt($('ranged-level').value, 10) || 60,
           targetAC: parseInt($('ranged-target-ac').value, 10) || 300,
           mobLevel: parseInt($('ranged-mob-level').value, 10) || 60,
+          targetMaxHp: (function () {
+            var npc = window.selectedTargetNpc;
+            if (npc && npc.hp != null) {
+              var th = parseInt(npc.hp, 10);
+              if (!isNaN(th) && th > 0) return th;
+            }
+            return undefined;
+          })(),
           targetBodyType: rangedTargetBodyType,
           targetMR: parseResist('ranged-target-mr'),
           targetFR: parseResist('ranged-target-fr'),
@@ -5847,6 +5952,8 @@
               hitList: reports[0].ranged.hitList,
               procs: Math.round(reports.reduce((s, r) => s + (r.ranged.procs || 0), 0) / runs),
               procDamageTotal: Math.round(reports.reduce((s, r) => s + (r.ranged.procDamageTotal || 0), 0) / runs),
+              swingThreat: Math.round(reports.reduce((s, r) => s + (r.ranged.swingThreat || 0), 0) / runs),
+              procThreat: Math.round(reports.reduce((s, r) => s + (r.ranged.procThreat || 0), 0) / runs),
               procResists: Math.round(reports.reduce((s, r) => s + (r.ranged.procResists || 0), 0) / runs),
               procFullResists: Math.round(reports.reduce((s, r) => s + (r.ranged.procFullResists || 0), 0) / runs),
               procPartialResists: Math.round(reports.reduce((s, r) => s + (r.ranged.procPartialResists || 0), 0) / runs),
@@ -5865,6 +5972,9 @@
             quiverHastePercent: r0.quiverHastePercent != null ? r0.quiverHastePercent : undefined,
             attackTimerMs: r0.attackTimerMs != null ? r0.attackTimerMs : undefined,
             totalDamage: Math.round(reports.reduce((s, r) => s + r.totalDamage, 0) / runs),
+            totalThreat: Math.round(reports.reduce((s, r) => s + (r.totalThreat || 0), 0) / runs),
+            swingThreat: Math.round(reports.reduce((s, r) => s + (r.swingThreat || 0), 0) / runs),
+            procThreat: Math.round(reports.reduce((s, r) => s + (r.procThreat || 0), 0) / runs),
             critHits: Math.round(reports.reduce((s, r) => s + (r.critHits || 0), 0) / runs),
             critDamageGain: Math.round(reports.reduce((s, r) => s + (r.critDamageGain || 0), 0) / runs),
             dpsStdDev: (function () {
@@ -5904,6 +6014,7 @@
         $('report').textContent = rangedReportText;
         const dpsEl = $('dps-value');
         if (dpsEl && report.durationSec) dpsEl.textContent = (report.totalDamage / report.durationSec).toFixed(2);
+        setHeaderTpsFromReport(report);
         updateEasyDpsFromGlobal();
         const histContainer = $('histogram-container');
         if (reports.length > 0 && reports[0].ranged && reports[0].ranged.hitList && reports[0].ranged.hitList.length > 0) {
@@ -6212,6 +6323,7 @@
         var rbr = $('ranged-bane-race'); if (rbr) rbr.value = '';
         var rbb = $('ranged-bane-body'); if (rbb) rbb.value = '';
         var rpl = $('ranged-proc-level'); if (rpl) rpl.value = '';
+        var rpsi = $('ranged-proc-spell-id'); if (rpsi) rpsi.value = '';
         updateWeaponIcon('ranged-weapon', null);
         updateRangedWeaponDisplay();
       }
@@ -6563,6 +6675,10 @@
         $('ranged-proc').value = (weapon.proc != null ? String(weapon.proc) : '') || '';
         $('ranged-proc-damage').value = (weapon.procDamage != null && !isNaN(Number(weapon.procDamage)) ? Number(weapon.procDamage) : 0) || '';
         $('ranged-proc-level').value = (weapon.procLevel != null && !isNaN(Number(weapon.procLevel)) && Number(weapon.procLevel) > 0) ? String(Number(weapon.procLevel)) : '';
+        var rpsiApply = $('ranged-proc-spell-id');
+        if (rpsiApply) {
+          rpsiApply.value = (weapon.procSpellId != null && !isNaN(Number(weapon.procSpellId)) && Number(weapon.procSpellId) > 0) ? String(Number(weapon.procSpellId)) : '';
+        }
         $('ranged-elem-type').value = (weapon.elemType != null ? String(weapon.elemType) : '') || '';
         $('ranged-elem-damage').value = (weapon.elemDamage != null && !isNaN(Number(weapon.elemDamage)) ? Number(weapon.elemDamage) : 0) || '';
         var rangedBaneVal = (weapon.baneDamage != null && !isNaN(Number(weapon.baneDamage)) && Number(weapon.baneDamage) > 0) ? Number(weapon.baneDamage) : null;
@@ -7190,7 +7306,14 @@
       initEasyModeUi();
 
       function clearRangedArrowItemSearchOnManualEdit(kind) {
-        if (kind === 'ranged') { rangedFromItemSearch = false; var ram = $('ranged-archery-mod'); if (ram) ram.value = '0'; var modNote = $('ranged-archery-mod-note'); if (modNote) { modNote.textContent = ''; modNote.style.display = 'none'; } updateWeaponIcon('ranged-weapon', null); updateRangedWeaponDisplay(); }
+        if (kind === 'ranged') {
+          rangedFromItemSearch = false;
+          var ram = $('ranged-archery-mod'); if (ram) ram.value = '0';
+          var modNote = $('ranged-archery-mod-note'); if (modNote) { modNote.textContent = ''; modNote.style.display = 'none'; }
+          var rpsiMan = $('ranged-proc-spell-id'); if (rpsiMan) rpsiMan.value = '';
+          updateWeaponIcon('ranged-weapon', null);
+          updateRangedWeaponDisplay();
+        }
         if (kind === 'arrow') { arrowFromItemSearch = false; updateWeaponIcon('arrow', null); updateArrowDisplay(); }
       }
       [$('ranged-damage'), $('ranged-delay'), $('ranged-proc'), $('ranged-proc-damage'), $('ranged-elem-type'), $('ranged-elem-damage'), $('ranged-bane')].forEach(function (el) {

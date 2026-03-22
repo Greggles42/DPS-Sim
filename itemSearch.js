@@ -80,7 +80,7 @@
    * added to total. If maxN (or effect_limit_valueN) is greater than |effect_base_valueN|, that limit is used.
    * For DoT spells, buffdurationTicks is the number of 6-second ticks (used by sim to cap damage until duration ends or refresh).
    * @param {number|string} spellId - Spell ID.
-   * @returns {{ name: string, damage?: number, buffdurationTicks?: number }|null}
+   * @returns {{ name: string, damage?: number, buffdurationTicks?: number, nonDamagingDetrimental?: boolean }|null}
    */
   function getSpellFromLocalData(spellId) {
     if (!spellData || spellData === null) return null;
@@ -144,6 +144,11 @@
     var total = fromDirect + totalOnce;
     damage = total > 0 ? total : undefined;
     var buffdurationTicks = (!isInstant && ticks > 0) ? ticks : undefined;
+    /** spells_en.json: goodEffect 0 = detrimental, 1 = beneficial (EQEmu export). */
+    var goodEffectRaw = spell.goodEffect != null ? spell.goodEffect : spell.GoodEffect;
+    var goodEffect = goodEffectRaw != null ? (typeof goodEffectRaw === 'number' ? goodEffectRaw : parseInt(String(goodEffectRaw), 10)) : 0;
+    if (isNaN(goodEffect)) goodEffect = 0;
+    var isDetrimentalSpell = goodEffect === 0;
     var resisttype = spell.resisttype != null ? (typeof spell.resisttype === 'number' ? spell.resisttype : parseInt(String(spell.resisttype), 10)) : 0;
     if (isNaN(resisttype)) resisttype = 0;
     var resistModifier = 0;
@@ -156,12 +161,22 @@
     if (targettype != null && isNaN(targettype)) targettype = undefined;
     var SE_Root = 27;
     var SE_MovementSpeed = 54;
+    /** EQEmu SE 92: hate added directly on proc (e.g. Enraging Blow); positive effect_base_value = hate. */
+    var SE_HATE = 92;
     var movementEffect = false;
+    var bonusHate = 0;
     for (var j = 1; j <= 12; j++) {
       var eid2 = spell['effectid' + j];
       if (eid2 === undefined || eid2 === null) continue;
       var effId = typeof eid2 === 'number' ? eid2 : parseInt(String(eid2), 10);
-      if (effId === SE_Root || effId === SE_MovementSpeed) { movementEffect = true; break; }
+      if (effId === SE_Root || effId === SE_MovementSpeed) { movementEffect = true; }
+      if (effId === SE_HATE) {
+        var hv = spell['effect_base_value' + j];
+        if (hv !== undefined && hv !== null) {
+          var hn = typeof hv === 'number' ? hv : parseInt(String(hv), 10);
+          if (!isNaN(hn) && hn > 0) bonusHate += hn;
+        }
+      }
     }
     var out = {
       name: name,
@@ -172,7 +187,9 @@
       noPartialResist: noPartialResist,
       movementEffect: movementEffect
     };
+    if (bonusHate > 0) out.bonusHate = bonusHate;
     if (targettype != null) out.targettype = targettype;
+    if (isDetrimentalSpell && (damage == null || damage <= 0)) out.nonDamagingDetrimental = true;
     return out;
   }
 
@@ -587,6 +604,14 @@
     var itemId = num(get(item, ['id', 'Id', 'item_id', 'itemId']));
     var finalType = itemType || 'undefined';
 
+    var procSpellBonusHate;
+    var procSpellNonDamagingDetrimental;
+    if (procSpellId != null) {
+      var spellForHate = getSpellFromLocalData(procSpellId);
+      if (spellForHate && spellForHate.bonusHate != null && spellForHate.bonusHate > 0) procSpellBonusHate = spellForHate.bonusHate;
+      if (spellForHate && spellForHate.nonDamagingDetrimental) procSpellNonDamagingDetrimental = true;
+    }
+
     var itemTypeNumVal = !isNaN(itemTypeNum) ? itemTypeNum : null;
     var itemClasses = getItemClasses(item);
     var itemIdVal = (typeof itemId === 'number' && !isNaN(itemId) && itemId > 0) ? itemId : null;
@@ -618,6 +643,8 @@
       archeryModPercent: archeryModPercent != null ? archeryModPercent : undefined,
       itemId: itemIdVal
     };
+    if (procSpellBonusHate != null) out.procSpellBonusHate = procSpellBonusHate;
+    if (procSpellNonDamagingDetrimental) out.procSpellNonDamagingDetrimental = true;
 
     return out;
   }
