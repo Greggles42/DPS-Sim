@@ -473,10 +473,15 @@
   function getProcSpellEffectiveness(weapon, options, casterLevel, rng) {
     if (!weapon) return 100;
     if (checkProcSpellImmunity(weapon, options)) return 0;
-    // Run resist check on every proc: use spell resist type if set, otherwise default to magic (1) so procs are still resistible.
-    const resistType = weapon.procSpellResistType != null && weapon.procSpellResistType !== RESIST_TYPE_NONE
-      ? weapon.procSpellResistType
-      : 1;
+    // EQEmu resisttype 0 = none (unresistable). Must not treat 0 as falsy — only null/undefined → default magic (1).
+    let resistType = RESIST_TYPE_NONE;
+    const rawRt = weapon.procSpellResistType;
+    if (rawRt != null && rawRt !== '') {
+      const n = typeof rawRt === 'number' ? rawRt : parseInt(String(rawRt), 10);
+      resistType = !isNaN(n) ? n : 1;
+    } else {
+      resistType = 1;
+    }
     const targetResist = getTargetResistBySpellType(options, resistType);
     const resistModifier = weapon.procSpellResistModifier != null ? weapon.procSpellResistModifier : 0;
     const targetLevel = options.mobLevel != null ? options.mobLevel : 60;
@@ -775,9 +780,12 @@
       } else if (baseProcDmg > 0) {
         h += TR.procSpellThreatFromDamage(baseProcDmg, rangedProcCap);
       }
+      if (!isNonDamagingDetrimental && bow.procSpellCcAddsMobHpThreat && baseProcDmg > 0 && TR.detrimentalNonDamageSpellThreat) {
+        h += TR.detrimentalNonDamageSpellThreat(resolveTargetMaxHpRanged(options));
+      }
       const flat = bow.procSpellBonusHate != null ? (bow.procSpellBonusHate | 0) : 0;
-      if (flat > 0) h += TR.procFlatHate ? TR.procFlatHate(flat) : Math.max(0, flat);
-      if (h <= 0) return;
+      if (flat !== 0) h += TR.procFlatHate ? TR.procFlatHate(flat) : flat;
+      if (h === 0) return;
       rangedProcThreatAcc += h;
       rangedThreatAcc += h;
     }
@@ -796,7 +804,14 @@
         const procDmg = bow.noDamageVsTarget ? 0 : ((bow.procSpellDamage != null ? bow.procSpellDamage : 0) || 0);
         const effectiveness = getProcSpellEffectiveness(bow, options, level, procRng);
         if (bow.procSpellNonDamagingDetrimental) {
-          addRangedProcThreat(0, true);
+          if (effectiveness === 0) {
+            report.ranged.procFullResists++;
+            report.ranged.procResists++;
+          } else if (effectiveness < 100) {
+            report.ranged.procPartialResists++;
+            report.ranged.procResists++;
+          }
+          if (effectiveness > 0) addRangedProcThreat(0, true);
           procDamageThisShot = 0;
         } else {
           let actualProcDmg = Math.floor(procDmg * effectiveness / 100);
@@ -808,15 +823,29 @@
           }
           report.ranged.procDamageTotal += actualProcDmg;
           procDamageThisShot = actualProcDmg;
-          addRangedProcThreat(procDmg, false);
-          if (actualProcDmg === 0) {
-            report.ranged.procFullResists++;
-            report.ranged.procResists++;
-            report.ranged.procResistDamageLost += procDmg;
-          } else if (actualProcDmg < procDmg) {
-            report.ranged.procPartialResists++;
-            report.ranged.procResists++;
-            report.ranged.procResistDamageLost += (procDmg - actualProcDmg);
+          if (procDmg > 0) {
+            addRangedProcThreat(procDmg, false);
+          } else if (effectiveness > 0) {
+            addRangedProcThreat(0, false);
+          }
+          if (procDmg > 0) {
+            if (actualProcDmg === 0) {
+              report.ranged.procFullResists++;
+              report.ranged.procResists++;
+              report.ranged.procResistDamageLost += procDmg;
+            } else if (actualProcDmg < procDmg) {
+              report.ranged.procPartialResists++;
+              report.ranged.procResists++;
+              report.ranged.procResistDamageLost += (procDmg - actualProcDmg);
+            }
+          } else {
+            if (effectiveness === 0) {
+              report.ranged.procFullResists++;
+              report.ranged.procResists++;
+            } else if (effectiveness < 100) {
+              report.ranged.procPartialResists++;
+              report.ranged.procResists++;
+            }
           }
         }
       }
@@ -1195,9 +1224,12 @@
       } else if (baseThreatDmg > 0) {
         h += T.procSpellThreatFromDamage(baseThreatDmg, procThreatCap);
       }
+      if (!isNonDamagingDetrimental && w && w.procSpellCcAddsMobHpThreat && baseThreatDmg > 0 && T.detrimentalNonDamageSpellThreat) {
+        h += T.detrimentalNonDamageSpellThreat(resolveTargetMaxHp(options));
+      }
       const flat = (includeFlatHate !== false && w && w.procSpellBonusHate != null) ? (w.procSpellBonusHate | 0) : 0;
-      if (flat > 0) h += T.procFlatHate ? T.procFlatHate(flat) : Math.max(0, flat);
-      if (h <= 0) return;
+      if (flat !== 0) h += T.procFlatHate ? T.procFlatHate(flat) : flat;
+      if (h === 0) return;
       procThreatAcc += h;
       totalThreatAcc += h;
       if (weaponSlot === 1) report.weapon1.procThreat += h;
@@ -1723,7 +1755,14 @@
               report.weapon1.procResistDamageLost += (procDmg - totalDoTDamage);
             }
           } else if (w1.procSpellNonDamagingDetrimental) {
-            addProcThreatAmt(0, 1, true, true);
+            if (effectiveness === 0) {
+              report.weapon1.procFullResists++;
+              report.weapon1.procResists++;
+            } else if (effectiveness < 100) {
+              report.weapon1.procPartialResists++;
+              report.weapon1.procResists++;
+            }
+            if (effectiveness > 0) addProcThreatAmt(0, 1, true, true);
           } else {
             let actualDmg = Math.floor(procDmg * effectiveness / 100);
             const scfResult1 = applySpellCastingFuryProc(actualDmg, options, procRng);
@@ -1734,15 +1773,29 @@
             }
             report.weapon1.procDamageTotal += actualDmg;
             report.totalDamage += actualDmg;
-            addProcThreatAmt(procDmg, 1, true, false);
-            if (actualDmg === 0) {
-              report.weapon1.procFullResists++;
-              report.weapon1.procResists++;
-              report.weapon1.procResistDamageLost += procDmg;
-            } else if (actualDmg < procDmg) {
-              report.weapon1.procPartialResists++;
-              report.weapon1.procResists++;
-              report.weapon1.procResistDamageLost += (procDmg - actualDmg);
+            if (procDmg > 0) {
+              addProcThreatAmt(procDmg, 1, true, false);
+            } else if (effectiveness > 0) {
+              addProcThreatAmt(0, 1, true, false);
+            }
+            if (procDmg > 0) {
+              if (actualDmg === 0) {
+                report.weapon1.procFullResists++;
+                report.weapon1.procResists++;
+                report.weapon1.procResistDamageLost += procDmg;
+              } else if (actualDmg < procDmg) {
+                report.weapon1.procPartialResists++;
+                report.weapon1.procResists++;
+                report.weapon1.procResistDamageLost += (procDmg - actualDmg);
+              }
+            } else {
+              if (effectiveness === 0) {
+                report.weapon1.procFullResists++;
+                report.weapon1.procResists++;
+              } else if (effectiveness < 100) {
+                report.weapon1.procPartialResists++;
+                report.weapon1.procResists++;
+              }
             }
           }
         }
@@ -1861,7 +1914,14 @@
                 report.weapon2.procResistDamageLost += (procDmg - totalDoTDamage2);
               }
             } else if (w2.procSpellNonDamagingDetrimental) {
-              addProcThreatAmt(0, 2, true, true);
+              if (effectiveness === 0) {
+                report.weapon2.procFullResists++;
+                report.weapon2.procResists++;
+              } else if (effectiveness < 100) {
+                report.weapon2.procPartialResists++;
+                report.weapon2.procResists++;
+              }
+              if (effectiveness > 0) addProcThreatAmt(0, 2, true, true);
             } else {
               let actualDmg = Math.floor(procDmg * effectiveness / 100);
               const scfResult2 = applySpellCastingFuryProc(actualDmg, options, procRng);
@@ -1872,15 +1932,29 @@
               }
               report.weapon2.procDamageTotal += actualDmg;
               report.totalDamage += actualDmg;
-              addProcThreatAmt(procDmg, 2, true, false);
-              if (actualDmg === 0) {
-                report.weapon2.procFullResists++;
-                report.weapon2.procResists++;
-                report.weapon2.procResistDamageLost += procDmg;
-              } else if (actualDmg < procDmg) {
-                report.weapon2.procPartialResists++;
-                report.weapon2.procResists++;
-                report.weapon2.procResistDamageLost += (procDmg - actualDmg);
+              if (procDmg > 0) {
+                addProcThreatAmt(procDmg, 2, true, false);
+              } else if (effectiveness > 0) {
+                addProcThreatAmt(0, 2, true, false);
+              }
+              if (procDmg > 0) {
+                if (actualDmg === 0) {
+                  report.weapon2.procFullResists++;
+                  report.weapon2.procResists++;
+                  report.weapon2.procResistDamageLost += procDmg;
+                } else if (actualDmg < procDmg) {
+                  report.weapon2.procPartialResists++;
+                  report.weapon2.procResists++;
+                  report.weapon2.procResistDamageLost += (procDmg - actualDmg);
+                }
+              } else {
+                if (effectiveness === 0) {
+                  report.weapon2.procFullResists++;
+                  report.weapon2.procResists++;
+                } else if (effectiveness < 100) {
+                  report.weapon2.procPartialResists++;
+                  report.weapon2.procResists++;
+                }
               }
             }
           }

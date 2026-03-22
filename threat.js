@@ -46,10 +46,9 @@
     return Math.floor(22105 * L / 60);
   }
 
-  /** Flat hate from spell effects (e.g. SE 92 Enraging Blow — effect_base_value adds hate directly, not from damage). */
+  /** Flat hate from spell effects (SE 92): effect_base_value adds or subtracts hate directly (e.g. +50 or -300). */
   function procFlatHate(amount) {
-    const a = amount != null ? amount | 0 : 0;
-    return Math.max(0, a);
+    return amount != null ? amount | 0 : 0;
   }
 
   /** Bow shot: approximate swing hate from weapon + ammo displayed base damage. */

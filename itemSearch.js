@@ -80,7 +80,7 @@
    * added to total. If maxN (or effect_limit_valueN) is greater than |effect_base_valueN|, that limit is used.
    * For DoT spells, buffdurationTicks is the number of 6-second ticks (used by sim to cap damage until duration ends or refresh).
    * @param {number|string} spellId - Spell ID.
-   * @returns {{ name: string, damage?: number, buffdurationTicks?: number, nonDamagingDetrimental?: boolean }|null}
+   * @returns {{ name: string, damage?: number, buffdurationTicks?: number, nonDamagingDetrimental?: boolean, bonusHate?: number, ccAddsMobHpThreat?: boolean }|null}
    */
   function getSpellFromLocalData(spellId) {
     if (!spellData || spellData === null) return null;
@@ -161,8 +161,12 @@
     if (targettype != null && isNaN(targettype)) targettype = undefined;
     var SE_Root = 27;
     var SE_MovementSpeed = 54;
-    /** EQEmu SE 92: hate added directly on proc (e.g. Enraging Blow); positive effect_base_value = hate. */
+    /** EQEmu SE 92: direct hate adjustment (signed; negative reduces threat). */
     var SE_HATE = 92;
+    /** EQEmu placeholder / unused slot. */
+    var EQ_UNUSED_EFFECT = 254;
+    /** Stun — DD + stun procs also generate max-HP/15 style detrimental hate (e.g. Thunder Strike). */
+    var SE_STUN = 21;
     var movementEffect = false;
     var bonusHate = 0;
     for (var j = 1; j <= 12; j++) {
@@ -174,10 +178,25 @@
         var hv = spell['effect_base_value' + j];
         if (hv !== undefined && hv !== null) {
           var hn = typeof hv === 'number' ? hv : parseInt(String(hv), 10);
-          if (!isNaN(hn) && hn > 0) bonusHate += hn;
+          if (!isNaN(hn)) bonusHate += hn;
         }
       }
     }
+    var realEffectIds = [];
+    for (var r = 1; r <= 12; r++) {
+      var eidR = spell['effectid' + r];
+      if (eidR === undefined || eidR === null) continue;
+      var effR = typeof eidR === 'number' ? eidR : parseInt(String(eidR), 10);
+      if (isNaN(effR) || effR === EQ_UNUSED_EFFECT) continue;
+      realEffectIds.push(effR);
+    }
+    var isSe92OnlyHateSpell = !!(isDetrimentalSpell && (damage == null || damage <= 0) &&
+      realEffectIds.length === 1 && realEffectIds[0] === SE_HATE);
+    var hasStun = false;
+    for (var si = 0; si < realEffectIds.length; si++) {
+      if (realEffectIds[si] === SE_STUN) { hasStun = true; break; }
+    }
+    var hasHpDamage = damage != null && damage > 0;
     var out = {
       name: name,
       damage: damage,
@@ -187,9 +206,10 @@
       noPartialResist: noPartialResist,
       movementEffect: movementEffect
     };
-    if (bonusHate > 0) out.bonusHate = bonusHate;
+    if (bonusHate !== 0) out.bonusHate = bonusHate;
     if (targettype != null) out.targettype = targettype;
-    if (isDetrimentalSpell && (damage == null || damage <= 0)) out.nonDamagingDetrimental = true;
+    if (isDetrimentalSpell && (damage == null || damage <= 0) && !isSe92OnlyHateSpell) out.nonDamagingDetrimental = true;
+    if (isDetrimentalSpell && hasHpDamage && hasStun) out.ccAddsMobHpThreat = true;
     return out;
   }
 
@@ -606,10 +626,12 @@
 
     var procSpellBonusHate;
     var procSpellNonDamagingDetrimental;
+    var procSpellCcAddsMobHpThreat;
     if (procSpellId != null) {
       var spellForHate = getSpellFromLocalData(procSpellId);
-      if (spellForHate && spellForHate.bonusHate != null && spellForHate.bonusHate > 0) procSpellBonusHate = spellForHate.bonusHate;
+      if (spellForHate && spellForHate.bonusHate != null && spellForHate.bonusHate !== 0) procSpellBonusHate = spellForHate.bonusHate;
       if (spellForHate && spellForHate.nonDamagingDetrimental) procSpellNonDamagingDetrimental = true;
+      if (spellForHate && spellForHate.ccAddsMobHpThreat) procSpellCcAddsMobHpThreat = true;
     }
 
     var itemTypeNumVal = !isNaN(itemTypeNum) ? itemTypeNum : null;
@@ -645,6 +667,7 @@
     };
     if (procSpellBonusHate != null) out.procSpellBonusHate = procSpellBonusHate;
     if (procSpellNonDamagingDetrimental) out.procSpellNonDamagingDetrimental = true;
+    if (procSpellCcAddsMobHpThreat) out.procSpellCcAddsMobHpThreat = true;
 
     return out;
   }

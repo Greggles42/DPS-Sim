@@ -139,11 +139,14 @@
           <strong>Proc threat (direct damage spells)</strong> — When a weapon proc deals instant DD, hate from damage uses the spell’s <strong>base</strong> proc damage (before resists / Spell Casting Fury crit), then applies the per-event cap (default <strong>400</strong>). DoT procs accrue threat from <strong>unresisted per-tick base</strong> (total proc damage ÷ tick count), not from resisted tick damage.
         </li>
         <li>
+          <strong>Proc threat (DD + stun)</strong> — If spell data includes both HP damage and a stun (EQEmu SE 21), the sim adds an <strong>additional</strong> mob–max-HP detrimental slice (<code>min(1200, max(25, floor(targetMaxHp / 15)))</code>) on top of the DD-based proc hate (e.g. Thunder Strike).
+        </li>
+        <li>
           <strong>Proc threat (detrimental, no HP damage)</strong> — For procs classified as detrimental with no SE_CurrentHP damage in spell data:
           <code>min(1200, max(25, floor(targetMaxHp / 15)))</code>. <code>targetMaxHp</code> comes from the selected NPC’s <code>hp</code> when you pick a target from search; otherwise a generic HP curve (e.g. 22,105 at mob level 60, scaled by level).
         </li>
         <li>
-          <strong>Flat proc hate (e.g. SE 92)</strong> — Added once on the instant proc path (not every DoT tick), in addition to DD cap rules where applicable.
+          <strong>Flat proc hate (SE 92)</strong> — <code>effect_base_value</code> on SE 92 is applied once per instant proc (not each DoT tick), signed: positive adds hate, negative reduces it (e.g. Khalshazar’s Deceit). Spells that are <strong>only</strong> SE 92 (no HP damage) do not use the max-HP/15 non-DD bucket—they use this flat value only.
         </li>
       </ol>
 

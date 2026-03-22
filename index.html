@@ -506,6 +506,13 @@
       font-weight: 600;
       text-transform: none;
     }
+    /* Easy mode: TPS left, Total DPS right (advanced keeps DOM order: DPS then TPS). */
+    body[data-ui-mode="easy"] .app-header #dps-display .header-stat-tps {
+      order: 1;
+    }
+    body[data-ui-mode="easy"] .app-header #dps-display .header-stat-dps {
+      order: 2;
+    }
     #sim-history-list { max-height: 320px; overflow-y: auto; font-size: 0.85rem; }
     .sim-history-row { display: grid; grid-template-columns: 1fr 1fr minmax(0, 1fr) auto auto auto; gap: 0.5rem 0.75rem; align-items: center; padding: 0.5rem 0; border-bottom: 1px solid var(--border); }
     .sim-history-row:last-child { border-bottom: none; }
@@ -1073,11 +1080,11 @@
     </div>
     <div class="flex items-center gap-3 md:gap-8 flex-shrink-0">
       <div id="dps-display" class="flex flex-row items-end gap-4 md:gap-8 min-w-0" title="DPS and threat per second from last run">
-        <div class="flex flex-col items-end min-w-0">
+        <div class="header-stat-dps flex flex-col items-end min-w-0">
           <span class="text-[10px] text-gray-400 uppercase tracking-widest">Total DPS</span>
           <span id="dps-value" class="text-xl md:text-2xl font-fantasy text-[#d4af37] leading-none">—</span>
         </div>
-        <div class="flex flex-col items-end min-w-0">
+        <div class="header-stat-tps flex flex-col items-end min-w-0">
           <span class="header-stat-label-tps">TOTAL TPS (Beta)</span>
           <span id="tps-value" class="text-xl md:text-2xl font-fantasy leading-none">—</span>
         </div>
@@ -2248,9 +2255,9 @@
         '2509': { damage: 15, delay: 20, proc: 'Combust', procDamage: 182, name: 'Massive Heartwood Thorn', type: '1hp', backstabModPercent: 10 },
         '31379': { damage: 14, delay: 18, proc: '', procDamage: 0, name: 'Claw of Lightning', type: '1hs' },
         '31301': { damage: 13, delay: 17, proc: '', procDamage: 0, name: 'Vyemm\'s Fang', type: '1hp' },
-        '1158': { damage: 13, delay: 18, proc: 'Thunder Strike', procDamage: 263, name: 'Salindrite Dagger', type: '1hp' },
+        '1158': { damage: 13, delay: 18, proc: 'Thunder Strike', procDamage: 263, name: 'Salindrite Dagger', type: '1hp', procSpellId: 470 },
         '11057': { damage: 15, delay: 25, proc: '', procDamage: 0, name: 'Ragebringer', type: '1hp', wornAttackBonus: 40 },
-        '28806': { damage: 16, delay: 20, proc: 'Khalshazar\'s Deceit', procDamage: 0, name: 'Khalshazar', type: '1hp', backstabModPercent: 15 },
+        '28806': { damage: 16, delay: 20, proc: 'Khalshazar\'s Deceit', procDamage: 0, name: 'Khalshazar', type: '1hp', backstabModPercent: 15, procSpellId: 2311 },
         '28805': { damage: 16, delay: 21, proc: '', procDamage: 0, name: 'Bloodbath', type: '1hp', wornAttackBonus: 25, backstabModPercent: 12 },
         '26585': { damage: 16, delay: 19, proc: 'Serpent\'s Bite', procDamage: 100, name: 'Acrylia Handled Broadsword', type: '1hs' },
         '8495': { damage: 13, delay: 22, proc: '', procDamage: 0, name: 'Claw of the Savage Spirit', type: '1hp', wornAttackBonus: 30 },
@@ -2685,6 +2692,16 @@
             const pl = raw && raw.proclevel != null ? Number(raw.proclevel) : (raw && raw.procLevel != null ? Number(raw.procLevel) : null);
             procLevelEl.value = (pl != null && !isNaN(pl) && pl > 0) ? String(pl) : '';
           }
+          const procSpellIdEl = $(prefix + '-proc-spell-id');
+          if (procSpellIdEl) {
+            var psi = null;
+            if (p && p.procSpellId != null && !isNaN(Number(p.procSpellId)) && Number(p.procSpellId) > 0) psi = Number(p.procSpellId);
+            else if (raw && raw.proceffect != null) {
+              var rpe = parseInt(raw.proceffect, 10);
+              if (!isNaN(rpe) && rpe > 0) psi = rpe;
+            }
+            procSpellIdEl.value = psi != null ? String(psi) : '';
+          }
           const elemTypeEl = $(prefix + '-elem-type');
           if (elemTypeEl) elemTypeEl.value = p.elemType || '';
           const elemDamageEl = $(prefix + '-elem-damage');
@@ -2855,8 +2872,12 @@
             weapon1.procSpellNoPartialResist = sd1.noPartialResist;
             weapon1.procSpellMovementEffect = sd1.movementEffect;
             if (sd1.targettype != null) weapon1.procSpellTargetType = sd1.targettype;
-            if (sd1.bonusHate != null && sd1.bonusHate > 0) weapon1.procSpellBonusHate = sd1.bonusHate;
+            if (sd1.bonusHate != null && sd1.bonusHate !== 0) weapon1.procSpellBonusHate = sd1.bonusHate;
+            else delete weapon1.procSpellBonusHate;
             if (sd1.nonDamagingDetrimental) weapon1.procSpellNonDamagingDetrimental = true;
+            else delete weapon1.procSpellNonDamagingDetrimental;
+            if (sd1.ccAddsMobHpThreat) weapon1.procSpellCcAddsMobHpThreat = true;
+            else delete weapon1.procSpellCcAddsMobHpThreat;
           }
         }
         if (weapon2 && weapon2.procSpellId && typeof ItemSearch !== 'undefined' && ItemSearch.getSpellFromLocalData) {
@@ -2867,8 +2888,12 @@
             weapon2.procSpellNoPartialResist = sd2.noPartialResist;
             weapon2.procSpellMovementEffect = sd2.movementEffect;
             if (sd2.targettype != null) weapon2.procSpellTargetType = sd2.targettype;
-            if (sd2.bonusHate != null && sd2.bonusHate > 0) weapon2.procSpellBonusHate = sd2.bonusHate;
+            if (sd2.bonusHate != null && sd2.bonusHate !== 0) weapon2.procSpellBonusHate = sd2.bonusHate;
+            else delete weapon2.procSpellBonusHate;
             if (sd2.nonDamagingDetrimental) weapon2.procSpellNonDamagingDetrimental = true;
+            else delete weapon2.procSpellNonDamagingDetrimental;
+            if (sd2.ccAddsMobHpThreat) weapon2.procSpellCcAddsMobHpThreat = true;
+            else delete weapon2.procSpellCcAddsMobHpThreat;
           }
         }
         var targetRace = (function () {
@@ -3019,8 +3044,8 @@
         var equippedWornAttackBonus = Math.max(0, (w1WornAttackBonus != null && !isNaN(Number(w1WornAttackBonus))) ? Number(w1WornAttackBonus) : 0)
           + Math.max(0, (w2WornAttackBonus != null && !isNaN(Number(w2WornAttackBonus))) ? Number(w2WornAttackBonus) : 0);
         const options = {
-          weapon1: hasMainHand ? Object.assign({ damage: weapon1.damage, delay: weapon1.delay, procSpell: weapon1.procSpell, procSpellDamage: weapon1.procSpellDamage, procRate: weapon1.procRate, procLevel: weapon1.procLevel, procBuffDurationTicks: weapon1.procBuffDurationTicks, is2H: weapon1.is2H, elemType: weapon1.elemType, elemDamage: weapon1.elemDamage, type: w1WeaponType || undefined, noDamageVsTarget: !!weapon1.noDamageVsTarget, procSpellBonusHate: weapon1.procSpellBonusHate, procSpellNonDamagingDetrimental: weapon1.procSpellNonDamagingDetrimental }, w1ProcResist) : undefined,
-          weapon2: useWeapon2 ? Object.assign({ damage: weapon2.damage, delay: weapon2.delay, procSpell: weapon2.procSpell, procSpellDamage: weapon2.procSpellDamage, procRate: weapon2.procRate, procLevel: weapon2.procLevel, procBuffDurationTicks: weapon2.procBuffDurationTicks, elemType: weapon2.elemType, elemDamage: weapon2.elemDamage, noDamageVsTarget: !!weapon2.noDamageVsTarget, procSpellBonusHate: weapon2.procSpellBonusHate, procSpellNonDamagingDetrimental: weapon2.procSpellNonDamagingDetrimental }, w2ProcResist) : undefined,
+          weapon1: hasMainHand ? Object.assign({ damage: weapon1.damage, delay: weapon1.delay, procSpell: weapon1.procSpell, procSpellDamage: weapon1.procSpellDamage, procRate: weapon1.procRate, procLevel: weapon1.procLevel, procBuffDurationTicks: weapon1.procBuffDurationTicks, is2H: weapon1.is2H, elemType: weapon1.elemType, elemDamage: weapon1.elemDamage, type: w1WeaponType || undefined, noDamageVsTarget: !!weapon1.noDamageVsTarget, procSpellBonusHate: weapon1.procSpellBonusHate, procSpellNonDamagingDetrimental: weapon1.procSpellNonDamagingDetrimental, procSpellCcAddsMobHpThreat: weapon1.procSpellCcAddsMobHpThreat }, w1ProcResist) : undefined,
+          weapon2: useWeapon2 ? Object.assign({ damage: weapon2.damage, delay: weapon2.delay, procSpell: weapon2.procSpell, procSpellDamage: weapon2.procSpellDamage, procRate: weapon2.procRate, procLevel: weapon2.procLevel, procBuffDurationTicks: weapon2.procBuffDurationTicks, elemType: weapon2.elemType, elemDamage: weapon2.elemDamage, noDamageVsTarget: !!weapon2.noDamageVsTarget, procSpellBonusHate: weapon2.procSpellBonusHate, procSpellNonDamagingDetrimental: weapon2.procSpellNonDamagingDetrimental, procSpellCcAddsMobHpThreat: weapon2.procSpellCcAddsMobHpThreat }, w2ProcResist) : undefined,
           weapon1Type: w1WeaponType || undefined,
           hastePercent,
           offenseSkill,
@@ -3657,8 +3682,9 @@
             var bowPid = norm.procSpellId != null ? norm.procSpellId : (raw.proceffect != null ? parseInt(raw.proceffect, 10) : NaN);
             if (!isNaN(bowPid) && bowPid > 0) {
               var bowSd = ItemSearch.getSpellFromLocalData(bowPid);
-              if (bowSd && bowSd.bonusHate != null && bowSd.bonusHate > 0) norm.procSpellBonusHate = bowSd.bonusHate;
+              if (bowSd && bowSd.bonusHate != null && bowSd.bonusHate !== 0) norm.procSpellBonusHate = bowSd.bonusHate;
               if (bowSd && bowSd.nonDamagingDetrimental) norm.procSpellNonDamagingDetrimental = true;
+              if (bowSd && bowSd.ccAddsMobHpThreat) norm.procSpellCcAddsMobHpThreat = true;
             }
           }
           return norm;
@@ -3696,8 +3722,9 @@
               result.procDamage = (spellData.damage != null && spellData.damage > 0) ? spellData.damage : 0;
               if (spellData.buffdurationTicks != null && spellData.buffdurationTicks > 0)
                 result.procBuffDurationTicks = spellData.buffdurationTicks;
-              if (spellData.bonusHate != null && spellData.bonusHate > 0) result.procSpellBonusHate = spellData.bonusHate;
+              if (spellData.bonusHate != null && spellData.bonusHate !== 0) result.procSpellBonusHate = spellData.bonusHate;
               if (spellData.nonDamagingDetrimental) result.procSpellNonDamagingDetrimental = true;
+              if (spellData.ccAddsMobHpThreat) result.procSpellCcAddsMobHpThreat = true;
             }
           }
         }
@@ -3767,8 +3794,9 @@
             var mwPid = norm.procSpellId != null ? norm.procSpellId : (raw.proceffect != null ? parseInt(raw.proceffect, 10) : NaN);
             if (!isNaN(mwPid) && mwPid > 0) {
               var mwSd = ItemSearch.getSpellFromLocalData(mwPid);
-              if (mwSd && mwSd.bonusHate != null && mwSd.bonusHate > 0) norm.procSpellBonusHate = mwSd.bonusHate;
+              if (mwSd && mwSd.bonusHate != null && mwSd.bonusHate !== 0) norm.procSpellBonusHate = mwSd.bonusHate;
               if (mwSd && mwSd.nonDamagingDetrimental) norm.procSpellNonDamagingDetrimental = true;
+              if (mwSd && mwSd.ccAddsMobHpThreat) norm.procSpellCcAddsMobHpThreat = true;
             }
           }
           return norm;
@@ -3808,8 +3836,9 @@
               result.procDamage = (spellData.damage != null && spellData.damage > 0) ? spellData.damage : 0;
               if (spellData.buffdurationTicks != null && spellData.buffdurationTicks > 0)
                 result.procBuffDurationTicks = spellData.buffdurationTicks;
-              if (spellData.bonusHate != null && spellData.bonusHate > 0) result.procSpellBonusHate = spellData.bonusHate;
+              if (spellData.bonusHate != null && spellData.bonusHate !== 0) result.procSpellBonusHate = spellData.bonusHate;
               if (spellData.nonDamagingDetrimental) result.procSpellNonDamagingDetrimental = true;
+              if (spellData.ccAddsMobHpThreat) result.procSpellCcAddsMobHpThreat = true;
             }
           }
         }
@@ -3833,8 +3862,9 @@
         };
         if (norm.procBuffDurationTicks != null && norm.procBuffDurationTicks > 0)
           w.procBuffDurationTicks = norm.procBuffDurationTicks;
-        if (norm.procSpellBonusHate != null && norm.procSpellBonusHate > 0) w.procSpellBonusHate = norm.procSpellBonusHate;
+        if (norm.procSpellBonusHate != null && norm.procSpellBonusHate !== 0) w.procSpellBonusHate = norm.procSpellBonusHate;
         if (norm.procSpellNonDamagingDetrimental) w.procSpellNonDamagingDetrimental = true;
+        if (norm.procSpellCcAddsMobHpThreat) w.procSpellCcAddsMobHpThreat = true;
         return w;
       }
       async function rankWeapons() {
@@ -4894,8 +4924,9 @@
             };
             if (bow.procBuffDurationTicks != null && bow.procBuffDurationTicks > 0)
               rangedWeapon.procBuffDurationTicks = bow.procBuffDurationTicks;
-            if (bow.procSpellBonusHate != null && bow.procSpellBonusHate > 0) rangedWeapon.procSpellBonusHate = bow.procSpellBonusHate;
+            if (bow.procSpellBonusHate != null && bow.procSpellBonusHate !== 0) rangedWeapon.procSpellBonusHate = bow.procSpellBonusHate;
             if (bow.procSpellNonDamagingDetrimental) rangedWeapon.procSpellNonDamagingDetrimental = true;
+            if (bow.procSpellCcAddsMobHpThreat) rangedWeapon.procSpellCcAddsMobHpThreat = true;
             var arrowObj = {
               damage: arrow.damage,
               elemType: arrow.elemType || undefined,
@@ -5114,8 +5145,9 @@
             };
             if (bow.procBuffDurationTicks != null && bow.procBuffDurationTicks > 0)
               rangedWeapon.procBuffDurationTicks = bow.procBuffDurationTicks;
-            if (bow.procSpellBonusHate != null && bow.procSpellBonusHate > 0) rangedWeapon.procSpellBonusHate = bow.procSpellBonusHate;
+            if (bow.procSpellBonusHate != null && bow.procSpellBonusHate !== 0) rangedWeapon.procSpellBonusHate = bow.procSpellBonusHate;
             if (bow.procSpellNonDamagingDetrimental) rangedWeapon.procSpellNonDamagingDetrimental = true;
+            if (bow.procSpellCcAddsMobHpThreat) rangedWeapon.procSpellCcAddsMobHpThreat = true;
             var arrowObj = { damage: arrow.damage, elemType: arrow.elemType || undefined, elemDamage: (arrow.elemDamage != null ? arrow.elemDamage : 0) || 0 };
             var opts = Object.assign({}, baseOptions, { rangedWeapon: rangedWeapon, arrow: arrowObj });
             var reports = [];
@@ -5875,8 +5907,9 @@
           var rProcId = parseInt(rpsiEl.value, 10);
           if (!isNaN(rProcId) && rProcId > 0) {
             var rSpellData = ItemSearch.getSpellFromLocalData(rProcId);
-            if (rSpellData && rSpellData.bonusHate != null && rSpellData.bonusHate > 0) rangedWeapon.procSpellBonusHate = rSpellData.bonusHate;
+            if (rSpellData && rSpellData.bonusHate != null && rSpellData.bonusHate !== 0) rangedWeapon.procSpellBonusHate = rSpellData.bonusHate;
             if (rSpellData && rSpellData.nonDamagingDetrimental) rangedWeapon.procSpellNonDamagingDetrimental = true;
+            if (rSpellData && rSpellData.ccAddsMobHpThreat) rangedWeapon.procSpellCcAddsMobHpThreat = true;
           }
         }
         const rangedElemType = ($('ranged-elem-type').value || '').trim();
