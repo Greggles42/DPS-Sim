@@ -767,8 +767,8 @@
       padding: 0.75rem;
     }
     .easy-assumptions-wrap h3, .easy-assumptions-wrap h4, .easy-history-wrap h3, .easy-history-wrap h4 { margin: 0 0 0.5rem; font-size: 0.85rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
-    #easy-assumptions { width: 100%; min-height: 240px; resize: vertical; background: var(--input-bg); border: 1px solid var(--border); color: var(--text); border-radius: 4px; padding: 0.55rem 0.8rem; font-family: inherit; font-size: 0.88rem; }
-    .easy-history-table-wrap { max-height: 220px; overflow: auto; padding-right: 0.45rem; }
+    #easy-assumptions { width: 100%; min-height: 400px; resize: vertical; background: var(--input-bg); border: 1px solid var(--border); color: var(--text); border-radius: 4px; padding: 0.55rem 0.8rem; font-family: inherit; font-size: 0.88rem; }
+    .easy-history-table-wrap { max-height: 320px; overflow: auto; padding-right: 0.45rem; }
     .easy-history-table { width: 100%; min-width: 980px; border-collapse: collapse; font-size: 0.82rem; }
     .easy-history-table th, .easy-history-table td { border-bottom: 1px solid var(--border); padding: 0.3rem 0.4rem; text-align: left; white-space: nowrap; }
     .easy-history-table thead th { white-space: normal; line-height: 1.25; }
@@ -999,7 +999,7 @@
       font-style: italic;
       text-align: center;
     }
-    #easy-mode-root #easy-assumptions { font-family: 'Zodiak', Georgia, serif; font-size: 0.72rem; line-height: 1.45; min-height: 200px; }
+    #easy-mode-root #easy-assumptions { font-family: 'Zodiak', Georgia, serif; font-size: 0.72rem; line-height: 1.45; min-height: 400px; }
     #easy-mode-root .easy-assumptions-wrap,
     #easy-mode-root .easy-history-wrap {
       margin-top: 0;
@@ -1080,7 +1080,7 @@
         </nav>
       </aside>
       <section class="flex-1 min-h-0 overflow-y-auto scrollbar-fantasy p-4 md:p-8 bg-[radial-gradient(circle_at_center,_#1a1a22_0%,_#0a0a0c_100%)]">
-        <div class="max-w-5xl mx-auto space-y-8">
+        <div class="max-w-7xl mx-auto space-y-8">
           <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
             <div class="ornate-border parchment-bg p-6 space-y-6 shadow-2xl">
               <h3 class="font-fantasy text-sm text-[#d4af37] border-b border-[#d4af37]/20 pb-2 mb-2 tracking-widest">CHARACTER &amp; FIGHT</h3>
@@ -1168,14 +1168,14 @@
               <div id="easy-dps-value" class="easy-dps-value text-4xl md:text-5xl font-fantasy text-[#d4af37]/90 tracking-tighter">—</div>
             </div>
           </div>
-          <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 pb-4">
-            <div class="lg:col-span-2 ornate-border bg-black/20 p-6 easy-assumptions-wrap">
+          <div class="grid grid-cols-1 gap-6 pb-4">
+            <div class="ornate-border bg-black/20 p-6 easy-assumptions-wrap">
               <h4 class="text-[10px] text-[#d4af37] font-bold uppercase tracking-widest mb-4 font-fantasy">Simulation Assumptions</h4>
-              <textarea id="easy-assumptions" placeholder="Configured assumptions will appear here." class="w-full min-h-[200px] resize-y bg-[#0a0a0c]/80 border border-white/10 text-gray-300 rounded p-3 focus:border-[#d4af37] outline-none"></textarea>
+              <textarea id="easy-assumptions" placeholder="Configured assumptions will appear here." class="w-full min-h-[400px] resize-y bg-[#0a0a0c]/80 border border-white/10 text-gray-300 rounded p-3 focus:border-[#d4af37] outline-none"></textarea>
             </div>
-            <div class="ornate-border bg-black/40 p-6 flex flex-col easy-history-wrap min-h-[200px]">
+            <div class="ornate-border bg-black/40 p-6 flex flex-col easy-history-wrap min-h-[260px]">
               <h4 class="text-[10px] text-gray-500 font-bold uppercase tracking-widest mb-4">Session History</h4>
-              <div id="easy-result-log-list" class="flex-1 min-h-0 overflow-auto scrollbar-fantasy"></div>
+              <div id="easy-result-log-list" class="flex-1 min-h-[220px] overflow-auto scrollbar-fantasy"></div>
             </div>
           </div>
         </div>
