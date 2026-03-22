@@ -3,9 +3,25 @@
   "version": "0.7.0",
   "private": true,
   "description": "EverQuest DPS Simulator with optional usage logging",
+  "scripts": {
+    "merge-weapons": "node scripts/merge-weapons.mjs",
+    "build-npc-types-js": "node scripts/npc-types-to-js.mjs",
+    "build-procrates-js": "node scripts/procrates-to-js.mjs",
+    "build-spells-js": "node scripts/spells-en-to-js.mjs",
+    "build-weapon-shortlist-js": "node scripts/weapon-shortlist-to-js.mjs",
+    "build-file-bundles": "node scripts/merge-weapons.mjs && node scripts/procrates-to-js.mjs && node scripts/npc-types-to-js.mjs && node scripts/spells-en-to-js.mjs && node scripts/weapon-shortlist-to-js.mjs",
+    "postinstall": "npm run build-file-bundles",
+    "lint": "eslint combat.js threat.js weaponSkillCaps.js itemSearch.js api usage-log-server.js usage-log-summary.js scripts",
+    "serve": "npx --yes serve ."
+  },
   "dependencies": {
     "@upstash/redis": "^1.36.2",
     "@vercel/blob": "^0.25.0",
     "@vercel/kv": "^0.2.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.1.0",
+    "globals": "^17.4.0"
   }
 }

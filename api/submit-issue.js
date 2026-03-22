@@ -45,7 +45,7 @@ export default async function handler(req, res) {
       res.setHeader('Content-Type', 'application/json');
       return res.status(400).json({ error: 'Invalid body: need type, title, and body.' });
     }
-  } catch (e) {
+  } catch (_e) {
     setCors(res);
     res.setHeader('Content-Type', 'application/json');
     return res.status(400).json({ error: 'Invalid JSON body.' });
@@ -92,7 +92,7 @@ export default async function handler(req, res) {
     setCors(res);
     res.setHeader('Content-Type', 'application/json');
     return res.status(200).json({ ok: true, message: 'Thank you. Your report has been submitted.' });
-  } catch (e) {
+  } catch (_e) {
     setCors(res);
     res.setHeader('Content-Type', 'application/json');
     return res.status(502).json({ error: 'Could not submit. Please try again later.' });

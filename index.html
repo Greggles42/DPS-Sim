@@ -4,25 +4,42 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>gSim Project Quarm DPS Simulator</title>
+  <script>
+    tailwind.config = { corePlugins: { preflight: false } };
+  </script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://code.iconify.design/iconify-icon/1.0.7/iconify-icon.min.js"></script>
+  <link href="https://api.fontshare.com/v2/css?f[]=zodiak@400,700&amp;f[]=satoshi@400,500,700&amp;display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&amp;display=swap" rel="stylesheet">
   <style>
     :root {
-      --bg: #1a1d23;
-      --panel: #252830;
-      --border: #3d4452;
-      --text: #e6e8ec;
+      --color-gold: #d4af37;
+      --color-crimson: #8b0000;
+      --color-dark: #0a0a0c;
+      --color-surface: #16161a;
+      --bg: #0a0a0c;
+      --panel: #16161a;
+      --border: rgba(255, 255, 255, 0.1);
+      --text: #e2e2e2;
       --muted: #8b909a;
-      --accent: #7eb8da;
-      --input-bg: #1e2128;
+      --accent: var(--color-gold);
+      --input-bg: #121216;
       --section-gap: 1rem;
+      --control-height: 2.5rem;
     }
     * { box-sizing: border-box; }
     body {
-      font-family: 'Segoe UI', system-ui, sans-serif;
+      font-family: 'Satoshi', 'Segoe UI', system-ui, sans-serif;
       background: var(--bg);
       color: var(--text);
       margin: 0;
-      padding: 1.5rem;
+      padding: 0;
       line-height: 1.5;
+    }
+    body.app-body {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
     }
     h1 {
       font-size: 1.5rem;
@@ -30,6 +47,8 @@
       margin: 0 0 1rem;
       color: var(--accent);
     }
+    .font-fantasy { font-family: 'Cinzel', serif; }
+    .font-serif-ui { font-family: 'Zodiak', Georgia, serif; }
     .grid {
       display: grid;
       gap: var(--section-gap);
@@ -139,9 +158,12 @@
       margin-bottom: 0.25rem;
       color: var(--muted);
     }
-    input, select {
+    input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="hidden"]),
+    select {
       width: 100%;
-      padding: 0.5rem 0.6rem;
+      padding: 0.5rem 0.85rem;
+      min-height: var(--control-height);
+      line-height: 1.3;
       background: var(--input-bg);
       border: 1px solid var(--border);
       border-radius: 4px;
@@ -159,28 +181,112 @@
       margin-bottom: 0.75rem;
     }
     .row > * { flex: 1; }
+    /* Weapon cards: keep damage + delay side-by-side (no equal stretch across section width) */
+    .weapon-damage-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.45rem 0.55rem;
+      margin-bottom: 0.75rem;
+      align-items: flex-end;
+    }
+    .weapon-damage-row > div { flex: 0 0 auto; }
+    /* Target & fight: pair AC+mob level and duration+runs to the left */
+    .target-fight-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem 1rem;
+      margin-bottom: 0.75rem;
+      align-items: flex-end;
+    }
+    .target-fight-row > div { flex: 0 0 auto; }
     .row input, .row select { margin-bottom: 0; }
 
     /* Character & Haste: compact layout */
     .char-haste-section label { font-size: 0.75rem; margin-bottom: 0.15rem; }
     .char-haste-section input, .char-haste-section select {
-      padding: 0.25rem 0.35rem;
+      padding: 0.5rem 0.55rem;
       font-size: 0.9rem;
       margin-bottom: 0;
+      min-height: var(--control-height);
+      line-height: 1.3;
     }
     .char-haste-inner { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; flex-wrap: wrap; }
     .char-haste-left { flex: 1; min-width: 0; }
     .char-haste-icon-wrap { flex: 0 0 auto; }
     .char-haste-icon-wrap .class-icon { width: 120px; height: 120px; object-fit: contain; display: block; }
-    .char-primary-row { margin-bottom: 0.5rem; }
+    .char-primary-row {
+      margin-bottom: 0.5rem;
+    }
+    /* One grid: label row + control row share column tracks so inputs line up with labels; numeric cols ~3 digits */
+    .char-primary-row.char-primary-grid {
+      display: grid;
+      gap: 0.15rem 0.65rem;
+      align-items: start;
+    }
+    .char-primary-grid--melee {
+      grid-template-columns: max-content repeat(5, minmax(3.5rem, max-content));
+    }
+    .char-primary-grid--ranged {
+      grid-template-columns: max-content repeat(6, minmax(3.5rem, max-content));
+    }
+    .char-haste-section .char-primary-grid > label {
+      margin: 0;
+      align-self: end;
+    }
+    .char-haste-section .char-primary-grid > select,
+    .char-haste-section .char-primary-grid > input[type="number"] {
+      margin: 0;
+      box-sizing: border-box;
+      height: var(--control-height);
+      min-height: var(--control-height);
+    }
+    .char-haste-section .char-primary-grid > select {
+      width: auto;
+      min-width: 0;
+      max-width: 100%;
+    }
+    /* Melee class: ~Necromancer + caret (extra ch so “None (manual)” doesn’t clip when selected) */
+    .char-haste-section .char-primary-grid > select#class {
+      width: 15ch;
+      min-width: 14.5ch;
+      max-width: min(100%, 20ch);
+      padding-right: 1.85rem;
+    }
+    .char-haste-section .char-primary-grid > select#ranged-class {
+      width: 8.5ch;
+      min-width: 8.5ch;
+      padding-right: 1.75rem;
+    }
+    /* ~3-digit stats; beats global input { width: 100% } */
+    .char-haste-section .char-primary-grid > input[type="number"] {
+      width: 4rem;
+      max-width: 4rem;
+      justify-self: start;
+      padding-left: 0.45rem;
+      padding-right: 0.45rem;
+    }
+    .char-haste-section .char-primary-grid > input#worn-attack,
+    .char-haste-section .char-primary-grid > input#spell-attack,
+    .char-haste-section .char-primary-grid > input#ranged-worn-attack,
+    .char-haste-section .char-primary-grid > input#ranged-spell-attack {
+      width: 5.75rem;
+      max-width: 5.75rem;
+    }
     .char-primary-row, .char-secondary-row {
       display: flex;
       flex-wrap: wrap;
-      gap: 0.5rem 1rem;
-      align-items: flex-end;
     }
-    .char-secondary-row { margin-bottom: 0.4rem; }
-    .char-field { flex: 0 0 auto; }
+    .char-secondary-row {
+      gap: 0.75rem 1.25rem;
+      align-items: flex-start;
+      margin-bottom: 0.4rem;
+    }
+    .char-field { flex: 0 0 auto; min-width: 0; }
+    .char-haste-section .char-field {
+      display: flex;
+      flex-direction: column;
+      align-items: stretch;
+    }
     .hidden { display: none !important; }
     .char-field-num input { width: 4rem; max-width: 4rem; }
     .char-field select { min-width: 7rem; }
@@ -216,7 +322,7 @@
     }
     #btn-run:hover, #btn-run-ranged:hover {
       transform: translateY(-1px);
-      box-shadow: 0 4px 12px rgba(126, 184, 218, 0.35);
+      box-shadow: 0 4px 12px rgba(212, 175, 55, 0.35);
     }
     #btn-run:active, #btn-run-ranged:active { transform: translateY(0); }
     #report {
@@ -328,7 +434,15 @@
     .histogram-bar { background: var(--accent); border-radius: 2px 2px 0 0; min-width: 4px; min-height: 2px; }
     .histogram-bar:hover { filter: brightness(1.2); }
     .histogram-legend { font-size: 0.75rem; color: var(--muted); margin-top: 0.25rem; }
-    .tab-bar { display: flex; gap: 0; margin-bottom: 0; border-bottom: 1px solid var(--border); }
+    .tab-bar {
+      display: flex;
+      gap: 0;
+      margin-bottom: 0;
+      border-bottom: 1px solid var(--border);
+      background: rgba(0, 0, 0, 0.35);
+      border-radius: 6px 6px 0 0;
+      padding: 0 0.25rem;
+    }
     .tab-btn {
       padding: 0.6rem 1.25rem;
       background: transparent;
@@ -355,6 +469,14 @@
       margin-bottom: 0.5rem;
     }
     .banner-left { flex: 1; min-width: 0; }
+    .app-header {
+      flex-shrink: 0;
+      min-height: 4rem;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      background: rgba(0, 0, 0, 0.4);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+    }
     #dps-display {
       flex-shrink: 0;
       text-align: right;
@@ -363,7 +485,13 @@
       line-height: 1.2;
     }
     #dps-display .dps-label { font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); margin-bottom: 0.2rem; }
-    #dps-value { font-size: 3.25rem; display: block; }
+    .app-header #dps-display { line-height: 1.1; }
+    .app-header #dps-value {
+      font-size: clamp(1rem, 2.5vw, 1.5rem);
+      display: inline;
+      font-family: 'Cinzel', serif;
+      font-weight: 700;
+    }
     #sim-history-list { max-height: 320px; overflow-y: auto; font-size: 0.85rem; }
     .sim-history-row { display: grid; grid-template-columns: 1fr 1fr minmax(0, 1fr) auto auto auto; gap: 0.5rem 0.75rem; align-items: center; padding: 0.5rem 0; border-bottom: 1px solid var(--border); }
     .sim-history-row:last-child { border-bottom: none; }
@@ -401,11 +529,12 @@
     .submit-issue-modal label { display: block; margin-bottom: 0.25rem; font-size: 0.9rem; }
     .submit-issue-modal input[type="text"],
     .submit-issue-modal input[type="email"],
-    .submit-issue-modal select,
-    .submit-issue-modal textarea {
+    .submit-issue-modal select {
       width: 100%;
       margin-bottom: 0.75rem;
-      padding: 0.4rem 0.5rem;
+      padding: 0.5rem 0.8rem;
+      min-height: var(--control-height);
+      line-height: 1.3;
       background: var(--input-bg);
       border: 1px solid var(--border);
       border-radius: 4px;
@@ -413,7 +542,20 @@
       font: inherit;
       box-sizing: border-box;
     }
-    .submit-issue-modal textarea { min-height: 80px; resize: vertical; }
+    .submit-issue-modal textarea {
+      width: 100%;
+      margin-bottom: 0.75rem;
+      padding: 0.5rem 0.8rem;
+      line-height: 1.3;
+      min-height: 80px;
+      resize: vertical;
+      background: var(--input-bg);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      color: var(--text);
+      font: inherit;
+      box-sizing: border-box;
+    }
     .submit-issue-modal .submit-issue-actions { display: flex; gap: 0.5rem; margin-top: 1rem; }
     .submit-issue-modal .submit-issue-actions button { padding: 0.5rem 1rem; border-radius: 4px; font: inherit; cursor: pointer; }
     .submit-issue-modal .submit-issue-actions button[type="submit"] { background: var(--accent); color: var(--bg); border: none; }
@@ -426,6 +568,61 @@
     /* Item search autofilter */
     .item-search-wrap { position: relative; margin-bottom: 0.75rem; }
     .item-search-wrap input { margin-bottom: 0; }
+    .item-search-wrap input[type="text"] {
+      font-size: 0.8125rem;
+    }
+    .item-search-wrap input[type="text"]::placeholder {
+      font-size: 0.75rem;
+    }
+    #target-npc-search,
+    #ranged-target-npc-search {
+      font-size: 0.8125rem;
+    }
+    #target-npc-search::placeholder,
+    #ranged-target-npc-search::placeholder {
+      font-size: 0.75rem;
+    }
+    /* Icon sits in flex row beside input — no left padding reserved for overlaid icon */
+    #easy-mode-root .easy-weapon-search input[type="text"] {
+      font-size: 0.75rem;
+      box-sizing: border-box;
+      padding-top: 0.5rem;
+      padding-bottom: 0.5rem;
+      padding-right: 0.75rem;
+      padding-left: 0;
+    }
+    #easy-mode-root .easy-weapon-search input[type="text"]::placeholder {
+      font-size: 0.7rem;
+    }
+    /* Weapon damage / delay: narrow width; smaller text only (padding matches default input height) */
+    #w1-damage, #w1-delay, #w2-damage, #w2-delay,
+    #ranged-damage, #ranged-delay, #arrow-damage {
+      width: 3.5rem;
+      max-width: 3.5rem;
+      box-sizing: border-box;
+      padding: 0.5rem 0.45rem;
+      min-height: var(--control-height);
+      line-height: 1.3;
+      font-size: 0.8125rem;
+    }
+    /* Target / fight params: ≤5 digits */
+    #target-ac, #mob-level, #duration, #runs,
+    #ranged-target-ac, #ranged-mob-level, #ranged-duration, #ranged-runs {
+      width: 5.75rem;
+      max-width: 5.75rem;
+      box-sizing: border-box;
+      padding: 0.5rem 0.5rem;
+      min-height: var(--control-height);
+      line-height: 1.3;
+    }
+    /* Easy mode level select: match standard control height (overrides Tailwind py-2) */
+    #easy-level {
+      min-height: var(--control-height);
+      line-height: 1.3;
+      padding-top: 0.5rem;
+      padding-bottom: 0.5rem;
+      font-size: 0.95rem;
+    }
     .item-search-list {
       position: absolute;
       left: 0;
@@ -470,18 +667,8 @@
     }
 
     .mode-toggle-row { margin: 0.25rem 0 1rem; }
-    .mode-toggle-btn {
-      background: var(--input-bg);
-      color: var(--text);
-      border: 1px solid var(--border);
-      margin: 0;
-      padding: 0.55rem 0.85rem;
-      font-size: 0.9rem;
-    }
-    .mode-toggle-btn:hover { border-color: var(--accent); }
-    .mode-toggle-btn .mode-toggle-next { color: var(--muted); margin-left: 0.25rem; }
-    .easy-only { display: none; }
-    body[data-ui-mode="easy"] .easy-only { display: block; }
+    .easy-only { display: none !important; }
+    body[data-ui-mode="easy"] .easy-only { display: flex !important; }
     body[data-ui-mode="easy"] .advanced-only { display: none !important; }
     .easy-layout {
       background: var(--panel);
@@ -499,7 +686,7 @@
     .easy-col { background: rgba(0, 0, 0, 0.12); border: 1px solid var(--border); border-radius: 8px; padding: 0.75rem; }
     .easy-col-weapons { max-width: 460px; width: 100%; }
     .easy-col h3 { margin: 0 0 0.6rem; font-size: 0.85rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
-    .easy-class-stack { display: grid; gap: 0.35rem; max-height: 390px; overflow-y: auto; padding-right: 0.15rem; }
+    .easy-class-stack { display: grid; gap: 0.35rem; padding-right: 0.15rem; }
     .easy-class-btn {
       width: 100%;
       text-align: left;
@@ -511,11 +698,13 @@
       border-radius: 6px;
       font-size: 0.85rem;
     }
-    .easy-class-btn.is-selected {
-      background: rgba(126, 184, 218, 0.2);
-      border-color: var(--accent);
-      color: var(--accent);
-      box-shadow: inset 0 0 0 1px rgba(126, 184, 218, 0.4);
+    .easy-class-btn.is-selected,
+    .easy-class-btn.active-class {
+      background: linear-gradient(90deg, rgba(139, 0, 0, 0.2) 0%, rgba(139, 0, 0, 0) 100%);
+      border-left: 3px solid var(--color-crimson) !important;
+      color: var(--color-gold);
+      border-color: rgba(212, 175, 55, 0.35);
+      box-shadow: none;
     }
     .easy-field { margin-bottom: 0.65rem; }
     .easy-field:last-child { margin-bottom: 0; }
@@ -526,7 +715,7 @@
     .easy-weapon-card:last-child { margin-bottom: 0; }
     .easy-weapons-swap-wrap { display: flex; justify-content: center; align-items: center; margin: 0.4rem 0; }
     .btn-swap-weapons { display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; padding: 0; border: 1px solid var(--border); border-radius: 6px; background: var(--input-bg); color: var(--text); cursor: pointer; transition: background 0.15s, border-color 0.15s; }
-    .btn-swap-weapons:hover { background: rgba(126, 184, 218, 0.15); border-color: var(--accent); }
+    .btn-swap-weapons:hover { background: rgba(212, 175, 55, 0.1); border-color: var(--accent); }
     .btn-swap-weapons .swap-icon { width: 20px; height: 20px; }
     .swap-icon-vertical { display: block; }
     .swap-icon-horizontal { display: block; transform: rotate(-90deg); }
@@ -535,9 +724,36 @@
     .easy-weapon-detail { font-size: 0.78rem; color: var(--muted); margin-top: 0.15rem; }
     .easy-weapon-icon { width: 36px; height: 36px; border: 1px solid var(--border); border-radius: 4px; object-fit: contain; background: #111; cursor: pointer; }
     .easy-weapon-icon.is-empty { display: none; }
-    .easy-weapon-search { position: relative; }
+    /* Flex row: icon + field share one box so the glyph aligns with text (no absolute vs. line-box drift) */
+    .easy-weapon-search {
+      position: relative;
+      display: flex;
+      flex-wrap: nowrap;
+      align-items: center;
+      box-sizing: border-box;
+    }
     .easy-weapon-search input { margin: 0; }
     .easy-weapon-search .item-search-list { max-height: 210px; }
+    #easy-mode-root .easy-weapon-search-icon {
+      display: flex;
+      flex-shrink: 0;
+      align-items: center;
+      justify-content: center;
+      width: 2.25rem;
+      padding-left: 0.25rem;
+      line-height: 0;
+      pointer-events: none;
+      z-index: 10;
+      color: rgba(156, 163, 175, 0.95);
+    }
+    #easy-mode-root .easy-weapon-search-icon iconify-icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 1rem;
+      height: 1rem;
+      flex-shrink: 0;
+    }
     .easy-actions { margin-top: 0.9rem; }
     #btn-run-easy { width: 100%; margin: 0; font-size: 1.15rem; padding: 0.85rem 1rem; }
     .easy-dps { margin-top: 0.6rem; text-align: center; }
@@ -550,8 +766,8 @@
       border-radius: 8px;
       padding: 0.75rem;
     }
-    .easy-assumptions-wrap h3, .easy-history-wrap h3 { margin: 0 0 0.5rem; font-size: 0.85rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
-    #easy-assumptions { width: 100%; min-height: 240px; resize: vertical; background: var(--input-bg); border: 1px solid var(--border); color: var(--text); border-radius: 4px; padding: 0.55rem; font-family: inherit; font-size: 0.88rem; }
+    .easy-assumptions-wrap h3, .easy-assumptions-wrap h4, .easy-history-wrap h3, .easy-history-wrap h4 { margin: 0 0 0.5rem; font-size: 0.85rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+    #easy-assumptions { width: 100%; min-height: 240px; resize: vertical; background: var(--input-bg); border: 1px solid var(--border); color: var(--text); border-radius: 4px; padding: 0.55rem 0.8rem; font-family: inherit; font-size: 0.88rem; }
     .easy-history-table-wrap { max-height: 220px; overflow: auto; padding-right: 0.45rem; }
     .easy-history-table { width: 100%; min-width: 980px; border-collapse: collapse; font-size: 0.82rem; }
     .easy-history-table th, .easy-history-table td { border-bottom: 1px solid var(--border); padding: 0.3rem 0.4rem; text-align: left; white-space: nowrap; }
@@ -559,103 +775,417 @@
     .easy-history-table th { color: var(--muted); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.03em; }
     .easy-history-table td.easy-history-dps { color: var(--accent); font-weight: 600; text-align: right; padding-right: 0.35rem; }
 
+    /* Fantasy shell (Easy + shared) */
+    .parchment-bg {
+      background: linear-gradient(145deg, rgba(26, 26, 34, 0.95) 0%, rgba(22, 22, 26, 0.98) 100%);
+    }
+    .ornate-border {
+      position: relative;
+      border: 1px solid rgba(212, 175, 55, 0.3);
+    }
+    .ornate-border::before,
+    .ornate-border::after {
+      content: '';
+      position: absolute;
+      width: 12px;
+      height: 12px;
+      border: 2px solid var(--color-gold);
+      pointer-events: none;
+    }
+    .ornate-border::before { top: -2px; left: -2px; border-right: none; border-bottom: none; }
+    .ornate-border::after { bottom: -2px; right: -2px; border-left: none; border-top: none; }
+    .scrollbar-fantasy::-webkit-scrollbar { width: 6px; }
+    .scrollbar-fantasy::-webkit-scrollbar-track { background: #0f0f12; }
+    .scrollbar-fantasy::-webkit-scrollbar-thumb { background: #3a3a42; border-radius: 3px; }
+    .scrollbar-fantasy::-webkit-scrollbar-thumb:hover { background: var(--color-gold); }
+    .magic-btn,
+    #btn-run-easy.magic-btn {
+      background: linear-gradient(135deg, #8b0000 0%, #5a0000 100%);
+      color: #fff;
+      border: 1px solid rgba(212, 175, 55, 0.5);
+      transition: all 0.3s ease;
+      position: relative;
+      overflow: hidden;
+    }
+    .magic-btn:hover,
+    #btn-run-easy.magic-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 20px rgba(139, 0, 0, 0.4);
+      filter: brightness(1.15);
+    }
+    #btn-run.magic-btn,
+    #btn-run-ranged.magic-btn {
+      background: linear-gradient(135deg, #8b0000 0%, #5a0000 100%);
+      color: #fff;
+      border: 1px solid rgba(212, 175, 55, 0.45);
+    }
+    #btn-run.magic-btn:hover,
+    #btn-run-ranged.magic-btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 20px rgba(139, 0, 0, 0.35);
+      filter: brightness(1.1);
+    }
+    #btn-rank-weapons.magic-btn.btn-rank-inline,
+    #btn-rank-ranged-weapons.magic-btn.btn-rank-inline {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: auto;
+      margin-top: 0;
+      padding: 0.5rem 1.15rem;
+      font-size: 0.88rem;
+      line-height: 1.25;
+    }
+    #easy-mode-root input[type="range"] {
+      -webkit-appearance: none;
+      appearance: none;
+      background: #2a2a2f;
+      height: 4px;
+      border-radius: 2px;
+    }
+    #easy-mode-root input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      height: 16px;
+      width: 16px;
+      border-radius: 50%;
+      background: var(--color-gold);
+      cursor: pointer;
+      box-shadow: 0 0 8px var(--color-gold);
+    }
+    #easy-mode-root input[type="range"]::-moz-range-thumb {
+      height: 16px;
+      width: 16px;
+      border-radius: 50%;
+      background: var(--color-gold);
+      cursor: pointer;
+      border: none;
+    }
+    .easy-radio-row { display: flex; gap: 1rem; flex-wrap: wrap; align-items: center; margin-bottom: 0; }
+    .easy-radio-row label { display: flex; align-items: center; gap: 0.5rem; cursor: pointer; margin-bottom: 0; font-size: 0.75rem; }
+    .easy-radio-row input[type="radio"] { position: absolute; opacity: 0; width: 0; height: 0; }
+    .easy-radio-faux {
+      width: 1rem;
+      height: 1rem;
+      border-radius: 9999px;
+      border: 1px solid rgba(212, 175, 55, 0.5);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .easy-radio-faux-inner {
+      width: 0.5rem;
+      height: 0.5rem;
+      border-radius: 9999px;
+      background: transparent;
+    }
+    .easy-radio-row input[type="radio"]:checked + .easy-radio-faux { border-color: rgba(212, 175, 55, 0.8); }
+    .easy-radio-row input[type="radio"]:checked + .easy-radio-faux .easy-radio-faux-inner {
+      background: var(--color-gold);
+      box-shadow: 0 0 5px var(--color-gold);
+    }
+    .easy-radio-row input[type="radio"]:focus-visible + .easy-radio-faux {
+      outline: 2px solid var(--color-gold);
+      outline-offset: 2px;
+    }
+    .easy-radio-row .easy-radio-text { font-family: 'Cinzel', serif; font-size: 0.75rem; }
+    .easy-radio-row label:hover .easy-radio-text { color: var(--color-gold); }
+    .ui-mode-toggle-wrap {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      flex-shrink: 0;
+    }
+    .ui-mode-label {
+      font-family: 'Cinzel', serif;
+      font-size: 10px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      user-select: none;
+      transition: color 0.2s ease;
+    }
+    body[data-ui-mode="easy"] .ui-mode-label--easy { color: var(--color-gold); }
+    body[data-ui-mode="easy"] .ui-mode-label--adv { color: #5c5c62; }
+    body[data-ui-mode="advanced"] .ui-mode-label--easy { color: #5c5c62; }
+    body[data-ui-mode="advanced"] .ui-mode-label--adv { color: var(--color-gold); }
+    #btn-mode-toggle.ui-mode-switch {
+      position: relative;
+      width: 3.5rem;
+      height: 1.75rem;
+      padding: 0;
+      margin: 0;
+      border: none;
+      background: transparent;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+    #btn-mode-toggle.ui-mode-switch:focus-visible {
+      outline: 2px solid rgba(212, 175, 55, 0.65);
+      outline-offset: 3px;
+      border-radius: 999px;
+    }
+    .ui-mode-switch-track {
+      position: absolute;
+      inset: 0;
+      border-radius: 999px;
+      background: linear-gradient(180deg, #141418 0%, #0c0c10 100%);
+      border: 1px solid rgba(212, 175, 55, 0.35);
+      box-shadow: inset 0 1px 4px rgba(0, 0, 0, 0.65);
+    }
+    .ui-mode-switch-thumb {
+      position: absolute;
+      top: 3px;
+      left: 3px;
+      width: 1.25rem;
+      height: 1.25rem;
+      border-radius: 50%;
+      background: linear-gradient(145deg, #e8c547 0%, #9a7209 100%);
+      box-shadow: 0 1px 5px rgba(0, 0, 0, 0.5), 0 0 10px rgba(212, 175, 55, 0.25);
+      transition: transform 0.22s ease;
+    }
+    body[data-ui-mode="advanced"] .ui-mode-switch-thumb {
+      transform: translateX(calc(3.5rem - 1.25rem - 6px));
+    }
+    #btn-mode-toggle.ui-mode-switch:hover .ui-mode-switch-track {
+      border-color: rgba(212, 175, 55, 0.55);
+      box-shadow: inset 0 1px 4px rgba(0, 0, 0, 0.65), 0 0 12px rgba(212, 175, 55, 0.12);
+    }
+    .app-footer-easy {
+      flex-shrink: 0;
+      min-height: 3rem;
+      border-top: 1px solid rgba(255, 255, 255, 0.05);
+      background: #0a0a0c;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0 1rem;
+      font-size: 10px;
+      color: #666;
+      text-transform: uppercase;
+      letter-spacing: 0.2em;
+    }
+    .advanced-stack {
+      flex: 1;
+      min-height: 0;
+      overflow-y: auto;
+      padding: 1rem 1.25rem 2rem;
+      max-width: 100%;
+    }
+    @media (min-width: 900px) {
+      .advanced-stack { padding-left: 2rem; padding-right: 2rem; }
+    }
+    @media (min-width: 1150px) {
+      .main-layout .histogram-aside {
+        top: 5rem;
+      }
+    }
+    .site-footer-links {
+      padding: 1rem 1.25rem 2rem;
+      max-width: 56rem;
+      margin: 0 auto;
+    }
+    .easy-class-btn iconify-icon.easy-class-icon { opacity: 0.55; }
+    .easy-class-btn.is-selected iconify-icon.easy-class-icon,
+    .easy-class-btn.active-class iconify-icon.easy-class-icon { opacity: 1; }
+    .easy-history-empty {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 0.75rem;
+      padding: 1.5rem;
+      opacity: 0.35;
+      font-size: 10px;
+      font-style: italic;
+      text-align: center;
+    }
+    #easy-mode-root #easy-assumptions { font-family: 'Zodiak', Georgia, serif; font-size: 0.72rem; line-height: 1.45; min-height: 200px; }
+    #easy-mode-root .easy-assumptions-wrap,
+    #easy-mode-root .easy-history-wrap {
+      margin-top: 0;
+      background: transparent !important;
+      border: none !important;
+      border-radius: 0 !important;
+      padding: 1.5rem !important;
+    }
+    #easy-mode-root .easy-history-wrap { min-height: 0; }
+    body[data-ui-mode="advanced"] .report-section,
+    body[data-ui-mode="advanced"] .histogram-panel {
+      border-color: rgba(212, 175, 55, 0.12);
+      box-shadow: 0 4px 24px rgba(0, 0, 0, 0.35);
+    }
+    body[data-ui-mode="advanced"] #report {
+      border-color: rgba(212, 175, 55, 0.12);
+    }
+    body[data-ui-mode="advanced"] .item-search-list {
+      border-color: rgba(212, 175, 55, 0.2);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+    }
+    body[data-ui-mode="advanced"] .item-search-item:hover {
+      background: rgba(212, 175, 55, 0.06);
+    }
+    #easy-mode-root .easy-assumptions-wrap > h4:first-child {
+      color: var(--color-gold);
+      font-size: 10px;
+      letter-spacing: 0.12em;
+      margin-bottom: 1rem;
+    }
+    #easy-mode-root .easy-history-wrap > h4:first-child {
+      color: #737373;
+      font-size: 10px;
+      letter-spacing: 0.12em;
+      margin-bottom: 1rem;
+    }
+
   </style>
 </head>
-<body data-ui-mode="easy">
-  <div class="banner">
-    <div class="banner-left">
-      <h1>gSim Project Quarm DPS Simulator <span id="app-version" style="font-weight: 400; color: var(--muted); font-size: 0.85rem;">v1.05</span></h1>
+<body data-ui-mode="easy" class="app-body">
+  <header class="app-header flex items-center justify-between gap-4 px-4 md:px-8 z-50">
+    <div class="flex items-center gap-3 md:gap-4 min-w-0">
+      <iconify-icon icon="ra:crossed-swords" class="text-2xl md:text-3xl text-[#d4af37] flex-shrink-0"></iconify-icon>
+      <div class="flex flex-col min-w-0">
+        <span class="font-fantasy text-base md:text-xl tracking-widest text-[#d4af37] truncate">GSIM PROJECT QUARM</span>
+        <span class="text-[10px] text-gray-500 uppercase tracking-tighter">Everquest DPS Simulator · <span id="app-version">v1.07</span></span>
+      </div>
     </div>
-    <div id="dps-display" title="Total DPS from last run">
-      <div class="dps-label">Total DPS</div>
-      <span id="dps-value">—</span>
-    </div>
-  </div>
-
-  <div class="mode-toggle-row">
-    <button type="button" id="btn-mode-toggle" class="mode-toggle-btn">Switch to Advanced Mode <span class="mode-toggle-next">(current: Easy)</span></button>
-  </div>
-
-  <div id="easy-mode-root" class="easy-only">
-    <section class="easy-layout">
-      <div class="easy-grid">
-        <div class="easy-col">
-          <h3>Class</h3>
-          <div id="easy-class-buttons" class="easy-class-stack"></div>
-        </div>
-        <div class="easy-col">
-          <h3>Character &amp; Fight</h3>
-          <div class="easy-field">
-            <label for="easy-level">Character level</label>
-            <select id="easy-level"></select>
-          </div>
-          <div class="easy-field">
-            <label for="easy-worn-haste">Worn haste</label>
-            <div class="easy-range-readout" id="easy-worn-haste-value">41%</div>
-            <input type="range" id="easy-worn-haste" min="0" max="41" step="1" value="41">
-          </div>
-          <div class="easy-field">
-            <label>Target</label>
-            <div class="radio-group">
-              <label><input type="radio" name="easy-target-type" value="group" checked> Group Content</label>
-              <label><input type="radio" name="easy-target-type" value="raid"> Raid Content</label>
-            </div>
+    <div class="flex items-center gap-3 md:gap-8 flex-shrink-0">
+      <div id="dps-display" class="flex flex-col items-end min-w-0" title="Total DPS from last run">
+        <span class="text-[10px] text-gray-400 uppercase tracking-widest">Total Damage Per Second</span>
+        <div class="flex items-center gap-2">
+          <span id="dps-value" class="text-xl md:text-2xl font-fantasy text-[#d4af37] leading-none">—</span>
+          <div class="w-24 md:w-32 h-1 bg-white/10 rounded-full overflow-hidden">
+            <div id="dps-header-bar-fill" class="h-full bg-[#d4af37] shadow-[0_0_8px_#d4af37] transition-[width] duration-300" style="width:0%"></div>
           </div>
         </div>
-        <div class="easy-col easy-col-weapons">
-          <h3>Weapons</h3>
-          <div class="easy-weapon-card">
-            <div class="easy-weapon-head">
-              <div>
-                <div class="easy-weapon-name" id="easy-w1-name">Main hand: Unequipped</div>
-                <div class="easy-weapon-detail" id="easy-w1-detail">DMG: - | Delay: - | Proc: -</div>
+      </div>
+      <div class="ui-mode-toggle-wrap" role="group" aria-label="Interface mode">
+        <span class="ui-mode-label ui-mode-label--easy" id="ui-mode-label-easy">Easy</span>
+        <button type="button" id="btn-mode-toggle" class="ui-mode-switch" role="switch" aria-checked="false" aria-label="Easy mode. Switch to Advanced." title="Switch to Advanced mode">
+          <span class="ui-mode-switch-track" aria-hidden="true"></span>
+          <span class="ui-mode-switch-thumb" aria-hidden="true"></span>
+        </button>
+        <span class="ui-mode-label ui-mode-label--adv" id="ui-mode-label-adv">Advanced</span>
+      </div>
+    </div>
+  </header>
+
+  <div id="easy-mode-root" class="easy-only flex-1 flex flex-col min-h-0 overflow-hidden">
+    <div class="flex flex-1 flex-col md:flex-row min-h-0 overflow-hidden">
+      <aside class="w-full md:w-64 md:max-w-[16rem] flex-shrink-0 border-b md:border-b-0 md:border-r border-white/5 bg-[#0a0a0c] flex flex-col min-h-0">
+        <div class="p-4 border-b border-white/5">
+          <span class="text-[10px] text-gray-500 font-bold uppercase tracking-[0.2em]">Class Select</span>
+        </div>
+        <nav class="p-2 pb-4 scrollbar-fantasy">
+          <div id="easy-class-buttons" class="easy-class-stack flex flex-col gap-1"></div>
+        </nav>
+      </aside>
+      <section class="flex-1 min-h-0 overflow-y-auto scrollbar-fantasy p-4 md:p-8 bg-[radial-gradient(circle_at_center,_#1a1a22_0%,_#0a0a0c_100%)]">
+        <div class="max-w-5xl mx-auto space-y-8">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div class="ornate-border parchment-bg p-6 space-y-6 shadow-2xl">
+              <h3 class="font-fantasy text-sm text-[#d4af37] border-b border-[#d4af37]/20 pb-2 mb-2 tracking-widest">CHARACTER &amp; FIGHT</h3>
+              <div class="space-y-4">
+                <div class="easy-field">
+                  <label class="text-[10px] text-gray-400 uppercase tracking-widest block mb-2" for="easy-level">Character Level</label>
+                  <select id="easy-level" class="w-full bg-[#121216] border border-white/10 rounded-none px-3 py-2 text-sm font-fantasy focus:border-[#d4af37] outline-none transition-colors"></select>
+                </div>
+                <div class="easy-field">
+                  <div class="flex justify-between items-center mb-2">
+                    <label class="text-[10px] text-gray-400 uppercase tracking-widest" for="easy-worn-haste">Worn Haste</label>
+                    <span class="text-[#d4af37] font-fantasy easy-range-readout" id="easy-worn-haste-value">41%</span>
+                  </div>
+                  <input type="range" id="easy-worn-haste" min="0" max="41" step="1" value="41" class="w-full">
+                </div>
+                <div class="easy-field pt-2">
+                  <label class="text-[10px] text-gray-400 uppercase tracking-widest block mb-3">Combat Target</label>
+                  <div class="easy-radio-row">
+                    <label>
+                      <input type="radio" name="easy-target-type" value="group" checked>
+                      <span class="easy-radio-faux" aria-hidden="true"><span class="easy-radio-faux-inner"></span></span>
+                      <span class="easy-radio-text">Group Content</span>
+                    </label>
+                    <label>
+                      <input type="radio" name="easy-target-type" value="raid">
+                      <span class="easy-radio-faux" aria-hidden="true"><span class="easy-radio-faux-inner"></span></span>
+                      <span class="easy-radio-text">Raid Content</span>
+                    </label>
+                  </div>
+                </div>
               </div>
-              <img id="easy-w1-icon" class="easy-weapon-icon is-empty" alt="Main hand weapon icon">
             </div>
-            <div class="easy-weapon-search">
-              <input type="text" id="easy-w1-item-search" placeholder="Search main hand (4+ chars)" autocomplete="off">
-              <div id="easy-w1-item-search-list" class="item-search-list" role="listbox"></div>
+            <div class="ornate-border bg-[#16161a] p-6 space-y-6 shadow-2xl">
+              <h3 class="font-fantasy text-sm text-[#d4af37] border-b border-[#d4af37]/20 pb-2 mb-2 tracking-widest">WEAPONS</h3>
+              <div class="space-y-6">
+                <div class="easy-weapon-card p-4 border border-white/5 bg-black/20 rounded-lg">
+                  <div class="easy-weapon-head">
+                    <div>
+                      <div class="flex justify-between items-start gap-2 mb-1">
+                        <span class="text-[10px] text-gray-500 uppercase">Main Hand</span>
+                      </div>
+                      <div class="easy-weapon-name" id="easy-w1-name">Main hand: Unequipped</div>
+                      <div class="easy-weapon-detail" id="easy-w1-detail">DMG: - | Delay: - | Proc: -</div>
+                    </div>
+                    <img id="easy-w1-icon" class="easy-weapon-icon is-empty" alt="Main hand weapon icon">
+                  </div>
+                  <div class="easy-weapon-search relative mt-2 rounded border border-white/5 bg-[#121216]/80 focus-within:border-[#d4af37]">
+                    <span class="easy-weapon-search-icon" aria-hidden="true"><iconify-icon icon="lucide:search"></iconify-icon></span>
+                    <input type="text" id="easy-w1-item-search" placeholder="Search main hand (4+ chars)…" autocomplete="off" class="min-w-0 flex-1 border-0 bg-transparent py-2 pr-3 text-xs outline-none">
+                    <div id="easy-w1-item-search-list" class="item-search-list" role="listbox"></div>
+                  </div>
+                </div>
+                <div class="easy-weapons-swap-wrap flex justify-center -my-2">
+                  <button type="button" id="btn-swap-weapons-easy" class="btn-swap-weapons w-8 h-8 rounded-full border-[#d4af37]/30" title="Swap main hand and offhand">
+                    <iconify-icon icon="lucide:arrow-up-down" class="text-[#d4af37] text-sm"></iconify-icon>
+                  </button>
+                </div>
+                <div class="easy-weapon-card p-4 border border-white/5 bg-black/20 rounded-lg">
+                  <div class="easy-weapon-head">
+                    <div>
+                      <div class="flex justify-between items-start gap-2 mb-1">
+                        <span class="text-[10px] text-gray-500 uppercase">Offhand</span>
+                      </div>
+                      <div class="easy-weapon-name" id="easy-w2-name">Offhand: Unequipped</div>
+                      <div class="easy-weapon-detail" id="easy-w2-detail">DMG: - | Delay: - | Proc: -</div>
+                    </div>
+                    <img id="easy-w2-icon" class="easy-weapon-icon is-empty" alt="Offhand weapon icon">
+                  </div>
+                  <div class="easy-weapon-search relative mt-2 rounded border border-white/5 bg-[#121216]/80 focus-within:border-[#d4af37]">
+                    <span class="easy-weapon-search-icon" aria-hidden="true"><iconify-icon icon="lucide:search"></iconify-icon></span>
+                    <input type="text" id="easy-w2-item-search" placeholder="Search offhand (4+ chars)…" autocomplete="off" class="min-w-0 flex-1 border-0 bg-transparent py-2 pr-3 text-xs outline-none">
+                    <div id="easy-w2-item-search-list" class="item-search-list" role="listbox"></div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
-          <div class="easy-weapons-swap-wrap">
-            <button type="button" id="btn-swap-weapons-easy" class="btn-swap-weapons" title="Swap main hand and offhand">
-              <svg class="swap-icon swap-icon-vertical" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 4l-4 4h3v4h2V8h3L12 4zm0 16l4-4h-3v-4h-2v4H8l4 4z" fill="currentColor"/></svg>
+          <div class="flex flex-col items-center gap-6 py-2">
+            <button type="button" id="btn-run-easy" class="magic-btn px-12 md:px-16 py-4 rounded-sm flex items-center justify-center gap-4 group w-full max-w-md">
+              <span class="font-fantasy text-lg md:text-xl tracking-[0.3em] text-white">CALCULATE DPS</span>
+              <iconify-icon icon="ra:lightning-bolt" class="text-2xl text-[#d4af37]"></iconify-icon>
             </button>
-          </div>
-          <div class="easy-weapon-card">
-            <div class="easy-weapon-head">
-              <div>
-                <div class="easy-weapon-name" id="easy-w2-name">Offhand: Unequipped</div>
-                <div class="easy-weapon-detail" id="easy-w2-detail">DMG: - | Delay: - | Proc: -</div>
-              </div>
-              <img id="easy-w2-icon" class="easy-weapon-icon is-empty" alt="Offhand weapon icon">
-            </div>
-            <div class="easy-weapon-search">
-              <input type="text" id="easy-w2-item-search" placeholder="Search offhand (4+ chars)" autocomplete="off">
-              <div id="easy-w2-item-search-list" class="item-search-list" role="listbox"></div>
+            <div class="flex flex-col items-center">
+              <span class="text-[10px] text-gray-500 uppercase tracking-widest mb-1">Resulting Output</span>
+              <div id="easy-dps-value" class="easy-dps-value text-4xl md:text-5xl font-fantasy text-[#d4af37]/90 tracking-tighter">—</div>
             </div>
           </div>
-          <div class="easy-actions">
-            <button type="button" id="btn-run-easy">Calculate DPS</button>
-            <div class="easy-dps">
-              <div class="easy-dps-label">Resulting DPS</div>
-              <div id="easy-dps-value" class="easy-dps-value">-</div>
+          <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 pb-4">
+            <div class="lg:col-span-2 ornate-border bg-black/20 p-6 easy-assumptions-wrap">
+              <h4 class="text-[10px] text-[#d4af37] font-bold uppercase tracking-widest mb-4 font-fantasy">Simulation Assumptions</h4>
+              <textarea id="easy-assumptions" placeholder="Configured assumptions will appear here." class="w-full min-h-[200px] resize-y bg-[#0a0a0c]/80 border border-white/10 text-gray-300 rounded p-3 focus:border-[#d4af37] outline-none"></textarea>
+            </div>
+            <div class="ornate-border bg-black/40 p-6 flex flex-col easy-history-wrap min-h-[200px]">
+              <h4 class="text-[10px] text-gray-500 font-bold uppercase tracking-widest mb-4">Session History</h4>
+              <div id="easy-result-log-list" class="flex-1 min-h-0 overflow-auto scrollbar-fantasy"></div>
             </div>
           </div>
         </div>
-      </div>
-      <div class="easy-assumptions-wrap">
-        <h3>Assumptions Made</h3>
-        <textarea id="easy-assumptions" placeholder="Configured assumptions will appear here."></textarea>
-      </div>
-      <div class="easy-history-wrap">
-        <h3>Log History</h3>
-        <div id="easy-result-log-list"></div>
-      </div>
-    </section>
+      </section>
+    </div>
+    <footer class="app-footer-easy">Designed for Project Quarm · For the love of the classic grind</footer>
   </div>
 
-  <div class="tab-bar advanced-only">
+  <div class="advanced-stack advanced-only flex flex-col flex-1 min-h-0">
+  <div class="tab-bar">
     <button type="button" class="tab-btn active" id="tab-melee" aria-selected="true">Melee</button>
     <button type="button" class="tab-btn" id="tab-ranged" aria-selected="false">Ranged</button>
   </div>
@@ -669,8 +1199,14 @@
       <div class="char-haste-inner">
         <div class="char-haste-left">
       <h2>Character & Haste</h2>
-      <div class="char-primary-row">
-        <div class="char-field"><label for="class">Class</label><select id="class">
+      <div class="char-primary-row char-primary-grid char-primary-grid--melee">
+        <label for="class">Class</label>
+        <label for="level">Level</label>
+        <label for="worn-haste">Worn haste % <span class="info-icon" title="Item haste; capped to 10% at level 1-25, uncapped at level 26+">&#8505;</span></label>
+        <label for="spell-haste">Spell haste % <span class="info-icon" title="(60% Haste + 25% v3 bard haste)">&#8505;</span></label>
+        <label for="worn-attack">Worn ATK <span class="info-icon" title="don't include atk from weapon, it will automatically be included">&#8505;</span></label>
+        <label for="spell-attack">Spell ATK</label>
+        <select id="class">
           <option value="">None (manual)</option>
           <option value="bard">Bard</option>
           <option value="beastlord">Beastlord</option>
@@ -687,12 +1223,12 @@
           <option value="shaman">Shaman</option>
           <option value="warrior">Warrior</option>
           <option value="wizard">Wizard</option>
-        </select></div>
-        <div class="char-field char-field-num"><label for="level">Level</label><input type="number" id="level" min="1" max="65" value="60" placeholder="60"></div>
-        <div class="char-field char-field-num"><label for="worn-haste">Worn haste % <span class="info-icon" title="Item haste; capped to 10% at level 1-25, uncapped at level 26+">&#8505;</span></label><input type="number" id="worn-haste" min="0" value="41" placeholder="41"></div>
-        <div class="char-field char-field-num"><label for="spell-haste">Spell haste % <span class="info-icon" title="(60% Haste + 25% v3 bard haste)">&#8505;</span></label><input type="number" id="spell-haste" min="0" value="85" placeholder="85"></div>
-        <div class="char-field char-field-num"><label for="worn-attack">Worn ATK <span class="info-icon" title="don't include atk from weapon, it will automatically be included">&#8505;</span></label><input type="number" id="worn-attack" min="0" value="0" placeholder="0"></div>
-        <div class="char-field char-field-num"><label for="spell-attack">Spell ATK</label><input type="number" id="spell-attack" min="0" value="0" placeholder="0"></div>
+        </select>
+        <input type="number" id="level" min="1" max="65" value="60" placeholder="60" size="3" inputmode="numeric" autocomplete="off">
+        <input type="number" id="worn-haste" min="0" max="999" value="41" placeholder="41" size="3" inputmode="numeric" autocomplete="off">
+        <input type="number" id="spell-haste" min="0" max="999" value="85" placeholder="85" size="3" inputmode="numeric" autocomplete="off">
+        <input type="number" id="worn-attack" min="0" max="999" value="0" placeholder="0" size="5" inputmode="numeric" autocomplete="off">
+        <input type="number" id="spell-attack" min="0" max="999" value="0" placeholder="0" size="5" inputmode="numeric" autocomplete="off">
       </div>
       <p class="hint char-hint char-hint-below-primary" id="class-hint">Class and level auto-fill skills and weapon caps. Edit below to override.</p>
       <details class="collapse-secondary char-details">
@@ -811,7 +1347,7 @@
         <div id="w1-item-search-list" class="item-search-list" role="listbox"></div>
       </div>
       <input type="hidden" id="w1-is2h-override" value="0">
-      <div class="row">
+      <div class="weapon-damage-row">
         <div><label for="w1-damage" class="small-label">Damage</label><input type="number" id="w1-damage" min="0" value="12" placeholder="0 = unequipped"></div>
         <div><label for="w1-delay" class="small-label">Delay (decisec)</label><input type="number" id="w1-delay" min="0" value="40" placeholder="0 = unequipped, 40 = 4.0s"></div>
       </div>
@@ -868,7 +1404,7 @@
         <input type="text" id="w2-item-search" placeholder="Type 4+ characters to search..." autocomplete="off">
         <div id="w2-item-search-list" class="item-search-list" role="listbox"></div>
       </div>
-      <div class="row">
+      <div class="weapon-damage-row">
         <div><label for="w2-damage" class="small-label">Damage</label><input type="number" id="w2-damage" min="0" value="0" placeholder="0 = no offhand"></div>
         <div><label for="w2-delay" class="small-label">Delay (decisec)</label><input type="number" id="w2-delay" min="0" value="0" placeholder="0"></div>
       </div>
@@ -933,11 +1469,11 @@
         <label><input type="radio" name="from-behind" value="1" checked><span class="radio-option-main">Behind</span> <span class="radio-option-note">(no dodge/parry/riposte/block)</span></label>
       </div>
       <p class="hint">Behind: misses still occur from to-hit vs avoidance; only block/parry/dodge/riposte are skipped.</p>
-      <div class="row">
+      <div class="target-fight-row">
         <div><label for="target-ac" class="small-label">Target AC</label><input type="number" id="target-ac" min="1" value="550" placeholder="550" title="Mitigation for damage roll; does not affect hit chance."></div>
         <div><label for="mob-level" class="small-label">Mob level</label><input type="number" id="mob-level" min="1" max="70" value="60" placeholder="60" title="Used for mitigation and avoidance (hit chance)."></div>
       </div>
-      <div class="row">
+      <div class="target-fight-row">
         <div><label for="duration" class="small-label">Fight duration (sec)</label><input type="number" id="duration" min="1" value="6000" placeholder="6000"></div>
         <div><label for="runs" class="small-label">Number of runs</label><input type="number" id="runs" min="1" value="20" placeholder="20"></div>
       </div>
@@ -957,10 +1493,10 @@
         <label class="checkbox-label"><input type="checkbox" id="target-undead-mob"> Undead mob</label>
         <p class="hint">When checked, the sim treats the target as undead (body type Undead). Enables undead-only procs and Paladin Slay Undead AA.</p>
       </details>
-      <button type="button" id="btn-run">Run simulation</button>
+      <button type="button" id="btn-run" class="magic-btn">Run simulation</button>
       <hr class="sim-rank-divider" aria-hidden="true">
       <span class="rank-weapons-row" id="rank-weapons-wrap">
-        <button type="button" id="btn-rank-weapons" title="Rank weapons by DPS (Shift+Click Run to show)">Rank weapons</button>
+        <button type="button" id="btn-rank-weapons" class="magic-btn btn-rank-inline" title="Rank weapons by DPS (Shift+Click Run to show)">Rank weapons</button>
         <input type="checkbox" id="rank-weapons-include-pop" style="display:none" tabindex="-1" aria-hidden="true">
         <label class="checkbox-label"><input type="checkbox" id="rank-weapons-ignore-nodrop" title="When checked, excludes items with nodrop = 0 from rank results"> Ignore No Drop items</label>
       </span>
@@ -975,16 +1511,23 @@
       <div class="char-haste-inner">
         <div class="char-haste-left">
       <h2>Character & Haste</h2>
-      <div class="char-primary-row">
-        <div class="char-field"><label for="ranged-class">Class</label><select id="ranged-class" disabled title="Ranged sim uses Ranger only.">
+      <div class="char-primary-row char-primary-grid char-primary-grid--ranged">
+        <label for="ranged-class">Class</label>
+        <label for="ranged-level">Level</label>
+        <label for="ranged-worn-haste">Worn haste % <span class="info-icon" title="Item haste; capped to 10% at level 1-25, uncapped at level 26+">&#8505;</span></label>
+        <label for="ranged-spell-haste">Spell haste % <span class="info-icon" title="(60% Haste + 25% v3 bard haste)">&#8505;</span></label>
+        <label for="ranged-quiver-weight-reduction">Quiver WR% <span class="info-icon" title="Quiver haste = (BagWR ÷ 4) ÷ 100 (EQ GetQuiverHaste). Applied after standard haste; separate from 125% cap. bow_delay_reduction = quiver_haste × speed + 1; applied only if speed − reduction > 1000 (min delay ~1s). Example: 40% WR → 10% quiver haste.">&#8505;</span></label>
+        <label for="ranged-worn-attack">Worn ATK <span class="info-icon" title="don't include atk from weapon, it will automatically be included">&#8505;</span></label>
+        <label for="ranged-spell-attack">Spell ATK</label>
+        <select id="ranged-class" disabled title="Ranged sim uses Ranger only.">
           <option value="ranger" selected>Ranger</option>
-        </select></div>
-        <div class="char-field char-field-num"><label for="ranged-level">Level</label><input type="number" id="ranged-level" min="1" max="65" value="60" placeholder="60"></div>
-        <div class="char-field char-field-num"><label for="ranged-worn-haste">Worn haste % <span class="info-icon" title="Item haste; capped to 10% at level 1-25, uncapped at level 26+">&#8505;</span></label><input type="number" id="ranged-worn-haste" min="0" value="41" placeholder="41"></div>
-        <div class="char-field char-field-num"><label for="ranged-spell-haste">Spell haste % <span class="info-icon" title="(60% Haste + 25% v3 bard haste)">&#8505;</span></label><input type="number" id="ranged-spell-haste" min="0" value="85" placeholder="85"></div>
-        <div class="char-field char-field-num"><label for="ranged-quiver-weight-reduction">Quiver WR% <span class="info-icon" title="Quiver haste = (BagWR ÷ 4) ÷ 100 (EQ GetQuiverHaste). Applied after standard haste; separate from 125% cap. bow_delay_reduction = quiver_haste × speed + 1; applied only if speed − reduction > 1000 (min delay ~1s). Example: 40% WR → 10% quiver haste.">&#8505;</span></label><input type="number" id="ranged-quiver-weight-reduction" min="0" max="100" value="0" placeholder="e.g. 40 for 40% WR"></div>
-        <div class="char-field char-field-num"><label for="ranged-worn-attack">Worn ATK <span class="info-icon" title="don't include atk from weapon, it will automatically be included">&#8505;</span></label><input type="number" id="ranged-worn-attack" min="0" value="0" placeholder="0"></div>
-        <div class="char-field char-field-num"><label for="ranged-spell-attack">Spell ATK</label><input type="number" id="ranged-spell-attack" min="0" value="0" placeholder="0"></div>
+        </select>
+        <input type="number" id="ranged-level" min="1" max="65" value="60" placeholder="60" size="3" inputmode="numeric" autocomplete="off">
+        <input type="number" id="ranged-worn-haste" min="0" max="999" value="41" placeholder="41" size="3" inputmode="numeric" autocomplete="off">
+        <input type="number" id="ranged-spell-haste" min="0" max="999" value="85" placeholder="85" size="3" inputmode="numeric" autocomplete="off">
+        <input type="number" id="ranged-quiver-weight-reduction" min="0" max="100" value="0" placeholder="e.g. 40" size="3" inputmode="numeric" autocomplete="off">
+        <input type="number" id="ranged-worn-attack" min="0" max="999" value="0" placeholder="0" size="5" inputmode="numeric" autocomplete="off">
+        <input type="number" id="ranged-spell-attack" min="0" max="999" value="0" placeholder="0" size="5" inputmode="numeric" autocomplete="off">
       </div>
       <p class="hint char-hint char-hint-below-primary">Ranged sim uses Ranger only. Level and haste affect offense and delay.</p>
       <details class="collapse-secondary">
@@ -1026,7 +1569,7 @@
         <input type="text" id="ranged-weapon-item-search" placeholder="Type 4+ characters to search..." autocomplete="off">
         <div id="ranged-weapon-item-search-list" class="item-search-list" role="listbox"></div>
       </div>
-      <div class="row">
+      <div class="weapon-damage-row">
         <div><label for="ranged-damage" class="small-label">Damage</label><input type="number" id="ranged-damage" min="1" value="12" placeholder="e.g. 12"></div>
         <div><label for="ranged-delay" class="small-label">Delay (decisec)</label><input type="number" id="ranged-delay" min="10" value="40" placeholder="40 = 4.0s"></div>
       </div>
@@ -1096,11 +1639,11 @@
         <label><input type="radio" name="ranged-from-behind" value="1" checked><span class="radio-option-main">Behind</span> <span class="radio-option-note">(no dodge/parry/riposte/block)</span></label>
       </div>
       <p class="hint">Behind: misses still occur from to-hit vs avoidance; only block/parry/dodge/riposte are skipped.</p>
-      <div class="row">
+      <div class="target-fight-row">
         <div><label for="ranged-target-ac" class="small-label">Target AC</label><input type="number" id="ranged-target-ac" min="1" value="300" placeholder="300"></div>
         <div><label for="ranged-mob-level" class="small-label">Mob level</label><input type="number" id="ranged-mob-level" min="1" max="70" value="60" placeholder="60"></div>
       </div>
-      <div class="row">
+      <div class="target-fight-row">
         <div><label for="ranged-duration" class="small-label">Fight duration (sec)</label><input type="number" id="ranged-duration" min="1" value="6000" placeholder="6000"></div>
         <div><label for="ranged-runs" class="small-label">Number of runs</label><input type="number" id="ranged-runs" min="1" value="20" placeholder="20"></div>
       </div>
@@ -1118,10 +1661,10 @@
         <label class="checkbox-label"><input type="checkbox" id="ranged-apply-bane"> Apply Bane Damage</label>
         <p class="hint">When checked, ranged weapon bane damage is added to base damage.</p>
       </details>
-      <button type="button" id="btn-run-ranged">Run simulation</button>
+      <button type="button" id="btn-run-ranged" class="magic-btn">Run simulation</button>
       <span class="rank-weapons-row" id="rank-ranged-weapons-wrap" style="margin-left: 0.5rem;">
-        <button type="button" id="btn-rank-ranged-weapons" title="Rank bow + arrow combinations by DPS (ranger, bows and arrows only)">Rank weapons</button>
-        <label class="checkbox-label"><input type="checkbox" id="rank-ranged-include-pop" title="When checked, rank bows from popweapons.json instead of luclinweapons.json"> Include PoP weapons</label>
+        <button type="button" id="btn-rank-ranged-weapons" class="magic-btn btn-rank-inline" title="Rank bow + arrow combinations by DPS (ranger, bows and arrows only)">Rank weapons</button>
+        <label class="checkbox-label"><input type="checkbox" id="rank-ranged-include-pop" title="When checked, include PoP-era items from weapons.json"> Include PoP weapons</label>
       </span>
       <details id="item-search-debug-ranged" class="item-search-debug" style="margin-top: 0.75rem; padding: 0.5rem; background: var(--panel); border: 1px solid var(--border); border-radius: 4px;">
         <summary style="cursor: pointer; font-size: 0.85rem; color: var(--muted);">Item search debug</summary>
@@ -1177,6 +1720,8 @@
   <section class="advanced-only" style="margin-top: 1rem;">
     <h2>Version log</h2>
     <ul style="font-size: 0.9rem; color: var(--muted); margin: 0; padding-left: 1.25rem;">
+      <li><strong>1.07</strong> — UI overhauled (Easy and Advanced: layout, theming, alignment, and controls). Weapon search system cleaned up and refined (merged offline data, filters, rank/search behavior, and related UX).</li>
+      <li><strong>1.06</strong> — Item search is fully offline using merged <code>resources/weapons.json</code> (no remote ItemSearch API). Weapon data is merged from weaponlist/luclin/pop with per-item <code>expansion</code> and <code>resources/weapon_exclusions.json</code> for rank/search filters. Reports show approximate <strong>TPS</strong> (threat per second) from swing hate + capped proc hate (<code>threat.js</code> / EQMacEmu-style). Run <code>node scripts/merge-weapons.mjs</code> after editing source JSON. Fixed JSON syntax in <code>popweapons.json</code> (missing comma).</li>
       <li><strong>1.05</strong> — Improved BS mod application and worn ATK behavior in the `rankWeapons` function. Bane damage now auto-applies; Seru and Emp can only be hurt by bane weapons. Weapon rank now outputs phase-by-phase results. Added a synthetic combat-log mode (1 run supported only) and `.txt` export compatible with normal fight-log parsers. Improved some Monk fistweaving logic.</li>
       <li><strong>1.04</strong> — Updated a lot of the ranged damage simulation in advanced mode. Weapon search is improved and filters are better, quiver WR calculations are in. Ranger atk rating bonus is in. Elemental damage from bows and arrows now works. Archery skill modifiers are now in. Updated backstab damage model to address a fencepost issue.</li>
       <li><strong>1.03</strong> — Added some previously unsearchable or missing weapons (including monk Velious fists). Removed use of the external ItemSearch API in favor of the integrated item lists only. Implemented quick weapon swap on the Easy mode UI. Updated backstab reporting data. Simulations can now be run with only one weapon equipped. Ranged damage simulation now searches correctly. Trueshot can be toggled on the ranged simulator.</li>
@@ -1196,7 +1741,9 @@
       <li><strong>0.1</strong> — Initial release. Melee combat sim with DA/DW, damage bonus, crits, procs, histogram.</li>
     </ul>
   </section>
+  </div>
 
+  <div class="site-footer-links">
   <p class="muted" style="margin-top: 1.5rem; font-size: 0.85rem;">Made by Gabbiz · <button type="button" id="submit-issue-open" class="link-button" style="background:none;border:none;padding:0;font:inherit;color:var(--accent);cursor:pointer;text-decoration:underline;">Report bug / Request feature</button></p>
 
   <div id="submit-issue-overlay" class="submit-issue-overlay" aria-hidden="true">
@@ -1229,10 +1776,18 @@
   <p class="muted" style="margin-top: 0.35rem; font-size: 0.85rem;">
     <a href="mechanics-guide.html" style="color: var(--accent);">Damage Mechanics Guide</a> - transparent breakdown of formulas, ATK/AC behavior, and prioritization.
   </p>
+  </div>
 
+  <script src="threat.js"></script>
   <script src="combat.js"></script>
   <script src="weaponSkillCaps.js"></script>
   <script src="itemSearch.js"></script>
+  <!-- Bundled JSON as JS (npm run build-file-bundles). Required for file:// — fetch() to local JSON is CORS-blocked. -->
+  <script src="resources/weapons-data.js"></script>
+  <script src="resources/procrates-data.js"></script>
+  <script src="resources/npc_types-data.js"></script>
+  <script src="resources/spells-data.js"></script>
+  <script src="resources/weapon_shortlist-data.js"></script>
   <!-- Load itemSearchConfig.js only locally (file is gitignored; on Vercel we use /api/item-search with env key) -->
   <script>
     if (location.hostname === 'localhost' || location.protocol === 'file:') {
@@ -1246,6 +1801,13 @@
       function ensureLocalSpellDataLoaded() {
         if (localSpellData && typeof localSpellData === 'object') return Promise.resolve(localSpellData);
         if (spellDataLoadPromise) return spellDataLoadPromise;
+        var spellBundle = typeof window !== 'undefined' ? window.__DPS_SPELLS_EN__ : null;
+        if (spellBundle && typeof spellBundle === 'object' && Object.keys(spellBundle).length > 0) {
+          localSpellData = spellBundle;
+          if (typeof ItemSearch !== 'undefined' && ItemSearch.setSpellData) ItemSearch.setSpellData(localSpellData);
+          spellDataLoadPromise = Promise.resolve(localSpellData);
+          return spellDataLoadPromise;
+        }
         spellDataLoadPromise = fetch('resources/spells_en.json')
           .then(function (r) { return r.ok ? r.json() : null; })
           .then(function (data) {
@@ -1257,11 +1819,7 @@
         return spellDataLoadPromise;
       }
       if (typeof ItemSearch !== 'undefined') {
-        if (typeof ITEM_SEARCH_CONFIG !== 'undefined') {
-          ItemSearch.setConfig(ITEM_SEARCH_CONFIG);
-        } else {
-          ItemSearch.setConfig({ proxyUrl: '/api/item-search' });
-        }
+        ItemSearch.setLocalSearchOnlyMode();
       }
       ensureLocalSpellDataLoaded();
       const $ = (id) => document.getElementById(id);
@@ -1290,108 +1848,224 @@
         return name != null ? (n + ' (' + name + ')') : (n + ' (Unknown)');
       }
       var npcTypesList = [];
-      fetch('resources/npc_types.json')
-        .then(function (r) { return r.ok ? r.json() : null; })
-        .then(function (data) { npcTypesList = Array.isArray(data) ? data : []; })
-        .catch(function () {});
+      (function initNpcTypesFromBundle() {
+        var b = typeof window !== 'undefined' ? window.__DPS_NPC_TYPES__ : null;
+        if (Array.isArray(b) && b.length > 0) npcTypesList = b;
+      })();
+      if (!npcTypesList.length) {
+        fetch('resources/npc_types.json')
+          .then(function (r) { return r.ok ? r.json() : null; })
+          .then(function (data) { npcTypesList = Array.isArray(data) ? data : []; })
+          .catch(function () {});
+      }
       /** Item ID -> { procrate, ... } from resources/procrates.json; used to override proc rate when weapon is selected from search. */
       var procRatesByItemId = {};
-      fetch('resources/procrates.json')
-        .then(function (r) { return r.ok ? r.json() : null; })
-        .then(function (data) { procRatesByItemId = data && typeof data === 'object' ? data : {}; })
-        .catch(function () {});
-      /** Item ID -> raw item from resources/weaponlist.json; used when "Use ItemSearch API" is unchecked and for ranged rank arrows. */
+      (function initProcratesFromBundle() {
+        var b = typeof window !== 'undefined' ? window.__DPS_PROCRATES__ : null;
+        if (b && typeof b === 'object' && Object.keys(b).length > 0) procRatesByItemId = b;
+      })();
+      if (!Object.keys(procRatesByItemId).length) {
+        fetch('resources/procrates.json')
+          .then(function (r) { return r.ok ? r.json() : null; })
+          .then(function (data) { procRatesByItemId = data && typeof data === 'object' ? data : {}; })
+          .catch(function () {});
+      }
+      /** Canonical merged weapons (weaponlist + luclin + pop) with per-item expansion; see resources/weapon_exclusions.json */
+      var allWeaponsData = {};
+      var weaponExclusions = { global: [], fromRank: [], fromSearch: [] };
+      /** @deprecated Use allWeaponsData; kept as same reference for legacy lookups. */
       var weaponListData = {};
-      var weaponListLoadPromise = fetch('resources/weaponlist.json')
-        .then(function (r) { return r.ok ? r.json() : null; })
-        .then(function (data) {
-          weaponListData = data && typeof data === 'object' ? data : {};
-          if (weaponListData['9418']) delete weaponListData['9418'];
-          if (weaponListData['32002']) delete weaponListData['32002'];
-          return weaponListData;
-        })
-        .catch(function () { return {}; });
+      var EXPANSION_ORDER = { classic: 0, luclin: 1, pop: 2 };
+      function expansionTier(exp) {
+        var t = EXPANSION_ORDER[exp];
+        return t != null ? t : 0;
+      }
+      function weaponAllowedForRank(id, raw, includePop) {
+        var sid = String(id);
+        if (weaponExclusions.global.indexOf(sid) >= 0) return false;
+        if (weaponExclusions.fromRank.indexOf(sid) >= 0) return false;
+        var exp = (raw && raw.expansion) ? raw.expansion : 'classic';
+        if (!includePop && expansionTier(exp) >= EXPANSION_ORDER.pop) return false;
+        return true;
+      }
+      function weaponAllowedForSearch(id) {
+        var sid = String(id);
+        if (weaponExclusions.global.indexOf(sid) >= 0) return false;
+        if (weaponExclusions.fromSearch.indexOf(sid) >= 0) return false;
+        return true;
+      }
+      /** Melee/backstab/swing damage + proc spell damage for that slot (matches report.totalDamage split by weapon). */
+      function weaponSlotDamageForDpsReport(w) {
+        if (!w || typeof w !== 'object') return 0;
+        var melee = w.totalDamage != null ? Number(w.totalDamage) : 0;
+        var proc = w.procDamageTotal != null ? Number(w.procDamageTotal) : 0;
+        return melee + proc;
+      }
+      /** damage/delay (EQ item fields); skip junk weapons during rank to cut sim count. */
+      function weaponMeetsRankDamageDelayRatio(raw) {
+        if (!raw || typeof raw !== 'object') return false;
+        var d = raw.damage != null ? Number(raw.damage) : NaN;
+        var del = raw.delay != null ? Number(raw.delay) : NaN;
+        if (!isFinite(d) || !isFinite(del) || d < 1 || del < 1) return false;
+        return (d / del) >= 0.5;
+      }
+      /** Same merge as scripts/merge-weapons.mjs: pop > luclin > classic. */
+      function mergeLegacyWeaponFiles(wl, lu, po) {
+        wl = wl && typeof wl === 'object' ? wl : {};
+        lu = lu && typeof lu === 'object' ? lu : {};
+        po = po && typeof po === 'object' ? po : {};
+        var out = {};
+        var allIds = {};
+        function addKeys(obj) {
+          Object.keys(obj).forEach(function (k) { allIds[k] = true; });
+        }
+        addKeys(wl);
+        addKeys(lu);
+        addKeys(po);
+        Object.keys(allIds).forEach(function (id) {
+          var expansion = po[id] ? 'pop' : lu[id] ? 'luclin' : 'classic';
+          var raw = po[id] || lu[id] || wl[id];
+          if (!raw || typeof raw !== 'object') return;
+          out[id] = Object.assign({}, raw, { expansion: expansion });
+        });
+        return out;
+      }
+      function applyWeaponExclusions(ex) {
+        weaponExclusions = ex && typeof ex === 'object' ? ex : { global: [], fromRank: [], fromSearch: [] };
+        if (!Array.isArray(weaponExclusions.global)) weaponExclusions.global = [];
+        if (!Array.isArray(weaponExclusions.fromRank)) weaponExclusions.fromRank = [];
+        if (!Array.isArray(weaponExclusions.fromSearch)) weaponExclusions.fromSearch = [];
+      }
+      function assignWeaponDataAliases() {
+        weaponListData = allWeaponsData;
+      }
+      /** Populated by resources/weapons-data.js (from merge-weapons) so file:// pages can load weapons without fetch. */
+      function getBundledWeaponsFromWindow() {
+        var w = typeof window !== 'undefined' ? window.__DPS_WEAPONS_MERGED__ : null;
+        if (w && typeof w === 'object' && Object.keys(w).length > 0) return w;
+        return null;
+      }
+      function getBundledExclusionsFromWindow() {
+        var ex = typeof window !== 'undefined' ? window.__DPS_WEAPON_EXCLUSIONS__ : null;
+        if (ex && typeof ex === 'object') return ex;
+        return null;
+      }
+      function getBundledNpcTypesFromWindow() {
+        var a = typeof window !== 'undefined' ? window.__DPS_NPC_TYPES__ : null;
+        if (Array.isArray(a) && a.length > 0) return a;
+        return null;
+      }
+      function getBundledProcratesFromWindow() {
+        var o = typeof window !== 'undefined' ? window.__DPS_PROCRATES__ : null;
+        if (o && typeof o === 'object' && Object.keys(o).length > 0) return o;
+        return null;
+      }
+      function getBundledSpellsFromWindow() {
+        var o = typeof window !== 'undefined' ? window.__DPS_SPELLS_EN__ : null;
+        if (o && typeof o === 'object' && Object.keys(o).length > 0) return o;
+        return null;
+      }
+      function getBundledWeaponShortlistFromWindow() {
+        var o = typeof window !== 'undefined' ? window.__DPS_WEAPON_SHORTLIST__ : null;
+        if (o && typeof o === 'object' && Object.keys(o).length > 0) return o;
+        return null;
+      }
+      function showFileProtocolDataHelpIfNeeded() {
+        if (location.protocol !== 'file:') return;
+        var missWeapons = !getBundledWeaponsFromWindow();
+        var missNpc = !getBundledNpcTypesFromWindow();
+        var missProcrates = !getBundledProcratesFromWindow();
+        var missSpells = !getBundledSpellsFromWindow();
+        var missShortlist = !getBundledWeaponShortlistFromWindow();
+        if (!missWeapons && !missNpc && !missProcrates && !missSpells && !missShortlist) return;
+        setTimeout(function () {
+          var host = document.querySelector('.grid') || document.body;
+          if (!host || document.getElementById('dps-file-protocol-data-hint')) return;
+          var el = document.createElement('div');
+          el.id = 'dps-file-protocol-data-hint';
+          el.setAttribute('role', 'status');
+          el.style.cssText = 'background:#2a1f1f;border:1px solid #a65;padding:0.75rem 1rem;border-radius:8px;margin:0 0 1rem 0;font-size:0.9rem;line-height:1.45;';
+          var parts = [];
+          if (missWeapons) parts.push('item search (<code style="background:#1e2128;padding:0.1em 0.35em;border-radius:4px;">weapons-data.js</code>)');
+          if (missNpc) parts.push('target NPC search (<code style="background:#1e2128;padding:0.1em 0.35em;border-radius:4px;">npc_types-data.js</code>)');
+          if (missProcrates) parts.push('proc rate overrides (<code style="background:#1e2128;padding:0.1em 0.35em;border-radius:4px;">procrates-data.js</code>)');
+          if (missSpells) parts.push('spell data / proc math (<code style="background:#1e2128;padding:0.1em 0.35em;border-radius:4px;">spells-data.js</code>)');
+          if (missShortlist) parts.push('weapon shortlist (<code style="background:#1e2128;padding:0.1em 0.35em;border-radius:4px;">weapon_shortlist-data.js</code>)');
+          el.innerHTML =
+            '<strong>Opened as a local file (file://)</strong> — browsers block loading JSON with <code style="background:#1e2128;padding:0.1em 0.35em;border-radius:4px;">fetch</code> (CORS). Missing: ' +
+            parts.join(', ') +
+            '. Run <code style="background:#1e2128;padding:0.1em 0.35em;border-radius:4px;">npm run build-file-bundles</code>, then reload. ' +
+            'Or use <code style="background:#1e2128;padding:0.1em 0.35em;border-radius:4px;">npm run serve</code> and open the <code style="background:#1e2128;padding:0.1em 0.35em;border-radius:4px;">http://</code> URL.';
+          host.insertBefore(el, host.firstChild);
+        }, 0);
+      }
+      showFileProtocolDataHelpIfNeeded();
+      /** If weapons.json is missing/empty (e.g. not deployed), merge legacy JSON files client-side. */
+      function loadWeaponsFallbackMerge() {
+        return Promise.all([
+          fetch('resources/weaponlist.json').then(function (r) { return r.ok ? r.json() : {}; }),
+          fetch('resources/luclinweapons.json').then(function (r) { return r.ok ? r.json() : {}; }),
+          fetch('resources/popweapons.json').then(function (r) { return r.ok ? r.json() : {}; }),
+          fetch('resources/weapon_exclusions.json').then(function (r) { return r.ok ? r.json() : null; })
+        ]).then(function (arr) {
+          var merged = mergeLegacyWeaponFiles(arr[0], arr[1], arr[2]);
+          allWeaponsData = merged && typeof merged === 'object' ? merged : {};
+          applyWeaponExclusions(arr[3]);
+          assignWeaponDataAliases();
+          return allWeaponsData;
+        }).catch(function () {
+          allWeaponsData = {};
+          applyWeaponExclusions(null);
+          assignWeaponDataAliases();
+          return allWeaponsData;
+        });
+      }
+      var weaponListLoadPromise = (function () {
+        var bundled = getBundledWeaponsFromWindow();
+        if (bundled) {
+          allWeaponsData = bundled;
+          applyWeaponExclusions(getBundledExclusionsFromWindow());
+          assignWeaponDataAliases();
+          return Promise.resolve(allWeaponsData);
+        }
+        return Promise.all([
+          fetch('resources/weapons.json').then(function (r) { return r.ok ? r.json() : null; }),
+          fetch('resources/weapon_exclusions.json').then(function (r) { return r.ok ? r.json() : null; })
+        ]).then(function (arr) {
+          var data = arr[0];
+          applyWeaponExclusions(arr[1]);
+          if (data && typeof data === 'object' && Object.keys(data).length > 0) {
+            allWeaponsData = data;
+            assignWeaponDataAliases();
+            return allWeaponsData;
+          }
+          return loadWeaponsFallbackMerge();
+        }).catch(function () {
+          return loadWeaponsFallbackMerge();
+        });
+      })();
       /** Item ID -> raw item from resources/weapon_shortlist.json (legacy). */
       var weaponShortlistData = {};
-      fetch('resources/weapon_shortlist.json')
-        .then(function (r) { return r.ok ? r.json() : null; })
-        .then(function (data) {
-          weaponShortlistData = data && typeof data === 'object' ? data : {};
+      (function initWeaponShortlistFromBundle() {
+        var b = typeof window !== 'undefined' ? window.__DPS_WEAPON_SHORTLIST__ : null;
+        if (b && typeof b === 'object' && Object.keys(b).length > 0) {
+          weaponShortlistData = b;
           if (weaponShortlistData['9418']) delete weaponShortlistData['9418'];
           if (weaponShortlistData['32002']) delete weaponShortlistData['32002'];
-        })
-        .catch(function () {});
-      /** Both rank weapon lists are loaded at launch; Rank Weapons uses one or the other based on the "Include PoP weapons" checkbox. */
-      /** Item ID -> raw item from resources/luclinweapons.json; used when Include PoP is unchecked. */
-      var luclinWeaponsData = {};
-      var luclinWeaponsLoadPromise = fetch('resources/luclinweapons.json')
-        .then(function (r) { return r.ok ? r.json() : null; })
-        .then(function (data) {
-          luclinWeaponsData = data && typeof data === 'object' ? data : {};
-          if (luclinWeaponsData['9418']) delete luclinWeaponsData['9418'];
-          if (luclinWeaponsData['32002']) delete luclinWeaponsData['32002'];
-          // PoP-classified items excluded from Luclin list.
-          if (luclinWeaponsData['9784']) delete luclinWeaponsData['9784'];   // Honed Blade of the Ykesha
-          if (luclinWeaponsData['22891']) delete luclinWeaponsData['22891']; // Troubadour's Mace
-          if (luclinWeaponsData['22979']) delete luclinWeaponsData['22979']; // Falchion of Storms
-          if (luclinWeaponsData['23543']) delete luclinWeaponsData['23543']; // Fearful Honed Blade of the Ykesha
-          if (luclinWeaponsData['23554']) delete luclinWeaponsData['23554']; // Hateful Honed Blade of the Ykesha
-          if (luclinWeaponsData['23565']) delete luclinWeaponsData['23565']; // Vengeful Honed Blade of the Ykesha
-          if (luclinWeaponsData['24581']) delete luclinWeaponsData['24581']; // Engraved Shard of Bone
-          if (luclinWeaponsData['24583']) delete luclinWeaponsData['24583']; // Gladiators Jereed
-          if (luclinWeaponsData['24588']) delete luclinWeaponsData['24588']; // Greycloud Dirk
-          if (luclinWeaponsData['24593']) delete luclinWeaponsData['24593']; // Calamitous Hilted Fang
-          if (luclinWeaponsData['24693']) delete luclinWeaponsData['24693']; // Battle Drummer's Main-Gauche
-          // Requested no-drop exclusions.
-          if (luclinWeaponsData['10687']) delete luclinWeaponsData['10687']; // Long Sword of Ethereal Energy
-          if (luclinWeaponsData['22964']) delete luclinWeaponsData['22964']; // Curved Claws
-          if (luclinWeaponsData['22965']) delete luclinWeaponsData['22965']; // Defenders Lightblade
-          if (luclinWeaponsData['23544']) delete luclinWeaponsData['23544']; // Fearful Glyphed Falchion
-          if (luclinWeaponsData['23549']) delete luclinWeaponsData['23549']; // Fearful Reshapen Sharkbone Hammer
-          if (luclinWeaponsData['23556']) delete luclinWeaponsData['23556']; // Hateful Acrylia-Bladed Wakizashi
-          if (luclinWeaponsData['23557']) delete luclinWeaponsData['23557']; // Hateful Polished Obsidian Shard
-          if (luclinWeaponsData['23568']) delete luclinWeaponsData['23568']; // Vengeful Polished Obsidian Shard
-          if (luclinWeaponsData['23548']) delete luclinWeaponsData['23548']; // Fearful Lacquered Black Mace
-          if (luclinWeaponsData['23546']) delete luclinWeaponsData['23546']; // Fearful Polished Obsidian Shard
-          if (luclinWeaponsData['23545']) delete luclinWeaponsData['23545']; // Fearful Acrylia-Bladed Wakizashi
-          if (luclinWeaponsData['23555']) delete luclinWeaponsData['23555']; // Hateful Glyphed Falchion
-          if (luclinWeaponsData['23559']) delete luclinWeaponsData['23559']; // Hateful Lacquered Black Mace
-          if (luclinWeaponsData['23560']) delete luclinWeaponsData['23560']; // Hateful Reshapen Sharkbone Hammer
-          if (luclinWeaponsData['23566']) delete luclinWeaponsData['23566']; // Vengeful Glyphed Falchion
-          if (luclinWeaponsData['23567']) delete luclinWeaponsData['23567']; // Vengeful Acrylia-Bladed Wakizashi
-          if (luclinWeaponsData['23570']) delete luclinWeaponsData['23570']; // Vengeful Lacquered Black Mace
-          if (luclinWeaponsData['23571']) delete luclinWeaponsData['23571']; // Vengeful Reshapen Sharkbone Hammer
-          if (luclinWeaponsData['9786']) delete luclinWeaponsData['9786'];   // Acrylia-Bladed Wakizashi
-          if (luclinWeaponsData['9790']) delete luclinWeaponsData['9790'];   // Reshapen Sharkbone Hammer
-          if (luclinWeaponsData['24567']) delete luclinWeaponsData['24567']; // Malarian Wing Blade
-          if (luclinWeaponsData['24577']) delete luclinWeaponsData['24577']; // Slarghilug Spear
-          return luclinWeaponsData;
-        })
-        .catch(function () { luclinWeaponsData = {}; return luclinWeaponsData; });
-      /** Item ID -> raw item from resources/popweapons.json (Planes of Power); used when Include PoP is checked. */
-      var popWeaponsData = {};
-      var popWeaponsLoadPromise = fetch('resources/popweapons.json')
-        .then(function (r) { return r.ok ? r.json() : null; })
-        .then(function (data) {
-          popWeaponsData = data && typeof data === 'object' ? data : {};
-          if (popWeaponsData['9418']) delete popWeaponsData['9418'];
-          if (popWeaponsData['32002']) delete popWeaponsData['32002'];
-          return popWeaponsData;
-        })
-        .catch(function () { popWeaponsData = {}; return popWeaponsData; });
-      /** When Rank weapons is run with Include PoP checked, call this to ensure popweapons.json is loaded before ranking. Loads the file now if not already loaded. */
-      function ensurePopWeaponsLoaded() {
-        if (popWeaponsData && typeof popWeaponsData === 'object' && Object.keys(popWeaponsData).length > 0)
-          return Promise.resolve(popWeaponsData);
-        return fetch('resources/popweapons.json')
+        }
+      })();
+      if (!Object.keys(weaponShortlistData).length) {
+        fetch('resources/weapon_shortlist.json')
           .then(function (r) { return r.ok ? r.json() : null; })
           .then(function (data) {
-            popWeaponsData = data && typeof data === 'object' ? data : {};
-            if (popWeaponsData['9418']) delete popWeaponsData['9418'];
-            if (popWeaponsData['32002']) delete popWeaponsData['32002'];
-            return popWeaponsData;
+            weaponShortlistData = data && typeof data === 'object' ? data : {};
+            if (weaponShortlistData['9418']) delete weaponShortlistData['9418'];
+            if (weaponShortlistData['32002']) delete weaponShortlistData['32002'];
           })
-          .catch(function () { popWeaponsData = {}; return popWeaponsData; });
+          .catch(function () {});
+      }
+      function ensurePopWeaponsLoaded() {
+        return weaponListLoadPromise;
       }
 
       // ----- Background usage log (no UI). Set USAGE_LOG_URL to your endpoint to enable.
@@ -1419,7 +2093,7 @@
       }
 
       // When releasing: 1) Bump VERSION below. 2) Add a new <li> at the top of the Version log section above.
-      const VERSION = '1.05';
+      const VERSION = '1.07';
       const versionEl = $('app-version');
       if (versionEl) versionEl.textContent = 'v' + VERSION;
 
@@ -1750,7 +2424,7 @@
           var presetEl = $(prefix + '-preset');
           var presetId = presetEl && presetEl.value ? String(presetEl.value) : '';
           if (presetId && presetId !== 'unequipped') {
-            var raw = (weaponListData && weaponListData[presetId]) || (luclinWeaponsData && luclinWeaponsData[presetId]) || (popWeaponsData && popWeaponsData[presetId]) || (procRatesByItemId && procRatesByItemId[presetId]) || null;
+            var raw = (allWeaponsData && allWeaponsData[presetId]) || (procRatesByItemId && procRatesByItemId[presetId]) || null;
             var modFromRaw = getBackstabModPercentFromRawItem(raw);
             if (modFromRaw != null && modFromRaw > 0) return modFromRaw;
             var preset = (typeof WEAPON_PRESETS !== 'undefined' && WEAPON_PRESETS && WEAPON_PRESETS[presetId]) ? WEAPON_PRESETS[presetId] : null;
@@ -1782,7 +2456,7 @@
           var presetEl = $(prefix + '-preset');
           var presetId = presetEl && presetEl.value ? String(presetEl.value) : '';
           if (presetId && presetId !== 'unequipped') {
-            var raw = (weaponListData && weaponListData[presetId]) || (luclinWeaponsData && luclinWeaponsData[presetId]) || (popWeaponsData && popWeaponsData[presetId]) || (procRatesByItemId && procRatesByItemId[presetId]) || null;
+            var raw = (allWeaponsData && allWeaponsData[presetId]) || (procRatesByItemId && procRatesByItemId[presetId]) || null;
             var modFromRaw = getTwoHsSkillModFromRawItem(raw);
             if (modFromRaw != null && modFromRaw > 0) return modFromRaw;
           }
@@ -1814,7 +2488,7 @@
           var presetEl = $(prefix + '-preset');
           var presetId = presetEl && presetEl.value ? String(presetEl.value) : '';
           if (presetId && presetId !== 'unequipped') {
-            var raw = (weaponListData && weaponListData[presetId]) || (luclinWeaponsData && luclinWeaponsData[presetId]) || (popWeaponsData && popWeaponsData[presetId]) || (typeof procRatesByItemId !== 'undefined' && procRatesByItemId && procRatesByItemId[presetId]) || null;
+            var raw = (allWeaponsData && allWeaponsData[presetId]) || (typeof procRatesByItemId !== 'undefined' && procRatesByItemId && procRatesByItemId[presetId]) || null;
             var atkFromRaw = getWornAttackBonusFromRawItem(raw);
             if (atkFromRaw > 0) return atkFromRaw;
             var presetObj = typeof WEAPON_PRESETS !== 'undefined' && WEAPON_PRESETS && WEAPON_PRESETS[presetId];
@@ -1934,7 +2608,7 @@
 
       function applyWeaponPreset(prefix, id) {
         const p = id ? WEAPON_PRESETS[id] : null;
-        const raw = id ? ((typeof weaponListData !== 'undefined' && weaponListData && weaponListData[id]) || (typeof luclinWeaponsData !== 'undefined' && luclinWeaponsData && luclinWeaponsData[id]) || (typeof popWeaponsData !== 'undefined' && popWeaponsData && popWeaponsData[id]) || (typeof procRatesByItemId !== 'undefined' && procRatesByItemId && procRatesByItemId[id])) : null;
+        const raw = id ? ((typeof allWeaponsData !== 'undefined' && allWeaponsData && allWeaponsData[id]) || (typeof procRatesByItemId !== 'undefined' && procRatesByItemId && procRatesByItemId[id])) : null;
         const pType2H = p && p.type && (p.type.toLowerCase() === '2hb' || p.type.toLowerCase() === '2hs' || p.type.toLowerCase() === '2hp' || p.type.toLowerCase() === 'bow');
         if (prefix === 'w1') {
           w1WeaponType = (p && p.type) ? p.type : null;
@@ -2791,7 +3465,7 @@
       function getItemProcLevelById(itemId) {
         if (itemId == null || itemId === '') return null;
         var id = String(itemId);
-        var raw = (weaponListData && weaponListData[id]) || (luclinWeaponsData && luclinWeaponsData[id]) || (popWeaponsData && popWeaponsData[id]) || (procRatesByItemId && procRatesByItemId[id]) || null;
+        var raw = (allWeaponsData && allWeaponsData[id]) || (procRatesByItemId && procRatesByItemId[id]) || null;
         if (!raw || typeof raw !== 'object') return null;
         var pl = raw.proclevel != null ? Number(raw.proclevel) : (raw.procLevel != null ? Number(raw.procLevel) : null);
         return (pl != null && !isNaN(pl) && pl > 0) ? pl : null;
@@ -2799,14 +3473,14 @@
       function getItemWornAttackById(itemId) {
         if (itemId == null || itemId === '') return 0;
         var id = String(itemId);
-        var raw = (weaponListData && weaponListData[id]) || (luclinWeaponsData && luclinWeaponsData[id]) || (popWeaponsData && popWeaponsData[id]) || null;
+        var raw = (allWeaponsData && allWeaponsData[id]) || null;
         if (!raw || typeof raw !== 'object') return 0;
         return getWornAttackBonusFromRawItem(raw);
       }
       function getItemBaneAmountById(itemId) {
         if (itemId == null || itemId === '') return null;
         var id = String(itemId);
-        var raw = (weaponListData && weaponListData[id]) || (luclinWeaponsData && luclinWeaponsData[id]) || (popWeaponsData && popWeaponsData[id]) || (typeof procRatesByItemId !== 'undefined' && procRatesByItemId && procRatesByItemId[id]) || null;
+        var raw = (allWeaponsData && allWeaponsData[id]) || (typeof procRatesByItemId !== 'undefined' && procRatesByItemId && procRatesByItemId[id]) || null;
         if (!raw || typeof raw !== 'object') return null;
         var amt = raw.banedmgamt != null ? raw.banedmgamt : (raw.baneDmgAmt != null ? raw.baneDmgAmt : (raw.baneDamage != null ? raw.baneDamage : (raw.BaneDmgAmt != null ? raw.BaneDmgAmt : (raw.bane_damage_amt != null ? raw.bane_damage_amt : null))));
         if (amt == null || amt === '') return null;
@@ -2816,7 +3490,7 @@
       function getItemBaneRaceById(itemId) {
         if (itemId == null || itemId === '') return null;
         var id = String(itemId);
-        var raw = (weaponListData && weaponListData[id]) || (luclinWeaponsData && luclinWeaponsData[id]) || (popWeaponsData && popWeaponsData[id]) || (typeof procRatesByItemId !== 'undefined' && procRatesByItemId && procRatesByItemId[id]) || null;
+        var raw = (allWeaponsData && allWeaponsData[id]) || (typeof procRatesByItemId !== 'undefined' && procRatesByItemId && procRatesByItemId[id]) || null;
         if (!raw || typeof raw !== 'object') return null;
         var rr = raw.banedamagerace != null ? raw.banedamagerace : (raw.banedmgrace != null ? raw.banedmgrace : (raw.baneDamageRace != null ? raw.baneDamageRace : null));
         if (rr == null || rr === '') return null;
@@ -2826,7 +3500,7 @@
       function getItemBaneBodyById(itemId) {
         if (itemId == null || itemId === '') return null;
         var id = String(itemId);
-        var raw = (weaponListData && weaponListData[id]) || (luclinWeaponsData && luclinWeaponsData[id]) || (popWeaponsData && popWeaponsData[id]) || (typeof procRatesByItemId !== 'undefined' && procRatesByItemId && procRatesByItemId[id]) || null;
+        var raw = (allWeaponsData && allWeaponsData[id]) || (typeof procRatesByItemId !== 'undefined' && procRatesByItemId && procRatesByItemId[id]) || null;
         if (!raw || typeof raw !== 'object') return null;
         var bb = raw.banedmgbody !== undefined && raw.banedmgbody !== null ? raw.banedmgbody : (raw.baneDamageBody !== undefined && raw.baneDamageBody !== null ? raw.baneDamageBody : null);
         if (bb === null || bb === undefined || bb === '') return null;
@@ -3109,25 +3783,14 @@
         }
         var includePop = ($('rank-weapons-include-pop') && $('rank-weapons-include-pop').checked) === true;
         var ignoreNoDrop = ($('rank-weapons-ignore-nodrop') && $('rank-weapons-ignore-nodrop').checked) === true;
-        if (!includePop) {
-          if (typeof luclinWeaponsData === 'undefined' || !luclinWeaponsData || typeof luclinWeaponsData !== 'object') {
-            $('report').textContent = 'luclinweapons.json is required to rank weapons. Ensure it is loaded.';
-            return;
-          }
-        }
-        if (includePop) {
-          $('report').textContent = 'Loading PoP weapons…';
-          await ensurePopWeaponsLoaded();
-          if (!popWeaponsData || typeof popWeaponsData !== 'object' || Object.keys(popWeaponsData).length === 0) {
-            $('report').textContent = 'popweapons.json is required to rank PoP weapons. Ensure it is loaded.';
-            return;
-          }
-        }
         if (typeof weaponListLoadPromise !== 'undefined' && weaponListLoadPromise) await weaponListLoadPromise;
+        if (typeof allWeaponsData === 'undefined' || !allWeaponsData || typeof allWeaponsData !== 'object' || Object.keys(allWeaponsData).length === 0) {
+          $('report').textContent = 'resources/weapons.json is required. Run node scripts/merge-weapons.mjs if missing.';
+          return;
+        }
         await ensureLocalSpellDataLoaded();
         const level = parseInt($('level').value, 10) || 60;
         const durationSec = parseInt($('duration').value, 10) || 6000;
-        const applyBane = $('apply-bane').checked;
         const dualWieldSkillForm = parseInt($('dual-wield').value, 10) || 0;
         const offenseSkill = Math.min(255, Math.max(0, parseInt($('offense-skill').value, 10) || 252));
         const targetAC = parseInt($('target-ac').value, 10) || 550;
@@ -3275,8 +3938,7 @@
             return;
           }
 
-          // Normal NPCs: auto-apply bane based on target race/body.
-          // Checkbox override only applies here (not for bane-only NPCs).
+          // Normal NPCs: apply bane only when target race/body matches (same rules as applyBaneForTarget).
           if (isSeruBaneWeapon(norm)) {
             var seruTargetMatches = (targetRaceForBane === SERU_BANE_TARGET_RACE && targetBodyTypeForBane === SERU_BANE_TARGET_BODYTYPE);
             if (seruTargetMatches && (norm.baneDamage || 0) > 0) {
@@ -3288,10 +3950,6 @@
           var bodyMatch = targetBodyTypeForBane != null && norm.baneDamageBody != null && norm.baneDamageBody === targetBodyTypeForBane && (norm.baneDamage || 0) > 0;
           if (raceMatch || bodyMatch) {
             if (norm.baneDamage) weaponObj.damage += norm.baneDamage;
-            return;
-          }
-          if (applyBane && (norm.baneDamage || 0) > 0) {
-            weaponObj.damage += norm.baneDamage;
           }
         }
         function rankComboCanHitBaneOnly(comb) {
@@ -3326,6 +3984,8 @@
             if (rankWeaponMap[id]) return;
             var raw = source[id];
             if (!raw || raw.damage < 1 || raw.delay < 1) return;
+            if (typeof weaponMeetsRankDamageDelayRatio === 'function' && !weaponMeetsRankDamageDelayRatio(raw)) return;
+            if (typeof weaponAllowedForRank === 'function' && !weaponAllowedForRank(id, raw, includePop)) return;
             var itemName = raw.Name != null ? String(raw.Name).trim().toLowerCase() : '';
             if (itemName === 'fist of steel' || itemName === 'dagger of the disciple') return;
             var reqlevel = raw.reqlevel != null ? parseInt(raw.reqlevel, 10) : NaN;
@@ -3355,12 +4015,8 @@
             allIds.push(id);
           });
         }
-        if (includePop) {
-          addToRankMap(popWeaponsData);
-        } else {
-          addToRankMap(luclinWeaponsData);
-        }
-        // Only add specific weaponlist-only melee weapons (e.g. Corrupted Shissar Warsword, Dagger, Ulak) that are missing from luclin/pop; do not add the full weaponlist.
+        addToRankMap(allWeaponsData);
+        // Legacy: weaponlist-only ids if missing from merged file (rare after merge-weapons.mjs).
         var RANK_WEAPONLIST_ADDITION_IDS = ['7960', '7961', '7963', '7964', '7965', '28956', '28974'];
         if (weaponListData && typeof weaponListData === 'object') {
           var weaponListAdditions = {};
@@ -3370,6 +4026,7 @@
         if (classId === 'monk') {
           CUSTOM_MONK_WEAPONS.forEach(function (item) {
             if (!item || !item.id) return;
+            if (typeof weaponMeetsRankDamageDelayRatio === 'function' && !weaponMeetsRankDamageDelayRatio(item)) return;
             if (rankWeaponMap[item.id]) return;
             var norm = normalizeWeaponFromList(item.id, item);
             if (!norm) return;
@@ -3384,7 +4041,7 @@
         allIds.forEach(function (id) {
           var norm = rankWeaponMap[id];
           var is2H = !!(norm.is2H || (norm.type && offhandBlockedTypes[norm.type]));
-          var raw = (includePop ? (popWeaponsData && popWeaponsData[id]) : (luclinWeaponsData && luclinWeaponsData[id])) || (weaponListData && weaponListData[id]);
+          var raw = (allWeaponsData && allWeaponsData[id]) || (weaponListData && weaponListData[id]);
           var slots = (raw && raw.slots != null) ? parseInt(raw.slots, 10) : null;
           if (slots !== slots) slots = null;
           var primOk = primarySlotAllowed(slots, is2H);
@@ -3739,8 +4396,8 @@
                 if (rr.error) {
                   comboResults[simIndex] = { totalDps: 0, mainhandDps: 0, offhandDps: 0 };
                 } else {
-                  var w1Dmg = rr.weapon1 && rr.weapon1.totalDamage != null ? rr.weapon1.totalDamage : 0;
-                  var w2Dmg = rr.weapon2 && rr.weapon2.totalDamage != null ? rr.weapon2.totalDamage : 0;
+                  var w1Dmg = weaponSlotDamageForDpsReport(rr.weapon1);
+                  var w2Dmg = weaponSlotDamageForDpsReport(rr.weapon2);
                   comboResults[simIndex] = {
                     totalDps: rr.totalDamage / durationSec,
                     mainhandDps: w1Dmg / durationSec,
@@ -3792,7 +4449,7 @@
               viewToggleBtn.title = 'Toggle rank view (current: ' + (currentMode === 'slot' ? 'Slot Ranking' : 'Combinations') + ')';
             }
             var subText = top40.length > 0 ? ' Top 40 averaged over ' + runsCount + ' runs.' : '';
-            var sourceLabel = includePop ? 'From popweapons.json.' : 'From luclinweapons.json.';
+            var sourceLabel = 'From resources/weapons.json (era filter: ' + (includePop ? 'include PoP' : 'Luclin and earlier') + ').';
             if (ignoreNoDrop) sourceLabel += ' No Drop items excluded (nodrop = 0).';
             sourceLabel += ' Items requiring level above character level excluded (reqlevel).';
             sourceLabel += ' Items unusable by all races excluded (races = 0).';
@@ -4001,8 +4658,8 @@
             var n = reports.length;
             if (n > 0) {
               var sumTotal = reports.reduce(function (s, r) { return s + r.totalDamage; }, 0);
-              var sumW1 = reports.reduce(function (s, r) { return s + (r.weapon1 && r.weapon1.totalDamage != null ? r.weapon1.totalDamage : 0); }, 0);
-              var sumW2 = reports.reduce(function (s, r) { return s + (r.weapon2 && r.weapon2.totalDamage != null ? r.weapon2.totalDamage : 0); }, 0);
+              var sumW1 = reports.reduce(function (s, r) { return s + weaponSlotDamageForDpsReport(r.weapon1); }, 0);
+              var sumW2 = reports.reduce(function (s, r) { return s + weaponSlotDamageForDpsReport(r.weapon2); }, 0);
               row.totalDps = sumTotal / n / durationSec;
               row.mainhandDps = sumW1 / n / durationSec;
               row.offhandDps = sumW2 / n / durationSec;
@@ -4024,30 +4681,22 @@
           return;
         }
         var includePop = ($('rank-ranged-include-pop') && $('rank-ranged-include-pop').checked) === true;
-        if (!includePop) {
-          if (typeof luclinWeaponsData === 'undefined' || !luclinWeaponsData || typeof luclinWeaponsData !== 'object') {
-            $('report').textContent = 'luclinweapons.json is required. Ensure it is loaded.';
-            return;
-          }
-        }
-        if (includePop) {
-          $('report').textContent = 'Loading PoP weapons…';
-          await ensurePopWeaponsLoaded();
-          if (!popWeaponsData || typeof popWeaponsData !== 'object' || Object.keys(popWeaponsData).length === 0) {
-            $('report').textContent = 'popweapons.json is required to rank PoP bows. Ensure it is loaded.';
-            return;
-          }
-        }
-        $('report').textContent = 'Loading weapon list for arrows…';
+        $('report').textContent = 'Loading weapons…';
         await weaponListLoadPromise;
-        if (!weaponListData || typeof weaponListData !== 'object' || Object.keys(weaponListData).length === 0) {
-          $('report').textContent = 'weaponlist.json is required for arrows. Ensure it is loaded.';
+        if (typeof allWeaponsData === 'undefined' || !allWeaponsData || typeof allWeaponsData !== 'object' || Object.keys(allWeaponsData).length === 0) {
+          $('report').textContent = 'resources/weapons.json is required. Run node scripts/merge-weapons.mjs if missing.';
           return;
         }
-        var bowSource = includePop ? popWeaponsData : luclinWeaponsData;
+        if (!weaponListData || typeof weaponListData !== 'object' || Object.keys(weaponListData).length === 0) {
+          $('report').textContent = 'resources/weapons.json failed to load.';
+          return;
+        }
+        var bowSource = allWeaponsData;
         var bows = [];
         Object.keys(bowSource).forEach(function (id) {
           var raw = bowSource[id];
+          if (typeof weaponAllowedForRank === 'function' && !weaponAllowedForRank(id, raw, includePop)) return;
+          if (typeof weaponMeetsRankDamageDelayRatio === 'function' && raw && !weaponMeetsRankDamageDelayRatio(raw)) return;
           var races = raw && raw.races != null ? parseInt(raw.races, 10) : NaN;
           if (!isNaN(races) && races === 0) return;
           var norm = normalizeBowFromList(id, raw);
@@ -4087,11 +4736,11 @@
           if (norm) arrows.push(norm);
         });
         if (bows.length === 0) {
-          $('report').textContent = 'No ranger-usable bows found in ' + (includePop ? 'popweapons.json' : 'luclinweapons.json') + '.';
+          $('report').textContent = 'No ranger-usable bows found in weapons.json for this era filter.';
           return;
         }
         if (arrows.length === 0) {
-          $('report').textContent = 'No ranger-usable arrows found in weaponlist.json (itemtype 27, name contains "Arrow").';
+          $('report').textContent = 'No ranger-usable arrows found in weapons.json (itemtype 27, name contains "Arrow").';
           return;
         }
         // Reduce permutations: keep only the top K bows by simple damage/delay score
@@ -4237,7 +4886,7 @@
               viewToggleBtn.title = 'Toggle rank view (current: ' + (currentMode === 'slot' ? 'Slot Ranking' : 'Combinations') + ')';
             }
             var subText = topCombos.length > 0 ? ' Top 100 averaged over ' + runsCount + ' runs (display shows top 40).' : '';
-            var sourceLabel = includePop ? 'Bows from popweapons.json.' : 'Bows from luclinweapons.json. Arrows from weaponlist.json.';
+            var sourceLabel = 'Bows/arrows from resources/weapons.json (era: ' + (includePop ? 'include PoP' : 'Luclin and earlier') + ').';
             if (currentMode === 'slot') {
               // Slot mode: separate bow and ammo slot rankings, using component-only DPS.
               var bowBest = {};
@@ -4653,9 +5302,10 @@
         document.body.setAttribute('data-ui-mode', normalized);
         var btn = $('btn-mode-toggle');
         if (btn) {
-          btn.innerHTML = normalized === UI_MODES.EASY
-            ? 'Switch to Advanced Mode <span class="mode-toggle-next">(current: Easy)</span>'
-            : 'Switch to Easy Mode <span class="mode-toggle-next">(current: Advanced)</span>';
+          var isAdvanced = normalized === UI_MODES.ADVANCED;
+          btn.setAttribute('aria-checked', isAdvanced ? 'true' : 'false');
+          btn.setAttribute('aria-label', isAdvanced ? 'Advanced mode. Switch to Easy.' : 'Easy mode. Switch to Advanced.');
+          btn.setAttribute('title', isAdvanced ? 'Switch to Easy mode' : 'Switch to Advanced mode');
         }
       }
       function toggleUiMode() {
@@ -4667,7 +5317,34 @@
       setUiMode(UI_MODES.EASY);
 
       var EASY_CLASS_ORDER = ['bard','beastlord','cleric','druid','enchanter','magician','monk','necromancer','paladin','ranger','rogue','shadowknight','shaman','warrior','wizard'];
+      var EASY_CLASS_ICONS = {
+        bard: 'ra:lyre',
+        beastlord: 'ra:wolf-head',
+        cleric: 'ra:cleric-symbol',
+        druid: 'ra:sprout',
+        enchanter: 'ra:crystal-ball',
+        magician: 'ra:flaming-trident',
+        monk: 'ra:fist',
+        necromancer: 'ra:skull',
+        paladin: 'ra:holy-shield',
+        ranger: 'ra:broadhead-arrow',
+        rogue: 'ra:kunai',
+        shadowknight: 'ra:reaper-scythe',
+        shaman: 'ra:sparkles',
+        warrior: 'ra:viking-helmet',
+        wizard: 'ra:fireball'
+      };
+      var DPS_HEADER_BAR_MAX = 5000;
       function titleCaseClassName(classId) { return classId ? (classId.charAt(0).toUpperCase() + classId.slice(1)) : 'Unknown'; }
+      function updateDpsHeaderBar() {
+        var el = $('dps-value');
+        var fill = $('dps-header-bar-fill');
+        if (!fill) return;
+        var txt = (el && el.textContent) ? String(el.textContent).trim() : '';
+        var n = parseFloat(txt.replace(/[^\d.\-]/g, ''));
+        if (isNaN(n) || n < 0) { fill.style.width = '0%'; return; }
+        fill.style.width = Math.min(100, (n / DPS_HEADER_BAR_MAX) * 100) + '%';
+      }
       function buildEasyClassButtons() {
         var wrap = $('easy-class-buttons');
         if (!wrap) return;
@@ -4675,9 +5352,10 @@
         EASY_CLASS_ORDER.forEach(function (classId) {
           var btn = document.createElement('button');
           btn.type = 'button';
-          btn.className = 'easy-class-btn';
+          btn.className = 'easy-class-btn flex items-center gap-3 px-4 py-3 text-sm font-fantasy tracking-wider hover:bg-white/5 border border-transparent transition-all';
           btn.setAttribute('data-class-id', classId);
-          btn.textContent = titleCaseClassName(classId);
+          var iconName = EASY_CLASS_ICONS[classId] || 'ra:player';
+          btn.innerHTML = '<iconify-icon icon="' + iconName + '" class="easy-class-icon text-lg flex-shrink-0"></iconify-icon><span>' + titleCaseClassName(classId) + '</span>';
           btn.addEventListener('click', function () {
             var classEl = $('class');
             if (!classEl) return;
@@ -4691,7 +5369,9 @@
       function syncEasyClassSelection() {
         var selected = (($('class') && $('class').value) || '').toLowerCase();
         document.querySelectorAll('#easy-class-buttons .easy-class-btn').forEach(function (btn) {
-          btn.classList.toggle('is-selected', (btn.getAttribute('data-class-id') || '').toLowerCase() === selected);
+          var on = (btn.getAttribute('data-class-id') || '').toLowerCase() === selected;
+          btn.classList.toggle('is-selected', on);
+          btn.classList.toggle('active-class', on);
         });
       }
       function buildEasyLevelOptions() {
@@ -4849,15 +5529,22 @@
       function renderEasyDropdown(prefix, items, loading, query) {
         var listEl = $('easy-' + prefix + '-item-search-list'); if (!listEl) return;
         var q = (query || '').trim(); var hasQuery = q.length >= ITEM_SEARCH_MIN_CHARS;
+        var offhandBlockedTypes = { '2hs': 1, '2hp': 1, '2hb': 1, 'archery': 1, 'bow': 1, 'throwing': 1 };
+        function offhandSearchOk(w) {
+          if (w.is2H || w.offhandBlocked) return false;
+          if (w.type && offhandBlockedTypes[w.type]) return false;
+          return true;
+        }
         var filtered = (items || []).filter(function (w) {
           if (!slotOkForPrefix(prefix, w) || !easyClassOk(w)) return false;
-          if (prefix === 'w2') {
-            var offhandBlockedTypes = { '2hs': 1, '2hp': 1, '2hb': 1, 'archery': 1, 'bow': 1 };
-            if (w.is2H || w.offhandBlocked) return false; if (w.type && offhandBlockedTypes[w.type]) return false;
-          }
+          if (prefix === 'w2' && !offhandSearchOk(w)) return false;
           return true;
         });
-        var recent = getRecentWeapons().filter(function (w) { return slotOkForPrefix(prefix, w) && easyClassOk(w); });
+        var recent = getRecentWeapons().filter(function (w) {
+          if (!slotOkForPrefix(prefix, w) || !easyClassOk(w)) return false;
+          if (prefix === 'w2' && !offhandSearchOk(w)) return false;
+          return true;
+        });
         function itemButton(w) { return '<button type="button" class="item-search-item" data-payload="' + encodeURIComponent(JSON.stringify(w)) + '"><span>' + (w.name || '').replace(/</g, '&lt;') + '</span><div class="item-search-item-detail">' + renderItemLabel(w).replace(/</g, '&lt;') + '</div></button>'; }
         var html = '';
         if (hasQuery) { html += '<div class="item-search-section">Search results</div>'; if (loading) html += '<div class="item-search-msg">Searching...</div>'; else if (!filtered.length) html += '<div class="item-search-msg">No results</div>'; else html += filtered.map(itemButton).join(''); }
@@ -4893,7 +5580,12 @@
         inputEl.addEventListener('input', function () { debounced(); });
         inputEl.addEventListener('keydown', function (e) { if (e.key === 'Escape') { closeEasyDropdown(prefix); inputEl.blur(); } });
       }
-      function updateEasyDpsFromGlobal() { var easyDps = $('easy-dps-value'); var dps = $('dps-value'); if (easyDps && dps) easyDps.textContent = dps.textContent || '-'; }
+      function updateEasyDpsFromGlobal() {
+        var easyDps = $('easy-dps-value');
+        var dps = $('dps-value');
+        if (easyDps && dps) easyDps.textContent = dps.textContent || '—';
+        updateDpsHeaderBar();
+      }
       function runEasyModeSimulation() {
         syncAdvancedFromEasyBasics();
         window.selectedTargetNpc = null;
@@ -4922,7 +5614,10 @@
       }
       function renderEasyHistory() {
         var listEl = $('easy-result-log-list'); if (!listEl) return;
-        if (SIM_HISTORY.length === 0) { listEl.innerHTML = '<p class="hint" style="margin:0;">No runs yet this session.</p>'; return; }
+        if (SIM_HISTORY.length === 0) {
+          listEl.innerHTML = '<div class="easy-history-empty" role="status"><iconify-icon icon="lucide:scroll-text" style="font-size:2rem;opacity:0.45;color:#d4af37"></iconify-icon><span>Chronicles are empty…</span></div>';
+          return;
+        }
         var header = '<table class="easy-history-table"><thead><tr>' +
           '<th>Weapon Combination</th>' +
           '<th>Level</th>' +
@@ -5012,6 +5707,7 @@
         };
         setUiMode(UI_MODES.EASY);
         renderEasyHistory();
+        updateEasyDpsFromGlobal();
       }
 
       function runRanged() {
@@ -5208,6 +5904,7 @@
         $('report').textContent = rangedReportText;
         const dpsEl = $('dps-value');
         if (dpsEl && report.durationSec) dpsEl.textContent = (report.totalDamage / report.durationSec).toFixed(2);
+        updateEasyDpsFromGlobal();
         const histContainer = $('histogram-container');
         if (reports.length > 0 && reports[0].ranged && reports[0].ranged.hitList && reports[0].ranged.hitList.length > 0) {
           renderHistogram(histContainer, { weapon1: reports[0].ranged }, 'Ranged', null);
@@ -5802,9 +6499,7 @@
         // If we have an itemId, derive it from the underlying local weapon/raw item data.
         if ((backstabModVal == null || !(backstabModVal > 0)) && weapon.itemId != null) {
           var raw =
-            (weaponListData && weaponListData[String(weapon.itemId)]) ||
-            (luclinWeaponsData && luclinWeaponsData[String(weapon.itemId)]) ||
-            (popWeaponsData && popWeaponsData[String(weapon.itemId)]) ||
+            (allWeaponsData && allWeaponsData[String(weapon.itemId)]) ||
             (procRatesByItemId && procRatesByItemId[String(weapon.itemId)]) ||
             null;
           var modFromRaw = getBackstabModPercentFromRawItem(raw);
@@ -5978,7 +6673,7 @@
         }
         const omit2H = prefix === 'w2';
         if (omit2H) {
-          const offhandBlockedTypes = { '2hs': 1, '2hp': 1, '2hb': 1, 'archery': 1, 'bow': 1 };
+          const offhandBlockedTypes = { '2hs': 1, '2hp': 1, '2hb': 1, 'archery': 1, 'bow': 1, 'throwing': 1 };
           const offhandOk = function (w) {
             if (w.is2H || w.offhandBlocked) return false;
             if (w.type && offhandBlockedTypes[w.type]) return false;
@@ -6101,6 +6796,7 @@
           if (!list || typeof list !== 'object') return;
           for (var id in list) {
             if (!list.hasOwnProperty(id) || seenIds[id]) continue;
+            if (typeof weaponAllowedForSearch === 'function' && !weaponAllowedForSearch(id)) continue;
             var item = list[id];
             if (!item || typeof item !== 'object') continue;
             var dmgVal = num(item.damage);
@@ -6122,9 +6818,7 @@
             raw.push(withId);
           }
         }
-        addFromList(weaponListData);
-        addFromList(typeof luclinWeaponsData !== 'undefined' ? luclinWeaponsData : null);
-        addFromList(typeof popWeaponsData !== 'undefined' ? popWeaponsData : null);
+        addFromList(typeof allWeaponsData !== 'undefined' ? allWeaponsData : weaponListData);
         CUSTOM_MONK_WEAPONS.forEach(function (item) {
           if (!item) return;
           var name = (item.Name != null ? String(item.Name) : '').toLowerCase();
@@ -6179,91 +6873,10 @@
         }).filter(Boolean);
         return Promise.resolve(results);
       }
-      /** Search only weaponlist.json (fallback when dndquarm API is unreachable). Rank weapons continue to use luclin/pop filtered lists. */
-      function searchWeaponsFromWeaponListOnly(query, classId) {
-        var q = (query || '').toLowerCase();
-        var mask = classId && typeof ItemSearch !== 'undefined' && ItemSearch.CLASS_BITMASK ? ItemSearch.CLASS_BITMASK[classId] : 0;
-        var num = function (v) { var n = parseInt(v, 10); return isNaN(n) ? 0 : n; };
-        var raw = [];
-        var seenIds = {};
-        function addFromList(list) {
-          if (!list || typeof list !== 'object') return;
-          for (var id in list) {
-            if (!list.hasOwnProperty(id) || seenIds[id]) continue;
-            var item = list[id];
-            if (!item || typeof item !== 'object') continue;
-            var dmgVal = num(item.damage);
-            var dlyVal = num(item.delay);
-            var itemTypeVal = num(item.itemtype);
-            if (dmgVal < 1) continue;
-            if (dlyVal < 1 && itemTypeVal !== 27) continue;
-            var name = (item.Name != null ? String(item.Name) : (item.name != null ? String(item.name) : '')).toLowerCase();
-            if (q && name.indexOf(q) < 0) continue;
-            var classes = item.classes != null ? parseInt(item.classes, 10) : (item.Classes != null ? parseInt(item.Classes, 10) : null);
-            if (mask && classes != null && !isNaN(classes) && (classes & mask) === 0) continue;
-            seenIds[id] = true;
-            var withId = Object.assign({}, item, { id: parseInt(id, 10) });
-            if (withId.id !== withId.id) withId.id = id;
-            if ((itemTypeVal === 27 || itemTypeVal === 5) && (item.elemdmgtype != null || item.elemdmgamt != null)) {
-              withId.eleDmgType = item.elemdmgtype != null ? parseInt(item.elemdmgtype, 10) : 0;
-              withId.eleDmgAmt = item.elemdmgamt != null ? parseInt(item.elemdmgamt, 10) : 0;
-            }
-            raw.push(withId);
-          }
-        }
-        addFromList(weaponListData);
-        var skillmodType7 = function (it) { var st = it.skillmodtype != null ? it.skillmodtype : it.skillmodType; return (Number(st) === 7); };
-        var skillmodValNum = function (it) { var sv = it.skillmodvalue != null ? it.skillmodvalue : it.skillmodValue; var v = (typeof sv === 'number') ? sv : parseInt(sv, 10); return isNaN(v) ? null : v; };
-        function ensureBaneFromRaw(weapon, rawItem) {
-          if (!weapon || !rawItem) return;
-          var amt = rawItem.banedmgamt != null ? rawItem.banedmgamt : (rawItem.baneDmgAmt != null ? rawItem.baneDmgAmt : (rawItem.baneDamage != null ? rawItem.baneDamage : (rawItem.BaneDmgAmt != null ? rawItem.BaneDmgAmt : (rawItem.bane_damage_amt != null ? rawItem.bane_damage_amt : null))));
-          if (amt != null && amt !== '') weapon.baneDamage = num(amt);
-          var bb = rawItem.banedmgbody != null ? rawItem.banedmgbody : (rawItem.baneDamageBody != null ? rawItem.baneDamageBody : (rawItem.BaneDamageBody != null ? rawItem.BaneDamageBody : null));
-          if (bb != null && bb !== '') { var bbNum = parseInt(bb, 10); if (!isNaN(bbNum)) weapon.baneDamageBody = bbNum; }
-          var br = rawItem.banedmgrace != null ? rawItem.banedmgrace : (rawItem.baneDamageRace != null ? rawItem.baneDamageRace : (rawItem.banedamagerace != null ? rawItem.banedamagerace : (rawItem.BaneDamageRace != null ? rawItem.BaneDamageRace : null)));
-          if (br != null && br !== '') { var brNum = parseInt(br, 10); if (!isNaN(brNum)) weapon.baneDamageRace = brNum; }
-        }
-        if (typeof ItemSearch === 'undefined' || !ItemSearch.normalizeItemForWeapon) {
-          raw.forEach(function (item) {
-            if (item.archeryModPercent != null) return;
-            if (!skillmodType7(item)) return;
-            var v = skillmodValNum(item);
-            if (v != null) item.archeryModPercent = v;
-          });
-          raw.forEach(function (item) {
-            var amt = item.banedmgamt != null ? item.banedmgamt : (item.baneDmgAmt != null ? item.baneDmgAmt : (item.baneDamage != null ? item.baneDamage : null));
-            if (amt != null && amt !== '') item.baneDamage = num(amt);
-            var bb = item.banedmgbody != null ? item.banedmgbody : (item.baneDamageBody != null ? item.baneDamageBody : null);
-            if (bb != null && bb !== '') { var bbNum = parseInt(bb, 10); if (!isNaN(bbNum)) item.baneDamageBody = bbNum; }
-            var br = item.banedmgrace != null ? item.banedmgrace : (item.baneDamageRace != null ? item.baneDamageRace : item.banedamagerace);
-            if (br != null && br !== '') { var brNum = parseInt(br, 10); if (!isNaN(brNum)) item.baneDamageRace = brNum; }
-          });
-          return Promise.resolve(raw);
-        }
-        var results = raw.map(function (item) {
-          var norm = ItemSearch.normalizeItemForWeapon(item);
-          if (!norm) return null;
-          ensureBaneFromRaw(norm, item);
-          if (norm.archeryModPercent == null && skillmodType7(item)) {
-            var v = skillmodValNum(item);
-            if (v != null) norm.archeryModPercent = v;
-          }
-          return norm;
-        }).filter(Boolean);
-        return Promise.resolve(results);
-      }
-      var ITEM_SEARCH_API_TIMEOUT_MS = 8000;
       function tryItemSearchThenWeaponListFallback(query, selectedClassId) {
-        var useFallback = function () { return searchWeaponsFromWeaponListOnly(query, selectedClassId); };
-        if (typeof ItemSearch === 'undefined' || !ItemSearch.searchWeapons) return useFallback();
-        var apiPromise = ItemSearch.searchWeapons(query, selectedClassId);
-        var timeoutPromise = new Promise(function (_, reject) {
-          setTimeout(function () { reject(new Error('Item search timeout')); }, ITEM_SEARCH_API_TIMEOUT_MS);
-        });
-        return Promise.race([apiPromise, timeoutPromise]).then(function (results) {
-          return Array.isArray(results) ? results : [];
-        }).catch(function () {
-          return useFallback();
+        var p = typeof weaponListLoadPromise !== 'undefined' ? weaponListLoadPromise : Promise.resolve();
+        return p.then(function () {
+          return searchWeaponsFromWeaponList(query, selectedClassId);
         });
       }
       function runItemSearch(prefix) {

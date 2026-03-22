@@ -35,7 +35,7 @@ export default async function handler(req, res) {
       res.setHeader('Content-Type', 'application/json');
       return res.status(200).json({});
     }
-  } catch (e) {
+  } catch (_e) {
     setCors(res);
     res.setHeader('Content-Type', 'application/json');
     return res.status(200).json({});
@@ -49,7 +49,7 @@ export default async function handler(req, res) {
     if (uid && typeof uid === 'string') {
       await kv.sadd(UIDS_KEY, uid);
     }
-  } catch (e) {
+  } catch (_e) {
     // KV not configured or write failed; still return 200
   }
 

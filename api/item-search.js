@@ -39,7 +39,9 @@ export default async function handler(req, res) {
       const u = new URL(req.url, 'http://localhost');
       const q = u.searchParams.get('nameFilter');
       if (typeof q === 'string') nameFilter = q.trim();
-    } catch (_) {}
+    } catch (_) {
+      void 0;
+    }
   }
   const baseUrl = process.env.ITEM_SEARCH_BASE_URL || DEFAULT_BASE_URL;
   const base = baseUrl.replace(/\?.*$/, '');

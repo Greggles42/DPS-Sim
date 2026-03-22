@@ -45,12 +45,12 @@ export default async function handler(req, res) {
         try {
           const row = typeof raw[i] === 'string' ? JSON.parse(raw[i]) : raw[i];
           if (row && typeof row === 'object') entries.push(row);
-        } catch (e) {
+        } catch (_e) {
           /* skip bad entry */
         }
       }
     }
-  } catch (e) {
+  } catch (_e) {
     /* KV not configured or read failed */
   }
 

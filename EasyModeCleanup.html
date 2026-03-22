@@ -1,0 +1,334 @@
+Page: Clean Dark Theme Update
+
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://code.iconify.design/iconify-icon/1.0.7/iconify-icon.min.js"></script>
+    <link href="https://api.fontshare.com/v2/css?f[]=zodiak@400,700&f[]=satoshi@400,500,700&display=swap" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&display=swap');
+
+        :root {
+            --color-gold: #d4af37;
+            --color-crimson: #8b0000;
+            --color-dark: #0a0a0c;
+            --color-surface: #16161a;
+        }
+
+        body {
+            font-family: 'Satoshi', sans-serif;
+            background-color: var(--color-dark);
+            color: #e2e2e2;
+        }
+
+        .font-fantasy {
+            font-family: 'Cinzel', serif;
+        }
+
+        .font-serif {
+            font-family: 'Zodiak', serif;
+        }
+
+        .ornate-border {
+            position: relative;
+            border: 1px solid rgba(212, 175, 55, 0.3);
+        }
+
+        .ornate-border::before, .ornate-border::after {
+            content: '';
+            position: absolute;
+            width: 12px;
+            height: 12px;
+            border: 2px solid var(--color-gold);
+            pointer-events: none;
+        }
+
+        .ornate-border::before {
+            top: -2px; left: -2px;
+            border-right: none; border-bottom: none;
+        }
+
+        .ornate-border::after {
+            bottom: -2px; right: -2px;
+            border-left: none; border-top: none;
+        }
+
+
+
+        .glow-gold:hover {
+            box-shadow: 0 0 15px rgba(212, 175, 55, 0.2);
+            border-color: rgba(212, 175, 55, 0.6);
+        }
+
+        .active-class {
+            background: linear-gradient(90deg, rgba(139, 0, 0, 0.2) 0%, rgba(139, 0, 0, 0) 100%);
+            border-left: 3px solid var(--color-crimson) !important;
+            color: var(--color-gold);
+        }
+
+        input[type="range"] {
+            -webkit-appearance: none;
+            background: #2a2a2f;
+            height: 4px;
+            border-radius: 2px;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 16px;
+            width: 16px;
+            border-radius: 50%;
+            background: var(--color-gold);
+            cursor: pointer;
+            box-shadow: 0 0 8px var(--color-gold);
+        }
+
+        .magic-btn {
+            background: linear-gradient(135deg, #8b0000 0%, #5a0000 100%);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .magic-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 20px rgba(139, 0, 0, 0.4);
+            filter: brightness(1.2);
+        }
+
+        .scrollbar-fantasy::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .scrollbar-fantasy::-webkit-scrollbar-track {
+            background: #0f0f12;
+        }
+
+        .scrollbar-fantasy::-webkit-scrollbar-thumb {
+            background: #3a3a42;
+            border-radius: 3px;
+        }
+
+        .scrollbar-fantasy::-webkit-scrollbar-thumb:hover {
+            background: var(--color-gold);
+        }
+    </style>
+</head>
+<body>
+    <div class="min-h-screen flex flex-col">
+        <!-- Header Area -->
+        <header class="h-16 border-b border-white/5 bg-black/40 backdrop-blur-md flex items-center justify-between px-8 z-50">
+            <div class="flex items-center gap-4">
+                <iconify-icon icon="ra:crossed-swords" class="text-3xl text-[#d4af37]"></iconify-icon>
+                <div class="flex flex-col">
+                    <h1 class="font-fantasy text-xl tracking-widest text-[#d4af37]">GSIM PROJECT QUARM</h1>
+                    <span class="text-[10px] text-gray-500 uppercase tracking-tighter">Everquest DPS Simulator • v1.05</span>
+                </div>
+            </div>
+            
+            <div class="flex items-center gap-8">
+                <div class="flex flex-col items-end">
+                    <span class="text-[10px] text-gray-400 uppercase tracking-widest">Total Damage Per Second</span>
+                    <div class="flex items-center gap-2">
+                        <span class="text-2xl font-fantasy text-[#d4af37] leading-none">0.00</span>
+                        <div class="w-32 h-1 bg-white/10 rounded-full overflow-hidden">
+                            <div class="h-full bg-[#d4af37] w-0 shadow-[0_0_8px_#d4af37]"></div>
+                        </div>
+                    </div>
+                </div>
+                <button id="nav-mode-toggle" class="px-4 py-1.5 border border-[#d4af37]/30 text-[#d4af37] text-xs font-fantasy tracking-widest hover:bg-[#d4af37]/10 transition-colors uppercase">
+                    Advanced Mode
+                </button>
+            </div>
+        </header>
+
+        <!-- Main Content Grid -->
+        <main class="flex-1 flex overflow-hidden">
+            <!-- Sidebar: Class Selection -->
+            <aside class="w-64 border-r border-white/5 bg-[#0a0a0c] flex flex-col">
+                <div class="p-4 border-b border-white/5">
+                    <span class="text-[10px] text-gray-500 font-bold uppercase tracking-[0.2em]">Hero Class</span>
+                </div>
+                <div class="flex-1 overflow-y-auto scrollbar-fantasy">
+                    <nav class="p-2 flex flex-col gap-1">
+                        <a href="#" id="class-bard" class="flex items-center gap-3 px-4 py-3 text-sm font-fantasy tracking-wider hover:bg-white/5 border border-transparent transition-all">
+                            <iconify-icon icon="ra:lyre" class="text-lg opacity-60"></iconify-icon> Bard
+                        </a>
+                        <a href="#" id="class-beastlord" class="flex items-center gap-3 px-4 py-3 text-sm font-fantasy tracking-wider hover:bg-white/5 border border-transparent transition-all">
+                            <iconify-icon icon="ra:wolf-head" class="text-lg opacity-60"></iconify-icon> Beastlord
+                        </a>
+                        <a href="#" id="class-cleric" class="flex items-center gap-3 px-4 py-3 text-sm font-fantasy tracking-wider hover:bg-white/5 border border-transparent transition-all">
+                            <iconify-icon icon="ra:cleric-symbol" class="text-lg opacity-60"></iconify-icon> Cleric
+                        </a>
+                        <a href="#" id="class-druid" class="flex items-center gap-3 px-4 py-3 text-sm font-fantasy tracking-wider hover:bg-white/5 border border-transparent transition-all">
+                            <iconify-icon icon="ra:sprout" class="text-lg opacity-60"></iconify-icon> Druid
+                        </a>
+                        <a href="#" id="class-enchanter" class="flex items-center gap-3 px-4 py-3 text-sm font-fantasy tracking-wider hover:bg-white/5 border border-transparent transition-all">
+                            <iconify-icon icon="ra:crystal-ball" class="text-lg opacity-60"></iconify-icon> Enchanter
+                        </a>
+                        <a href="#" id="class-magician" class="flex items-center gap-3 px-4 py-3 text-sm font-fantasy tracking-wider hover:bg-white/5 border border-transparent transition-all">
+                            <iconify-icon icon="ra:flaming-trident" class="text-lg opacity-60"></iconify-icon> Magician
+                        </a>
+                        <a href="#" id="class-monk" class="active-class flex items-center gap-3 px-4 py-3 text-sm font-fantasy tracking-wider hover:bg-white/5 border border-transparent transition-all">
+                            <iconify-icon icon="ra:fist" class="text-lg"></iconify-icon> Monk
+                        </a>
+                        <a href="#" id="class-necromancer" class="flex items-center gap-3 px-4 py-3 text-sm font-fantasy tracking-wider hover:bg-white/5 border border-transparent transition-all">
+                            <iconify-icon icon="ra:skull" class="text-lg opacity-60"></iconify-icon> Necromancer
+                        </a>
+                        <a href="#" id="class-paladin" class="flex items-center gap-3 px-4 py-3 text-sm font-fantasy tracking-wider hover:bg-white/5 border border-transparent transition-all">
+                            <iconify-icon icon="ra:holy-shield" class="text-lg opacity-60"></iconify-icon> Paladin
+                        </a>
+                        <a href="#" id="class-ranger" class="flex items-center gap-3 px-4 py-3 text-sm font-fantasy tracking-wider hover:bg-white/5 border border-transparent transition-all">
+                            <iconify-icon icon="ra:broadhead-arrow" class="text-lg opacity-60"></iconify-icon> Ranger
+                        </a>
+                        <a href="#" id="class-rogue" class="flex items-center gap-3 px-4 py-3 text-sm font-fantasy tracking-wider hover:bg-white/5 border border-transparent transition-all">
+                            <iconify-icon icon="ra:kunai" class="text-lg opacity-60"></iconify-icon> Rogue
+                        </a>
+                        <a href="#" id="class-shadowknight" class="flex items-center gap-3 px-4 py-3 text-sm font-fantasy tracking-wider hover:bg-white/5 border border-transparent transition-all">
+                            <iconify-icon icon="ra:reaper-scythe" class="text-lg opacity-60"></iconify-icon> Shadowknight
+                        </a>
+                        <a href="#" id="class-warrior" class="flex items-center gap-3 px-4 py-3 text-sm font-fantasy tracking-wider hover:bg-white/5 border border-transparent transition-all">
+                            <iconify-icon icon="ra:viking-helmet" class="text-lg opacity-60"></iconify-icon> Warrior
+                        </a>
+                    </nav>
+                </div>
+            </aside>
+
+            <!-- Center Simulation Panel -->
+            <section class="flex-1 overflow-y-auto p-8 scrollbar-fantasy bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-[#1a1a22] to-[#0a0a0c]">
+                <div class="max-w-5xl mx-auto space-y-8">
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        <!-- Character & Fight Config -->
+                        <div class="ornate-border parchment-bg p-6 space-y-6 shadow-2xl">
+                            <h3 class="font-fantasy text-sm text-[#d4af37] border-b border-[#d4af37]/20 pb-2 mb-4 tracking-widest">CHARACTER & FIGHT</h3>
+                            
+                            <div class="space-y-4">
+                                <div>
+                                    <label class="text-[10px] text-gray-400 uppercase tracking-widest block mb-2">Character Level</label>
+                                    <select id="level-select" class="w-full bg-[#121216] border border-white/10 rounded-none px-3 py-2 text-sm font-fantasy focus:border-[#d4af37] outline-none transition-colors">
+                                        <option value="60">Level 60</option>
+                                        <option value="55">Level 55</option>
+                                        <option value="50">Level 50</option>
+                                    </select>
+                                </div>
+
+                                <div>
+                                    <div class="flex justify-between items-center mb-2">
+                                        <label class="text-[10px] text-gray-400 uppercase tracking-widest">Worn Haste</label>
+                                        <span class="text-[#d4af37] font-fantasy">41%</span>
+                                    </div>
+                                    <input type="range" min="0" max="100" value="41" class="w-full">
+                                </div>
+
+                                <div class="pt-2">
+                                    <label class="text-[10px] text-gray-400 uppercase tracking-widest block mb-3">Combat Target</label>
+                                    <div class="flex gap-4">
+                                        <label class="flex items-center gap-2 cursor-pointer group">
+                                            <input type="radio" name="target" checked class="hidden">
+                                            <div class="w-4 h-4 rounded-full border border-[#d4af37]/50 flex items-center justify-center">
+                                                <div class="w-2 h-2 bg-[#d4af37] rounded-full shadow-[0_0_5px_#d4af37]"></div>
+                                            </div>
+                                            <span class="text-xs font-fantasy group-hover:text-[#d4af37]">Group Content</span>
+                                        </label>
+                                        <label class="flex items-center gap-2 cursor-pointer group">
+                                            <input type="radio" name="target" class="hidden">
+                                            <div class="w-4 h-4 rounded-full border border-white/20 flex items-center justify-center">
+                                                <div class="w-2 h-2 bg-transparent rounded-full"></div>
+                                            </div>
+                                            <span class="text-xs font-fantasy group-hover:text-[#d4af37]">Raid Content</span>
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Weapon Configuration -->
+                        <div class="ornate-border bg-[#16161a] p-6 space-y-6 shadow-2xl">
+                            <h3 class="font-fantasy text-sm text-[#d4af37] border-b border-[#d4af37]/20 pb-2 mb-4 tracking-widest">WEAPONS</h3>
+                            
+                            <div class="space-y-6">
+                                <div class="p-4 border border-white/5 bg-black/20 rounded-lg group">
+                                    <div class="flex justify-between items-start mb-2">
+                                        <span class="text-[10px] text-gray-500 uppercase">Main Hand</span>
+                                        <span class="text-[10px] text-[#d4af37]">Unequipped</span>
+                                    </div>
+                                    <div class="relative">
+                                        <iconify-icon icon="lucide:search" class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-600"></iconify-icon>
+                                        <input type="text" placeholder="Search arsenal..." class="w-full bg-[#121216]/50 border border-white/5 rounded px-10 py-2 text-xs focus:border-[#d4af37] outline-none">
+                                    </div>
+                                </div>
+
+                                <div class="flex justify-center -my-3">
+                                    <div class="w-8 h-8 rounded-full bg-black/40 border border-[#d4af37]/30 flex items-center justify-center z-10">
+                                        <iconify-icon icon="lucide:arrow-up-down" class="text-[#d4af37] text-xs"></iconify-icon>
+                                    </div>
+                                </div>
+
+                                <div class="p-4 border border-white/5 bg-black/20 rounded-lg group">
+                                    <div class="flex justify-between items-start mb-2">
+                                        <span class="text-[10px] text-gray-500 uppercase">Offhand</span>
+                                        <span class="text-[10px] text-[#d4af37]">Unequipped</span>
+                                    </div>
+                                    <div class="relative">
+                                        <iconify-icon icon="lucide:search" class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-600"></iconify-icon>
+                                        <input type="text" placeholder="Search arsenal..." class="w-full bg-[#121216]/50 border border-white/5 rounded px-10 py-2 text-xs focus:border-[#d4af37] outline-none">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Action Area -->
+                    <div class="flex flex-col items-center gap-6 py-4">
+                        <button id="cta-calculate" class="magic-btn px-16 py-4 rounded-sm border border-[#d4af37]/50 flex items-center gap-4 group">
+                            <span class="font-fantasy text-xl tracking-[0.3em] text-white">CALCULATE DPS</span>
+                            <iconify-icon icon="ra:lightning-bolt" class="text-2xl text-[#d4af37] animate-pulse"></iconify-icon>
+                        </button>
+                        
+                        <div class="flex flex-col items-center">
+                            <span class="text-[10px] text-gray-500 uppercase tracking-widest mb-1">Resulting Output</span>
+                            <div class="text-5xl font-fantasy text-white/10 tracking-tighter">--</div>
+                        </div>
+                    </div>
+
+                    <!-- Simulation Data / Assumptions -->
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <div class="lg:col-span-2 ornate-border bg-black/20 p-6">
+                            <h4 class="text-[10px] text-[#d4af37] font-bold uppercase tracking-widest mb-4">Simulation Assumptions</h4>
+                            <div class="grid grid-cols-2 gap-x-8 gap-y-2 text-[11px] font-serif text-gray-400">
+                                <div class="flex justify-between border-b border-white/5 pb-1"><span>Spell Haste</span> <span class="text-white">85%</span></div>
+                                <div class="flex justify-between border-b border-white/5 pb-1"><span>Spell Attack</span> <span class="text-white">150</span></div>
+                                <div class="flex justify-between border-b border-white/5 pb-1"><span>Strength (STR)</span> <span class="text-white">255</span></div>
+                                <div class="flex justify-between border-b border-white/5 pb-1"><span>Dexterity (DEX)</span> <span class="text-white">255</span></div>
+                                <div class="flex justify-between border-b border-white/5 pb-1"><span>Ambidexterity</span> <span class="text-white uppercase">Enabled</span></div>
+                                <div class="flex justify-between border-b border-white/5 pb-1"><span>Crit Chance</span> <span class="text-white">+6%</span></div>
+                            </div>
+                        </div>
+                        
+                        <div class="ornate-border bg-black/40 p-6 flex flex-col">
+                            <h4 class="text-[10px] text-gray-500 font-bold uppercase tracking-widest mb-4">Session History</h4>
+                            <div class="flex-1 flex flex-col items-center justify-center opacity-30 gap-3">
+                                <iconify-icon icon="lucide:scroll-text" class="text-3xl"></iconify-icon>
+                                <span class="text-[10px] italic">Chronicles are empty...</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <!-- Decorative Footer Background Element -->
+        <footer class="h-12 border-t border-white/5 bg-[#0a0a0c] flex items-center justify-center px-8 text-[10px] text-gray-600 uppercase tracking-[0.2em]">
+            Designed for Project Quarm &bull; For the love of the classic grind
+        </footer>
+    </div>
+</body>
+</html>
+```
+
+Please reference this design and implement it into our codebase; Try to understand the structure, which part of our codebase is relevant and implement

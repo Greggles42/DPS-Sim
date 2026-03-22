@@ -97,7 +97,7 @@
    */
   function getWeaponSkillCap(spec, classId, skillKey, level) {
     spec = spec || SkillCapsSpec;
-    const { classes, meta, maxCaps } = spec;
+    const { meta, maxCaps } = spec;
 
     const clsIndex = resolveClassIndex(spec, classId);
     if (clsIndex < 0) return 0;

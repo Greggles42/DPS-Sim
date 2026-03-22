@@ -18,7 +18,7 @@ const lines = fs.readFileSync(LOG_FILE, 'utf8').trim().split('\n').filter(Boolea
 const events = lines.map(function (line) {
   try {
     return JSON.parse(line);
-  } catch (e) {
+  } catch (_e) {
     return null;
   }
 }).filter(Boolean).filter(function (e) { return e.event === 'sim_run'; });

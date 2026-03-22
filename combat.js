@@ -747,12 +747,31 @@
       report.ranged.anticipatedProcsPerMinute = procChance * (60 * 1000 / delayMs);
     }
 
+    const TR = global.EQThreat;
+    const rangedProcCap = options.procThreatCap != null ? options.procThreatCap : 400;
+    let rangedThreatAcc = 0;
+    let rangedSwingThreatAcc = 0;
+    let rangedProcThreatAcc = 0;
+    function addRangedSwingThreat() {
+      if (!TR) return;
+      const h = TR.rangedSwingThreat(bow.damage, arrow.damage);
+      rangedSwingThreatAcc += h;
+      rangedThreatAcc += h;
+    }
+    function addRangedProcThreat(dmg) {
+      if (!TR || !(dmg > 0)) return;
+      const h = TR.procSpellThreatFromDamage(dmg, rangedProcCap);
+      rangedProcThreatAcc += h;
+      rangedThreatAcc += h;
+    }
+
     let nextRangedAtMs = 0;
 
     while (nextRangedAtMs < durationMs) {
       const trueshotActive = trueshot && nextRangedAtMs >= trueshotStartMs && nextRangedAtMs < trueshotEndMs;
       const currentToHit = trueshotActive ? toHitTrueshot : toHit;
       report.ranged.swings++;
+      addRangedSwingThreat();
       // Proc is attempted every swing (even on miss)
       let procDamageThisShot = 0;
       if (procChance > 0 && checkProc(procChance, procRng) && canProcLandOnTarget(bow, options)) {
@@ -768,6 +787,7 @@
         }
         report.ranged.procDamageTotal += actualProcDmg;
         procDamageThisShot = actualProcDmg;
+        addRangedProcThreat(actualProcDmg);
         if (actualProcDmg === 0) {
           report.ranged.procFullResists++;
           report.ranged.procResists++;
@@ -807,7 +827,6 @@
         report.critDamageGain += (dmg - beforeCrit);
       }
       if (mobStationary) dmg = Math.floor(dmg * 2);
-      let standardDamage = dmg;
       if (useWalledMobPenalty && rng() < WALL_PENALTY_CHANCE) {
         const actualDamage = Math.max(1, Math.floor(dmg * WALL_PENALTY_FACTOR));
         report.wallPenaltyDamageLost += (dmg - actualDamage);
@@ -824,6 +843,9 @@
     }
 
     if (report.ranged.minDamage === Infinity) report.ranged.minDamage = null;
+    report.totalThreat = rangedThreatAcc;
+    report.swingThreat = rangedSwingThreatAcc;
+    report.procThreat = rangedProcThreatAcc;
     return report;
   }
 
@@ -873,6 +895,11 @@
       lines.push(padLine('  DPS std dev:', report.dpsStdDev.toFixed(2)));
     }
     lines.push(padLine('  Total damage:', String(report.totalDamage)));
+    if (report.totalThreat != null && report.totalThreat >= 0) {
+      const tps = dur ? (report.totalThreat / dur).toFixed(2) : '—';
+      lines.push(padLine('  TPS (threat, approx):', tps));
+      lines.push(padLine('  Total threat:', String(Math.round(report.totalThreat)) + '  (swing + proc; not equal to damage)'));
+    }
     if (report.critHits != null && report.critHits >= 0) lines.push(padLine('  Critical hits:', String(report.critHits)));
     if (report.critDamageGain != null && report.critDamageGain >= 0) {
       lines.push(padLine('  Crit DPS gain:', `${(report.critDamageGain / dur).toFixed(2)} (vs non-crit baseline)`));
@@ -1071,6 +1098,35 @@
     const cappedW1Damage = hasMainHand ? (baseDamageCap != null ? Math.min(w1.damage, baseDamageCap) : w1.damage) : 0;
     const cappedW2Damage = offhandEquipped ? (baseDamageCap != null ? Math.min(w2.damage, baseDamageCap) : w2.damage) : 0;
     const mainHandDamageBonus = hasMainHand ? getDamageBonusClient(level, options.classId, w1.delay, !!w1.is2H) : 0;
+    const T = global.EQThreat;
+    const procThreatCap = options.procThreatCap != null ? options.procThreatCap : 400;
+    let totalThreatAcc = 0;
+    let swingThreatAcc = 0;
+    let procThreatAcc = 0;
+    function addSwingThreatMH() {
+      if (!T) return;
+      const h = T.meleeSwingThreatPrimary(cappedW1Damage, mainHandDamageBonus);
+      swingThreatAcc += h;
+      totalThreatAcc += h;
+    }
+    function addSwingThreatOH() {
+      if (!T) return;
+      const h = T.meleeSwingThreatOffhand(cappedW2Damage);
+      swingThreatAcc += h;
+      totalThreatAcc += h;
+    }
+    function addSwingThreatFist(baseDmg) {
+      if (!T) return;
+      const h = T.meleeSwingThreatPrimary(baseDmg, 0);
+      swingThreatAcc += h;
+      totalThreatAcc += h;
+    }
+    function addProcThreatAmt(dmg) {
+      if (!T || !(dmg > 0)) return;
+      const h = T.procSpellThreatFromDamage(dmg, procThreatCap);
+      procThreatAcc += h;
+      totalThreatAcc += h;
+    }
     const dualWielding = offhandEquipped && (options.dualWieldSkill != null && options.dualWieldSkill > 0) &&
       options.classId !== 'paladin' && options.classId !== 'shadowknight';
 
@@ -1284,7 +1340,6 @@
         const isRogueBackstab = specialConfig.fromBehindOnly === true;
         const backstabSkill = options.backstabSkill != null ? options.backstabSkill : 225;
         const backstabModPct = options.backstabModPercent || 0;
-        const effectiveBackstabSkill = Math.min(252, Math.floor(backstabSkill * (100 + backstabModPct) / 100));
         // EQMacEmu GetToHit(skill): toHit = 7 + Offense SKILL + skill (Backstab for backstab). Use raw backstab skill, not modded.
         const backstabToHit = isRogueBackstab ? (7 + OFFENSE_SKILL + backstabSkill) : toHit;
 
@@ -1295,6 +1350,7 @@
 
         function processOneBackstabHit(backstabAttemptNumber) {
           if (report.special.attemptedAttacks !== undefined) report.special.attemptedAttacks++;
+          addSwingThreatMH();
           const specialHits = rollHit(backstabToHit, avoidance, rng, fromBehind);
           if (!specialHits) {
             pushCombatLog(tMs, 'special', 'special', specialVerb, false, undefined, { bsDA: isDoubleBackstabRound && backstabAttemptNumber === 2 });
@@ -1374,6 +1430,7 @@
             dmg = critResult.damage;
             if (critResult.isCrit) { report.critHits++; report.critDamageGain += (dmg - beforeCrit); }
             report.fistweaving.swings++;
+            addSwingThreatFist(FIST_DAMAGE);
             report.fistweaving.hits++;
             report.fistweaving.totalDamage += dmg;
             report.fistweaving.maxDamage = Math.max(report.fistweaving.maxDamage, dmg);
@@ -1381,6 +1438,7 @@
             pushCombatLog(tMs, 'melee', 'fist', 'punch', true, dmg);
           } else {
             report.fistweaving.swings++;
+            addSwingThreatFist(FIST_DAMAGE);
             pushCombatLog(tMs, 'melee', 'fist', 'punch', false);
           }
 
@@ -1395,6 +1453,7 @@
               dmg = critResult.damage;
               if (critResult.isCrit) { report.critHits++; report.critDamageGain += (dmg - beforeCrit); }
               report.fistweaving.swings++;
+              addSwingThreatFist(FIST_DAMAGE);
               report.fistweaving.hits++;
               report.fistweaving.totalDamage += dmg;
               report.fistweaving.maxDamage = Math.max(report.fistweaving.maxDamage, dmg);
@@ -1402,6 +1461,7 @@
               pushCombatLog(tMs, 'melee', 'fist', 'punch', true, dmg);
             } else {
               report.fistweaving.swings++;
+              addSwingThreatFist(FIST_DAMAGE);
               pushCombatLog(tMs, 'melee', 'fist', 'punch', false);
             }
           }
@@ -1429,11 +1489,9 @@
         mainHandRoundCounter++;
         const mhRoundLetter = (mainHandRoundCounter % 2 === 1) ? 'A' : 'B';
         let attacksThisRound = 1;
-        let mainHandHitThisRound = false;
 
         // Crit is only rolled after a successful hit (we are inside the rollHit success block).
         if (rollHit(toHit, avoidance, rng, fromBehind)) {
-          mainHandHitThisRound = true;
           const mhElemAdder = getElementalBaseAdder(w1, options, rng);
           report.elementalDamageTotal += mhElemAdder;
           let mhBase = cappedW1Damage + mhElemAdder;
@@ -1459,7 +1517,7 @@
           const mhDisciplineMin = getDisciplineMinHit(cappedW1Damage, mainHandDamageBonus, disciplineActiveMh);
           if (mhDisciplineMin != null && dmg < mhDisciplineMin) dmg = mhDisciplineMin;
           if (w1.noDamageVsTarget) { report.elementalDamageTotal -= mhElemAdder; dmg = 0; }
-          report.weapon1.swings++;
+          report.weapon1.swings++; addSwingThreatMH();
           report.weapon1.hits++;
           report.weapon1.totalDamage += dmg;
           report.weapon1.maxDamage = Math.max(report.weapon1.maxDamage, dmg);
@@ -1469,14 +1527,13 @@
           report.damageBonusTotal += mainHandDamageBonus;
           pushCombatLog(tMs, 'melee', 1, w1Verb, true, dmg, { roundLetter: mhRoundLetter, attemptNumber: 1, swingKind: 'BA' });
         } else {
-          report.weapon1.swings++;
+          report.weapon1.swings++; addSwingThreatMH();
           pushCombatLog(tMs, 'melee', 1, w1Verb, false, undefined, { roundLetter: mhRoundLetter, attemptNumber: 1, swingKind: 'BA' });
         }
 
         if (checkDoubleAttack(doubleAttackEffective, rng, options.classId)) {
           attacksThisRound = 2;
           if (rollHit(toHit, avoidance, rng, fromBehind)) {
-            mainHandHitThisRound = true;
             const mhElemAdder2 = getElementalBaseAdder(w1, options, rng);
             report.elementalDamageTotal += mhElemAdder2;
             let mhBase2 = cappedW1Damage + mhElemAdder2;
@@ -1502,7 +1559,7 @@
             const mhDisciplineMin2 = getDisciplineMinHit(cappedW1Damage, mainHandDamageBonus, disciplineActiveMh);
             if (mhDisciplineMin2 != null && dmg < mhDisciplineMin2) dmg = mhDisciplineMin2;
             if (w1.noDamageVsTarget) { report.elementalDamageTotal -= mhElemAdder2; dmg = 0; }
-            report.weapon1.swings++;
+            report.weapon1.swings++; addSwingThreatMH();
             report.weapon1.hits++;
             report.weapon1.totalDamage += dmg;
             report.weapon1.maxDamage = Math.max(report.weapon1.maxDamage, dmg);
@@ -1512,13 +1569,12 @@
             report.damageBonusTotal += mainHandDamageBonus;
             pushCombatLog(tMs, 'melee', 1, w1Verb, true, dmg, { roundLetter: mhRoundLetter, attemptNumber: 2, swingKind: 'DA' });
           } else {
-            report.weapon1.swings++;
+            report.weapon1.swings++; addSwingThreatMH();
             pushCombatLog(tMs, 'melee', 1, w1Verb, false, undefined, { roundLetter: mhRoundLetter, attemptNumber: 2, swingKind: 'DA' });
           }
           if (checkTripleAttack(rng, level, options.classId)) {
             attacksThisRound = 3;
             if (rollHit(toHit, avoidance, rng, fromBehind)) {
-              mainHandHitThisRound = true;
               const mhElemAdder3 = getElementalBaseAdder(w1, options, rng);
               report.elementalDamageTotal += mhElemAdder3;
               let mhBase3 = cappedW1Damage + mhElemAdder3;
@@ -1544,7 +1600,7 @@
               const mhDisciplineMin3 = getDisciplineMinHit(cappedW1Damage, mainHandDamageBonus, disciplineActiveMh);
               if (mhDisciplineMin3 != null && dmg < mhDisciplineMin3) dmg = mhDisciplineMin3;
               if (w1.noDamageVsTarget) { report.elementalDamageTotal -= mhElemAdder3; dmg = 0; }
-              report.weapon1.swings++;
+              report.weapon1.swings++; addSwingThreatMH();
               report.weapon1.hits++;
               report.weapon1.totalDamage += dmg;
               report.weapon1.maxDamage = Math.max(report.weapon1.maxDamage, dmg);
@@ -1554,7 +1610,7 @@
               report.damageBonusTotal += mainHandDamageBonus;
               pushCombatLog(tMs, 'melee', 1, w1Verb, true, dmg, { roundLetter: mhRoundLetter, attemptNumber: 3, swingKind: 'TA' });
             } else {
-              report.weapon1.swings++;
+              report.weapon1.swings++; addSwingThreatMH();
               pushCombatLog(tMs, 'melee', 1, w1Verb, false, undefined, { roundLetter: mhRoundLetter, attemptNumber: 3, swingKind: 'TA' });
             }
           }
@@ -1573,6 +1629,7 @@
               if (dotDmg > 0) {
                 report.weapon1.procDamageTotal += dotDmg;
                 report.totalDamage += dotDmg;
+                addProcThreatAmt(dotDmg);
               }
             }
             lastProcMs1 = tMs;
@@ -1597,6 +1654,7 @@
             }
             report.weapon1.procDamageTotal += actualDmg;
             report.totalDamage += actualDmg;
+            addProcThreatAmt(actualDmg);
             if (actualDmg === 0) {
               report.weapon1.procFullResists++;
               report.weapon1.procResists++;
@@ -1635,9 +1693,7 @@
         if (checkDualWield(dualWieldEffective, rng)) {
           report.weapon2.rounds++;
           let attacksThisRound = 1;
-          let offhandHitThisRound = false;
           if (rollHit(toHit, avoidance, rng, fromBehind)) {
-            offhandHitThisRound = true;
             const ohElemAdder = getElementalBaseAdder(w2, options, rng);
             report.elementalDamageTotal += ohElemAdder;
             let ohBase = cappedW2Damage + ohElemAdder;
@@ -1652,7 +1708,7 @@
             const ohDisciplineMin = getDisciplineMinHit(cappedW2Damage, 0, disciplineActiveOh);
             if (ohDisciplineMin != null && dmg < ohDisciplineMin) dmg = ohDisciplineMin;
             if (w2.noDamageVsTarget) { report.elementalDamageTotal -= ohElemAdder; dmg = 0; }
-            report.weapon2.swings++;
+            report.weapon2.swings++; addSwingThreatOH();
             report.weapon2.hits++;
             report.weapon2.totalDamage += dmg;
             report.weapon2.maxDamage = Math.max(report.weapon2.maxDamage, dmg);
@@ -1661,13 +1717,12 @@
             report.totalDamage += dmg;
             pushCombatLog(tMs, 'melee', 2, w2Verb, true, dmg, { roundLetter: ohRoundLetter, attemptNumber: 1, swingKind: 'BA', dualWieldGate: true });
           } else {
-            report.weapon2.swings++;
+            report.weapon2.swings++; addSwingThreatOH();
             pushCombatLog(tMs, 'melee', 2, w2Verb, false, undefined, { roundLetter: ohRoundLetter, attemptNumber: 1, swingKind: 'BA', dualWieldGate: true });
           }
           if (checkDoubleAttack(doubleAttackEffective, rng, options.classId)) {
             attacksThisRound = 2;
             if (rollHit(toHit, avoidance, rng, fromBehind)) {
-              offhandHitThisRound = true;
               const ohElemAdder2 = getElementalBaseAdder(w2, options, rng);
               report.elementalDamageTotal += ohElemAdder2;
               let ohBase2 = cappedW2Damage + ohElemAdder2;
@@ -1682,7 +1737,7 @@
               const ohDisciplineMin2 = getDisciplineMinHit(cappedW2Damage, 0, disciplineActiveOh);
               if (ohDisciplineMin2 != null && dmg < ohDisciplineMin2) dmg = ohDisciplineMin2;
               if (w2.noDamageVsTarget) { report.elementalDamageTotal -= ohElemAdder2; dmg = 0; }
-              report.weapon2.swings++;
+              report.weapon2.swings++; addSwingThreatOH();
               report.weapon2.hits++;
               report.weapon2.totalDamage += dmg;
               report.weapon2.maxDamage = Math.max(report.weapon2.maxDamage, dmg);
@@ -1691,7 +1746,7 @@
               report.totalDamage += dmg;
               pushCombatLog(tMs, 'melee', 2, w2Verb, true, dmg, { roundLetter: ohRoundLetter, attemptNumber: 2, swingKind: 'DA', dualWieldGate: true });
             } else {
-              report.weapon2.swings++;
+              report.weapon2.swings++; addSwingThreatOH();
               pushCombatLog(tMs, 'melee', 2, w2Verb, false, undefined, { roundLetter: ohRoundLetter, attemptNumber: 2, swingKind: 'DA', dualWieldGate: true });
             }
           }
@@ -1708,6 +1763,7 @@
                 if (dotDmg > 0) {
                   report.weapon2.procDamageTotal += dotDmg;
                   report.totalDamage += dotDmg;
+                  addProcThreatAmt(dotDmg);
                 }
               }
               lastProcMs2 = tMs;
@@ -1732,6 +1788,7 @@
               }
               report.weapon2.procDamageTotal += actualDmg;
               report.totalDamage += actualDmg;
+              addProcThreatAmt(actualDmg);
               if (actualDmg === 0) {
                 report.weapon2.procFullResists++;
                 report.weapon2.procResists++;
@@ -1756,6 +1813,7 @@
       if (dotDmg > 0) {
         report.weapon1.procDamageTotal += dotDmg;
         report.totalDamage += dotDmg;
+        addProcThreatAmt(dotDmg);
       }
     }
     if (procBuffTicks2 > 0 && dotEndMs2 > lastProcMs2 && perTick2 > 0) {
@@ -1764,6 +1822,7 @@
       if (dotDmg > 0) {
         report.weapon2.procDamageTotal += dotDmg;
         report.totalDamage += dotDmg;
+        addProcThreatAmt(dotDmg);
       }
     }
 
@@ -1790,6 +1849,10 @@
     report.weapon2.hitStats = hitStats(report.weapon2.hitList);
     if (report.weapon1.hits === 0) report.weapon1.minDamage = null;
     if (report.weapon2.hits === 0) report.weapon2.minDamage = null;
+
+    report.totalThreat = totalThreatAcc;
+    report.swingThreat = swingThreatAcc;
+    report.procThreat = procThreatAcc;
 
     return report;
   }
@@ -1821,6 +1884,11 @@
       lines.push(padLine('  DPS std dev:', report.dpsStdDev.toFixed(2)));
     }
     lines.push(padLine('  Total damage:', String(report.totalDamage)));
+    if (report.totalThreat != null && report.totalThreat >= 0) {
+      const tps = dur ? (report.totalThreat / dur).toFixed(2) : '—';
+      lines.push(padLine('  TPS (threat, approx):', tps));
+      lines.push(padLine('  Total threat:', String(Math.round(report.totalThreat)) + '  (swing + proc; not equal to damage)'));
+    }
     if (report.critHits != null && report.critHits >= 0) lines.push(padLine('  Critical hits:', String(report.critHits)));
     if (report.critDamageGain != null && report.critDamageGain >= 0) {
       lines.push(padLine('  Crit DPS gain:', `${(report.critDamageGain / dur).toFixed(2)} (vs non-crit baseline)`));
@@ -1970,7 +2038,6 @@
       const D = sp.doubleBackstabs != null ? sp.doubleBackstabs : 0;
       const singleBackstabRounds = Math.max(0, a - D);
       const totalBackstabAttempts = sp.doubleBackstabs !== undefined ? (singleBackstabRounds + 2 * D) : a;
-      const attemptedAttacks = sp.attemptedAttacks != null ? sp.attemptedAttacks : totalBackstabAttempts;
       const acc = totalBackstabAttempts > 0 ? (h / totalBackstabAttempts * 100).toFixed(1) : '0';
       const dpsLabel = sp.name === 'Backstab' ? 'DPS from backstab' : 'DPS';
       lines.push(`  ${sp.name}`);

@@ -33,7 +33,7 @@ const server = http.createServer(function (req, res) {
         const payload = JSON.parse(body);
         const line = JSON.stringify(payload) + '\n';
         fs.appendFileSync(LOG_FILE, line);
-      } catch (e) {
+      } catch (_e) {
         // ignore parse errors
       }
       res.writeHead(200, {

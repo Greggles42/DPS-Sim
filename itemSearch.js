@@ -31,14 +31,27 @@
    * @param {string} [opts.apiKey] - API key (local only; not used when proxyUrl is set).
    * @param {string} [opts.proxyUrl] - Proxy endpoint (e.g. '/api/item-search'); key is set in Vercel env.
    */
+  /** When true, search uses local JSON only; no API key or proxy required. */
+  var localSearchOnly = false;
+
   function setItemSearchConfig(opts) {
     if (!opts) return;
+    if (opts.localSearchOnly === true) localSearchOnly = true;
+    if (opts.localSearchOnly === false) localSearchOnly = false;
     if (typeof opts.baseUrl === 'string') config.baseUrl = opts.baseUrl;
     if (typeof opts.apiKey === 'string') config.apiKey = opts.apiKey;
     if (typeof opts.proxyUrl === 'string') config.proxyUrl = opts.proxyUrl;
     var spellUrl = opts.spellBaseUrl || opts.spellbaseUrl;
     if (typeof spellUrl === 'string') config.spellBaseUrl = spellUrl;
     config.configApplied = true;
+  }
+
+  /** Mark config as applied without any remote ItemSearch API (offline / static hosting). */
+  function setLocalSearchOnlyMode() {
+    localSearchOnly = true;
+    config.configApplied = true;
+    config.proxyUrl = null;
+    config.apiKey = null;
   }
 
   /**
@@ -316,6 +329,9 @@
    * @returns {Promise<Array>} Resolves to array of items from API (or [] on error / if config not applied).
    */
   function searchItems(nameFilter) {
+    if (localSearchOnly) {
+      return Promise.resolve([]);
+    }
     if (!config.configApplied) {
       console.warn('ItemSearch: Set config before searching (itemSearchConfig.js locally or proxy on Vercel).');
       return Promise.resolve([]);
@@ -406,11 +422,11 @@
    */
   var ELE_DMG_TYPE_NUM = { 1: 'magic', 2: 'fire', 3: 'cold', 4: 'poison', 5: 'disease' };
 
-  /** Item IDs that are h2h but API may return as 1hb (e.g. Gharn's Rock, Mithril Ulak). Override type to h2h. Empty if not used. */
-  var H2H_OVERRIDE_IDS = {};
-
   /** Item types that cannot be used in offhand (2HS, 2HB, bow, throwing, 2HP). */
   var OFFHAND_BLOCKED_ITEM_TYPES = { 1: true, 4: true, 5: true, 6: true, 35: true };
+
+  /** When itemtype number is missing, infer offhand block from normalized type string (must match ITEM_TYPE_NUM_TO_TYPE values). */
+  var OFFHAND_BLOCKED_TYPE_STRINGS = { '2hs': true, '2hb': true, '2hp': true, 'bow': true, 'throwing': true, 'archery': true };
 
   /**
    * Map API item to the weapon shape used by DPS-Sim presets and getWeapon().
@@ -448,13 +464,14 @@
     /* itemtype / itemType from API -> maps to 1HB/1HP/1HS/2HB/2HS/2HP/bow/h2h/throwing */
     var itemTypeNumRaw = get(item, ['itemtype', 'itemType', 'item_type', 'ItemType']);
     var itemTypeNum = (typeof itemTypeNumRaw === 'number') ? itemTypeNumRaw : (parseInt(itemTypeNumRaw, 10));
-    var itemType = '';
-    var is2H = false;
+    var itemType;
+    var is2H;
     if (!isNaN(itemTypeNum) && ITEM_TYPE_NUM_TO_TYPE[itemTypeNum] !== undefined) {
       itemType = ITEM_TYPE_NUM_TO_TYPE[itemTypeNum];
       is2H = !!TWO_HAND_TYPES[itemType];
     } else {
-      itemType = str(get(item, ['type', 'Type', 'slot', 'Slot'])).toLowerCase();
+      /* Never use slot/Slot here — in EQ item data those are often slot *bitmasks*, not weapon type strings. */
+      itemType = str(get(item, ['type', 'Type', 'weaponType', 'weapon_type', 'WeaponType'])).toLowerCase();
       is2H = itemType ? !!TWO_HAND_TYPES[itemType] : !!get(item, ['is2H', 'isTwoHand', 'twoHanded']);
     }
 
@@ -463,7 +480,7 @@
     var procEffectRaw = get(item, ['procEffect', 'proceffect', 'proc_effect', 'ProcEffect', 'Proceffect', 'procSpellId', 'proc_spell_id', 'procSpellId']);
     if (procEffectRaw === undefined || procEffectRaw === null) {
       for (var key in item) {
-        if (item.hasOwnProperty(key) && /^proc.*effect|proceffect$/i.test(String(key).replace(/_/g, ''))) {
+        if (Object.prototype.hasOwnProperty.call(item, key) && /^proc.*effect|proceffect$/i.test(String(key).replace(/_/g, ''))) {
           var val = item[key];
           if (val !== undefined && val !== null && (typeof val === 'number' ? !isNaN(val) : !isNaN(parseInt(val, 10)))) {
             procEffectRaw = val;
@@ -494,7 +511,7 @@
     var procRate = num(get(item, ['procrate', 'procRate', 'proc_rate', 'ProcRate', 'proc_rate_mod']));
     if (procRate == null || (typeof procRate === 'number' && isNaN(procRate))) {
       for (var prKey in item) {
-        if (item.hasOwnProperty(prKey) && /^proc.*rate|procrate$/i.test(String(prKey).replace(/_/g, ''))) {
+        if (Object.prototype.hasOwnProperty.call(item, prKey) && /^proc.*rate|procrate$/i.test(String(prKey).replace(/_/g, ''))) {
           var prVal = num(item[prKey]);
           if (prVal != null && !isNaN(prVal)) { procRate = prVal; break; }
         }
@@ -510,7 +527,7 @@
     }
 
     var eleDmgTypeNum = num(get(item, ['eleDmgType', 'elemType', 'elem_type', 'elemdmgtype']));
-    var elemType = '';
+    var elemType;
     if (typeof eleDmgTypeNum === 'number' && ELE_DMG_TYPE_NUM[eleDmgTypeNum]) {
       elemType = ELE_DMG_TYPE_NUM[eleDmgTypeNum];
     } else {
@@ -569,11 +586,14 @@
 
     var itemId = num(get(item, ['id', 'Id', 'item_id', 'itemId']));
     var finalType = itemType || 'undefined';
-    // H2H override disabled for now: if (itemId && H2H_OVERRIDE_IDS[itemId]) finalType = 'h2h';
 
     var itemTypeNumVal = !isNaN(itemTypeNum) ? itemTypeNum : null;
     var itemClasses = getItemClasses(item);
     var itemIdVal = (typeof itemId === 'number' && !isNaN(itemId) && itemId > 0) ? itemId : null;
+    var offhandBlocked = !!(itemTypeNumVal != null && OFFHAND_BLOCKED_ITEM_TYPES[itemTypeNumVal]);
+    if (!offhandBlocked && finalType && finalType !== 'undefined' && OFFHAND_BLOCKED_TYPE_STRINGS[finalType]) {
+      offhandBlocked = true;
+    }
     var out = {
       name: name || 'Unknown',
       damage: damage,
@@ -581,7 +601,7 @@
       is2H: is2H,
       type: finalType,
       itemTypeNum: itemTypeNumVal,
-      offhandBlocked: !!(itemTypeNumVal != null && OFFHAND_BLOCKED_ITEM_TYPES[itemTypeNumVal]),
+      offhandBlocked: offhandBlocked,
       proc: procName || '',
       procDamage: procDamage,
       procRate: procRate,
@@ -616,6 +636,9 @@
   }
 
   function searchWeapons(nameFilter, classId) {
+    if (localSearchOnly) {
+      return Promise.resolve([]);
+    }
     var q = (nameFilter != null ? String(nameFilter) : '').trim().toLowerCase();
     return searchItems(nameFilter).then(function (items) {
       if (q) {
@@ -663,6 +686,7 @@
 
   global.ItemSearch = {
     setConfig: setItemSearchConfig,
+    setLocalSearchOnlyMode: setLocalSearchOnlyMode,
     setSpellData: setSpellData,
     getSpellFromLocalData: getSpellFromLocalData,
     searchItems: searchItems,
