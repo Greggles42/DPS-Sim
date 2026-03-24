@@ -858,7 +858,8 @@
       filter: brightness(1.1);
     }
     #btn-rank-weapons.magic-btn.btn-rank-inline,
-    #btn-rank-ranged-weapons.magic-btn.btn-rank-inline {
+    #btn-rank-ranged-weapons.magic-btn.btn-rank-inline,
+    #btn-rank-view-toggle.magic-btn.btn-rank-inline {
       display: inline-flex;
       align-items: center;
       justify-content: center;
@@ -1530,8 +1531,9 @@
       <hr class="sim-rank-divider" aria-hidden="true">
       <span class="rank-weapons-row" id="rank-weapons-wrap">
         <button type="button" id="btn-rank-weapons" class="magic-btn btn-rank-inline" title="Rank weapons by DPS (Shift+Click Run to show)">Rank weapons</button>
-        <input type="checkbox" id="rank-weapons-include-pop" style="display:none" tabindex="-1" aria-hidden="true">
         <label class="checkbox-label"><input type="checkbox" id="rank-weapons-ignore-nodrop" title="When checked, excludes items with nodrop = 0 from rank results"> Ignore No Drop items</label>
+        <label class="checkbox-label"><input type="checkbox" id="rank-weapons-include-pop" title="When checked, include PoP-era items from weapons.json (except weapon_exclusions)"> Enable PoP items in rank</label>
+        <label class="checkbox-label"><input type="checkbox" id="rank-weapons-by-tps" title="When checked, rank and sort by threat per second instead of DPS"> Rank by threat per second (TPS)</label>
       </span>
       <div id="rank-weapons-progress" class="hint" aria-live="polite" style="margin-top:0.5rem; min-height:1.25rem;"></div>
     </section>
@@ -1698,7 +1700,8 @@
       <button type="button" id="btn-run-ranged" class="magic-btn">Run simulation</button>
       <span class="rank-weapons-row" id="rank-ranged-weapons-wrap" style="margin-left: 0.5rem;">
         <button type="button" id="btn-rank-ranged-weapons" class="magic-btn btn-rank-inline" title="Rank bow + arrow combinations by DPS (ranger, bows and arrows only)">Rank weapons</button>
-        <label class="checkbox-label"><input type="checkbox" id="rank-ranged-include-pop" title="When checked, include PoP-era items from weapons.json"> Include PoP weapons</label>
+        <label class="checkbox-label"><input type="checkbox" id="rank-ranged-include-pop" title="When checked, include PoP-era items from weapons.json (except weapon_exclusions)"> Enable PoP items in rank</label>
+        <label class="checkbox-label"><input type="checkbox" id="rank-ranged-by-tps" title="When checked, rank and sort by threat per second instead of DPS"> Rank by threat per second (TPS)</label>
       </span>
       <details id="item-search-debug-ranged" class="item-search-debug" style="margin-top: 0.75rem; padding: 0.5rem; background: var(--panel); border: 1px solid var(--border); border-radius: 4px;">
         <summary style="cursor: pointer; font-size: 0.85rem; color: var(--muted);">Item search debug</summary>
@@ -1711,13 +1714,15 @@
 
   <section class="report-section">
     <div class="report-header-row" style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.75rem;">
-      <h2 style="margin: 0;">Report</h2>
-      <span style="display: flex; gap: 0.5rem;">
-        <button type="button" id="btn-rank-view-toggle" class="sim-history-clear-btn" style="display:none;" title="Switch rank report view mode">Combos/Slots</button>
-        <button type="button" id="btn-rank-export-csv" class="sim-history-clear-btn" title="Export weapon rank list to CSV (run Rank weapons first)">Export to .csv</button>
+      <div style="display: flex; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
+        <h2 style="margin: 0;">Report</h2>
+        <button type="button" id="btn-rank-view-toggle" class="magic-btn btn-rank-inline" style="display:none;" title="Switch rank report view mode">Combos/Slots</button>
+      </div>
+      <span style="display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center;">
         <button type="button" id="btn-export-combatlog" class="sim-history-clear-btn" title="Download combat log (.txt) in EQ format (seconds). Single run only.">Combat log (.txt)</button>
-        <button type="button" id="btn-export-combatlog-ms" class="sim-history-clear-btn" title="Download detailed combat log (.txt) in EQ format (milliseconds). Single run only.">combat log - detailed (.txt)</button>
+        <button type="button" id="btn-export-combatlog-ms" class="sim-history-clear-btn" title="Download detailed combat log (.txt) in EQ format (milliseconds). Single run only.">Detailed log (.txt)</button>
         <button type="button" id="export-report-txt" class="sim-history-clear-btn" title="Download current report as a .txt file">Export to .txt</button>
+        <button type="button" id="btn-rank-export-csv" class="sim-history-clear-btn" title="Export weapon rank list to CSV (run Rank weapons first)">Export to .csv</button>
       </span>
     </div>
     <div id="report">Run a simulation to see the report.</div>
@@ -1754,7 +1759,7 @@
   <section class="advanced-only" style="margin-top: 1rem;">
     <h2>Version log</h2>
     <ul style="font-size: 0.9rem; color: var(--muted); margin: 0; padding-left: 1.25rem;">
-      <li><strong>1.07</strong> — UI overhauled (Easy and Advanced: layout, theming, alignment, and controls). Weapon search system cleaned up and refined (merged offline data, filters, rank/search behavior, and related UX). Added initial threat per second calculations.</li>
+      <li><strong>1.07</strong> — UI overhauled (Easy and Advanced: layout, theming, alignment, and controls). Weapon search system cleaned up and refined (merged offline data, filters, rank/search behavior, and related UX). Added initial threat per second calculations. Enabled PoP weapons in weaponrank via toggle. Rank by TPS enabled in weaponrank via toggle.</li>
       <li><strong>1.06</strong> — Item search is fully offline using merged <code>resources/weapons.json</code> (no remote ItemSearch API). Weapon data is merged from weaponlist/luclin/pop with per-item <code>expansion</code> and <code>resources/weapon_exclusions.json</code> for rank/search filters. Reports show approximate <strong>TPS</strong> (threat per second) from swing hate + capped proc hate (<code>threat.js</code> / EQMacEmu-style). Run <code>node scripts/merge-weapons.mjs</code> after editing source JSON. Fixed JSON syntax in <code>popweapons.json</code> (missing comma).</li>
       <li><strong>1.05</strong> — Improved BS mod application and worn ATK behavior in the `rankWeapons` function. Bane damage now auto-applies; Seru and Emp can only be hurt by bane weapons. Weapon rank now outputs phase-by-phase results. Added a synthetic combat-log mode (1 run supported only) and `.txt` export compatible with normal fight-log parsers. Improved some Monk fistweaving logic.</li>
       <li><strong>1.04</strong> — Updated a lot of the ranged damage simulation in advanced mode. Weapon search is improved and filters are better, quiver WR calculations are in. Ranger atk rating bonus is in. Elemental damage from bows and arrows now works. Archery skill modifiers are now in. Updated backstab damage model to address a fencepost issue.</li>
@@ -1934,6 +1939,13 @@
         var melee = w.totalDamage != null ? Number(w.totalDamage) : 0;
         var proc = w.procDamageTotal != null ? Number(w.procDamageTotal) : 0;
         return melee + proc;
+      }
+      /** Per-slot threat (swing + proc) for TPS ranking; matches combat.js weapon1/weapon2 threat fields. */
+      function weaponSlotThreatForTpsReport(w) {
+        if (!w || typeof w !== 'object') return 0;
+        var swing = w.swingThreat != null ? Number(w.swingThreat) : 0;
+        var proc = w.procThreat != null ? Number(w.procThreat) : 0;
+        return swing + proc;
       }
       /** damage/delay (EQ item fields); skip junk weapons during rank to cut sim count. */
       function weaponMeetsRankDamageDelayRatio(raw) {
@@ -3883,8 +3895,11 @@
           $('report').textContent = 'Combat simulator not loaded. Ensure combat.js loads correctly.';
           return;
         }
+        var rankViewToggleStart = $('btn-rank-view-toggle');
+        if (rankViewToggleStart) rankViewToggleStart.style.display = 'none';
         var includePop = ($('rank-weapons-include-pop') && $('rank-weapons-include-pop').checked) === true;
         var ignoreNoDrop = ($('rank-weapons-ignore-nodrop') && $('rank-weapons-ignore-nodrop').checked) === true;
+        var rankByTps = ($('rank-weapons-by-tps') && $('rank-weapons-by-tps').checked) === true;
         if (typeof weaponListLoadPromise !== 'undefined' && weaponListLoadPromise) await weaponListLoadPromise;
         if (typeof allWeaponsData === 'undefined' || !allWeaponsData || typeof allWeaponsData !== 'object' || Object.keys(allWeaponsData).length === 0) {
           $('report').textContent = 'resources/weapons.json is required. Run node scripts/merge-weapons.mjs if missing.';
@@ -4084,6 +4099,7 @@
             wornAttack: baseOptions.wornAttack,
             spellAttack: baseOptions.spellAttack,
             includePop: includePop,
+            rankByTps: rankByTps,
             targetMob: window.selectedTargetNpc && window.selectedTargetNpc.name ? String(window.selectedTargetNpc.name).replace(/_/g, ' ') : undefined,
           });
         }
@@ -4186,6 +4202,8 @@
           : combinations;
         var mainhand_dps = {};
         var offhand_dps = {};
+        var mainhand_tps = {};
+        var offhand_tps = {};
         const TOP_COMBO_SIMS = 500;
         var topCombosToSim = [];
         var comboResults = [];
@@ -4209,7 +4227,7 @@
         function setRankWeaponsProgressText(text) {
           if (rankWeaponsProgressEl) rankWeaponsProgressEl.textContent = text;
         }
-        function buildResultRow(comb, totalDps, mainhandDps, offhandDps) {
+        function buildResultRow(comb, totalDps, mainhandDps, offhandDps, totalTps, mainhandTps, offhandTps) {
           var isOffhandOnly = comb.primaryId == null;
           var p1 = comb.primaryId != null ? rankWeaponMap[comb.primaryId] : null;
           var p2 = comb.secondaryId ? rankWeaponMap[comb.secondaryId] : null;
@@ -4248,24 +4266,35 @@
             secondarySkillLabel = (comb.secondaryId && p2) ? ((secSkillKey || '').toUpperCase() + '-' + secCapEffective) : '—';
           }
           var finalAtk = (baseOptions.spellAttack || 0) + (baseOptions.wornAttack || 0) + atk1 + atk2;
-          return { primaryId: comb.primaryId, secondaryId: comb.secondaryId, label: label, mainhandDps: mainhandDps != null ? mainhandDps : 0, offhandDps: offhandDps != null ? offhandDps : 0, totalDps: totalDps != null ? totalDps : 0, backstabModApplied: backstabModApplied, primarySkillLabel: primarySkillLabel, secondarySkillLabel: secondarySkillLabel, finalAtk: finalAtk };
+          var mt = mainhandTps != null && !isNaN(Number(mainhandTps)) ? Number(mainhandTps) : 0;
+          var ot = offhandTps != null && !isNaN(Number(offhandTps)) ? Number(offhandTps) : 0;
+          var tt = totalTps != null && !isNaN(Number(totalTps)) ? Number(totalTps) : (mt + ot);
+          return { primaryId: comb.primaryId, secondaryId: comb.secondaryId, label: label, mainhandDps: mainhandDps != null ? mainhandDps : 0, offhandDps: offhandDps != null ? offhandDps : 0, totalDps: totalDps != null ? totalDps : 0, mainhandTps: mt, offhandTps: ot, totalTps: tt, backstabModApplied: backstabModApplied, primarySkillLabel: primarySkillLabel, secondarySkillLabel: secondarySkillLabel, finalAtk: finalAtk };
         }
 
         function snapshotMainhandTop() {
           var ids = (primaryWeapons || []).filter(function (id) { return mainhand_dps[id] != null; });
-          ids.sort(function (a, b) { return (mainhand_dps[b] || 0) - (mainhand_dps[a] || 0); });
+          ids.sort(function (a, b) {
+            if (rankByTps) return (mainhand_tps[b] || 0) - (mainhand_tps[a] || 0);
+            return (mainhand_dps[b] || 0) - (mainhand_dps[a] || 0);
+          });
           return ids.slice(0, TOP_PHASE_BREAKDOWN).map(function (id) {
             var dps = mainhand_dps[id] != null ? mainhand_dps[id] : 0;
-            return buildResultRow({ primaryId: id, secondaryId: null }, dps, dps, 0);
+            var tps = mainhand_tps[id] != null ? mainhand_tps[id] : 0;
+            return buildResultRow({ primaryId: id, secondaryId: null }, dps, dps, 0, tps, tps, 0);
           });
         }
 
         function snapshotOffhandTop() {
           var ids = (secondaryWeapons || []).filter(function (id) { return offhand_dps[id] != null; });
-          ids.sort(function (a, b) { return (offhand_dps[b] || 0) - (offhand_dps[a] || 0); });
+          ids.sort(function (a, b) {
+            if (rankByTps) return (offhand_tps[b] || 0) - (offhand_tps[a] || 0);
+            return (offhand_dps[b] || 0) - (offhand_dps[a] || 0);
+          });
           return ids.slice(0, TOP_PHASE_BREAKDOWN).map(function (id) {
             var dps = offhand_dps[id] != null ? offhand_dps[id] : 0;
-            return buildResultRow({ primaryId: null, secondaryId: id }, dps, 0, dps);
+            var tps = offhand_tps[id] != null ? offhand_tps[id] : 0;
+            return buildResultRow({ primaryId: null, secondaryId: id }, dps, 0, dps, tps, 0, tps);
           });
         }
 
@@ -4283,16 +4312,22 @@
               var mainDpsStr = formatDps(row ? row.mainhandDps : null);
               var offDpsStr = formatDps(row ? row.offhandDps : null);
               var totalDpsStr = formatDps(row ? row.totalDps : null);
+              var mainTpsStr = formatDps(row ? row.mainhandTps : null);
+              var offTpsStr = formatDps(row ? row.offhandTps : null);
+              var totalTpsStr = formatDps(row ? row.totalTps : null);
+              if (rankByTps) {
+                return '<tr><td>' + rank + '</td><td>' + label + '</td><td style="text-align:right;">' + mainTpsStr + '</td><td style="text-align:right;">' + offTpsStr + '</td><td style="text-align:right;">' + totalTpsStr + '</td></tr>';
+              }
               return '<tr><td>' + rank + '</td><td>' + label + '</td><td style="text-align:right;">' + mainDpsStr + '</td><td style="text-align:right;">' + offDpsStr + '</td><td style="text-align:right;">' + totalDpsStr + '</td></tr>';
             }).join('');
+            var headDps = '<th style="text-align:right;">Mainhand DPS</th><th style="text-align:right;">Offhand DPS</th><th style="text-align:right;">Total DPS</th>';
+            var headTps = '<th style="text-align:right;">Mainhand TPS</th><th style="text-align:right;">Offhand TPS</th><th style="text-align:right;">Total TPS</th>';
             return (
               '<h3 style="margin:0.75rem 0 0.35rem;">' + safeTitle + '</h3>' +
               '<table class="rank-weapons-table" style="margin-top:0.25rem; border-collapse:collapse; width:100%; font-size:0.85rem;"><thead><tr>' +
               '<th style="text-align:left;">#</th>' +
               '<th style="text-align:left;">Combination</th>' +
-              '<th style="text-align:right;">Mainhand DPS</th>' +
-              '<th style="text-align:right;">Offhand DPS</th>' +
-              '<th style="text-align:right;">Total DPS</th>' +
+              (rankByTps ? headTps : headDps) +
               '</tr></thead><tbody>' + body + '</tbody></table>'
             );
           }
@@ -4335,6 +4370,7 @@
               try {
                 var r = EQCombat.runFight(options);
                 mainhand_dps[id] = r.error ? 0 : (r.totalDamage / durationSec);
+                mainhand_tps[id] = r.error || r.totalThreat == null ? 0 : (r.totalThreat / durationSec);
               } catch (err) {
                 $('report').textContent = 'Rank weapons error: ' + (err && err.message ? err.message : String(err));
                 return;
@@ -4386,6 +4422,7 @@
               try {
                 var r2 = EQCombat.runFight(opts);
                 offhand_dps[secId] = r2.error ? 0 : (r2.totalDamage != null ? r2.totalDamage / durationSec : 0);
+                offhand_tps[secId] = r2.error || r2.totalThreat == null ? 0 : (r2.totalThreat / durationSec);
               } catch (err) {
                 $('report').textContent = 'Rank weapons error: ' + (err && err.message ? err.message : String(err));
                 return;
@@ -4396,9 +4433,14 @@
               coarseResults = combinationsToUse.map(function (comb) {
                 var mainDps = comb.primaryId != null && mainhand_dps[comb.primaryId] != null ? mainhand_dps[comb.primaryId] : 0;
                 var offDps = comb.secondaryId && offhand_dps[comb.secondaryId] != null ? offhand_dps[comb.secondaryId] : 0;
-                return buildResultRow(comb, mainDps + offDps, mainDps, offDps);
+                var mainTps = comb.primaryId != null && mainhand_tps[comb.primaryId] != null ? mainhand_tps[comb.primaryId] : 0;
+                var offTps = comb.secondaryId && offhand_tps[comb.secondaryId] != null ? offhand_tps[comb.secondaryId] : 0;
+                return buildResultRow(comb, mainDps + offDps, mainDps, offDps, mainTps + offTps, mainTps, offTps);
               });
-              coarseResults.sort(function (a, b) { return (b.totalDps || 0) - (a.totalDps || 0); });
+              coarseResults.sort(function (a, b) {
+                if (rankByTps) return (b.totalTps || 0) - (a.totalTps || 0);
+                return (b.totalDps || 0) - (a.totalDps || 0);
+              });
               topCombosToSim = coarseResults.slice(0, Math.min(TOP_COMBO_SIMS, coarseResults.length));
               // Clone so later full-combo decomposition updates don't mutate the coarse snapshot.
               phaseSnapshots.coarseTop = coarseResults.slice(0, TOP_PHASE_BREAKDOWN).map(function (r) { return Object.assign({}, r); });
@@ -4410,9 +4452,14 @@
             coarseResults = combinationsToUse.map(function (comb) {
               var mainDps = comb.primaryId != null && mainhand_dps[comb.primaryId] != null ? mainhand_dps[comb.primaryId] : 0;
               var offDps = comb.secondaryId && offhand_dps[comb.secondaryId] != null ? offhand_dps[comb.secondaryId] : 0;
-              return buildResultRow(comb, mainDps + offDps, mainDps, offDps);
+              var mainTps = comb.primaryId != null && mainhand_tps[comb.primaryId] != null ? mainhand_tps[comb.primaryId] : 0;
+              var offTps = comb.secondaryId && offhand_tps[comb.secondaryId] != null ? offhand_tps[comb.secondaryId] : 0;
+              return buildResultRow(comb, mainDps + offDps, mainDps, offDps, mainTps + offTps, mainTps, offTps);
             });
-            coarseResults.sort(function (a, b) { return (b.totalDps || 0) - (a.totalDps || 0); });
+            coarseResults.sort(function (a, b) {
+              if (rankByTps) return (b.totalTps || 0) - (a.totalTps || 0);
+              return (b.totalDps || 0) - (a.totalDps || 0);
+            });
             topCombosToSim = coarseResults.slice(0, Math.min(TOP_COMBO_SIMS, coarseResults.length));
             // Clone so later full-combo decomposition updates don't mutate the coarse snapshot.
             phaseSnapshots.coarseTop = coarseResults.slice(0, TOP_PHASE_BREAKDOWN).map(function (r) { return Object.assign({}, r); });
@@ -4504,14 +4551,19 @@
               try {
                 var rr = EQCombat.runFight(opts);
                 if (rr.error) {
-                  comboResults[simIndex] = { totalDps: 0, mainhandDps: 0, offhandDps: 0 };
+                  comboResults[simIndex] = { totalDps: 0, mainhandDps: 0, offhandDps: 0, totalTps: 0, mainhandTps: 0, offhandTps: 0 };
                 } else {
                   var w1Dmg = weaponSlotDamageForDpsReport(rr.weapon1);
                   var w2Dmg = weaponSlotDamageForDpsReport(rr.weapon2);
+                  var w1Threat = weaponSlotThreatForTpsReport(rr.weapon1);
+                  var w2Threat = weaponSlotThreatForTpsReport(rr.weapon2);
                   comboResults[simIndex] = {
                     totalDps: rr.totalDamage / durationSec,
                     mainhandDps: w1Dmg / durationSec,
-                    offhandDps: w2Dmg / durationSec
+                    offhandDps: w2Dmg / durationSec,
+                    totalTps: rr.totalThreat != null ? rr.totalThreat / durationSec : 0,
+                    mainhandTps: w1Threat / durationSec,
+                    offhandTps: w2Threat / durationSec
                   };
                 }
               } catch (err) {
@@ -4526,7 +4578,7 @@
           var pctFloor = Math.floor((completedSims / totalSims) * 100);
           if (totalSims > 0 && pctFloor > lastDisplayedPct) {
             lastDisplayedPct = pctFloor;
-            var phaseLabel = phase === 'mainhand' ? 'Measuring mainhand DPS…' : (phase === 'offhand' ? 'Measuring offhand DPS…' : (phase === 'combinations' ? 'Measuring combinations…' : 'Building list…'));
+            var phaseLabel = phase === 'mainhand' ? ('Measuring mainhand ' + (rankByTps ? 'TPS' : 'DPS') + '…') : (phase === 'offhand' ? ('Measuring offhand ' + (rankByTps ? 'TPS' : 'DPS') + '…') : (phase === 'combinations' ? 'Measuring combinations…' : 'Building list…'));
             setRankWeaponsProgressText(phaseLabel + ' ' + pctFloor + '% complete (' + completedSims + ' / ' + totalSims + ' sims)');
           }
 
@@ -4539,9 +4591,15 @@
             coarseResults[ci].totalDps = comboResults[ci].totalDps;
             coarseResults[ci].mainhandDps = comboResults[ci].mainhandDps;
             coarseResults[ci].offhandDps = comboResults[ci].offhandDps;
+            coarseResults[ci].totalTps = comboResults[ci].totalTps;
+            coarseResults[ci].mainhandTps = comboResults[ci].mainhandTps;
+            coarseResults[ci].offhandTps = comboResults[ci].offhandTps;
           }
           var results = coarseResults.slice();
-          results.sort(function (a, b) { return (b.totalDps || 0) - (a.totalDps || 0); });
+          results.sort(function (a, b) {
+            if (rankByTps) return (b.totalTps || 0) - (a.totalTps || 0);
+            return (b.totalDps || 0) - (a.totalDps || 0);
+          });
 
           var runsCount = Math.max(1, Math.min(1000, parseInt($('runs').value, 10) || 20));
           var top40 = results.slice(0, 40);
@@ -4549,8 +4607,12 @@
             var currentMode = (window._rankWeaponsReportViewMode === 'slot') ? 'slot' : 'combinations';
             var reportEl = $('report');
             if (reportEl) reportEl.textContent = 'Generating chart...';
-            results.sort(function (a, b) { return (b.totalDps || 0) - (a.totalDps || 0); });
+            results.sort(function (a, b) {
+              if (rankByTps) return (b.totalTps || 0) - (a.totalTps || 0);
+              return (b.totalDps || 0) - (a.totalDps || 0);
+            });
             window._lastRankWeaponsResults = results;
+            window._lastRankWeaponsByTps = rankByTps;
             window._rankWeaponsReportViewMode = currentMode;
             var viewToggleBtn = $('btn-rank-view-toggle');
             if (viewToggleBtn) {
@@ -4563,7 +4625,8 @@
             if (ignoreNoDrop) sourceLabel += ' No Drop items excluded (nodrop = 0).';
             sourceLabel += ' Items requiring level above character level excluded (reqlevel).';
             sourceLabel += ' Items unusable by all races excluded (races = 0).';
-            var heading = currentMode === 'slot' ? '=== Weapon slot rank (by DPS) ===' : '=== Weapon combination rank (by DPS) ===';
+            var metricName = rankByTps ? 'TPS' : 'DPS';
+            var heading = currentMode === 'slot' ? ('=== Weapon slot rank (by ' + metricName + ') ===') : ('=== Weapon combination rank (by ' + metricName + ') ===');
             var modeDesc = currentMode === 'slot' ? ' Slot Ranking mode shows best single-slot options.' : ' Top 500 estimated combos: full sim (worn ATK + backstab). Rest: coarse estimate. Top 40 averaged over multiple runs.';
             if (classId === 'rogue') modeDesc += ' [BS+X%] marker indicates an item backstab modifier factored into that result.';
             var targetName = (window.selectedTargetNpc && window.selectedTargetNpc.name) ? String(window.selectedTargetNpc.name).replace(/_/g, ' ') : 'Generic Mob';
@@ -4581,45 +4644,65 @@
               (rows || []).forEach(function (row) {
                 if (!row || row.id == null) return;
                 var k = String(row.id);
-                if (!bestById[k] || (row.dps || 0) > (bestById[k].dps || 0)) bestById[k] = row;
+                var score = rankByTps ? (row.tps || 0) : (row.dps || 0);
+                var prev = bestById[k];
+                var prevScore = prev ? (rankByTps ? (prev.tps || 0) : (prev.dps || 0)) : -1;
+                if (!prev || score > prevScore) bestById[k] = row;
               });
-              return Object.keys(bestById).map(function (k) { return bestById[k]; }).sort(function (a, b) { return (b.dps || 0) - (a.dps || 0); });
+              return Object.keys(bestById).map(function (k) { return bestById[k]; }).sort(function (a, b) {
+                return rankByTps ? ((b.tps || 0) - (a.tps || 0)) : ((b.dps || 0) - (a.dps || 0));
+              });
             }
             function renderSlotTable(title, rows, labelHeader, showWhenEmpty) {
               if (!rows || rows.length === 0) {
                 return showWhenEmpty ? ('<h3 style="margin:0.75rem 0 0.35rem;">' + title + '</h3><div class="hint" style="margin:0 0 0.5rem;">No eligible items found.</div>') : '';
               }
+              var slotHdr = rankByTps ? 'TPS' : 'DPS';
               var bodyRows = rows.slice(0, 40).map(function (row, i) {
                 var atkMarker = row.wornAttackBonus > 0 ? (' [ATK+' + row.wornAttackBonus + ']') : '';
                 var marker = row.backstabModApplied > 0 ? (' [BS+' + row.backstabModApplied + '%]') : '';
                 var label = ((row.label || '') + marker + atkMarker).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
-                var dpsStr = formatDps(row.dps);
+                var val = rankByTps ? row.tps : row.dps;
+                var dpsStr = formatDps(val);
                 return '<tr><td>' + (i + 1) + '</td><td>' + label + '</td><td style="text-align:right;">' + dpsStr + '</td></tr>';
               }).join('');
-              return '<h3 style="margin:0.75rem 0 0.35rem;">' + title + '</h3><table class="rank-weapons-table" style="margin-top:0.25rem; border-collapse:collapse; width:100%; font-size:0.9rem;"><thead><tr><th style="text-align:left;">#</th><th style="text-align:left;">' + labelHeader + '</th><th style="text-align:right;">DPS</th></tr></thead><tbody>' + bodyRows + '</tbody></table>';
+              return '<h3 style="margin:0.75rem 0 0.35rem;">' + title + '</h3><table class="rank-weapons-table" style="margin-top:0.25rem; border-collapse:collapse; width:100%; font-size:0.9rem;"><thead><tr><th style="text-align:left;">#</th><th style="text-align:left;">' + labelHeader + '</th><th style="text-align:right;">' + slotHdr + '</th></tr></thead><tbody>' + bodyRows + '</tbody></table>';
             }
             var top400 = results.slice(0, 400);
             var tableRows = top400.map(function (row, i) {
               var rank = i + 1;
               var label = (row.label || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+              if (rankByTps) {
+                var mainTpsStr = row.mainhandTps != null ? row.mainhandTps.toFixed(2) : '—';
+                var offTpsStr = row.offhandTps != null ? row.offhandTps.toFixed(2) : '—';
+                var totalTpsStr = row.totalTps != null ? row.totalTps.toFixed(2) : '—';
+                return '<tr><td>' + rank + '</td><td>' + label + '</td><td style="text-align:right;">' + mainTpsStr + '</td><td style="text-align:right;">' + offTpsStr + '</td><td style="text-align:right;">' + totalTpsStr + '</td></tr>';
+              }
               var mainDpsStr = row.mainhandDps != null ? row.mainhandDps.toFixed(2) : '—';
               var offDpsStr = row.offhandDps != null ? row.offhandDps.toFixed(2) : '—';
               var totalDpsStr = row.totalDps != null ? row.totalDps.toFixed(2) : '—';
               return '<tr><td>' + rank + '</td><td>' + label + '</td><td style="text-align:right;">' + mainDpsStr + '</td><td style="text-align:right;">' + offDpsStr + '</td><td style="text-align:right;">' + totalDpsStr + '</td></tr>';
             });
-            var maxDps = results.length > 0 && results[0].totalDps != null && results[0].totalDps > 0 ? results[0].totalDps : 1;
+            var maxMetric = 1;
+            if (results.length > 0) {
+              if (rankByTps) {
+                maxMetric = results[0].totalTps != null && results[0].totalTps > 0 ? results[0].totalTps : 1;
+              } else {
+                maxMetric = results[0].totalDps != null && results[0].totalDps > 0 ? results[0].totalDps : 1;
+              }
+            }
             var chartRows = results.slice(0, 40).map(function (row, i) {
-              var dps = row.totalDps != null ? row.totalDps : 0;
-              var pct = maxDps > 0 ? (dps / maxDps * 100) : 0;
-              var pctDiff = maxDps > 0 ? (dps / maxDps * 100) : 0;
+              var dps = rankByTps ? (row.totalTps != null ? row.totalTps : 0) : (row.totalDps != null ? row.totalDps : 0);
+              var pctDiff = maxMetric > 0 ? (dps / maxMetric * 100) : 0;
               var labelSafe = (row.label || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
-              var dpsStr = row.totalDps != null ? row.totalDps.toFixed(2) : '—';
+              var dpsStr = rankByTps ? (row.totalTps != null ? row.totalTps.toFixed(2) : '—') : (row.totalDps != null ? row.totalDps.toFixed(2) : '—');
               var pctStr = (i === 0) ? '100%' : (pctDiff.toFixed(1) + '%');
-              var barWidth = Math.max(0, Math.min(100, pct));
+              var barWidth = Math.max(0, Math.min(100, pctDiff));
               return '<div class="rank-chart-row" title="' + labelSafe + '"><span class="rank-chart-label">' + labelSafe + '</span><span class="rank-chart-dps">' + dpsStr + '</span><span class="rank-chart-pct">' + pctStr + '</span><div class="rank-chart-bar-wrap"><div class="rank-chart-bar" style="width:' + barWidth + '%"></div></div></div>';
             });
-            var chartHeader = '<div class="rank-chart-row rank-chart-header"><span class="rank-chart-label">Weapon Combination</span><span class="rank-chart-dps">DPS</span><span class="rank-chart-pct">% of BIS</span><div class="rank-chart-bar-wrap"></div></div>';
-            var chartHtml = chartRows.length > 0 ? '<div class="rank-weapons-chart"><h3>Top 40 by DPS (X scale = #1)</h3>' + chartHeader + chartRows.join('') + '</div>' : '';
+            var chartColHdr = rankByTps ? 'TPS' : 'DPS';
+            var chartHeader = '<div class="rank-chart-row rank-chart-header"><span class="rank-chart-label">Weapon Combination</span><span class="rank-chart-dps">' + chartColHdr + '</span><span class="rank-chart-pct">% of BIS</span><div class="rank-chart-bar-wrap"></div></div>';
+            var chartHtml = chartRows.length > 0 ? ('<div class="rank-weapons-chart"><h3>Top 40 by ' + metricName + ' (X scale = #1)</h3>' + chartHeader + chartRows.join('') + '</div>') : '';
             var histContainer = $('histogram-container');
             if (currentMode === 'slot') {
               var mainhandSlotRows = primaryWeapons.map(function (id) {
@@ -4628,7 +4711,9 @@
                 var bs1 = classId === 'rogue' ? getBackstabModPercentForNorm(w) : 0;
                 var backstabContributes = classId === 'rogue' && fromBehind && rankSpecialAttacks && rankSpecialAttackType === 'backstab' && bs1 > 0;
                 var atkBonus = getWornAttackBonusForNorm(w);
-                return { id: id, label: (w && w.name) || id, dps: mainhand_dps[id] != null ? mainhand_dps[id] : 0, is2H: is2H, backstabModApplied: backstabContributes ? bs1 : 0, wornAttackBonus: atkBonus };
+                var md = mainhand_dps[id] != null ? mainhand_dps[id] : 0;
+                var mt = mainhand_tps[id] != null ? mainhand_tps[id] : 0;
+                return { id: id, label: (w && w.name) || id, dps: md, tps: mt, is2H: is2H, backstabModApplied: backstabContributes ? bs1 : 0, wornAttackBonus: atkBonus };
               });
               if (rankTargetNpcId != null && RANK_BANE_ONLY_TARGETS[rankTargetNpcId]) {
                 mainhandSlotRows = mainhandSlotRows.filter(function (r) { return rankComboCanHitBaneOnly({ primaryId: r.id, secondaryId: null }); });
@@ -4639,7 +4724,9 @@
               var offhandRows = secondaryWeapons.map(function (id) {
                 var w = rankWeaponMap[id];
                 var atkBonus = getWornAttackBonusForNorm(w);
-                return { id: id, label: (w && w.name) || id, dps: offhand_dps[id] != null ? offhand_dps[id] : 0, backstabModApplied: 0, wornAttackBonus: atkBonus };
+                var od = offhand_dps[id] != null ? offhand_dps[id] : 0;
+                var ot = offhand_tps[id] != null ? offhand_tps[id] : 0;
+                return { id: id, label: (w && w.name) || id, dps: od, tps: ot, backstabModApplied: 0, wornAttackBonus: atkBonus };
               });
               if (rankTargetNpcId != null && RANK_BANE_ONLY_TARGETS[rankTargetNpcId]) {
                 offhandRows = offhandRows.filter(function (r) { return rankComboCanHitBaneOnly({ primaryId: null, secondaryId: r.id }); });
@@ -4653,14 +4740,20 @@
               $('report').innerHTML = '<pre style="margin:0; white-space:pre-wrap; overflow-wrap:anywhere; word-break:break-word;">' + lines.join('\n') + '</pre>' + slotTables;
             } else {
               if (histContainer) histContainer.innerHTML = chartHtml;
-              $('report').innerHTML = '<pre style="margin:0; white-space:pre-wrap; overflow-wrap:anywhere; word-break:break-word;">' + lines.join('\n') + '</pre><table class="rank-weapons-table" style="margin-top:0.5rem; border-collapse:collapse; width:100%; font-size:0.9rem;"><thead><tr><th style="text-align:left;">#</th><th style="text-align:left;">Combination</th><th style="text-align:right;">Mainhand DPS</th><th style="text-align:right;">Offhand DPS</th><th style="text-align:right;">Total DPS</th></tr></thead><tbody>' + tableRows.join('') + '</tbody></table>';
+              var comboThead = rankByTps
+                ? '<thead><tr><th style="text-align:left;">#</th><th style="text-align:left;">Combination</th><th style="text-align:right;">Mainhand TPS</th><th style="text-align:right;">Offhand TPS</th><th style="text-align:right;">Total TPS</th></tr></thead>'
+                : '<thead><tr><th style="text-align:left;">#</th><th style="text-align:left;">Combination</th><th style="text-align:right;">Mainhand DPS</th><th style="text-align:right;">Offhand DPS</th><th style="text-align:right;">Total DPS</th></tr></thead>';
+              $('report').innerHTML = '<pre style="margin:0; white-space:pre-wrap; overflow-wrap:anywhere; word-break:break-word;">' + lines.join('\n') + '</pre><table class="rank-weapons-table" style="margin-top:0.5rem; border-collapse:collapse; width:100%; font-size:0.9rem;">' + comboThead + '<tbody>' + tableRows.join('') + '</tbody></table>';
             }
           }
           window._renderRankWeaponsReportView = renderRankReport;
           if (top40.length === 0) {
             renderRankReport();
             // Ensure snapshot matches report ordering.
-            results.sort(function (a, b) { return (b.totalDps || 0) - (a.totalDps || 0); });
+            results.sort(function (a, b) {
+              if (rankByTps) return (b.totalTps || 0) - (a.totalTps || 0);
+              return (b.totalDps || 0) - (a.totalDps || 0);
+            });
             phaseSnapshots.fullTop = results.slice(0, TOP_PHASE_BREAKDOWN).map(function (r) { return Object.assign({}, r); });
             renderRankWeaponsPhaseBreakdown();
             setRankWeaponsProgressText('Ranking complete.');
@@ -4671,7 +4764,10 @@
           function runNextTop40() {
             if (avgIndex >= top40.length) {
               // Ensure snapshot matches report ordering after all DPS updates.
-              results.sort(function (a, b) { return (b.totalDps || 0) - (a.totalDps || 0); });
+              results.sort(function (a, b) {
+                if (rankByTps) return (b.totalTps || 0) - (a.totalTps || 0);
+                return (b.totalDps || 0) - (a.totalDps || 0);
+              });
               phaseSnapshots.fullTop = results.slice(0, TOP_PHASE_BREAKDOWN).map(function (r) { return Object.assign({}, r); });
               setRankWeaponsProgressText('Reordering results…');
               renderRankReport();
@@ -4773,13 +4869,19 @@
               row.totalDps = sumTotal / n / durationSec;
               row.mainhandDps = sumW1 / n / durationSec;
               row.offhandDps = sumW2 / n / durationSec;
+              var sumThreat = reports.reduce(function (s, r) { return s + (r.totalThreat != null ? r.totalThreat : 0); }, 0);
+              var sumW1t = reports.reduce(function (s, r) { return s + weaponSlotThreatForTpsReport(r.weapon1); }, 0);
+              var sumW2t = reports.reduce(function (s, r) { return s + weaponSlotThreatForTpsReport(r.weapon2); }, 0);
+              row.totalTps = sumThreat / n / durationSec;
+              row.mainhandTps = sumW1t / n / durationSec;
+              row.offhandTps = sumW2t / n / durationSec;
             }
             avgIndex++;
             requestAnimationFrame(runNextTop40);
           }
           requestAnimationFrame(runNextTop40);
         }
-        setRankWeaponsProgressText('Measuring mainhand DPS… 0% complete (0 / ' + totalSims + ' weapons)');
+        setRankWeaponsProgressText('Measuring mainhand ' + (rankByTps ? 'TPS' : 'DPS') + '… 0% complete (0 / ' + totalSims + ' weapons)');
         requestAnimationFrame(runNextChunk);
       }
 
@@ -4791,6 +4893,7 @@
           return;
         }
         var includePop = ($('rank-ranged-include-pop') && $('rank-ranged-include-pop').checked) === true;
+        var rankByTps = ($('rank-ranged-by-tps') && $('rank-ranged-by-tps').checked) === true;
         $('report').textContent = 'Loading weapons…';
         await weaponListLoadPromise;
         if (typeof allWeaponsData === 'undefined' || !allWeaponsData || typeof allWeaponsData !== 'object' || Object.keys(allWeaponsData).length === 0) {
@@ -4941,7 +5044,10 @@
               comboDps[key] = {
                 totalDps: 0,
                 bowDps: 0,
-                arrowDps: 0
+                arrowDps: 0,
+                totalTps: 0,
+                bowTps: 0,
+                arrowTps: 0
               };
             } else {
               var rangedTotal = r.ranged && r.ranged.totalDamage != null ? r.ranged.totalDamage : 0;
@@ -4958,17 +5064,27 @@
               var arrowDps = baseDps * arrowShare;
               var bowDps = baseDps * bowShare + procDps;
               var totalDps = bowDps + arrowDps;
+              var swingThreat = r.swingThreat != null ? Number(r.swingThreat) : 0;
+              var procThreat = r.procThreat != null ? Number(r.procThreat) : 0;
+              var swingTps = swingThreat / durationSec;
+              var procTps = procThreat / durationSec;
+              var arrowTps = swingTps * arrowShare;
+              var bowTps = swingTps * bowShare + procTps;
+              var totalTps = r.totalThreat != null ? r.totalThreat / durationSec : (bowTps + arrowTps);
               comboDps[key] = {
                 totalDps: totalDps,
                 bowDps: bowDps,
-                arrowDps: arrowDps
+                arrowDps: arrowDps,
+                totalTps: totalTps,
+                bowTps: bowTps,
+                arrowTps: arrowTps
               };
             }
           }
           var pctFloor = totalSims > 0 ? Math.floor((simIndex / totalSims) * 100) : 100;
           if (pctFloor > lastDisplayedPct) {
             lastDisplayedPct = pctFloor;
-            $('report').textContent = 'Measuring bow + arrow DPS… ' + pctFloor + '% complete (' + simIndex + ' / ' + totalSims + ' combinations)';
+            $('report').textContent = 'Measuring bow + arrow ' + (rankByTps ? 'TPS' : 'DPS') + '… ' + pctFloor + '% complete (' + simIndex + ' / ' + totalSims + ' combinations)';
           }
           if (simIndex < combinations.length) {
             requestAnimationFrame(runNextChunk);
@@ -4976,7 +5092,7 @@
           }
           var results = combinations.map(function (comb) {
             var key = comb.bow.id + '_' + comb.arrow.id;
-            var entry = comboDps[key] || { totalDps: 0, bowDps: 0, arrowDps: 0 };
+            var entry = comboDps[key] || { totalDps: 0, bowDps: 0, arrowDps: 0, totalTps: 0, bowTps: 0, arrowTps: 0 };
             var label = (comb.bow.name || comb.bow.id) + ' + ' + (comb.arrow.name || comb.arrow.id);
             return {
               bowId: comb.bow.id,
@@ -4984,20 +5100,30 @@
               label: label,
               mainhandDps: entry.bowDps,
               offhandDps: entry.arrowDps,
-              totalDps: entry.totalDps
+              totalDps: entry.totalDps,
+              mainhandTps: entry.bowTps,
+              offhandTps: entry.arrowTps,
+              totalTps: entry.totalTps
             };
           });
-          results.sort(function (a, b) { return (b.totalDps || 0) - (a.totalDps || 0); });
+          results.sort(function (a, b) {
+            if (rankByTps) return (b.totalTps || 0) - (a.totalTps || 0);
+            return (b.totalDps || 0) - (a.totalDps || 0);
+          });
           var runsCount = Math.max(1, Math.min(1000, parseInt($('ranged-runs').value, 10) || 20));
           // Shortlist the top N combinations for detailed averaging runs.
           // Use 100 so arrows with significant elemental damage get fully exercised against resists.
           var topCombos = results.slice(0, 100);
           function renderRankReport() {
             var currentMode = (window._rankWeaponsReportViewMode === 'slot') ? 'slot' : 'combinations';
-            results.sort(function (a, b) { return (b.totalDps || 0) - (a.totalDps || 0); });
+            results.sort(function (a, b) {
+              if (rankByTps) return (b.totalTps || 0) - (a.totalTps || 0);
+              return (b.totalDps || 0) - (a.totalDps || 0);
+            });
             var bowsById = {};
             bows.forEach(function (b) { bowsById[b.id] = b; });
             window._lastRankWeaponsResults = results;
+            window._lastRankWeaponsByTps = rankByTps;
             window._rankWeaponsReportViewMode = currentMode;
             window._renderRankWeaponsReportView = renderRankReport;
             var viewToggleBtn = $('btn-rank-view-toggle');
@@ -5009,56 +5135,70 @@
             var subText = topCombos.length > 0 ? ' Top 100 averaged over ' + runsCount + ' runs (display shows top 40).' : '';
             var sourceLabel = 'Bows/arrows from resources/weapons.json (era: ' + (includePop ? 'include PoP' : 'Luclin and earlier') + ').';
             if (currentMode === 'slot') {
-              // Slot mode: separate bow and ammo slot rankings, using component-only DPS.
+              // Slot mode: separate bow and ammo slot rankings, using component-only DPS or TPS.
               var bowBest = {};
               var arrowBest = {};
               results.forEach(function (row) {
-                if (row.bowId != null && (bowBest[row.bowId] == null || row.totalDps > bowBest[row.bowId].totalDps)) {
-                  bowBest[row.bowId] = row;
+                if (row.bowId != null) {
+                  var prevB = bowBest[row.bowId];
+                  var rowB = rankByTps ? (row.totalTps || 0) : (row.totalDps || 0);
+                  var prevBScore = prevB ? (rankByTps ? (prevB.totalTps || 0) : (prevB.totalDps || 0)) : -1;
+                  if (prevB == null || rowB > prevBScore) bowBest[row.bowId] = row;
                 }
-                if (row.arrowId != null && (arrowBest[row.arrowId] == null || row.totalDps > arrowBest[row.arrowId].totalDps)) {
-                  arrowBest[row.arrowId] = row;
+                if (row.arrowId != null) {
+                  var prevA = arrowBest[row.arrowId];
+                  var rowA = rankByTps ? (row.totalTps || 0) : (row.totalDps || 0);
+                  var prevAScore = prevA ? (rankByTps ? (prevA.totalTps || 0) : (prevA.totalDps || 0)) : -1;
+                  if (prevA == null || rowA > prevAScore) arrowBest[row.arrowId] = row;
                 }
               });
               var bowRows = Object.keys(bowBest).map(function (id) {
                 var row = bowBest[id];
                 return {
                   label: (row.label || '').split(' + ')[0],
-                  dps: row.mainhandDps != null ? row.mainhandDps : 0
+                  dps: row.mainhandDps != null ? row.mainhandDps : 0,
+                  tps: row.mainhandTps != null ? row.mainhandTps : 0
                 };
               });
-              bowRows.sort(function (a, b) { return (b.dps || 0) - (a.dps || 0); });
+              bowRows.sort(function (a, b) { return rankByTps ? ((b.tps || 0) - (a.tps || 0)) : ((b.dps || 0) - (a.dps || 0)); });
               bowRows = bowRows.slice(0, 40);
               var arrowRows = Object.keys(arrowBest).map(function (id) {
                 var row = arrowBest[id];
                 var baseArrowDps = row.offhandDps != null ? row.offhandDps : 0;
+                var baseArrowTps = row.offhandTps != null ? row.offhandTps : 0;
                 var bowForArrow = bowsById[row.bowId];
                 var normArrowDps = baseArrowDps;
+                var normArrowTps = baseArrowTps;
                 if (bowForArrow && bowForArrow.delay && bowForArrow.delay > 0) {
                   normArrowDps = baseArrowDps * (bowForArrow.delay / 30);
+                  normArrowTps = baseArrowTps * (bowForArrow.delay / 30);
                 }
                 return {
                   label: (row.label || '').split(' + ')[1] || ('Arrow ' + id),
-                  dps: normArrowDps
+                  dps: normArrowDps,
+                  tps: normArrowTps
                 };
               });
-              arrowRows.sort(function (a, b) { return (b.dps || 0) - (a.dps || 0); });
+              arrowRows.sort(function (a, b) { return rankByTps ? ((b.tps || 0) - (a.tps || 0)) : ((b.dps || 0) - (a.dps || 0)); });
               arrowRows = arrowRows.slice(0, 40);
-              var maxBowDps = bowRows[0] && bowRows[0].dps > 0 ? bowRows[0].dps : 1;
+              var slotMetric = rankByTps ? 'TPS' : 'DPS';
+              var maxBowMetric = bowRows[0] ? (rankByTps ? (bowRows[0].tps || 0) : (bowRows[0].dps || 0)) : 0;
+              if (maxBowMetric <= 0) maxBowMetric = 1;
               var bowChartRows = bowRows.map(function (row, i) {
-                var pct = row.dps != null && maxBowDps > 0 ? (row.dps / maxBowDps * 100) : 0;
+                var val = rankByTps ? row.tps : row.dps;
+                var pct = val != null && maxBowMetric > 0 ? (val / maxBowMetric * 100) : 0;
                 var labelSafe = (row.label || '').replace(/</g, '&lt;').replace(/"/g, '&quot;');
-                var dpsStr = row.dps != null ? row.dps.toFixed(2) : '—';
+                var dpsStr = val != null ? val.toFixed(2) : '—';
                 var pctStr = (i === 0) ? '100%' : (pct.toFixed(1) + '%');
                 var barWidth = Math.max(0, Math.min(100, pct));
                 return '<div class="rank-chart-row" title="' + labelSafe + '"><span class="rank-chart-label">' + labelSafe + '</span><span class="rank-chart-dps">' + dpsStr + '</span><span class="rank-chart-pct">' + pctStr + '</span><div class="rank-chart-bar-wrap"><div class="rank-chart-bar" style="width:' + barWidth + '%"></div></div></div>';
               });
-              var chartHeaderSlot = '<div class="rank-chart-row rank-chart-header"><span class="rank-chart-label">Bow slot</span><span class="rank-chart-dps">DPS</span><span class="rank-chart-pct">% of BIS</span><div class="rank-chart-bar-wrap"></div></div>';
-              var chartHtmlSlot = bowChartRows.length > 0 ? '<div class="rank-weapons-chart"><h3>Top 40 bows by DPS (X scale = #1)</h3>' + chartHeaderSlot + bowChartRows.join('') + '</div>' : '';
+              var chartHeaderSlot = '<div class="rank-chart-row rank-chart-header"><span class="rank-chart-label">Bow slot</span><span class="rank-chart-dps">' + slotMetric + '</span><span class="rank-chart-pct">% of BIS</span><div class="rank-chart-bar-wrap"></div></div>';
+              var chartHtmlSlot = bowChartRows.length > 0 ? ('<div class="rank-weapons-chart"><h3>Top 40 bows by ' + slotMetric + ' (X scale = #1)</h3>' + chartHeaderSlot + bowChartRows.join('') + '</div>') : '';
               var histContainerSlot = $('histogram-container');
               if (histContainerSlot) histContainerSlot.innerHTML = chartHtmlSlot;
               var linesSlot = [
-                '=== Ranged slot rank (by DPS) ===',
+                '=== Ranged slot rank (by ' + slotMetric + ') ===',
                 'Class: Ranger, Level: ' + level + ', Duration: ' + durationSec + 's',
                 sourceLabel + subText,
                 ''
@@ -5066,19 +5206,23 @@
               var bowTableRowsHtml = bowRows.map(function (row, i) {
                 var rank = i + 1;
                 var labelSafe = (row.label || '').replace(/</g, '&lt;').replace(/"/g, '&quot;');
-                var dpsStr = row.dps != null ? row.dps.toFixed(2) : '—';
+                var valStr = (rankByTps ? row.tps : row.dps);
+                var dpsStr = valStr != null ? valStr.toFixed(2) : '—';
                 return '<tr><td>' + rank + '</td><td>' + labelSafe + '</td><td style="text-align:right;">' + dpsStr + '</td></tr>';
               });
-              var bowTableHtml = '<table class="rank-weapons-table" style="margin-top:0.5rem; border-collapse:collapse; width:100%; font-size:0.9rem;"><thead><tr><th style="text-align:left;">#</th><th style="text-align:left;">Bow</th><th style="text-align:right;">Bow DPS</th></tr></thead><tbody>' + bowTableRowsHtml.join('') + '</tbody></table>';
-              var arrowHeadingLine = '=== Ammo slot rank (by DPS) ===';
-              var arrowDescriptionLine = 'Arrow DPS on this list is normalized to a bow delay of 30. Use the Combinations view to see how each arrow ranks with a specific bow.';
+              var bowCol = rankByTps ? 'Bow TPS' : 'Bow DPS';
+              var bowTableHtml = '<table class="rank-weapons-table" style="margin-top:0.5rem; border-collapse:collapse; width:100%; font-size:0.9rem;"><thead><tr><th style="text-align:left;">#</th><th style="text-align:left;">Bow</th><th style="text-align:right;">' + bowCol + '</th></tr></thead><tbody>' + bowTableRowsHtml.join('') + '</tbody></table>';
+              var arrowHeadingLine = '=== Ammo slot rank (by ' + slotMetric + ') ===';
+              var arrowDescriptionLine = 'Arrow ' + slotMetric + ' on this list is normalized to a bow delay of 30. Use the Combinations view to see how each arrow ranks with a specific bow.';
               var arrowTableRowsHtml = arrowRows.map(function (row, i) {
                 var rank = i + 1;
                 var labelSafe = (row.label || '').replace(/</g, '&lt;').replace(/"/g, '&quot;');
-                var dpsStr = row.dps != null ? row.dps.toFixed(2) : '—';
+                var valStr = rankByTps ? row.tps : row.dps;
+                var dpsStr = valStr != null ? valStr.toFixed(2) : '—';
                 return '<tr><td>' + rank + '</td><td>' + labelSafe + '</td><td style="text-align:right;">' + dpsStr + '</td></tr>';
               });
-              var arrowTableHtml = '<table class="rank-weapons-table" style="margin-top:0.5rem; border-collapse:collapse; width:100%; font-size:0.9rem;"><thead><tr><th style="text-align:left;">#</th><th style="text-align:left;">Ammo</th><th style="text-align:right;">Ammo DPS</th></tr></thead><tbody>' + arrowTableRowsHtml.join('') + '</tbody></table>';
+              var ammoCol = rankByTps ? 'Ammo TPS' : 'Ammo DPS';
+              var arrowTableHtml = '<table class="rank-weapons-table" style="margin-top:0.5rem; border-collapse:collapse; width:100%; font-size:0.9rem;"><thead><tr><th style="text-align:left;">#</th><th style="text-align:left;">Ammo</th><th style="text-align:right;">' + ammoCol + '</th></tr></thead><tbody>' + arrowTableRowsHtml.join('') + '</tbody></table>';
               $('report').innerHTML =
                 '<pre style="margin:0;">' + linesSlot.join('\n') + '</pre>' +
                 bowTableHtml +
@@ -5086,33 +5230,49 @@
                 arrowTableHtml;
               return;
             }
-            // Combinations mode (unchanged): show full bow+arrow DPS breakdown.
+            // Combinations mode: full bow+arrow DPS or TPS breakdown.
             var rowsForTable = results;
-            var heading = '=== Ranged (bow + arrow) rank (by DPS) ===';
+            var rangedMetric = rankByTps ? 'TPS' : 'DPS';
+            var heading = '=== Ranged (bow + arrow) rank (by ' + rangedMetric + ') ===';
             var chartLabel = 'Bow + Arrow';
-            var maxDps = rowsForTable[0] && rowsForTable[0].totalDps > 0 ? rowsForTable[0].totalDps : 1;
+            var maxRanged = 1;
+            if (rowsForTable[0]) {
+              maxRanged = rankByTps
+                ? (rowsForTable[0].totalTps > 0 ? rowsForTable[0].totalTps : 1)
+                : (rowsForTable[0].totalDps > 0 ? rowsForTable[0].totalDps : 1);
+            }
             var lines = [heading, 'Class: Ranger, Level: ' + level + ', Duration: ' + durationSec + 's', sourceLabel + subText, ''];
             var tableRows = rowsForTable.slice(0, 400).map(function (row, i) {
               var rank = i + 1;
               var label = (row.label || '').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+              if (rankByTps) {
+                var totalTpsStr = row.totalTps != null ? row.totalTps.toFixed(2) : '—';
+                var bowTpsStr = row.mainhandTps != null ? row.mainhandTps.toFixed(2) : '—';
+                var arrowTpsStr = row.offhandTps != null ? row.offhandTps.toFixed(2) : '—';
+                return '<tr><td>' + rank + '</td><td>' + label + '</td><td style="text-align:right;">' + bowTpsStr + '</td><td style="text-align:right;">' + arrowTpsStr + '</td><td style="text-align:right;">' + totalTpsStr + '</td></tr>';
+              }
               var totalDpsStr = row.totalDps != null ? row.totalDps.toFixed(2) : '—';
               var bowDpsStr = row.mainhandDps != null ? row.mainhandDps.toFixed(2) : '—';
               var arrowDpsStr = row.offhandDps != null ? row.offhandDps.toFixed(2) : '—';
               return '<tr><td>' + rank + '</td><td>' + label + '</td><td style="text-align:right;">' + bowDpsStr + '</td><td style="text-align:right;">' + arrowDpsStr + '</td><td style="text-align:right;">' + totalDpsStr + '</td></tr>';
             });
             var chartRows = rowsForTable.slice(0, 40).map(function (row, i) {
-              var pct = row.totalDps != null && maxDps > 0 ? (row.totalDps / maxDps * 100) : 0;
+              var val = rankByTps ? row.totalTps : row.totalDps;
+              var pct = val != null && maxRanged > 0 ? (val / maxRanged * 100) : 0;
               var labelSafe = (row.label || '').replace(/</g, '&lt;').replace(/"/g, '&quot;');
-              var dpsStr = row.totalDps != null ? row.totalDps.toFixed(2) : '—';
+              var dpsStr = val != null ? val.toFixed(2) : '—';
               var pctStr = (i === 0) ? '100%' : (pct.toFixed(1) + '%');
               var barWidth = Math.max(0, Math.min(100, pct));
               return '<div class="rank-chart-row" title="' + labelSafe + '"><span class="rank-chart-label">' + labelSafe + '</span><span class="rank-chart-dps">' + dpsStr + '</span><span class="rank-chart-pct">' + pctStr + '</span><div class="rank-chart-bar-wrap"><div class="rank-chart-bar" style="width:' + barWidth + '%"></div></div></div>';
             });
-            var chartHeader = '<div class="rank-chart-row rank-chart-header"><span class="rank-chart-label">' + chartLabel + '</span><span class="rank-chart-dps">DPS</span><span class="rank-chart-pct">% of BIS</span><div class="rank-chart-bar-wrap"></div></div>';
-            var chartHtml = chartRows.length > 0 ? '<div class="rank-weapons-chart"><h3>Top 40 by DPS (X scale = #1)</h3>' + chartHeader + chartRows.join('') + '</div>' : '';
+            var chartHeader = '<div class="rank-chart-row rank-chart-header"><span class="rank-chart-label">' + chartLabel + '</span><span class="rank-chart-dps">' + rangedMetric + '</span><span class="rank-chart-pct">% of BIS</span><div class="rank-chart-bar-wrap"></div></div>';
+            var chartHtml = chartRows.length > 0 ? ('<div class="rank-weapons-chart"><h3>Top 40 by ' + rangedMetric + ' (X scale = #1)</h3>' + chartHeader + chartRows.join('') + '</div>') : '';
             var histContainer = $('histogram-container');
             if (histContainer) histContainer.innerHTML = chartHtml;
-            $('report').innerHTML = '<pre style="margin:0;">' + lines.join('\n') + '</pre><table class="rank-weapons-table" style="margin-top:0.5rem; border-collapse:collapse; width:100%; font-size:0.9rem;"><thead><tr><th style="text-align:left;">#</th><th style="text-align:left;">' + chartLabel + '</th><th style="text-align:right;">Bow DPS</th><th style="text-align:right;">Arrow DPS</th><th style="text-align:right;">Total DPS</th></tr></thead><tbody>' + tableRows.join('') + '</tbody></table>';
+            var comboTheadRanged = rankByTps
+              ? '<thead><tr><th style="text-align:left;">#</th><th style="text-align:left;">' + chartLabel + '</th><th style="text-align:right;">Bow TPS</th><th style="text-align:right;">Arrow TPS</th><th style="text-align:right;">Total TPS</th></tr></thead>'
+              : '<thead><tr><th style="text-align:left;">#</th><th style="text-align:left;">' + chartLabel + '</th><th style="text-align:right;">Bow DPS</th><th style="text-align:right;">Arrow DPS</th><th style="text-align:right;">Total DPS</th></tr></thead>';
+            $('report').innerHTML = '<pre style="margin:0;">' + lines.join('\n') + '</pre><table class="rank-weapons-table" style="margin-top:0.5rem; border-collapse:collapse; width:100%; font-size:0.9rem;">' + comboTheadRanged + '<tbody>' + tableRows.join('') + '</tbody></table>';
           }
           if (topCombos.length === 0) {
             renderRankReport();
@@ -5162,13 +5322,27 @@
             if (n > 0) {
               var sumTotal = reports.reduce(function (s, r) { return s + r.totalDamage; }, 0);
               row.totalDps = sumTotal / n / durationSec;
+              var swingThreatSum = reports.reduce(function (s, r) { return s + (r.swingThreat != null ? r.swingThreat : 0); }, 0);
+              var procThreatSum = reports.reduce(function (s, r) { return s + (r.procThreat != null ? r.procThreat : 0); }, 0);
+              var totalThreatSum = reports.reduce(function (s, r) { return s + (r.totalThreat != null ? r.totalThreat : 0); }, 0);
+              var swingTps = swingThreatSum / n / durationSec;
+              var procTps = procThreatSum / n / durationSec;
+              row.totalTps = totalThreatSum / n / durationSec;
+              var bowBase = bowDamage;
+              var arrowBase = arrow.damage || 0;
+              var sumBase = bowBase + arrowBase;
+              if (sumBase <= 0) sumBase = 1;
+              var bowShare = bowBase / sumBase;
+              var arrowShare = arrowBase / sumBase;
+              row.mainhandTps = swingTps * bowShare + procTps;
+              row.offhandTps = swingTps * arrowShare;
             }
             avgIndex++;
             requestAnimationFrame(runNextTop40);
           }
           requestAnimationFrame(runNextTop40);
         }
-        $('report').textContent = 'Measuring bow + arrow DPS… 0% complete (0 / ' + totalSims + ' combinations)';
+        $('report').textContent = 'Measuring bow + arrow ' + (rankByTps ? 'TPS' : 'DPS') + '… 0% complete (0 / ' + totalSims + ' combinations)';
         requestAnimationFrame(runNextChunk);
       }
 
@@ -5206,16 +5380,34 @@
           if (typeof alert !== 'undefined') alert('No rank results to export. Run Rank weapons first.');
           return;
         }
-        var maxDps = results[0].totalDps != null && results[0].totalDps > 0 ? results[0].totalDps : 1;
-        var header = ['Rank', 'Weapon Combination', 'Mainhand DPS', 'Offhand DPS', 'Total DPS', '% of BIS'];
+        var byTps = window._lastRankWeaponsByTps === true;
+        var maxMetric = 1;
+        if (results[0]) {
+          if (byTps) {
+            maxMetric = results[0].totalTps != null && results[0].totalTps > 0 ? results[0].totalTps : 1;
+          } else {
+            maxMetric = results[0].totalDps != null && results[0].totalDps > 0 ? results[0].totalDps : 1;
+          }
+        }
+        var header = byTps
+          ? ['Rank', 'Weapon Combination', 'Mainhand TPS', 'Offhand TPS', 'Total TPS', '% of BIS']
+          : ['Rank', 'Weapon Combination', 'Mainhand DPS', 'Offhand DPS', 'Total DPS', '% of BIS'];
         var csvRows = [header.map(escapeCsvField).join(',')];
         results.forEach(function (row, i) {
           var rank = i + 1;
-          var mainDps = row.mainhandDps != null ? row.mainhandDps.toFixed(2) : '';
-          var offDps = row.offhandDps != null ? row.offhandDps.toFixed(2) : '';
-          var totalDps = row.totalDps != null ? row.totalDps.toFixed(2) : '';
-          var pctBis = row.totalDps != null && maxDps > 0 ? (row.totalDps / maxDps * 100).toFixed(1) + '%' : '';
-          csvRows.push([rank, row.label || '', mainDps, offDps, totalDps, pctBis].map(escapeCsvField).join(','));
+          if (byTps) {
+            var mainT = row.mainhandTps != null ? row.mainhandTps.toFixed(2) : '';
+            var offT = row.offhandTps != null ? row.offhandTps.toFixed(2) : '';
+            var totalT = row.totalTps != null ? row.totalTps.toFixed(2) : '';
+            var pctBis = row.totalTps != null && maxMetric > 0 ? (row.totalTps / maxMetric * 100).toFixed(1) + '%' : '';
+            csvRows.push([rank, row.label || '', mainT, offT, totalT, pctBis].map(escapeCsvField).join(','));
+          } else {
+            var mainDps = row.mainhandDps != null ? row.mainhandDps.toFixed(2) : '';
+            var offDps = row.offhandDps != null ? row.offhandDps.toFixed(2) : '';
+            var totalDps = row.totalDps != null ? row.totalDps.toFixed(2) : '';
+            var pctBis = row.totalDps != null && maxMetric > 0 ? (row.totalDps / maxMetric * 100).toFixed(1) + '%' : '';
+            csvRows.push([rank, row.label || '', mainDps, offDps, totalDps, pctBis].map(escapeCsvField).join(','));
+          }
         });
         var csv = '\uFEFF' + csvRows.join('\r\n');
         var blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
