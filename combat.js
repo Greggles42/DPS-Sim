@@ -1121,6 +1121,8 @@
    * @param {number} [options.critChanceMult] - Combat Fury flat crit % (0, 2, 4, 6); stacks on warrior innate
    * @param {boolean} [options.duelist] - rogue only: SE_DamageModifier[185] (+100% base damage) for 12s at a random time in the fight
    * @param {boolean} [options.innerFlame] - monk only: SE_DamageModifier[185] (+100% base damage) for 12s at a random time in the fight
+   * @param {boolean} [options.duelistPermanent] - with duelist: discipline effect for entire fight (unrealistic; UI shift+click)
+   * @param {boolean} [options.innerFlamePermanent] - with innerFlame: same (UI shift+click)
    */
   function runFight(options) {
     const fromBehind = !!options.fromBehind;
@@ -1356,11 +1358,26 @@
     let lastProcMs2 = 0, dotEndMs2 = 0, perTick2 = 0;
     const duelist = !!(options.duelist && options.classId === 'rogue');
     const innerFlame = !!(options.innerFlame && options.classId === 'monk');
+    const duelistPermanent = duelist && !!options.duelistPermanent;
+    const innerFlamePermanent = innerFlame && !!options.innerFlamePermanent;
+    report.duelistPermanentMode = duelistPermanent;
+    report.innerFlamePermanentMode = innerFlamePermanent;
+    report.permanentDisciplineMode = duelistPermanent || innerFlamePermanent;
     const BUFF_12S_MS = 12000;
-    const duelistStartMs = duelist ? Math.floor(rng() * Math.max(0, durationMs - BUFF_12S_MS)) : 0;
+    const duelistStartMs = duelist && !duelistPermanent ? Math.floor(rng() * Math.max(0, durationMs - BUFF_12S_MS)) : 0;
     const duelistEndMs = duelistStartMs + BUFF_12S_MS;
-    const innerFlameStartMs = innerFlame ? Math.floor(rng() * Math.max(0, durationMs - BUFF_12S_MS)) : 0;
+    const innerFlameStartMs = innerFlame && !innerFlamePermanent ? Math.floor(rng() * Math.max(0, durationMs - BUFF_12S_MS)) : 0;
     const innerFlameEndMs = innerFlameStartMs + BUFF_12S_MS;
+    function disciplineDuelistActive(tMs) {
+      if (!duelist) return false;
+      if (duelistPermanent) return true;
+      return tMs >= duelistStartMs && tMs < duelistEndMs;
+    }
+    function disciplineInnerFlameActive(tMs) {
+      if (!innerFlame) return false;
+      if (innerFlamePermanent) return true;
+      return tMs >= innerFlameStartMs && tMs < innerFlameEndMs;
+    }
     // SE_DamageModifier[185] for disciplines: Duelist, Inner Flame, etc. Applied to base damage before roll.
     const SE_MELEE_DAMAGE_MOD_DUELIST_INNERFLAME = 100;
     // SE_MinDamageModifier[186] for disciplines: Fellstrike, Innerflame, Duelist, Bestial Rage. Min hit = 4 x weapon damage + 1 x damage bonus.
@@ -1475,7 +1492,7 @@
             const effectiveSkill = Math.min(252, Math.floor(backstabSkill * (100 + backstabModPct) / 100));
             const backstabOffenseRating = effectiveSkill + strBonus + wornAttack + spellAttack;
             const backstabBaseRaw = Math.floor(((effectiveSkill * 0.02) + 2) * cappedW1Damage) + specElemAdder;
-            duelistBackstabRound = duelist && tMs >= duelistStartMs && tMs < duelistEndMs;
+            duelistBackstabRound = disciplineDuelistActive(tMs);
             backstabDisciplineMinHit = getDisciplineMinHit(backstabBaseRaw, 0, duelistBackstabRound);
             let backstabBase = applyDisciplineDamageMod(backstabBaseRaw, duelistBackstabRound);
             baseDmg = calcMeleeDamage(backstabBase, backstabOffenseRating, mitigation, rng, 0);
@@ -1588,8 +1605,8 @@
 
       // Main hand (one round = one swing opportunity; 1, 2, or 3 attacks per round)
       if (tMs >= nextSwing1Ms) {
-        const duelistThisRound = duelist && tMs >= duelistStartMs && tMs < duelistEndMs;
-        const innerFlameThisRound = innerFlame && tMs >= innerFlameStartMs && tMs < innerFlameEndMs;
+        const duelistThisRound = disciplineDuelistActive(tMs);
+        const innerFlameThisRound = disciplineInnerFlameActive(tMs);
         const disciplineActiveMh = duelistThisRound || innerFlameThisRound;
 
         report.weapon1.rounds++;
@@ -1820,8 +1837,8 @@
         nextSwing2Ms = tMs + delay2Ms;
         offhandRoundCounter++;
         const ohRoundLetter = (offhandRoundCounter % 2 === 1) ? 'A' : 'B';
-        const duelistOhRound = duelist && tMs >= duelistStartMs && tMs < duelistEndMs;
-        const innerFlameOhRound = innerFlame && tMs >= innerFlameStartMs && tMs < innerFlameEndMs;
+        const duelistOhRound = disciplineDuelistActive(tMs);
+        const innerFlameOhRound = disciplineInnerFlameActive(tMs);
         const disciplineActiveOh = duelistOhRound || innerFlameOhRound;
         if (checkDualWield(dualWieldEffective, rng)) {
           report.weapon2.rounds++;
@@ -2039,6 +2056,19 @@
 
     // 1. Executive Summary
     lines.push('=== Executive Summary ===', '');
+    if (report.permanentDisciplineMode) {
+      lines.push('');
+      lines.push('>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>');
+      lines.push('>>  PERMANENT DISCIPLINE MODE — THIS PARSE IS SKEWED AND UNREALISTIC  <<');
+      lines.push('>>  Inner Flame and/or Duelist was modeled active for the ENTIRE fight   <<');
+      lines.push('>>  (not a 12s random window). Use for theory only, not real comparison. <<');
+      lines.push('>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>');
+      const _parts = [];
+      if (report.duelistPermanentMode) _parts.push('Duelist');
+      if (report.innerFlamePermanentMode) _parts.push('Inner Flame');
+      if (_parts.length) lines.push(padLine('  Permanent disc mode:', _parts.join(' + ')));
+      lines.push('');
+    }
     lines.push(padLine('  Duration:', `${dur} seconds`));
     lines.push(padLine('  Runs averaged:', String(runs)));
     lines.push(padLine('  Total DPS:', totalDPS));

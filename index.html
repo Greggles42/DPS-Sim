@@ -288,7 +288,13 @@
       align-items: stretch;
     }
     .hidden { display: none !important; }
-    .char-field-num input { width: 4rem; max-width: 4rem; }
+    /* Wide enough for 3 digits + number spinners without clipping (4rem was too tight). */
+    .char-field-num input {
+      width: 5.5rem;
+      min-width: 5.5rem;
+      max-width: 5.5rem;
+      box-sizing: border-box;
+    }
     .char-field select { min-width: 7rem; }
     .char-hint { margin: 0.25rem 0 0.4rem; font-size: 0.72rem; }
     .char-hint-below-primary { margin-top: 0.5rem; }
@@ -1319,7 +1325,7 @@
           </div>
           <input type="hidden" id="backstab-mod" value="0">
           <div class="char-checkbox-row">
-            <label class="checkbox-label char-checkbox"><input type="checkbox" id="duelist"> Duelist (12s random window: double melee damage)</label>
+            <label class="checkbox-label char-checkbox" title="Checkbox: include Duelist in the sim. Shift+click (while checked): toggle permanent full-fight mode (unrealistic; label notes when on)."><input type="checkbox" id="duelist"> <span id="duelist-disc-label-text">Duelist (12s random window: double melee damage)</span></label>
           </div>
         </div>
         <div id="fistweaving-row" style="display: none;">
@@ -1331,7 +1337,7 @@
           </div>
         </div>
         <div id="innerflame-row" style="display: none;">
-          <label class="checkbox-label char-checkbox"><input type="checkbox" id="innerflame"> Inner Flame (12s random window: bonus melee damage)</label>
+          <label class="checkbox-label char-checkbox" title="Checkbox: include Inner Flame in the sim. Shift+click (while checked): toggle permanent full-fight mode (unrealistic; label notes when on)."><input type="checkbox" id="innerflame"> <span id="innerflame-disc-label-text">Inner Flame (12s random window: bonus melee damage)</span></label>
         </div>
         <div id="spell-casting-fury-row" style="display: none;">
           <label class="small-label">Spell Casting Fury (AA)</label>
@@ -3085,6 +3091,8 @@
           backstabSkill: classId === 'rogue' ? getRogueBackstabSkillBase() : undefined,
           duelist: classId === 'rogue' && $('duelist').checked,
           innerFlame: classId === 'monk' && $('innerflame').checked,
+          duelistPermanent: classId === 'rogue' && $('duelist') && $('duelist').checked && $('duelist').getAttribute('data-permanent-disc') === '1',
+          innerFlamePermanent: classId === 'monk' && $('innerflame') && $('innerflame').checked && $('innerflame').getAttribute('data-permanent-disc') === '1',
           spellCastingFury: (function () { var el = document.querySelector('input[name="spell-casting-fury"]:checked'); return el ? (parseInt(el.value, 10) || 0) : 0; })(),
           slayUndead: (function () { var el = document.querySelector('input[name="slay-undead"]:checked'); return el ? (parseInt(el.value, 10) || 0) : 0; })(),
           fistweaving: hasMainHand && classId === 'monk' && weapon1.is2H && $('fistweaving').checked,
@@ -3226,6 +3234,9 @@
               return runs > 1 ? Math.sqrt(sumSq / (runs - 1)) : 0;
             })(),
             classId: reports[0].classId || undefined,
+            duelistPermanentMode: !!reports[0].duelistPermanentMode,
+            innerFlamePermanentMode: !!reports[0].innerFlamePermanentMode,
+            permanentDisciplineMode: !!reports[0].permanentDisciplineMode,
             special: reports[0].special
               ? {
                   name: reports[0].special.name,
@@ -3962,6 +3973,8 @@
           ) : undefined,
           duelist: classId === 'rogue' && $('duelist').checked,
           innerFlame: classId === 'monk' && $('innerflame').checked,
+          duelistPermanent: classId === 'rogue' && $('duelist') && $('duelist').checked && $('duelist').getAttribute('data-permanent-disc') === '1',
+          innerFlamePermanent: classId === 'monk' && $('innerflame') && $('innerflame').checked && $('innerflame').getAttribute('data-permanent-disc') === '1',
           spellCastingFury: (function () { var el = document.querySelector('input[name="spell-casting-fury"]:checked'); return el ? (parseInt(el.value, 10) || 0) : 0; })(),
           slayUndead: (function () { var el = document.querySelector('input[name="slay-undead"]:checked'); return el ? (parseInt(el.value, 10) || 0) : 0; })(),
           critChanceMult: critChanceMult || undefined,
@@ -6418,6 +6431,42 @@
       }
       $('level').addEventListener('change', onMeleeLevelEdited);
       $('level').addEventListener('input', onMeleeLevelEdited);
+
+      var DUELIST_DISC_LABEL_BASE = 'Duelist (12s random window: double melee damage)';
+      var INNERFLAME_DISC_LABEL_BASE = 'Inner Flame (12s random window: bonus melee damage)';
+      function refreshDuelistDisciplineLabel() {
+        var sp = $('duelist-disc-label-text');
+        var cb = $('duelist');
+        if (!sp || !cb) return;
+        sp.textContent = DUELIST_DISC_LABEL_BASE + (cb.getAttribute('data-permanent-disc') === '1' ? ' — PERMANENT MODE ENABLED' : '');
+      }
+      function refreshInnerflameDisciplineLabel() {
+        var sp = $('innerflame-disc-label-text');
+        var cb = $('innerflame');
+        if (!sp || !cb) return;
+        sp.textContent = INNERFLAME_DISC_LABEL_BASE + (cb.getAttribute('data-permanent-disc') === '1' ? ' — PERMANENT MODE ENABLED' : '');
+      }
+      function wirePermanentDisciplineShiftClick(checkboxId, refreshLabel) {
+        var cb = $(checkboxId);
+        if (!cb) return;
+        var label = cb.closest('label');
+        function onShiftPermanentClickCapture(e) {
+          if (!e.shiftKey) return;
+          if (!cb.checked) return;
+          e.preventDefault();
+          if (cb.getAttribute('data-permanent-disc') === '1') cb.removeAttribute('data-permanent-disc');
+          else cb.setAttribute('data-permanent-disc', '1');
+          refreshLabel();
+        }
+        if (label) label.addEventListener('click', onShiftPermanentClickCapture, true);
+        else cb.addEventListener('click', onShiftPermanentClickCapture, true);
+        cb.addEventListener('change', function () {
+          if (!cb.checked) cb.removeAttribute('data-permanent-disc');
+          refreshLabel();
+        });
+      }
+      wirePermanentDisciplineShiftClick('duelist', refreshDuelistDisciplineLabel);
+      wirePermanentDisciplineShiftClick('innerflame', refreshInnerflameDisciplineLabel);
       function getRangerArcheryCap(lvl) { return Math.min(240, Math.floor((lvl || 60) * 4)); }
       function syncRangedArcheryCap() {
         var levelEl = $('ranged-level');
