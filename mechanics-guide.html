@@ -333,14 +333,24 @@
       <p>
         The simulator computes:
       </p>
-      <div class="formula">doubleAttackEffective = doubleAttackSkill + level</div>
+      <div class="formula">doubleAttackEffective = getDoubleAttackEffective(level, doubleAttackSkill) + ferocityDaBonus</div>
       <div class="formula">doubleAttack succeeds if doubleAttackEffective &gt; randomInt(0, 499)</div>
       <p>
         Approximate chance:
       </p>
       <div class="formula">P(doubleAttack) ~= doubleAttackEffective / 500</div>
+      <p>
+        <strong>Ferocity AA</strong> (War/Rng/Monk/Rog, PoP): adds +10 to <code>doubleAttackEffective</code> per rank (+2% DA chance per rank, up to rank 3 = +6%).
+      </p>
+      <p>
+        <strong>Bard and Beastlord</strong> are excluded from the normal double-attack skill check. Instead they use a flat AA-driven chance:
+      </p>
+      <ul>
+        <li><strong>Harmonious Attack</strong> (Bard, PoP): +2% flat DA chance per rank (up to rank 5 = +10%).</li>
+        <li><strong>Bestial Frenzy</strong> (Beastlord, PoP): +2% flat DA chance per rank (up to rank 5 = +10%).</li>
+      </ul>
       <p class="muted">
-        (Capped by the random roll range; bard and beastlord are excluded by sim logic.)
+        These flat chances are rolled independently after the normal DA check fails for those classes.
       </p>
 
       <h3>Triple attack (warrior/monk only)</h3>
@@ -358,6 +368,9 @@
       <div class="formula">dualWieldEffective = dualWieldSkill + level + ambidexterityBonus</div>
       <div class="formula">dualWield succeeds if dualWieldEffective &gt; randomInt(0, 374)</div>
       <div class="formula">P(offhand round) ~= dualWieldEffective / 375</div>
+      <p>
+        <strong>Ambidexterity AA</strong> (Luclin): adds +32 to <code>dualWieldEffective</code> (approximately +8.5% offhand round chance at max DW skill).
+      </p>
 
       <h3>Independent offhand timer</h3>
       <p>
@@ -370,6 +383,34 @@
       </ul>
       <p class="muted">
         This means offhand does not "wait" for main-hand events.
+      </p>
+    </div>
+
+    <div class="card">
+      <h2>7.6) Technique of Master Wu (Monk, PoP)</h2>
+      <p>
+        When a Monk's Flying Kick lands and <strong>Technique of Master Wu</strong> is trained, up to two extra Flying Kick strikes are rolled per special attack event.
+      </p>
+      <div class="formula">wuChance = masterWuRank × 0.10  (10% per rank, max rank 5 = 50%)</div>
+      <p>
+        The loop runs at most twice:
+      </p>
+      <ol>
+        <li>Roll against <code>wuChance</code>. If it passes, process one extra FK strike.</li>
+        <li>Roll against <code>wuChance</code> again. If it passes, process another extra FK strike. If it fails at step 1 or 2, stop.</li>
+      </ol>
+      <p>
+        Each extra strike uses the same <code>processOneBackstabHit</code> logic as the base flying kick (same min/max damage formula, crit chance, damage bonus). The report's <em>Technique of Master Wu</em> section shows extra strike rolls, extra strikes landed, hit rate, total Wu damage, and Wu DPS — tracked separately from the base Flying Kick totals.
+      </p>
+    </div>
+
+    <div class="card">
+      <h2>7.7) Flurry AA (Warrior, Luclin)</h2>
+      <p>
+        <strong>Flurry</strong> gives a chance at up to 2 additional primary-hand attacks per round, in addition to normal double/triple attack. Ranks 1/2/3 scale the flurry chance.
+      </p>
+      <p class="muted">
+        Flurry attacks use the same primary-hand damage roll as normal swings. They are independent of the double/triple attack flow.
       </p>
     </div>
 
@@ -560,6 +601,121 @@
       <div class="formula">displayedATK = floor((offenseRating + toHit) * 1000 / 744)</div>
       <p class="muted">
         This is a reporting transform and not itself the core swing resolution formula.
+      </p>
+    </div>
+
+    <div class="card">
+      <h2>13) Tanking Simulation — Avoidance Chain</h2>
+      <p>
+        The tanking sim models each mob swing as a sequential set of independent checks mirroring EQMacEmu's <code>Mob::AvoidDamage</code>. Checks fire in this order; the first one that succeeds negates the swing:
+      </p>
+      <ol>
+        <li><strong>Hit check</strong> — does the mob's swing even connect? Uses mob to-hit vs player avoidance (same formula as Section 5). If it misses, the swing is discarded entirely (no avoidance skill roll needed).</li>
+        <li><strong>Block</strong> — <code>rate(blockSkill, divisor=25)</code>. Requires a shield.</li>
+        <li><strong>Parry</strong> — <code>rate(parrySkill, divisor=50)</code>. Only valid in-front, not ranged.</li>
+        <li><strong>Riposte</strong> — <code>rate(riposteSkill, divisor=55)</code>. Requires a weapon equipped; only in-front.</li>
+        <li><strong>Dodge</strong> — <code>rate(dodgeSkill, divisor=45)</code>.</li>
+      </ol>
+      <div class="formula">rate(skill, divisor) = skill / (skill + divisor)</div>
+      <p>
+        Each check is independent (not exclusive with others except that the loop stops at the first success). The combined avoidance probability across all four skills for swings that pass the hit check is:
+      </p>
+      <div class="formula">skillAvoidanceRate = 1 − (1−block) × (1−parry) × (1−riposte) × (1−dodge)</div>
+
+      <h3>AA modifiers to avoidance</h3>
+      <ul>
+        <li><strong>Combat Agility</strong> (Luclin archetype, ranks 1–3): reduces effective hit chance by 2%/5%/10%.</li>
+        <li><strong>Lightning Reflexes</strong> (PoP, ranks 1–5): reduces effective hit chance by an additional 2% per rank (stacks with Combat Agility).</li>
+      </ul>
+      <div class="formula">hitChance = hitChance − (combatAgilityFactor + lightningReflexesFactor)</div>
+    </div>
+
+    <div class="card">
+      <h2>14) Tanking Simulation — Mitigation</h2>
+      <p>
+        When a swing lands (passes hit check and all avoidance checks), the damage roll uses the same <strong>RollD20</strong> contest from Section 5 — mob offense rating vs player mitigation. Player mitigation is computed from player level and AC then boosted by mitigation AAs:
+      </p>
+      <h3>AA modifiers to mitigation</h3>
+      <ul>
+        <li><strong>Combat Stability</strong> (Luclin archetype, ranks 1–3): multiplies base player mitigation by 1.02 / 1.05 / 1.10.</li>
+        <li><strong>Innate Defense</strong> (PoP, ranks 1–5): adds +2% per rank on top of Combat Stability (stacks).</li>
+      </ul>
+      <div class="formula">totalMitigationFactor = combatStabilityFactor + innateDefenseFactor</div>
+      <div class="formula">playerMitigation = floor(playerMitigation × (1 + totalMitigationFactor))</div>
+
+      <h3>Natural Durability AA (Luclin archetype, ranks 1–3)</h3>
+      <p>
+        Increases player max HP by 2%/5%/10% of the entered HP value before the fight begins.
+      </p>
+      <div class="formula">playerHPTotal = floor(playerHPTotal × (1 + naturalDurabilityFactor))</div>
+    </div>
+
+    <div class="card">
+      <h2>15) Tanking Simulation — Riposte Counter-Damage</h2>
+      <p>
+        When a riposte succeeds, the mob's swing is negated <em>and</em> the player deals counter-damage using their mainhand weapon and offense stats. The counter-damage uses the same RollD20 / damage roll logic as a player melee swing, but against mob mitigation (derived from mob AC).
+      </p>
+
+      <h3>Double Riposte AA (Luclin class — War/Pal/Rng/SK/Monk/Rog/Bst)</h3>
+      <p>
+        After a successful riposte counter-attack is rolled, there is an additional chance to perform a <em>second</em> counter-attack on the same swing:
+      </p>
+      <div class="formula">P(double riposte extra hit) = 15% / 35% / 50% at rank 1/2/3</div>
+      <p class="muted">The second hit is a full independent riposte damage roll — it does not affect whether the swing was negated (riposte always negates). Both hits are credited to <code>riposteDamageTotal</code>.</p>
+
+      <h3>Return Kick AA (Luclin class — Monk only)</h3>
+      <p>
+        After a successful riposte, the monk has a chance to automatically perform a bonus Flying Kick as a counter-attack:
+      </p>
+      <div class="formula">P(return kick fires) = 25% / 35% / 50% at rank 1/2/3</div>
+      <p class="muted">
+        Return Kick damage is approximated using the same riposte damage formula (player weapon stats vs mob AC). In the report, Return Kick hits are counted separately under the Riposte section.
+      </p>
+    </div>
+
+    <div class="card">
+      <h2>16) Tanking Simulation — Survivability</h2>
+      <p>
+        The sim tracks HP across the fight. Each mob swing that lands reduces HP by its rolled damage. Between rounds, HP recovers from regen:
+      </p>
+      <div class="formula">HPgained = netRegenPerSec × (mobAttackDelayMs / 1000)</div>
+      <div class="formula">netRegenPerSec = (playerHPRegen + healerHPS) − 0  (no drain modeled)</div>
+      <p>
+        When HP hits 0, the sim records the time of death as <strong>survival time</strong>. If HP never drops to 0, survival time is reported as "survived full fight."
+      </p>
+      <p>
+        <strong>CH chain simulation:</strong> If healer HPS is set, the report also computes a theoretical Complete Heal chain estimate — how many CHs land per minute to sustain the fight, assuming ~3,000 HP CHs on a 3s cast.
+      </p>
+
+      <h3>Key survivability metrics in the report</h3>
+      <table>
+        <thead><tr><th>Metric</th><th>What it means</th></tr></thead>
+        <tbody>
+          <tr><td>DTPS</td><td>Damage taken per second (before regen/heals).</td></tr>
+          <tr><td>Effective DTPS</td><td>DTPS minus net regen/healer HPS.</td></tr>
+          <tr><td>Survival time</td><td>Seconds until death with no heals (from HP / DTPS).</td></tr>
+          <tr><td>Avoidance rate</td><td>% of swings negated by miss + block + parry + riposte + dodge.</td></tr>
+          <tr><td>Mitigation %</td><td>Average reduction on landed hits vs the mob's theoretical max hit.</td></tr>
+          <tr><td>Riposte DPS</td><td>Outgoing counter-damage per second from all riposte hits (including Double Riposte and Return Kick).</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="card">
+      <h2>17) Alternate Advancement (AA) System</h2>
+      <p>
+        AAs are era-gated. The <strong>era selector</strong> controls which AA sections are visible in the configurator. Only AAs available in the selected era (and earlier) are shown and applied to the sim.
+      </p>
+      <table>
+        <thead><tr><th>Era</th><th>AAs unlocked</th></tr></thead>
+        <tbody>
+          <tr><td>Classic / Kunark / Velious</td><td>None — AA system not yet available.</td></tr>
+          <tr><td>Luclin</td><td>Archetype AAs (Combat Fury, Combat Stability, Combat Agility, Natural Durability, Spell Casting Fury) and Class AAs (Ambidexterity, Flurry, Slay Undead, Archery Mastery, Double Riposte, Return Kick).</td></tr>
+          <tr><td>Planes of Power</td><td>All Luclin AAs plus: Planar Power, Technique of Master Wu, Fury of the Ages, Ferocity, Bestial Frenzy, Harmonious Attack, Innate Defense, Lightning Reflexes.</td></tr>
+        </tbody>
+      </table>
+      <p>
+        In <strong>buildAASimOptions</strong>, each AA value is gated by both era availability and class eligibility. An AA that is out-of-era or not available to the selected class returns 0 regardless of the configurator setting.
       </p>
     </div>
 

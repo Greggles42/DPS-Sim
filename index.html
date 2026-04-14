@@ -1368,7 +1368,7 @@
     <button type="button" class="tab-btn" id="tab-ranged" aria-selected="false">Ranged</button>
     <button type="button" class="tab-btn" id="tab-tanking" aria-selected="false">Tanking</button>
     <label style="margin-left:auto;margin-right:0.5rem;cursor:pointer;display:inline-flex;align-items:center;gap:0.4rem;font-size:0.78rem;font-weight:600;color:var(--muted);padding:0.3rem 0.75rem;border:1px solid var(--border);border-radius:4px;background:rgba(255,255,255,0.04);white-space:nowrap;" title="Import your EQ /outputfile inventory export (.txt) to auto-fill stats across all tabs">
-      &#8599; Load Inventory
+      &#8599; Import Inventory
       <input type="file" id="shared-inventory-file" accept=".txt" style="display:none;">
     </label>
   </div>
@@ -1892,9 +1892,9 @@
 
       <!-- Identity row -->
       <div class="char-primary-row char-primary-grid" style="grid-template-columns:repeat(auto-fill,minmax(7rem,1fr));gap:0.5rem 1rem;align-items:end;">
-        <div>
+        <div style="display:flex;flex-direction:column;">
           <label for="tank-class" class="small-label">Class</label>
-          <select id="tank-class" style="width:100%;margin-bottom:0;">
+          <select id="tank-class" style="width:100%;margin-bottom:0;margin-top:auto;">
             <option value="warrior" selected>Warrior</option>
             <option value="paladin">Paladin</option>
             <option value="shadowknight">Shadow Knight</option>
@@ -1912,21 +1912,21 @@
             <option value="wizard">Wizard</option>
           </select>
         </div>
-        <div>
+        <div style="display:flex;flex-direction:column;">
           <label for="tank-level" class="small-label">Level</label>
-          <input type="number" id="tank-level" value="60" min="1" max="65" style="width:100%;">
+          <input type="number" id="tank-level" value="60" min="1" max="65" style="width:100%;margin-top:auto;">
         </div>
-        <div>
+        <div style="display:flex;flex-direction:column;">
           <label for="tank-player-hp" class="small-label">Total HP</label>
-          <input type="number" id="tank-player-hp" value="5000" min="1" style="width:100%;">
+          <input type="number" id="tank-player-hp" value="5000" min="1" style="width:100%;margin-top:auto;">
         </div>
-        <div>
+        <div style="display:flex;flex-direction:column;">
           <label for="tank-player-hp-regen" class="small-label">HP Regen/sec</label>
-          <input type="number" id="tank-player-hp-regen" value="0" min="0" style="width:100%;">
+          <input type="number" id="tank-player-hp-regen" value="0" min="0" style="width:100%;margin-top:auto;">
         </div>
-        <div>
+        <div style="display:flex;flex-direction:column;">
           <label for="tank-healer-hps" class="small-label">Healer HPS</label>
-          <input type="number" id="tank-healer-hps" value="0" min="0" style="width:100%;">
+          <input type="number" id="tank-healer-hps" value="0" min="0" style="width:100%;margin-top:auto;">
         </div>
       </div>
 
@@ -1992,7 +1992,7 @@
          ═══════════════════════════════════════════════════════ -->
     <section class="section--core">
       <h2>Player Equipment</h2>
-      <p class="hint" style="margin:0 0 0.6rem;">Use <strong>Load Inventory</strong> in the tab bar to import your EQ inventory export. Equipped items are shown above the tab panels. AC, STR, DEX, AGI, haste, and worn ATK are auto-filled.</p>
+      <p class="hint" style="margin:0 0 0.6rem;">Use <strong>Import Inventory</strong> in the tab bar to import your EQ inventory export. Equipped items are shown above the tab panels. AC, STR, DEX, AGI, haste, and worn ATK are auto-filled.</p>
 
       <!-- Mainhand weapon -->
       <p class="hint" style="margin:0 0 0.3rem;font-weight:600;color:var(--text);">Mainhand (Riposte damage)</p>
@@ -2157,6 +2157,7 @@
   <section class="advanced-only" style="margin-top: 1rem;">
     <h2>Version log</h2>
     <ul style="font-size: 0.9rem; color: var(--muted); margin: 0; padding-left: 1.25rem;">
+      <li><strong>1.08</strong> — Full AA system with era-gated configurator (Luclin/PoP sections show/hide correctly on era change). New AAs: Double Riposte (War/Pal/Rng/SK/Monk/Rog/Bst), Return Kick (Monk), Ferocity (War/Rng/Monk/Rog), Bestial Frenzy (Beastlord), Harmonious Attack (Bard), Natural Durability, Innate Defense, Lightning Reflexes. Technique of Master Wu dedicated report section. Tanking sim tracks Double Riposte extra hits and Return Kick hits. Default era changed to Luclin. Import Inventory button renamed.</li>
       <li><strong>1.07</strong> — UI overhauled (Easy and Advanced: layout, theming, alignment, and controls). Weapon search system cleaned up and refined (merged offline data, filters, rank/search behavior, and related UX). Added initial threat per second calculations. Enabled PoP weapons in weaponrank via toggle. Rank by TPS enabled in weaponrank via toggle.</li>
       <li><strong>1.06</strong> — Item search is fully offline using merged <code>resources/weapons.json</code> (no remote ItemSearch API). Weapon data is merged from weaponlist/luclin/pop with per-item <code>expansion</code> and <code>resources/weapon_exclusions.json</code> for rank/search filters. Reports show approximate <strong>TPS</strong> (threat per second) from swing hate + capped proc hate (<code>threat.js</code> / EQMacEmu-style). Run <code>node scripts/merge-weapons.mjs</code> after editing source JSON. Fixed JSON syntax in <code>popweapons.json</code> (missing comma).</li>
       <li><strong>1.05</strong> — Improved BS mod application and worn ATK behavior in the `rankWeapons` function. Bane damage now auto-applies; Seru and Emp can only be hurt by bane weapons. Weapon rank now outputs phase-by-phase results. Added a synthetic combat-log mode (1 run supported only) and `.txt` export compatible with normal fight-log parsers. Improved some Monk fistweaving logic.</li>
@@ -2546,7 +2547,7 @@
       }
 
       // When releasing: 1) Bump VERSION below. 2) Add a new <li> at the top of the Version log section above.
-      const VERSION = '1.07';
+      const VERSION = '1.08';
       const versionEl = $('app-version');
       if (versionEl) versionEl.textContent = 'v' + VERSION;
 
@@ -8646,7 +8647,7 @@
 // Era Toggle Logic
 // ============================================================
 (function () {
-  var DEFAULT_ERA = 'pop';
+  var DEFAULT_ERA = 'luclin';
 
   function getSelectedEra() {
     var sel = document.getElementById('era-select');
