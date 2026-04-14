@@ -8630,8 +8630,9 @@
         });
       })();
 
-      // Expose AA configurator UI builder for era-toggle IIFE (different scope)
+      // Expose AA functions for other IIFEs (era-toggle, tanking sim)
       window.buildAAConfiguratorUI = buildAAConfiguratorUI;
+      window.buildAASimOptions = buildAASimOptions;
 
       // Expose gear-stat updater for inventory system (different IIFE scope)
       window.applyGearStats = function (str, dex, agi) {
@@ -9151,7 +9152,7 @@
     };
 
     // Apply AA options to tanking sim
-    var tankAaOpts = buildAASimOptions(options.playerClassId, options.era);
+    var tankAaOpts = window.buildAASimOptions(options.playerClassId, options.era);
     options.playerCritChanceMult    = tankAaOpts.critChanceMult;
     options.combatStabilityRank     = tankAaOpts.combatStabilityRank;
     options.combatAgilityRank       = tankAaOpts.combatAgilityRank;
