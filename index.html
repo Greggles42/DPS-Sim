@@ -81,11 +81,17 @@
       width: 56px;
       height: 56px;
       cursor: pointer;
+      background: var(--input-bg);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 3px;
+      box-sizing: border-box;
     }
     .weapon-icon-wrap .weapon-icon {
-      width: 56px;
-      height: 56px;
+      width: 100%;
+      height: 100%;
       object-fit: contain;
+      display: block;
     }
     .section--core.weapon-section { position: relative; }
     .weapon-name {
@@ -225,6 +231,12 @@
     }
     .char-primary-grid--melee {
       grid-template-columns: max-content repeat(5, minmax(3.5rem, max-content));
+    }
+    .char-primary-grid--classlevel {
+      grid-template-columns: max-content minmax(3.5rem, max-content);
+    }
+    .char-primary-grid--hasteatk {
+      grid-template-columns: repeat(2, minmax(3.5rem, max-content)) repeat(2, minmax(5rem, max-content));
     }
     .char-primary-grid--ranged {
       grid-template-columns: max-content repeat(6, minmax(3.5rem, max-content));
@@ -842,9 +854,10 @@
     .scrollbar-fantasy::-webkit-scrollbar-thumb:hover { background: var(--color-gold); }
     .magic-btn,
     #btn-run-easy.magic-btn {
-      background: linear-gradient(135deg, #8b0000 0%, #5a0000 100%);
+      background: linear-gradient(135deg, #b8860b 0%, #6b4800 100%);
       color: #fff;
-      border: 1px solid rgba(212, 175, 55, 0.5);
+      border: 1px solid rgba(139, 0, 0, 0.65);
+      box-shadow: inset 0 1px 0 rgba(255, 220, 100, 0.15);
       transition: all 0.3s ease;
       position: relative;
       overflow: hidden;
@@ -852,19 +865,20 @@
     .magic-btn:hover,
     #btn-run-easy.magic-btn:hover {
       transform: translateY(-2px);
-      box-shadow: 0 4px 20px rgba(139, 0, 0, 0.4);
+      box-shadow: 0 4px 20px rgba(184, 134, 11, 0.45), inset 0 1px 0 rgba(255, 220, 100, 0.15);
       filter: brightness(1.15);
     }
     #btn-run.magic-btn,
     #btn-run-ranged.magic-btn {
-      background: linear-gradient(135deg, #8b0000 0%, #5a0000 100%);
+      background: linear-gradient(135deg, #b8860b 0%, #6b4800 100%);
       color: #fff;
-      border: 1px solid rgba(212, 175, 55, 0.45);
+      border: 1px solid rgba(139, 0, 0, 0.6);
+      box-shadow: inset 0 1px 0 rgba(255, 220, 100, 0.15);
     }
     #btn-run.magic-btn:hover,
     #btn-run-ranged.magic-btn:hover {
       transform: translateY(-1px);
-      box-shadow: 0 4px 20px rgba(139, 0, 0, 0.35);
+      box-shadow: 0 4px 20px rgba(184, 134, 11, 0.4), inset 0 1px 0 rgba(255, 220, 100, 0.15);
       filter: brightness(1.1);
     }
     #btn-rank-weapons.magic-btn.btn-rank-inline,
@@ -1040,8 +1054,8 @@
     #easy-mode-root .easy-history-wrap { min-height: 0; }
     body[data-ui-mode="advanced"] .report-section,
     body[data-ui-mode="advanced"] .histogram-panel {
-      border-color: rgba(212, 175, 55, 0.12);
-      box-shadow: 0 4px 24px rgba(0, 0, 0, 0.35);
+      border-color: rgba(212, 175, 55, 0.18);
+      box-shadow: 0 4px 24px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(212, 175, 55, 0.07);
     }
     body[data-ui-mode="advanced"] #report {
       border-color: rgba(212, 175, 55, 0.12);
@@ -1052,6 +1066,15 @@
     }
     body[data-ui-mode="advanced"] .item-search-item:hover {
       background: rgba(212, 175, 55, 0.06);
+    }
+    body[data-ui-mode="advanced"] section {
+      border-color: rgba(212, 175, 55, 0.18);
+      box-shadow: 0 4px 24px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(212, 175, 55, 0.07);
+    }
+    body[data-ui-mode="advanced"] section h2 {
+      padding-bottom: 0.5rem;
+      margin-bottom: 1rem;
+      border-bottom: 1px solid rgba(212, 175, 55, 0.1);
     }
     #easy-mode-root .easy-assumptions-wrap > h4:first-child {
       color: var(--color-gold);
@@ -1066,6 +1089,121 @@
       margin-bottom: 1rem;
     }
 
+    /* ── AA Configurator ─────────────────────────────────────── */
+    #aa-configurator {
+      margin: 0.4rem 0 0;
+      border: 1px solid rgba(212, 175, 55, 0.18);
+      border-radius: 6px;
+      background: var(--panel);
+    }
+    #aa-configurator summary {
+      list-style: none;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.5rem 0.75rem;
+      cursor: pointer;
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: var(--color-gold);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      user-select: none;
+    }
+    #aa-configurator summary::-webkit-details-marker { display: none; }
+    #aa-configurator summary::before {
+      content: '▶';
+      font-size: 0.6rem;
+      color: var(--muted);
+      transition: transform 0.15s;
+    }
+    #aa-configurator[open] summary::before { transform: rotate(90deg); }
+    .aa-config-body {
+      padding: 0.5rem 0.75rem 0.75rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+    .aa-group-header {
+      font-size: 0.68rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--muted);
+      padding: 0.2rem 0 0.1rem;
+      border-bottom: 1px solid rgba(212,175,55,0.08);
+      margin-bottom: 0.1rem;
+    }
+    .aa-rows { display: flex; flex-wrap: wrap; gap: 0.25rem 1.5rem; }
+    .aa-row {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      min-width: 14rem;
+    }
+    .aa-row.aa-unavail { opacity: 0.35; pointer-events: none; }
+    .aa-label {
+      font-size: 0.72rem;
+      color: var(--text);
+      min-width: 9rem;
+      white-space: nowrap;
+    }
+    .aa-seg { display: flex; gap: 1px; }
+    .aa-seg-btn {
+      padding: 0.15rem 0.35rem;
+      font-size: 0.68rem;
+      font-weight: 600;
+      border: 1px solid var(--border);
+      background: var(--input-bg);
+      color: var(--muted);
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s, border-color 0.15s;
+      line-height: 1.4;
+    }
+    .aa-seg-btn:first-child { border-radius: 3px 0 0 3px; }
+    .aa-seg-btn:last-child { border-radius: 0 3px 3px 0; }
+    .aa-seg-btn.aa-active {
+      background: rgba(212, 175, 55, 0.18);
+      color: var(--color-gold);
+      border-color: rgba(212, 175, 55, 0.45);
+    }
+
+    /* ── Character stat distributor ─────────────────────────────── */
+    .stat-dist-table { border-collapse: collapse; width: 100%; font-size: 0.72rem; }
+    .stat-dist-table th {
+      text-align: left;
+      color: var(--muted);
+      font-size: 0.66rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      padding: 0 0.4rem 0.2rem;
+    }
+    .stat-dist-table td { padding: 0.1rem 0.4rem; vertical-align: middle; }
+    .stat-dist-table td:first-child { color: var(--text); font-weight: 600; }
+    .stat-dist-table td:not(:first-child) { color: var(--muted); text-align: right; }
+    .stat-dist-table td.stat-final { color: var(--color-gold); font-weight: 700; }
+    .stat-pts-ctrl { display: flex; align-items: center; gap: 2px; }
+    .stat-pts-btn {
+      width: 1.2rem; height: 1.2rem;
+      border: 1px solid var(--border);
+      background: var(--input-bg);
+      color: var(--text);
+      font-size: 0.75rem;
+      cursor: pointer;
+      border-radius: 2px;
+      display: flex; align-items: center; justify-content: center;
+      padding: 0;
+    }
+    .stat-pts-btn:hover { border-color: var(--color-gold); color: var(--color-gold); }
+    .stat-pts-val { min-width: 2rem; text-align: center; font-size: 0.72rem; color: var(--text); }
+    #stat-pts-remaining {
+      font-size: 0.7rem;
+      color: var(--muted);
+      margin-top: 0.25rem;
+    }
+    #stat-pts-remaining.pts-warn { color: #e07; }
+
   </style>
 </head>
 <body data-ui-mode="easy" class="app-body">
@@ -1078,6 +1216,16 @@
       </div>
     </div>
     <div class="flex items-center gap-3 md:gap-8 flex-shrink-0">
+      <div class="flex flex-col items-end flex-shrink-0">
+        <span class="text-[10px] text-gray-400 uppercase tracking-widest" style="letter-spacing:0.08em;">Era</span>
+        <select id="era-select" style="background:transparent;border:none;border-bottom:1px solid rgba(212,175,55,0.35);color:#d4af37;font-size:clamp(0.85rem,2vw,1.1rem);font-family:'Cinzel',serif;font-weight:700;padding:0 1.25rem 0.05rem 0;cursor:pointer;outline:none;line-height:1.1;appearance:auto;-webkit-appearance:auto;">
+          <option value="classic" style="background:#1a1c22;font-family:inherit;">Classic</option>
+          <option value="kunark" style="background:#1a1c22;font-family:inherit;">Kunark</option>
+          <option value="velious" style="background:#1a1c22;font-family:inherit;">Velious</option>
+          <option value="luclin" style="background:#1a1c22;font-family:inherit;">Luclin</option>
+          <option value="pop" selected style="background:#1a1c22;font-family:inherit;">Planes of Power</option>
+        </select>
+      </div>
       <div id="dps-display" class="flex flex-row items-end gap-4 md:gap-8 min-w-0" title="DPS and threat per second from last run">
         <div class="header-stat-dps flex flex-col items-end min-w-0">
           <span class="text-[10px] text-gray-400 uppercase tracking-widest">Total DPS</span>
@@ -1119,6 +1267,7 @@
                   <label class="text-[10px] text-gray-400 uppercase tracking-widest block mb-2" for="easy-level">Character Level</label>
                   <select id="easy-level" class="w-full bg-[#121216] border border-white/10 rounded-none px-3 py-2 text-sm font-fantasy focus:border-[#d4af37] outline-none transition-colors"></select>
                 </div>
+
                 <div class="easy-field">
                   <div class="flex justify-between items-center mb-2">
                     <label class="text-[10px] text-gray-400 uppercase tracking-widest" for="easy-worn-haste">Worn Haste</label>
@@ -1214,10 +1363,30 @@
   </div>
 
   <div class="advanced-stack advanced-only flex flex-col flex-1 min-h-0">
-  <div class="tab-bar">
+  <div class="tab-bar" style="align-items:center;">
     <button type="button" class="tab-btn active" id="tab-melee" aria-selected="true">Melee</button>
     <button type="button" class="tab-btn" id="tab-ranged" aria-selected="false">Ranged</button>
+    <button type="button" class="tab-btn" id="tab-tanking" aria-selected="false">Tanking</button>
+    <label style="margin-left:auto;margin-right:0.5rem;cursor:pointer;display:inline-flex;align-items:center;gap:0.4rem;font-size:0.78rem;font-weight:600;color:var(--muted);padding:0.3rem 0.75rem;border:1px solid var(--border);border-radius:4px;background:rgba(255,255,255,0.04);white-space:nowrap;" title="Import your EQ /outputfile inventory export (.txt) to auto-fill stats across all tabs">
+      &#8599; Load Inventory
+      <input type="file" id="shared-inventory-file" accept=".txt" style="display:none;">
+    </label>
   </div>
+
+  <!-- Shared inventory display — shown for all tabs when inventory is loaded -->
+  <div id="shared-inventory-display" style="display:none;margin:0.5rem 0;padding:0.6rem 0.75rem;background:var(--input-bg);border:1px solid var(--border);border-radius:4px;">
+    <p class="hint" style="margin:0 0 0.4rem;font-weight:600;">Equipped Items</p>
+    <div id="shared-inventory-slots" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(18rem,1fr));gap:0.1rem 1.5rem;color:var(--text);"></div>
+    <div id="shared-inventory-summary"></div>
+  </div>
+
+  <!-- AA Configurator — shared across all tabs -->
+  <details id="aa-configurator">
+    <summary>Alternate Advancement</summary>
+    <div class="aa-config-body" id="aa-config-body">
+      <!-- Populated by buildAAConfiguratorUI() in JS -->
+    </div>
+  </details>
 
   <div class="main-layout advanced-only">
   <div class="main-left">
@@ -1228,13 +1397,11 @@
       <div class="char-haste-inner">
         <div class="char-haste-left">
       <h2>Character & Haste</h2>
-      <div class="char-primary-row char-primary-grid char-primary-grid--melee">
+
+      <!-- Class / Level — top -->
+      <div class="char-primary-row char-primary-grid char-primary-grid--classlevel">
         <label for="class">Class</label>
         <label for="level">Level</label>
-        <label for="worn-haste">Worn haste % <span class="info-icon" title="Item haste; capped to 10% at level 1-25, uncapped at level 26+">&#8505;</span></label>
-        <label for="spell-haste">Spell haste % <span class="info-icon" title="(60% Haste + 25% v3 bard haste)">&#8505;</span></label>
-        <label for="worn-attack">Worn ATK <span class="info-icon" title="don't include atk from weapon, it will automatically be included">&#8505;</span></label>
-        <label for="spell-attack">Spell ATK</label>
         <select id="class">
           <option value="">None (manual)</option>
           <option value="bard">Bard</option>
@@ -1254,14 +1421,62 @@
           <option value="wizard">Wizard</option>
         </select>
         <input type="number" id="level" min="1" max="65" value="60" placeholder="60" size="3" inputmode="numeric" autocomplete="off">
+      </div>
+      <p class="hint char-hint char-hint-below-primary" id="class-hint">Class and level auto-fill skills and weapon caps. Edit below to override.</p>
+
+      <!-- Race & Starting Stats -->
+      <div style="display:flex;gap:0.75rem;flex-wrap:wrap;align-items:flex-start;margin-bottom:0.6rem;">
+        <div class="char-field">
+          <label for="char-race" class="small-label">Race</label>
+          <select id="char-race" style="width:auto;min-width:8rem;margin-bottom:0;">
+            <option value="human">Human</option>
+            <option value="barbarian">Barbarian</option>
+            <option value="dark_elf">Dark Elf</option>
+            <option value="dwarf">Dwarf</option>
+            <option value="erudite">Erudite</option>
+            <option value="gnome">Gnome</option>
+            <option value="half_elf">Half Elf</option>
+            <option value="halfling">Halfling</option>
+            <option value="high_elf">High Elf</option>
+            <option value="iksar">Iksar</option>
+            <option value="ogre">Ogre</option>
+            <option value="troll">Troll</option>
+            <option value="wood_elf">Wood Elf</option>
+            <option value="vah_shir" class="vah-shir-opt" style="display:none">Vah Shir</option>
+          </select>
+        </div>
+        <div class="char-field">
+          <table class="stat-dist-table">
+            <thead><tr>
+              <th>Stat</th><th>Base</th><th title="Creation points">+Pts</th><th title="From gear">Gear</th><th>Final</th>
+            </tr></thead>
+            <tbody id="stat-dist-body">
+              <!-- rows injected by renderStatDistributor() -->
+            </tbody>
+          </table>
+          <div id="stat-pts-remaining">Points remaining: <strong id="stat-pts-count">25</strong></div>
+        </div>
+      </div>
+      <!-- Hidden stat inputs for sim calls -->
+      <input type="hidden" id="str" value="255">
+      <input type="hidden" id="dex" value="255">
+      <input type="hidden" id="agi" value="255">
+
+      <!-- Haste / ATK — below stats -->
+      <div class="char-primary-row char-primary-grid char-primary-grid--hasteatk">
+        <label for="worn-haste">Worn haste % <span class="info-icon" title="Item haste; capped to 10% at level 1-25, uncapped at level 26+">&#8505;</span></label>
+        <label for="spell-haste">Spell haste % <span class="info-icon" title="(60% Haste + 25% v3 bard haste)">&#8505;</span></label>
+        <label for="worn-attack">Worn ATK <span class="info-icon" title="don't include atk from weapon, it will automatically be included">&#8505;</span></label>
+        <label for="spell-attack">Spell ATK</label>
         <input type="number" id="worn-haste" min="0" max="999" value="41" placeholder="41" size="3" inputmode="numeric" autocomplete="off">
         <input type="number" id="spell-haste" min="0" max="999" value="85" placeholder="85" size="3" inputmode="numeric" autocomplete="off">
         <input type="number" id="worn-attack" min="0" max="999" value="0" placeholder="0" size="5" inputmode="numeric" autocomplete="off">
         <input type="number" id="spell-attack" min="0" max="999" value="0" placeholder="0" size="5" inputmode="numeric" autocomplete="off">
       </div>
-      <p class="hint char-hint char-hint-below-primary" id="class-hint">Class and level auto-fill skills and weapon caps. Edit below to override.</p>
+
+      <!-- Skills & class-specific options -->
       <details class="collapse-secondary char-details">
-        <summary class="collapse-summary">Skills, stats, options</summary>
+        <summary class="collapse-summary">Skills &amp; options</summary>
         <div class="char-secondary-row">
           <div class="char-field char-field-num"><label for="offense-skill" class="small-label">Offense</label><input type="number" id="offense-skill" min="0" max="255" value="252" placeholder="252" title="Used for to-hit."></div>
           <div class="char-field char-field-num"><label for="double-attack" class="small-label">Double ATK</label><input type="number" id="double-attack" min="0" value="250" placeholder="250"></div>
@@ -1287,14 +1502,8 @@
           <div class="char-field char-field-num"><label for="skill-archery" class="small-label">Archery</label><input type="number" id="skill-archery" min="0" max="255" placeholder="0" title="Archery"></div>
           <div class="char-field char-field-num"><label for="skill-throwing" class="small-label">Throwing</label><input type="number" id="skill-throwing" min="0" max="255" placeholder="0" title="Throwing"></div>
         </div>
-        <div class="char-secondary-row">
-          <div class="char-field char-field-num"><label for="str" class="small-label">STR</label><input type="number" id="str" min="1" value="255" placeholder="255"></div>
-          <div class="char-field char-field-num"><label for="dex" class="small-label">DEX</label><input type="number" id="dex" min="1" value="255" placeholder="255"></div>
-        </div>
-        <div class="char-checkbox-row">
-          <label class="checkbox-label char-checkbox"><input type="checkbox" id="ambidexterity-aa"> Ambidexterity (+32 dual wield)</label>
-        </div>
         <input type="hidden" id="crit-dmg-debug-dmg-bonus" value="0">
+        <input type="hidden" name="combat-fury" id="combat-fury-hidden" value="3">
         <div id="special-attack-row" style="display: none;">
           <div class="char-secondary-row">
             <div class="char-field"><label for="special-attack-type" class="small-label">Special attack</label><select id="special-attack-type"><option value="none">None</option><option value="flying_kick">Flying Kick</option><option value="backstab">Backstab</option><option value="kick">Kick</option><option value="bash">Bash/Slam</option></select></div>
@@ -1308,16 +1517,6 @@
             <div id="kick-reuse-wrap" class="char-field char-field-num" style="display: none;"><label for="kick-reuse-sec" class="small-label">Kick reuse (s)</label><input type="number" id="kick-reuse-sec" min="0" step="0.1" placeholder="8"></div>
             <div id="bash-reuse-wrap" class="char-field char-field-num" style="display: none;"><label for="bash-reuse-sec" class="small-label">Bash/Slam reuse (s)</label><input type="number" id="bash-reuse-sec" min="0" step="0.1" placeholder="8"></div>
           </div>
-        </div>
-        <div class="char-field" style="margin-top: 0.5rem;">
-          <label class="small-label">Combat Fury (AA)</label>
-          <div class="radio-group">
-            <label><input type="radio" name="combat-fury" value="0"> Off</label>
-            <label><input type="radio" name="combat-fury" value="1"> 1 (+2% crit)</label>
-            <label><input type="radio" name="combat-fury" value="2"> 2 (+4% crit)</label>
-            <label><input type="radio" name="combat-fury" value="3" checked> 3 (+6% crit)</label>
-          </div>
-          <p class="hint char-hint" style="margin-top: 0.25rem; margin-bottom: 0;">Stacks on top of warrior innate crit chance.</p>
         </div>
         <div id="rogue-backstab-mod-row" style="display: none;">
           <div class="char-secondary-row">
@@ -1338,26 +1537,6 @@
         </div>
         <div id="innerflame-row" style="display: none;">
           <label class="checkbox-label char-checkbox" title="Checkbox: include Inner Flame in the sim. Shift+click (while checked): toggle permanent full-fight mode (unrealistic; label notes when on)."><input type="checkbox" id="innerflame"> <span id="innerflame-disc-label-text">Inner Flame (12s random window: bonus melee damage)</span></label>
-        </div>
-        <div id="spell-casting-fury-row" style="display: none;">
-          <label class="small-label">Spell Casting Fury (AA)</label>
-          <div class="radio-group">
-            <label><input type="radio" name="spell-casting-fury" value="0" checked> Off</label>
-            <label><input type="radio" name="spell-casting-fury" value="1"> 1 (2% spell crit, +33% dmg)</label>
-            <label><input type="radio" name="spell-casting-fury" value="2"> 2 (4% spell crit, +66% dmg)</label>
-            <label><input type="radio" name="spell-casting-fury" value="3"> 3 (7% spell crit, +100% dmg)</label>
-          </div>
-          <p class="hint">Paladin, Shadowknight, Ranger, Bard, Beastlord. Affects proc spell damage.</p>
-        </div>
-        <div id="slay-undead-row" style="display: none;">
-          <label class="small-label">Slay Undead (AA)</label>
-          <div class="radio-group">
-            <label><input type="radio" name="slay-undead" value="0" checked> Off</label>
-            <label><input type="radio" name="slay-undead" value="1"> 1 (2.25% chance, 15× dmg vs undead)</label>
-            <label><input type="radio" name="slay-undead" value="2"> 2 (2.35% chance, 16× dmg vs undead)</label>
-            <label><input type="radio" name="slay-undead" value="3"> 3 (2.4% chance, 17× dmg vs undead)</label>
-          </div>
-          <p class="hint">Paladin only. Main-hand hits vs Undead / Undead Pet / Vampire body types.</p>
         </div>
       </details>
         </div>
@@ -1561,14 +1740,8 @@
       </div>
       <p class="hint char-hint char-hint-below-primary">Ranged sim uses Ranger only. Level and haste affect offense and delay.</p>
       <details class="collapse-secondary">
-        <summary class="collapse-summary">Archery mastery, options</summary>
-        <label>Archery Mastery</label>
-        <div class="radio-group">
-          <label><input type="radio" name="archery-mastery" value="1"> 1</label>
-          <label><input type="radio" name="archery-mastery" value="2"> 2</label>
-          <label><input type="radio" name="archery-mastery" value="3" checked> 3</label>
-        </div>
-        <p class="hint">AA Archery Mastery rank (1, 2, or 3).</p>
+        <summary class="collapse-summary">Archery options</summary>
+        <!-- Archery Mastery moved to AA Configurator panel -->
         <label>Archery accuracy spell</label>
         <div class="radio-group" style="display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 1rem;">
           <label><input type="radio" name="archery-accuracy" value="none" checked> None</label>
@@ -1707,6 +1880,236 @@
   </div>
   </div>
 
+  <div id="tanking-tab" class="tab-panel hidden">
+  <div class="tab-content-wrapper">
+  <div class="grid" style="grid-template-columns:1fr;">
+
+    <!-- ═══════════════════════════════════════════════════════
+         CARD 1 — CHARACTER STATS
+         ═══════════════════════════════════════════════════════ -->
+    <section class="section--core">
+      <h2>Character Stats</h2>
+
+      <!-- Identity row -->
+      <div class="char-primary-row char-primary-grid" style="grid-template-columns:repeat(auto-fill,minmax(7rem,1fr));gap:0.5rem 1rem;align-items:end;">
+        <div>
+          <label for="tank-class" class="small-label">Class</label>
+          <select id="tank-class" style="width:100%;margin-bottom:0;">
+            <option value="warrior" selected>Warrior</option>
+            <option value="paladin">Paladin</option>
+            <option value="shadowknight">Shadow Knight</option>
+            <option value="monk">Monk</option>
+            <option value="ranger">Ranger</option>
+            <option value="rogue">Rogue</option>
+            <option value="bard">Bard</option>
+            <option value="beastlord">Beastlord</option>
+            <option value="cleric">Cleric</option>
+            <option value="druid">Druid</option>
+            <option value="shaman">Shaman</option>
+            <option value="enchanter">Enchanter</option>
+            <option value="magician">Magician</option>
+            <option value="necromancer">Necromancer</option>
+            <option value="wizard">Wizard</option>
+          </select>
+        </div>
+        <div>
+          <label for="tank-level" class="small-label">Level</label>
+          <input type="number" id="tank-level" value="60" min="1" max="65" style="width:100%;">
+        </div>
+        <div>
+          <label for="tank-player-hp" class="small-label">Total HP</label>
+          <input type="number" id="tank-player-hp" value="5000" min="1" style="width:100%;">
+        </div>
+        <div>
+          <label for="tank-player-hp-regen" class="small-label">HP Regen/sec</label>
+          <input type="number" id="tank-player-hp-regen" value="0" min="0" style="width:100%;">
+        </div>
+        <div>
+          <label for="tank-healer-hps" class="small-label">Healer HPS</label>
+          <input type="number" id="tank-healer-hps" value="0" min="0" style="width:100%;">
+        </div>
+      </div>
+
+      <!-- Stat columns: offensive left, defensive right -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem 2rem;margin-top:0.75rem;">
+        <div>
+          <p class="hint" style="margin:0 0 0.4rem;font-weight:600;color:var(--text);">Offensive</p>
+          <div class="char-secondary-row">
+            <div class="char-field char-field-num">
+              <label for="tank-str" class="small-label">STR</label>
+              <input type="number" id="tank-str" value="200" min="1" max="400">
+            </div>
+            <div class="char-field char-field-num">
+              <label for="tank-dex" class="small-label">DEX</label>
+              <input type="number" id="tank-dex" value="150" min="1" max="400">
+            </div>
+            <div class="char-field char-field-num">
+              <label for="tank-offense-skill" class="small-label">Offense</label>
+              <input type="number" id="tank-offense-skill" value="252" min="0" max="300">
+            </div>
+            <div class="char-field char-field-num">
+              <label for="tank-worn-attack" class="small-label">Worn ATK</label>
+              <input type="number" id="tank-worn-attack" value="0" min="0" max="999">
+            </div>
+          </div>
+        </div>
+        <div>
+          <p class="hint" style="margin:0 0 0.4rem;font-weight:600;color:var(--text);">Defensive</p>
+          <div class="char-secondary-row">
+            <div class="char-field char-field-num">
+              <label for="tank-player-agi" class="small-label">AGI</label>
+              <input type="number" id="tank-player-agi" value="100" min="1" max="400">
+            </div>
+            <div class="char-field char-field-num">
+              <label for="tank-defense-skill" class="small-label">Defense</label>
+              <input type="number" id="tank-defense-skill" value="230" min="0" max="300">
+            </div>
+            <div class="char-field char-field-num">
+              <label for="tank-dodge-skill" class="small-label">Dodge</label>
+              <input type="number" id="tank-dodge-skill" value="195" min="0" max="300">
+            </div>
+            <div class="char-field char-field-num">
+              <label for="tank-parry-skill" class="small-label">Parry</label>
+              <input type="number" id="tank-parry-skill" value="200" min="0" max="300">
+            </div>
+            <div class="char-field char-field-num">
+              <label for="tank-riposte-skill" class="small-label">Riposte</label>
+              <input type="number" id="tank-riposte-skill" value="185" min="0" max="300">
+            </div>
+            <div class="char-field char-field-num">
+              <label for="tank-block-skill" class="small-label">Block</label>
+              <input type="number" id="tank-block-skill" value="160" min="0" max="300">
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tanking AA controls moved to the shared AA Configurator panel -->
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════════
+         CARD 2 — PLAYER EQUIPMENT
+         ═══════════════════════════════════════════════════════ -->
+    <section class="section--core">
+      <h2>Player Equipment</h2>
+      <p class="hint" style="margin:0 0 0.6rem;">Use <strong>Load Inventory</strong> in the tab bar to import your EQ inventory export. Equipped items are shown above the tab panels. AC, STR, DEX, AGI, haste, and worn ATK are auto-filled.</p>
+
+      <!-- Mainhand weapon -->
+      <p class="hint" style="margin:0 0 0.3rem;font-weight:600;color:var(--text);">Mainhand (Riposte damage)</p>
+      <div class="target-fight-row" style="margin-bottom:0.6rem;">
+        <div style="flex:1 1 12rem;">
+          <label for="tank-w1-name" class="small-label">Weapon Name</label>
+          <input type="text" id="tank-w1-name" placeholder="(none)" style="width:100%;" readonly>
+        </div>
+        <div>
+          <label for="tank-w1-damage" class="small-label">Damage</label>
+          <input type="number" id="tank-w1-damage" value="0" min="0" style="width:5rem;" placeholder="0=skip">
+        </div>
+        <div>
+          <label for="tank-w1-delay" class="small-label">Delay (decisec)</label>
+          <input type="number" id="tank-w1-delay" value="30" min="1" style="width:5rem;">
+        </div>
+        <div style="align-self:flex-end;padding-bottom:0.25rem;">
+          <label class="checkbox-label"><input type="checkbox" id="tank-w1-is2h" style="width:auto;margin:0 0.25rem 0 0;"> 2H</label>
+        </div>
+      </div>
+
+      <!-- Worn AC / spell AC / haste -->
+      <p class="hint" style="margin:0 0 0.3rem;font-weight:600;color:var(--text);">Worn Stats</p>
+      <div class="target-fight-row">
+        <div>
+          <label for="tank-player-ac" class="small-label">Worn AC</label>
+          <input type="number" id="tank-player-ac" value="1200" min="0" style="width:5.5rem;">
+        </div>
+        <div>
+          <label for="tank-player-spell-ac" class="small-label">Spell AC</label>
+          <input type="number" id="tank-player-spell-ac" value="0" min="0" style="width:5rem;">
+        </div>
+        <div>
+          <label for="tank-worn-haste" class="small-label">Worn Haste %</label>
+          <input type="number" id="tank-worn-haste" value="0" min="0" max="100" style="width:5rem;">
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════════
+         CARD 3 — TARGET MOB (ATTACKER)
+         ═══════════════════════════════════════════════════════ -->
+    <section class="section--core">
+      <h2>Target Mob (Attacker)</h2>
+      <div class="target-npc-name-row">
+        <div id="tank-target-npc-name" class="weapon-name" aria-live="polite"></div>
+        <button type="button" id="tank-target-npc-clear" class="target-npc-clear-btn" title="Click to clear target" aria-label="Clear target" style="display:none">×</button>
+      </div>
+      <div class="item-search-wrap target-npc-wrap">
+        <label for="tank-target-npc-search">Target NPC</label>
+        <input type="text" id="tank-target-npc-search" placeholder="Search by name (e.g. grimling, dragon)..." autocomplete="off">
+        <div id="tank-target-npc-search-list" class="item-search-list" role="listbox"></div>
+      </div>
+      <p class="hint">NPC stats (min/max dmg, delay, attacks, AC, level) are auto-filled from the NPC database. You can override any field below.</p>
+      <div class="target-fight-row">
+        <div>
+          <label for="tank-mob-level" class="small-label">Mob Level</label>
+          <input type="number" id="tank-mob-level" value="60" min="1" max="70" style="width:5rem;">
+        </div>
+        <div>
+          <label for="tank-mob-ac" class="small-label">Mob AC <span class="hint" style="margin:0;">(riposte)</span></label>
+          <input type="number" id="tank-mob-ac" value="550" min="0" style="width:5rem;">
+        </div>
+        <div>
+          <label for="tank-mob-min-dmg" class="small-label">Min Damage</label>
+          <input type="number" id="tank-mob-min-dmg" value="50" min="1" style="width:5.5rem;">
+        </div>
+        <div>
+          <label for="tank-mob-max-dmg" class="small-label">Max Damage</label>
+          <input type="number" id="tank-mob-max-dmg" value="250" min="1" style="width:5.5rem;">
+        </div>
+        <div>
+          <label for="tank-mob-delay" class="small-label">Delay (decisec)</label>
+          <input type="number" id="tank-mob-delay" value="20" min="5" max="100" style="width:5rem;">
+        </div>
+        <div>
+          <label for="tank-mob-attacks" class="small-label">Attacks/Round</label>
+          <input type="number" id="tank-mob-attacks" value="1" min="1" max="4" style="width:4rem;">
+        </div>
+        <div>
+          <label for="tank-mob-accuracy" class="small-label">Accuracy <span class="hint" style="margin:0;">(0=auto)</span></label>
+          <input type="number" id="tank-mob-accuracy" value="0" min="0" style="width:5rem;">
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════════
+         CARD 4 — SIMULATION
+         ═══════════════════════════════════════════════════════ -->
+    <section class="section--core">
+      <h2>Simulation</h2>
+      <div class="target-fight-row">
+        <div>
+          <label for="tank-duration" class="small-label">Duration (sec)</label>
+          <input type="number" id="tank-duration" value="300" min="1" max="3600" style="width:5.5rem;">
+        </div>
+        <div>
+          <label for="tank-runs" class="small-label">Runs</label>
+          <input type="number" id="tank-runs" value="5" min="1" max="100" style="width:4.5rem;">
+        </div>
+        <div>
+          <label for="tank-ch-cast-time" class="small-label">CH Cast Time <span class="hint" style="margin:0;">(sec)</span></label>
+          <input type="number" id="tank-ch-cast-time" value="10" min="1" max="30" style="width:4.5rem;">
+        </div>
+      </div>
+      <button id="btn-run-tanking" class="magic-btn" style="width:100%;margin-top:0.5rem;padding:0.9rem 1.75rem;font-size:1.1rem;">Simulate Tanking</button>
+    </section>
+
+    <div class="report-section" id="tanking-report-wrap" style="display:none;">
+      <h2>Tanking Report</h2>
+      <pre id="tanking-report" style="white-space:pre-wrap;font-family:ui-monospace,'Cascadia Code',monospace;font-size:0.85rem;background:var(--input-bg);border:1px solid var(--border);border-radius:4px;padding:1rem;margin-top:1rem;min-height:120px;"></pre>
+    </div>
+
+  </div><!-- /.grid -->
+  </div><!-- /.tab-content-wrapper -->
+  </div><!-- /#tanking-tab -->
+
   <section class="report-section">
     <div class="report-header-row" style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.75rem;">
       <div style="display: flex; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
@@ -1813,11 +2216,16 @@
   </div>
 
   <script src="threat.js"></script>
+  <script src="js/modules/eraConfig.js"></script>
+  <script src="js/modules/abilityRegistry.js"></script>
+  <script src="js/modules/tankingEngine.js"></script>
+  <script src="js/ui/usageLog.js"></script>
   <script src="combat.js"></script>
   <script src="weaponSkillCaps.js"></script>
   <script src="itemSearch.js"></script>
   <!-- Bundled JSON as JS (npm run build-file-bundles). Required for file:// — fetch() to local JSON is CORS-blocked. -->
   <script src="resources/weapons-data.js"></script>
+  <script src="resources/items-data.js"></script>
   <script src="resources/procrates-data.js"></script>
   <script src="resources/npc_types-data.js"></script>
   <script src="resources/spells-data.js"></script>
@@ -1933,14 +2341,16 @@
         if (!w || typeof w !== 'object') return 0;
         var melee = w.totalDamage != null ? Number(w.totalDamage) : 0;
         var proc = w.procDamageTotal != null ? Number(w.procDamageTotal) : 0;
-        return melee + proc;
+        var fw = w.fistweaveAttributedDamage != null ? Number(w.fistweaveAttributedDamage) : 0;
+        return melee + proc + fw;
       }
       /** Per-slot threat (swing + proc) for TPS ranking; matches combat.js weapon1/weapon2 threat fields. */
       function weaponSlotThreatForTpsReport(w) {
         if (!w || typeof w !== 'object') return 0;
         var swing = w.swingThreat != null ? Number(w.swingThreat) : 0;
         var proc = w.procThreat != null ? Number(w.procThreat) : 0;
-        return swing + proc;
+        var fw = w.fistweaveAttributedThreat != null ? Number(w.fistweaveAttributedThreat) : 0;
+        return swing + proc + fw;
       }
       /** damage/delay (EQ item fields); skip junk weapons during rank to cut sim count. */
       function weaponMeetsRankDamageDelayRatio(raw) {
@@ -2113,6 +2523,8 @@
       // e.g. local: 'http://localhost:8765/log'  or Vercel: 'https://dps-sim.vercel.app/api/log'
       // Summary (total runs, unique users, run log): https://dps-sim.vercel.app/api/summary
       const USAGE_LOG_URL = 'https://dps-sim.vercel.app/api/log';
+      // Expose log URL for outer IIFEs (era toggle, tanking) that cannot access this closure
+      window._GSIM_LOG_URL = USAGE_LOG_URL;
       const USAGE_LOG_STORAGE_KEY = 'dps_sim_uid';
       function getOrCreateAnonymousUserId() {
         try {
@@ -2566,9 +2978,13 @@
         const skillEl = $(prefix + '-weapon-skill');
         if (!span) return;
         if (prefix === 'w2' && isW1TwoHanded()) {
-          span.textContent = 'Unavailable';
-          if (skillEl) skillEl.textContent = '';
-          return;
+          const cls = ($('class').value || '').toLowerCase();
+          const allowOh = cls === 'monk' && $('fistweaving') && $('fistweaving').checked && $('fistweaving-nonepic') && $('fistweaving-nonepic').checked;
+          if (!allowOh) {
+            span.textContent = 'Unavailable';
+            if (skillEl) skillEl.textContent = '';
+            return;
+          }
         }
         const dmg = parseInt($(prefix + '-damage').value, 10) || 0;
         const dly = parseInt($(prefix + '-delay').value, 10) || 0;
@@ -2792,6 +3208,310 @@
         syncEasyWeaponSummaries();
       }
 
+      // ============================================================
+      // AA Configurator — shared state and rendering
+      // ============================================================
+      var aaConfig = {
+        combatFury: 3,
+        combatStability: 0,
+        combatAgility: 0,
+        naturalDurability: 0,
+        spellCastingFury: 0,
+        ambidexterity: 1,
+        flurry: 0,
+        slayUndead: 0,
+        archeryMastery: 3,
+        doubleRiposte: 0,
+        returnKick: 0,
+        planarPower: 0,
+        masterWu: 0,
+        furyOfTheAges: 0,
+        ferocity: 0,
+        bestialFrenzy: 0,
+        harmoniousAttack: 0,
+        innateDefense: 0,
+        lightningReflexes: 0,
+      };
+
+      /**
+       * Build sim-option overrides from aaConfig for the given class/era.
+       * Returns an object that can be spread into runFight / runRangedFight / runTankingFight options.
+       */
+      function buildAASimOptions(classId, eraId) {
+        var cls = (classId || '').toLowerCase();
+        var AR = window.AbilityRegistry;
+        var EC = window.EraConfig;
+        function aaVal(aaId) {
+          if (!AR) return 0;
+          var def = AR.AA_DEFINITIONS.find(function (a) { return a.id === aaId; });
+          if (!def) return 0;
+          if (EC && !EC.isAvailableInEra(def.era, eraId)) return 0;
+          if (def.classes.length > 0 && def.classes.indexOf(cls) < 0) return 0;
+          return aaConfig[aaId] || 0;
+        }
+        var cfRank = aaVal('combatFury');
+        // Ambidexterity is 1 rank on Quarm = +32 effective DW skill
+        var ambiBonus = aaVal('ambidexterity') ? 32 : 0;
+        var amRank = aaVal('archeryMastery');
+        var ppRank = aaVal('planarPower');
+        return {
+          critChanceMult: cfRank * 2,
+          ambidexterity: ambiBonus,
+          flurryRank: aaVal('flurry'),
+          masterWuRank: aaVal('masterWu'),
+          slayUndead: aaVal('slayUndead'),
+          archeryMastery: amRank || 1,
+          spellCastingFury: aaVal('spellCastingFury'),
+          furyOfTheAgesRank: aaVal('furyOfTheAges'),
+          ferocityRank: aaVal('ferocity'),
+          bestialFrenzyRank: aaVal('bestialFrenzy'),
+          harmoniousAttackRank: aaVal('harmoniousAttack'),
+          combatStabilityRank: aaVal('combatStability'),
+          combatAgilityRank: aaVal('combatAgility'),
+          naturalDurabilityRank: aaVal('naturalDurability'),
+          innateDefenseRank: aaVal('innateDefense'),
+          lightningReflexesRank: aaVal('lightningReflexes'),
+          doubleRiposteRank: aaVal('doubleRiposte'),
+          returnKickRank: aaVal('returnKick'),
+          planarPowerRank: ppRank,
+          _planarPowerStatCap: 255 + ppRank * 5,
+        };
+      }
+
+      function buildAAConfiguratorUI() {
+        var body = $('aa-config-body');
+        if (!body || !window.AbilityRegistry) return;
+        var classId = ($('class') && $('class').value || '').toLowerCase();
+        var eraId = (function () {
+          var el = $('era-select'); return el ? el.value : 'classic';
+        })();
+        var EC = window.EraConfig;
+        var AR = window.AbilityRegistry;
+
+        var isPop = EC ? EC.isAvailableInEra('pop', eraId) : false;
+        var isLuclin = EC ? EC.isAvailableInEra('luclin', eraId) : false;
+
+        function rowHtml(aa, classId2) {
+          // Hide AAs the selected class cannot take
+          var classOk = aa.classes.length === 0 || aa.classes.indexOf(classId2) >= 0;
+          if (!classOk) return '';
+          var curRank = aaConfig[aa.id] || 0;
+          var btns = '';
+          for (var r = 0; r <= aa.ranks; r++) {
+            var activeCls = (curRank === r) ? ' aa-active' : '';
+            var lbl = (r === 0) ? '0' : String(r);
+            btns += '<button type="button" class="aa-seg-btn' + activeCls + '" data-aa-id="' + aa.id + '" data-aa-rank="' + r + '">' + lbl + '</button>';
+          }
+          // For Ambidexterity: show DW skill effect in label
+          var lbl = aa.label;
+          if (aa.id === 'ambidexterity') {
+            if (curRank > 0) lbl += ' <span style="color:var(--muted);font-size:0.65rem;">(+32 DW)</span>';
+          }
+          return '<div class="aa-row" data-aa-row="' + aa.id + '">'
+            + '<span class="aa-label">' + lbl + '</span>'
+            + '<div class="aa-seg">' + btns + '</div>'
+            + '</div>';
+        }
+
+        function sectionRows(section) {
+          var rows = '';
+          AR.AA_DEFINITIONS.forEach(function (aa) {
+            if (aa.section !== section) return;
+            // Era gate
+            if (aa.era === 'pop' && !isPop) return;
+            if (aa.era === 'luclin' && !isLuclin) return;
+            rows += rowHtml(aa, classId);
+          });
+          return rows;
+        }
+
+        function addSection(header, section) {
+          var rows = sectionRows(section);
+          if (!rows) return '';
+          return '<div class="aa-group-header">' + header + '</div><div class="aa-rows">' + rows + '</div>';
+        }
+
+        var html = '';
+        if (isLuclin) {
+          html += addSection('Luclin — Archetype', 'luclin_archetype');
+          html += addSection('Luclin — Class', 'luclin_class');
+        }
+        if (isPop) {
+          html += addSection('PoP Advance', 'pop_advance');
+          html += addSection('PoP Ability', 'pop_ability');
+        }
+        if (!isLuclin && !isPop) {
+          html = '<p class="hint" style="margin:0.2rem 0 0;color:var(--muted);">No AAs available in this era. Select Luclin or later.</p>';
+        }
+        body.innerHTML = html;
+
+        // Attach click listeners via event delegation
+        body.onclick = function (e) {
+          var btn = e.target.closest('.aa-seg-btn');
+          if (!btn) return;
+          var aaId = btn.dataset.aaId;
+          var rank = parseInt(btn.dataset.aaRank, 10);
+          if (!aaId || isNaN(rank)) return;
+          aaConfig[aaId] = rank;
+          // Update all buttons in this seg group
+          var row = btn.closest('.aa-seg');
+          if (row) {
+            row.querySelectorAll('.aa-seg-btn').forEach(function (b) {
+              b.classList.toggle('aa-active', parseInt(b.dataset.aaRank, 10) === rank);
+            });
+          }
+          // Update ambidexterity label suffix if needed
+          if (aaId === 'ambidexterity') buildAAConfiguratorUI();
+        };
+      }
+
+      // ============================================================
+      // Race base stats + 25-point character creation system
+      // ============================================================
+      var RACE_DATA = {
+        human:     { str: 75,  sta: 75,  agi: 75,  dex: 75,  maxStr: 100, maxSta: 100, maxAgi: 100, maxDex: 100 },
+        barbarian: { str: 103, sta: 95,  agi: 82,  dex: 70,  maxStr: 128, maxSta: 120, maxAgi: 107, maxDex: 95 },
+        dark_elf:  { str: 60,  sta: 65,  agi: 90,  dex: 75,  maxStr: 85,  maxSta: 90,  maxAgi: 115, maxDex: 100 },
+        dwarf:     { str: 90,  sta: 90,  agi: 70,  dex: 90,  maxStr: 115, maxSta: 115, maxAgi: 90,  maxDex: 115 },
+        erudite:   { str: 60,  sta: 70,  agi: 70,  dex: 70,  maxStr: 85,  maxSta: 95,  maxAgi: 90,  maxDex: 95 },
+        gnome:     { str: 60,  sta: 67,  agi: 85,  dex: 85,  maxStr: 85,  maxSta: 92,  maxAgi: 110, maxDex: 110 },
+        half_elf:  { str: 70,  sta: 70,  agi: 90,  dex: 75,  maxStr: 95,  maxSta: 95,  maxAgi: 115, maxDex: 100 },
+        halfling:  { str: 70,  sta: 75,  agi: 95,  dex: 90,  maxStr: 95,  maxSta: 100, maxAgi: 120, maxDex: 115 },
+        high_elf:  { str: 55,  sta: 65,  agi: 85,  dex: 75,  maxStr: 80,  maxSta: 90,  maxAgi: 110, maxDex: 100 },
+        iksar:     { str: 70,  sta: 70,  agi: 90,  dex: 85,  maxStr: 95,  maxSta: 95,  maxAgi: 115, maxDex: 110 },
+        ogre:      { str: 130, sta: 122, agi: 70,  dex: 70,  maxStr: 155, maxSta: 147, maxAgi: 95,  maxDex: 95 },
+        troll:     { str: 108, sta: 109, agi: 83,  dex: 75,  maxStr: 133, maxSta: 134, maxAgi: 108, maxDex: 100 },
+        wood_elf:  { str: 65,  sta: 65,  agi: 95,  dex: 80,  maxStr: 90,  maxSta: 90,  maxAgi: 120, maxDex: 105 },
+        vah_shir:  { str: 90,  sta: 75,  agi: 90,  dex: 70,  maxStr: 115, maxSta: 100, maxAgi: 115, maxDex: 95 },
+      };
+      var STAT_KEYS = ['str', 'agi', 'dex', 'sta'];
+      var STAT_LABELS = { str: 'STR', agi: 'AGI', dex: 'DEX', sta: 'STA' };
+
+      var charCreation = {
+        race: 'human',
+        pts: { str: 0, agi: 0, dex: 0, sta: 0 },
+        gear: { str: 0, agi: 0, dex: 0, sta: 0 },
+      };
+      var CREATION_POINTS = 25;
+
+      function getStatCap(raceId, statKey, ppRank) {
+        var rd = RACE_DATA[raceId];
+        if (!rd) return 255;
+        var cap = rd['max' + statKey.charAt(0).toUpperCase() + statKey.slice(1)];
+        return (ppRank > 0) ? cap + ppRank * 5 : cap;
+      }
+
+      function getFinalStat(raceId, statKey, pts, gearVal, ppRank) {
+        var rd = RACE_DATA[raceId];
+        if (!rd) return 255;
+        var base = rd[statKey] || 75;
+        var cap = getStatCap(raceId, statKey, ppRank);
+        var total = base + (pts || 0) + (gearVal || 0);
+        return Math.min(total, ppRank > 0 ? 999 : 255); // after creation cap, gear can push past 255
+      }
+
+      function ptsUsed() {
+        var u = 0;
+        STAT_KEYS.forEach(function (k) { u += charCreation.pts[k] || 0; });
+        return u;
+      }
+
+      function renderStatDistributor() {
+        var body2 = $('stat-dist-body');
+        if (!body2) return;
+        var raceId = charCreation.race;
+        var rd = RACE_DATA[raceId] || RACE_DATA.human;
+        var ppRank = aaConfig.planarPower || 0;
+        var remaining = CREATION_POINTS - ptsUsed();
+
+        var html = '';
+        STAT_KEYS.forEach(function (sk) {
+          var baseVal = rd[sk] || 75;
+          var ptsVal = charCreation.pts[sk] || 0;
+          var gearVal = charCreation.gear[sk] || 0;
+          var cap = getStatCap(raceId, sk, ppRank);
+          var maxPts = Math.max(0, cap - baseVal - ptsVal); // can't exceed cap with points
+          var finalVal = getFinalStat(raceId, sk, ptsVal, gearVal, ppRank);
+          html += '<tr>'
+            + '<td>' + STAT_LABELS[sk] + '</td>'
+            + '<td>' + baseVal + '</td>'
+            + '<td><div class="stat-pts-ctrl">'
+            + '<button class="stat-pts-btn" data-stat="' + sk + '" data-delta="-1" title="Remove point">−</button>'
+            + '<span class="stat-pts-val">' + ptsVal + '</span>'
+            + '<button class="stat-pts-btn" data-stat="' + sk + '" data-delta="1" title="Add point">+</button>'
+            + '</div></td>'
+            + '<td>' + (gearVal > 0 ? '+' + gearVal : '—') + '</td>'
+            + '<td class="stat-final">' + finalVal + '</td>'
+            + '</tr>';
+        });
+        body2.innerHTML = html;
+
+        var cntEl = $('stat-pts-count');
+        if (cntEl) {
+          cntEl.textContent = remaining;
+          var remEl = $('stat-pts-remaining');
+          if (remEl) remEl.classList.toggle('pts-warn', remaining < 0);
+        }
+
+        // Attach click handlers
+        body2.onclick = function (e) {
+          var btn = e.target.closest('.stat-pts-btn');
+          if (!btn) return;
+          var sk = btn.dataset.stat;
+          var delta = parseInt(btn.dataset.delta, 10);
+          if (!sk || isNaN(delta)) return;
+          var cur = charCreation.pts[sk] || 0;
+          var rem = CREATION_POINTS - ptsUsed();
+          var rd2 = RACE_DATA[charCreation.race] || RACE_DATA.human;
+          var capPts = getStatCap(charCreation.race, sk, aaConfig.planarPower || 0) - (rd2[sk] || 75);
+          if (delta > 0 && (rem <= 0 || cur >= capPts)) return;
+          if (delta < 0 && cur <= 0) return;
+          charCreation.pts[sk] = cur + delta;
+          renderStatDistributor();
+          syncHiddenStats();
+        };
+      }
+
+      function syncHiddenStats() {
+        var raceId = charCreation.race;
+        var ppRank = aaConfig.planarPower || 0;
+        var finalStr = getFinalStat(raceId, 'str', charCreation.pts.str, charCreation.gear.str, ppRank);
+        var finalDex = getFinalStat(raceId, 'dex', charCreation.pts.dex, charCreation.gear.dex, ppRank);
+        var finalAgi = getFinalStat(raceId, 'agi', charCreation.pts.agi, charCreation.gear.agi, ppRank);
+        var strEl = $('str'); if (strEl) strEl.value = finalStr;
+        var dexEl = $('dex'); if (dexEl) dexEl.value = finalDex;
+        var agiEl = $('agi'); if (agiEl) agiEl.value = finalAgi;
+      }
+
+      function initRaceSelector() {
+        var raceEl = $('char-race');
+        if (!raceEl) return;
+        raceEl.addEventListener('change', function () {
+          charCreation.race = raceEl.value;
+          charCreation.pts = { str: 0, agi: 0, dex: 0, sta: 0 };
+          renderStatDistributor();
+          syncHiddenStats();
+        });
+        // Vah Shir visibility gated by Luclin era
+        function updateVahShirOpt() {
+          var eraId = ($('era-select') && $('era-select').value) || 'classic';
+          var isLuclin = window.EraConfig ? window.EraConfig.isAvailableInEra('luclin', eraId) : false;
+          var opt = raceEl.querySelector('.vah-shir-opt');
+          if (opt) {
+            opt.style.display = isLuclin ? '' : 'none';
+            if (!isLuclin && raceEl.value === 'vah_shir') {
+              raceEl.value = 'human';
+              charCreation.race = 'human';
+              charCreation.pts = { str: 0, agi: 0, dex: 0, sta: 0 };
+              renderStatDistributor();
+              syncHiddenStats();
+            }
+          }
+        }
+        updateVahShirOpt();
+        document.addEventListener('gsim:erachange', updateVahShirOpt);
+      }
+
       // Class-specific defaults and modifiers (EQMacEmu / attack.cpp style)
       const CLASSES = {
         warrior:   { toHitBonus: 24, doubleAttack: 250, dualWield: 245, name: 'Warrior' },
@@ -2839,7 +3559,12 @@
         const maxDmgRaw = $(prefix + '-max');
         const minDmg = minDmgRaw && minDmgRaw.value !== '' ? parseInt(minDmgRaw.value, 10) : null;
         const maxDmg = maxDmgRaw && maxDmgRaw.value !== '' ? parseInt(maxDmgRaw.value, 10) : null;
-        const is2H = prefix === 'w1' && isW1TwoHanded();
+        const is2H = prefix === 'w1'
+          ? isW1TwoHanded()
+          : (function () {
+            const t = (w2WeaponType || '').toLowerCase();
+            return t === '2hb' || t === '2hs' || t === '2hp' || t === 'bow';
+          })();
         const elemTypeEl = $(prefix + '-elem-type');
         const elemDamageEl = $(prefix + '-elem-damage');
         const elemType = elemTypeEl && elemTypeEl.value && elemTypeEl.value.trim() ? elemTypeEl.value.trim() : undefined;
@@ -2988,15 +3713,19 @@
         const runs = Math.max(1, Math.min(1000, parseInt($('runs').value, 10) || 20));
         const dex = parseInt($('dex').value, 10) || 255;
         const fromBehind = document.querySelector('input[name="from-behind"]:checked').value === '1';
-        const combatFuryRank = (function () { var el = document.querySelector('input[name="combat-fury"]:checked'); return el ? (parseInt(el.value, 10) || 0) : 0; })();
-        const critChanceMult = combatFuryRank * 2;
         const classId = ($('class').value || '').toLowerCase();
+        const eraId = ($('era-select') && $('era-select').value) || 'classic';
+        const aaOpts = buildAASimOptions(classId, eraId);
         const classConfig = classId ? CLASSES[classId] : null;
         const toHitBonus = (classConfig && classConfig.toHitBonus) ? classConfig.toHitBonus : 0;
         const specialAttackType = ($('special-attack-type').value || 'none');
         const specialAttacks = specialAttackType !== 'none';
 
-        const useWeapon2 = weapon2.damage > 0 && weapon2.delay > 0 && dualWieldSkill > 0;
+        const fwNonEpicMonk = classId === 'monk' && hasMainHand && weapon1.is2H && $('fistweaving').checked && $('fistweaving-nonepic') && $('fistweaving-nonepic').checked;
+        let useWeapon2 = weapon2.damage > 0 && weapon2.delay > 0 && dualWieldSkill > 0;
+        if (hasMainHand && weapon1.is2H) {
+          useWeapon2 = !!(fwNonEpicMonk && useWeapon2 && !weapon2.is2H);
+        }
 
         const offenseSkill = Math.min(255, Math.max(0, parseInt($('offense-skill').value, 10) || 252));
         const skillKey = hasMainHand
@@ -3054,14 +3783,14 @@
           + Math.max(0, (w2WornAttackBonus != null && !isNaN(Number(w2WornAttackBonus))) ? Number(w2WornAttackBonus) : 0);
         const options = {
           weapon1: hasMainHand ? Object.assign({ damage: weapon1.damage, delay: weapon1.delay, procSpell: weapon1.procSpell, procSpellDamage: weapon1.procSpellDamage, procRate: weapon1.procRate, procLevel: weapon1.procLevel, procBuffDurationTicks: weapon1.procBuffDurationTicks, is2H: weapon1.is2H, elemType: weapon1.elemType, elemDamage: weapon1.elemDamage, type: w1WeaponType || undefined, noDamageVsTarget: !!weapon1.noDamageVsTarget, procSpellBonusHate: weapon1.procSpellBonusHate, procSpellNonDamagingDetrimental: weapon1.procSpellNonDamagingDetrimental, procSpellCcAddsMobHpThreat: weapon1.procSpellCcAddsMobHpThreat }, w1ProcResist) : undefined,
-          weapon2: useWeapon2 ? Object.assign({ damage: weapon2.damage, delay: weapon2.delay, procSpell: weapon2.procSpell, procSpellDamage: weapon2.procSpellDamage, procRate: weapon2.procRate, procLevel: weapon2.procLevel, procBuffDurationTicks: weapon2.procBuffDurationTicks, elemType: weapon2.elemType, elemDamage: weapon2.elemDamage, noDamageVsTarget: !!weapon2.noDamageVsTarget, procSpellBonusHate: weapon2.procSpellBonusHate, procSpellNonDamagingDetrimental: weapon2.procSpellNonDamagingDetrimental, procSpellCcAddsMobHpThreat: weapon2.procSpellCcAddsMobHpThreat }, w2ProcResist) : undefined,
+          weapon2: useWeapon2 ? Object.assign({ damage: weapon2.damage, delay: weapon2.delay, is2H: !!weapon2.is2H, procSpell: weapon2.procSpell, procSpellDamage: weapon2.procSpellDamage, procRate: weapon2.procRate, procLevel: weapon2.procLevel, procBuffDurationTicks: weapon2.procBuffDurationTicks, elemType: weapon2.elemType, elemDamage: weapon2.elemDamage, noDamageVsTarget: !!weapon2.noDamageVsTarget, procSpellBonusHate: weapon2.procSpellBonusHate, procSpellNonDamagingDetrimental: weapon2.procSpellNonDamagingDetrimental, procSpellCcAddsMobHpThreat: weapon2.procSpellCcAddsMobHpThreat }, w2ProcResist) : undefined,
           weapon1Type: w1WeaponType || undefined,
           hastePercent,
           offenseSkill,
           wornAttack: (wornAttack || 0) + equippedWornAttackBonus,
           spellAttack,
           toHitBonus,
-          ambidexterity: $('ambidexterity-aa').checked ? 32 : 0,
+          ambidexterity: aaOpts.ambidexterity,
           critDmgDebugDmgBonus: (function () { var el = $('crit-dmg-debug-dmg-bonus'); return !!(el && ((typeof el.checked === 'boolean' && el.checked) || String(el.value) === '1' || String(el.value).toLowerCase() === 'true')); })(),
           doubleAttackSkill,
           dualWieldSkill: (useWeapon2 || !hasMainHand) ? dualWieldSkill : 0,
@@ -3093,8 +3822,8 @@
           innerFlame: classId === 'monk' && $('innerflame').checked,
           duelistPermanent: classId === 'rogue' && $('duelist') && $('duelist').checked && $('duelist').getAttribute('data-permanent-disc') === '1',
           innerFlamePermanent: classId === 'monk' && $('innerflame') && $('innerflame').checked && $('innerflame').getAttribute('data-permanent-disc') === '1',
-          spellCastingFury: (function () { var el = document.querySelector('input[name="spell-casting-fury"]:checked'); return el ? (parseInt(el.value, 10) || 0) : 0; })(),
-          slayUndead: (function () { var el = document.querySelector('input[name="slay-undead"]:checked'); return el ? (parseInt(el.value, 10) || 0) : 0; })(),
+          spellCastingFury: aaOpts.spellCastingFury,
+          slayUndead: aaOpts.slayUndead,
           fistweaving: hasMainHand && classId === 'monk' && weapon1.is2H && $('fistweaving').checked,
           fistweavingNonEpic: ($('fistweaving-nonepic') && $('fistweaving-nonepic').checked) || false,
           fistweavingReactionDelayMs: (() => {
@@ -3103,7 +3832,16 @@
             if (isNaN(v)) return 200;
             return Math.max(0, Math.min(1000, v));
           })(),
-          critChanceMult: critChanceMult || undefined,
+          fistweavingOffhandLabel: (fwNonEpicMonk && useWeapon2)
+            ? (w2DisplayName || (String(weapon2.damage) + ' dmg / ' + String(weapon2.delay) + ' delay'))
+            : undefined,
+          critChanceMult: aaOpts.critChanceMult,
+          flurryRank: aaOpts.flurryRank,
+          masterWuRank: aaOpts.masterWuRank,
+          furyOfTheAgesRank: aaOpts.furyOfTheAgesRank,
+          ferocityRank: aaOpts.ferocityRank,
+          bestialFrenzyRank: aaOpts.bestialFrenzyRank,
+          harmoniousAttackRank: aaOpts.harmoniousAttackRank,
           backstabReuseEffectiveSec: (backstabReuseManual && (() => { const v = parseFloat($('backstab-reuse-sec').value); return v > 0 && !isNaN(v) ? v : undefined; })()) || undefined,
           flyingKickReuseEffectiveSec: (flyingKickReuseManual && (() => { const v = parseFloat($('flyingkick-reuse-sec').value); return v > 0 && !isNaN(v) ? v : undefined; })()) || undefined,
           kickReuseEffectiveSec: (kickReuseManual && (() => { const v = parseFloat($('kick-reuse-sec').value); return v > 0 && !isNaN(v) ? v : undefined; })()) || undefined,
@@ -3255,6 +3993,14 @@
                   hitList: reports[0].special.hitList,
                 }
               : null,
+            masterWu: reports[0].masterWu
+              ? {
+                  rank: reports[0].masterWu.rank,
+                  rollAttempts: Math.round(reports.reduce((s, r) => s + (r.masterWu ? r.masterWu.rollAttempts : 0), 0) / runs),
+                  extraHits: Math.round(reports.reduce((s, r) => s + (r.masterWu ? r.masterWu.extraHits : 0), 0) / runs),
+                  totalDamage: Math.round(reports.reduce((s, r) => s + (r.masterWu ? r.masterWu.totalDamage : 0), 0) / runs),
+                }
+              : null,
             fistweaving: reports[0].fistweaving
               ? {
                   baseDamage: reports[0].fistweaving.baseDamage != null ? reports[0].fistweaving.baseDamage : 9,
@@ -3266,6 +4012,9 @@
                   single: Math.round(reports.reduce((s, r) => s + (r.fistweaving ? (r.fistweaving.single || 0) : 0), 0) / runs),
                   double: Math.round(reports.reduce((s, r) => s + (r.fistweaving ? (r.fistweaving.double || 0) : 0), 0) / runs),
                   swingThreat: Math.round(reports.reduce((s, r) => s + (r.fistweaving ? (r.fistweaving.swingThreat || 0) : 0), 0) / runs),
+                  usesEquippedOffhandWeapon: !!(reports[0].fistweaving && reports[0].fistweaving.usesEquippedOffhandWeapon),
+                  nonEpicWeaponLabel: reports[0].fistweaving && reports[0].fistweaving.nonEpicWeaponLabel != null ? reports[0].fistweaving.nonEpicWeaponLabel : null,
+                  nonEpicWeaponDelayDecisec: reports[0].fistweaving && reports[0].fistweaving.nonEpicWeaponDelayDecisec != null ? reports[0].fistweaving.nonEpicWeaponDelayDecisec : null,
                 }
               : null,
           };
@@ -3920,8 +4669,9 @@
         const str = parseInt($('str').value, 10) || 255;
         const dex = parseInt($('dex').value, 10) || 255;
         const fromBehind = document.querySelector('input[name="from-behind"]:checked').value === '1';
-        const combatFuryRank = (function () { var el = document.querySelector('input[name="combat-fury"]:checked'); return el ? (parseInt(el.value, 10) || 0) : 0; })();
-        const critChanceMult = combatFuryRank * 2;
+        const rankEraId = ($('era-select') && $('era-select').value) || 'classic';
+        const rankAaOpts = buildAASimOptions(classId, rankEraId);
+        const critChanceMult = rankAaOpts.critChanceMult || 0;
         const classConfig = CLASSES[classId] || null;
         const classCanUse2H = typeof WeaponSkillCaps !== 'undefined' && (
           (WeaponSkillCaps.getCapForSimClass(classId, '2hb', level) > 0) ||
@@ -3942,7 +4692,7 @@
           wornAttack: parseInt($('worn-attack').value, 10) || 0,
           spellAttack: parseInt($('spell-attack').value, 10) || 0,
           toHitBonus,
-          ambidexterity: $('ambidexterity-aa').checked ? 32 : 0,
+          ambidexterity: rankAaOpts.ambidexterity,
           critDmgDebugDmgBonus: (function () { var el = $('crit-dmg-debug-dmg-bonus'); return !!(el && ((typeof el.checked === 'boolean' && el.checked) || String(el.value) === '1' || String(el.value).toLowerCase() === 'true')); })(),
           doubleAttackSkill: parseInt($('double-attack').value, 10) || 0,
           level,
@@ -3975,8 +4725,14 @@
           innerFlame: classId === 'monk' && $('innerflame').checked,
           duelistPermanent: classId === 'rogue' && $('duelist') && $('duelist').checked && $('duelist').getAttribute('data-permanent-disc') === '1',
           innerFlamePermanent: classId === 'monk' && $('innerflame') && $('innerflame').checked && $('innerflame').getAttribute('data-permanent-disc') === '1',
-          spellCastingFury: (function () { var el = document.querySelector('input[name="spell-casting-fury"]:checked'); return el ? (parseInt(el.value, 10) || 0) : 0; })(),
-          slayUndead: (function () { var el = document.querySelector('input[name="slay-undead"]:checked'); return el ? (parseInt(el.value, 10) || 0) : 0; })(),
+          spellCastingFury: rankAaOpts.spellCastingFury || 0,
+          slayUndead: rankAaOpts.slayUndead || 0,
+          flurryRank: rankAaOpts.flurryRank || 0,
+          masterWuRank: rankAaOpts.masterWuRank || 0,
+          furyOfTheAgesRank: rankAaOpts.furyOfTheAgesRank || 0,
+          ferocityRank: rankAaOpts.ferocityRank || 0,
+          bestialFrenzyRank: rankAaOpts.bestialFrenzyRank || 0,
+          harmoniousAttackRank: rankAaOpts.harmoniousAttackRank || 0,
           critChanceMult: critChanceMult || undefined,
           backstabReuseEffectiveSec: (backstabReuseManual && (() => { const v = parseFloat($('backstab-reuse-sec').value); return v > 0 && !isNaN(v) ? v : undefined; })()) || undefined,
           flyingKickReuseEffectiveSec: (flyingKickReuseManual && (() => { const v = parseFloat($('flyingkick-reuse-sec').value); return v > 0 && !isNaN(v) ? v : undefined; })()) || undefined,
@@ -4178,12 +4934,18 @@
           if (secOk) secondaryWeapons.push(id);
         });
         const canDualWield = classConfig && (classConfig.dualWield != null && classConfig.dualWield > 0);
+        var rankMonkFwNonEpic = classId === 'monk' && $('fistweaving') && $('fistweaving').checked && $('fistweaving-nonepic') && $('fistweaving-nonepic').checked;
         const combinations = [];
         primaryWeapons.forEach(function (primaryId) {
           var norm = rankWeaponMap[primaryId];
           var is2H = !!(norm.is2H || (norm.type && offhandBlockedTypes[norm.type]));
           if (is2H) {
             combinations.push({ primaryId: primaryId, secondaryId: null });
+            if (rankMonkFwNonEpic && canDualWield) {
+              secondaryWeapons.forEach(function (secondaryId) {
+                combinations.push({ primaryId: primaryId, secondaryId: secondaryId });
+              });
+            }
           } else {
             combinations.push({ primaryId: primaryId, secondaryId: null });
             if (canDualWield) {
@@ -4385,6 +5147,18 @@
             }
           }
           if (phase === 'offhand' && canDualWield) {
+            var monkFwRef2HId = null;
+            if (rankMonkFwNonEpic) {
+              var _bestMh = -1;
+              primaryWeapons.forEach(function (pid) {
+                var nw = rankWeaponMap[pid];
+                if (!nw) return;
+                var _is2h = !!(nw.is2H || (nw.type && offhandBlockedTypes[nw.type]));
+                if (!_is2h) return;
+                var _md = mainhand_dps[pid] != null ? mainhand_dps[pid] : 0;
+                if (_md > _bestMh) { _bestMh = _md; monkFwRef2HId = pid; }
+              });
+            }
             end = Math.min(simIndex + chunkSize, secondaryWeapons.length);
             for (; simIndex < end; simIndex++) {
               var secId = secondaryWeapons[simIndex];
@@ -4393,6 +5167,7 @@
               var w2 = {
                 damage: d2,
                 delay: p2.delay,
+                is2H: false,
                 procSpell: (p2.proc != null ? p2.proc : '') || (p2.procSpell != null ? p2.procSpell : ''),
                 procSpellDamage: p2.procDamage || 0,
                 procRate: (p2.procRate != null && !Number.isNaN(Number(p2.procRate))) ? Number(p2.procRate) : 0,
@@ -4409,22 +5184,61 @@
                 secWeaponSkillForToHit = Math.min(255, secWeaponSkillForToHit + Number(p2.twoHsSkillMod));
               }
               var comboWornBackstabOff = getRankComboWornAndBackstab(null, p2);
-              var opts = Object.assign({}, baseOptions, {
-                weapon1: undefined,
-                weapon2: w2,
-                weapon1Type: undefined,
-                dualWieldSkill: dualWieldSkillForm,
-                weaponSkillForToHit: secWeaponSkillForToHit,
-                wornAttack: comboWornBackstabOff.wornAttack,
-                backstabModPercent: comboWornBackstabOff.backstabModPercent,
-                backstabSkill: rankBaseBackstabSkill,
-                fistweaving: false,
-                fistweavingNonEpic: ($('fistweaving-nonepic') && $('fistweaving-nonepic').checked) || false
-              });
               try {
-                var r2 = EQCombat.runFight(opts);
-                offhand_dps[secId] = r2.error ? 0 : (r2.totalDamage != null ? r2.totalDamage / durationSec : 0);
-                offhand_tps[secId] = r2.error || r2.totalThreat == null ? 0 : (r2.totalThreat / durationSec);
+                if (rankMonkFwNonEpic && monkFwRef2HId != null) {
+                  var pRefOh = rankWeaponMap[monkFwRef2HId];
+                  var w1refOh = normalizedToWeapon1(pRefOh, false);
+                  applyBaneOnlyForRankWeapon(w1refOh, pRefOh);
+                  var refSkillKeyOh = skillKeyForCap(pRefOh.type, true);
+                  var refWpnSkillOh = WeaponSkillCaps.getCapForSimClass(classId, refSkillKeyOh, level) || 252;
+                  if (refSkillKeyOh === '2hs' && pRefOh && pRefOh.twoHsSkillMod != null && !isNaN(Number(pRefOh.twoHsSkillMod)) && Number(pRefOh.twoHsSkillMod) > 0) {
+                    refWpnSkillOh = Math.min(255, refWpnSkillOh + Number(pRefOh.twoHsSkillMod));
+                  }
+                  var comboWbFw = getRankComboWornAndBackstab(pRefOh, p2);
+                  var optsFwOh = Object.assign({}, baseOptions, {
+                    weapon1: w1refOh,
+                    weapon2: w2,
+                    weapon1Type: pRefOh.type || undefined,
+                    weapon2Type: p2.type || undefined,
+                    dualWieldSkill: dualWieldSkillForm,
+                    weaponSkillForToHit: refWpnSkillOh,
+                    weaponSkillKeyForToHit: refSkillKeyOh,
+                    wornAttack: comboWbFw.wornAttack,
+                    backstabModPercent: comboWbFw.backstabModPercent,
+                    backstabSkill: rankBaseBackstabSkill,
+                    fistweaving: true,
+                    fistweavingNonEpic: true,
+                    fistweavingOffhandLabel: (p2.name != null ? String(p2.name) : String(secId))
+                  });
+                  var r2f = EQCombat.runFight(optsFwOh);
+                  if (r2f.error) {
+                    offhand_dps[secId] = 0;
+                    offhand_tps[secId] = 0;
+                  } else {
+                    var refDpsOnly = mainhand_dps[monkFwRef2HId] != null ? mainhand_dps[monkFwRef2HId] : 0;
+                    var refTpsOnly = mainhand_tps[monkFwRef2HId] != null ? mainhand_tps[monkFwRef2HId] : 0;
+                    var fullDpsv = r2f.totalDamage != null ? r2f.totalDamage / durationSec : 0;
+                    var fullTpsv = r2f.totalThreat != null ? r2f.totalThreat / durationSec : 0;
+                    offhand_dps[secId] = Math.max(0, fullDpsv - refDpsOnly);
+                    offhand_tps[secId] = Math.max(0, fullTpsv - refTpsOnly);
+                  }
+                } else {
+                  var opts = Object.assign({}, baseOptions, {
+                    weapon1: undefined,
+                    weapon2: w2,
+                    weapon1Type: undefined,
+                    dualWieldSkill: dualWieldSkillForm,
+                    weaponSkillForToHit: secWeaponSkillForToHit,
+                    wornAttack: comboWornBackstabOff.wornAttack,
+                    backstabModPercent: comboWornBackstabOff.backstabModPercent,
+                    backstabSkill: rankBaseBackstabSkill,
+                    fistweaving: false,
+                    fistweavingNonEpic: ($('fistweaving-nonepic') && $('fistweaving-nonepic').checked) || false
+                  });
+                  var r2 = EQCombat.runFight(opts);
+                  offhand_dps[secId] = r2.error ? 0 : (r2.totalDamage != null ? r2.totalDamage / durationSec : 0);
+                  offhand_tps[secId] = r2.error || r2.totalThreat == null ? 0 : (r2.totalThreat / durationSec);
+                }
               } catch (err) {
                 $('report').textContent = 'Rank weapons error: ' + (err && err.message ? err.message : String(err));
                 return;
@@ -4526,17 +5340,20 @@
                   weapon1Type: p1.type || undefined,
                   dualWieldSkill: 0,
                   weaponSkillForToHit: weaponSkillForToHit,
+                  weaponSkillKeyForToHit: skillKey,
                   wornAttack: comboWornBackstab.wornAttack,
                   backstabModPercent: comboWornBackstab.backstabModPercent,
                   backstabSkill: rankBaseBackstabSkill,
                   fistweaving: classId === 'monk' && is2H && $('fistweaving').checked,
-                  fistweavingNonEpic: ($('fistweaving-nonepic') && $('fistweaving-nonepic').checked) || false
+                  fistweavingNonEpic: ($('fistweaving-nonepic') && $('fistweaving-nonepic').checked) || false,
+                  fistweavingOffhandLabel: undefined
                 });
                 if (secId) {
                   var d2 = p2.damage;
                   opts.weapon2 = {
                     damage: d2,
                     delay: p2.delay,
+                    is2H: false,
                     procSpell: (p2.proc != null ? p2.proc : '') || (p2.procSpell != null ? p2.procSpell : ''),
                     procSpellDamage: p2.procDamage || 0,
                     procRate: (p2.procRate != null && !Number.isNaN(Number(p2.procRate))) ? Number(p2.procRate) : 0,
@@ -4548,6 +5365,10 @@
                     opts.weapon2.procBuffDurationTicks = p2.procBuffDurationTicks;
                   applyBaneOnlyForRankWeapon(opts.weapon2, p2);
                   opts.dualWieldSkill = dualWieldSkillForm;
+                  opts.weapon2Type = p2.type || undefined;
+                  if (rankMonkFwNonEpic) {
+                    opts.fistweavingOffhandLabel = p2.name != null ? String(p2.name) : String(secId);
+                  }
                 }
               }
               try {
@@ -4830,11 +5651,13 @@
                 weapon1Type: p1.type || undefined,
                 dualWieldSkill: 0,
                 weaponSkillForToHit: weaponSkillForToHit,
+                weaponSkillKeyForToHit: skillKey,
                 wornAttack: comboWornBackstabTop.wornAttack,
                 backstabModPercent: comboWornBackstabTop.backstabModPercent,
                 backstabSkill: rankBaseBackstabSkill,
                 fistweaving: classId === 'monk' && is2H && $('fistweaving').checked,
-                fistweavingNonEpic: ($('fistweaving-nonepic') && $('fistweaving-nonepic').checked) || false
+                fistweavingNonEpic: ($('fistweaving-nonepic') && $('fistweaving-nonepic').checked) || false,
+                fistweavingOffhandLabel: undefined
               });
               if (row.secondaryId) {
                 var p2 = rankWeaponMap[row.secondaryId];
@@ -4842,6 +5665,7 @@
                 opts.weapon2 = {
                   damage: d2,
                   delay: p2.delay,
+                  is2H: false,
                   procSpell: (p2.proc != null ? p2.proc : '') || (p2.procSpell != null ? p2.procSpell : ''),
                   procSpellDamage: p2.procDamage || 0,
                   procRate: (p2.procRate != null && !Number.isNaN(Number(p2.procRate))) ? Number(p2.procRate) : 0,
@@ -4855,6 +5679,10 @@
                 opts.dualWieldSkill = dualWieldSkillForm;
                 opts.wornAttack = comboWornBackstabTop.wornAttack;
                 opts.backstabModPercent = comboWornBackstabTop.backstabModPercent;
+                opts.weapon2Type = p2.type || undefined;
+                if (rankMonkFwNonEpic) {
+                  opts.fistweavingOffhandLabel = p2.name != null ? String(p2.name) : String(row.secondaryId);
+                }
               }
             }
             var reports = [];
@@ -5604,16 +6432,20 @@
       }
 
       function showTab(tabId) {
-        const isMelee = tabId === 'melee';
-        $('melee-tab').classList.toggle('hidden', !isMelee);
-        $('ranged-tab').classList.toggle('hidden', isMelee);
-        $('tab-melee').classList.toggle('active', isMelee);
-        $('tab-melee').setAttribute('aria-selected', isMelee ? 'true' : 'false');
-        $('tab-ranged').classList.toggle('active', !isMelee);
-        $('tab-ranged').setAttribute('aria-selected', !isMelee ? 'true' : 'false');
+        var tabs = ['melee', 'ranged', 'tanking'];
+        tabs.forEach(function (t) {
+          var panelEl = $(t + '-tab');
+          var btnEl = $('tab-' + t);
+          if (panelEl) panelEl.classList.toggle('hidden', t !== tabId);
+          if (btnEl) {
+            btnEl.classList.toggle('active', t === tabId);
+            btnEl.setAttribute('aria-selected', t === tabId ? 'true' : 'false');
+          }
+        });
       }
       $('tab-melee').addEventListener('click', function () { showTab('melee'); });
       $('tab-ranged').addEventListener('click', function () { showTab('ranged'); });
+      if ($('tab-tanking')) $('tab-tanking').addEventListener('click', function () { showTab('tanking'); });
       var UI_MODES = { EASY: 'easy', ADVANCED: 'advanced' };
       function setUiMode(mode) {
         var normalized = mode === UI_MODES.ADVANCED ? UI_MODES.ADVANCED : UI_MODES.EASY;
@@ -5799,15 +6631,12 @@
         if (strEl) strEl.value = String(assumptions.str);
         var dexEl = $('dex');
         if (dexEl) dexEl.value = String(assumptions.dex);
-        var ambi = $('ambidexterity-aa');
-        if (ambi) ambi.checked = assumptions.level === 60;
-        var combatFuryEl = document.querySelector('input[name="combat-fury"][value="' + (assumptions.level === 60 ? '3' : '0') + '"]');
-        if (combatFuryEl) combatFuryEl.checked = true;
         var classId = (($('class') && $('class').value) || '').toLowerCase();
-        if (assumptions.level === 60 && easyClassHasSpellCastingFury(classId)) setSpellCastingFuryRank(3);
-        else setSpellCastingFuryRank(0);
-        if (assumptions.level === 60 && classId === 'paladin') setSlayUndeadRank(3);
-        else setSlayUndeadRank(0);
+        aaConfig.ambidexterity = assumptions.level === 60 ? 1 : 0;
+        aaConfig.combatFury = assumptions.level === 60 ? 3 : 0;
+        aaConfig.spellCastingFury = (assumptions.level === 60 && easyClassHasSpellCastingFury(classId)) ? 3 : 0;
+        aaConfig.slayUndead = (assumptions.level === 60 && classId === 'paladin') ? 3 : 0;
+        if (typeof buildAAConfiguratorUI === 'function') buildAAConfiguratorUI();
       }
       function getEasyWeaponDisplay(prefix) {
         var d = parseInt($(prefix + '-damage').value, 10) || 0; var dl = parseInt($(prefix + '-delay').value, 10) || 0;
@@ -6142,13 +6971,14 @@
           archerySkill: Math.min(252, Math.max(0, parseInt($('ranged-archery-skill').value, 10) || 252)),
           wornAttack: parseInt($('ranged-worn-attack').value, 10) || 0,
           spellAttack: parseInt($('ranged-spell-attack').value, 10) || 0,
-          dex: 255,
-          critChanceMult: 0,
+          dex: parseInt($('dex').value, 10) || 255,
           classId: 'ranger',
-          archeryMastery: parseInt(document.querySelector('input[name="archery-mastery"]:checked').value, 10) || 3,
+          critChanceMult: (function () { var rao = buildAASimOptions('ranger', ($('era-select') && $('era-select').value) || 'classic'); return rao.critChanceMult || 0; })(),
+          archeryMastery: (function () { var rao = buildAASimOptions('ranger', ($('era-select') && $('era-select').value) || 'classic'); return rao.archeryMastery || 1; })(),
           archeryAccuracy: (document.querySelector('input[name="archery-accuracy"]:checked') || {}).value || 'none',
           mobStationary: $('mob-stationary').checked,
-          trueshot: $('trueshot').checked,
+          trueshot: !!($('trueshot') && $('trueshot').checked),
+          spellCastingFury: (function () { var rao = buildAASimOptions('ranger', ($('era-select') && $('era-select').value) || 'classic'); return rao.spellCastingFury; })(),
         };
         const reports = [];
         try {
@@ -6297,10 +7127,9 @@
       function applyAmbidexterityDefault() {
         const classId = ($('class').value || '').toLowerCase();
         const level = parseInt($('level').value, 10) || 60;
-        const ambidextrousClasses = ['warrior', 'rogue', 'monk', 'bard', 'beastlord'];
-        const ambiEl = $('ambidexterity-aa');
-        if (!ambiEl) return;
-        ambiEl.checked = (level === 60 && ambidextrousClasses.includes(classId));
+        const ambidextrousClasses = ['warrior', 'ranger', 'monk', 'bard', 'rogue', 'beastlord'];
+        aaConfig.ambidexterity = (level === 60 && ambidextrousClasses.includes(classId)) ? 1 : 0;
+        if (typeof buildAAConfiguratorUI === 'function') buildAAConfiguratorUI();
       }
       function onClassOrLevelChange(opts) {
         opts = opts || {};
@@ -6415,6 +7244,7 @@
       $('class').addEventListener('change', function () {
         onClassOrLevelChange({ clampOnly: false });
         lastMeleeLevel = parseInt(($('level') && $('level').value) || '60', 10) || 60;
+        if (typeof buildAAConfiguratorUI === 'function') buildAAConfiguratorUI();
       });
       function onMeleeLevelEdited() {
         var newLevel = parseInt(($('level') && $('level').value) || '60', 10) || 60;
@@ -6515,13 +7345,20 @@
         const row = $('fistweaving-row');
         if (row) row.style.display = classId === 'monk' ? '' : 'none';
       }
+      ['fistweaving', 'fistweaving-nonepic'].forEach(function (fid) {
+        var fel = $(fid);
+        if (fel) fel.addEventListener('change', function () { updateWeapon2Disabled(); });
+      });
       function updateWeapon2Disabled() {
         const is2H = isW1TwoHanded();
-        if (is2H) applyWeaponPreset('w2', 'unequipped');
+        const classId = ($('class').value || '').toLowerCase();
+        const allowOhWith2H = classId === 'monk' && is2H && $('fistweaving') && $('fistweaving').checked && $('fistweaving-nonepic') && $('fistweaving-nonepic').checked;
+        if (is2H && !allowOhWith2H) applyWeaponPreset('w2', 'unequipped');
         const section = $('weapon2-section');
         if (section) {
-          section.querySelectorAll('select, input').forEach(function (el) { el.disabled = !!is2H; });
-          section.classList.toggle('is-disabled', !!is2H);
+          const disabled = is2H && !allowOhWith2H;
+          section.querySelectorAll('select, input').forEach(function (el) { el.disabled = !!disabled; });
+          section.classList.toggle('is-disabled', !!disabled);
         }
         updateWeaponNameDisplay('w2');
       }
@@ -6552,6 +7389,11 @@
       }
 
       $('class').dispatchEvent(new Event('change'));
+
+      // Init stat distributor and race selector
+      initRaceSelector();
+      renderStatDistributor();
+      syncHiddenStats();
 
       applyWeaponPreset('w1', 'unequipped');
       updateWeaponNameDisplay('w1');
@@ -7383,32 +8225,48 @@
         var listEl = $('ranged-target-npc-search-list');
         if (listEl) listEl.classList.add('is-open');
       }
+      function closeTankingTargetNpcDropdown() {
+        var listEl = $('tank-target-npc-search-list');
+        if (listEl) listEl.classList.remove('is-open');
+      }
+      function openTankingTargetNpcDropdown() {
+        var listEl = $('tank-target-npc-search-list');
+        if (listEl) listEl.classList.add('is-open');
+      }
       function updateTargetNpcNameDisplay() {
         var npc = window.selectedTargetNpc;
         var name = (npc && npc.name != null) ? String(npc.name).replace(/_/g, ' ') : '';
         var el = $('target-npc-name');
         var elRanged = $('ranged-target-npc-name');
+        var elTanking = $('tank-target-npc-name');
         if (el) el.textContent = name;
         if (elRanged) elRanged.textContent = name;
+        if (elTanking) elTanking.textContent = name;
         var clearBtn = $('target-npc-clear');
         var clearBtnRanged = $('ranged-target-npc-clear');
+        var clearBtnTanking = $('tank-target-npc-clear');
         if (clearBtn) clearBtn.style.display = name ? '' : 'none';
         if (clearBtnRanged) clearBtnRanged.style.display = name ? '' : 'none';
+        if (clearBtnTanking) clearBtnTanking.style.display = name ? '' : 'none';
       }
       function clearTargetNpc() {
         window.selectedTargetNpc = null;
         var targetSearch = $('target-npc-search');
         var rangedTargetSearch = $('ranged-target-npc-search');
+        var tankTargetSearch = $('tank-target-npc-search');
         if (targetSearch) targetSearch.value = '';
         if (rangedTargetSearch) rangedTargetSearch.value = '';
+        if (tankTargetSearch) tankTargetSearch.value = '';
         updateTargetNpcNameDisplay();
         applyGenericTargetIfNoneSelected();
       }
       (function initTargetNpcClearButtons() {
         var btn = $('target-npc-clear');
         var btnRanged = $('ranged-target-npc-clear');
+        var btnTanking = $('tank-target-npc-clear');
         if (btn) btn.addEventListener('click', clearTargetNpc);
         if (btnRanged) btnRanged.addEventListener('click', clearTargetNpc);
+        if (btnTanking) btnTanking.addEventListener('click', clearTargetNpc);
       })();
       function applyTargetNpc(npc) {
         if (!npc || typeof npc !== 'object') return;
@@ -7431,6 +8289,14 @@
         set('ranged-target-cr', npc.CR);
         set('ranged-target-pr', npc.PR);
         set('ranged-target-dr', npc.DR);
+        // Tanking tab mob (attacker) stats
+        set('tank-mob-level',   npc.level);
+        set('tank-mob-ac',      npc.AC);
+        set('tank-mob-min-dmg', npc.mindmg);
+        set('tank-mob-max-dmg', npc.maxdmg);
+        set('tank-mob-delay',   npc.attack_delay);
+        if (npc.attack_count > 0) set('tank-mob-attacks', npc.attack_count);
+        if (npc.Accuracy > 0)     set('tank-mob-accuracy', npc.Accuracy);
         updateTargetNpcNameDisplay();
       }
       (function initTargetNpcSearch() {
@@ -7547,6 +8413,67 @@
         });
       })();
 
+      (function initTankingTargetNpcSearch() {
+        var inputEl = $('tank-target-npc-search');
+        var listEl = $('tank-target-npc-search-list');
+        if (!inputEl || !listEl) return;
+        var minChars = 2;
+        function npcNameForSearch(name) {
+          return (name != null ? String(name) : '').replace(/_/g, ' ').toLowerCase();
+        }
+        function npcNameForDisplay(name) {
+          return (name != null ? String(name) : '').replace(/_/g, ' ');
+        }
+        inputEl.addEventListener('input', function () {
+          if ((inputEl.value || '').trim() === '') {
+            window.selectedTargetNpc = null;
+            updateTargetNpcNameDisplay();
+          }
+          var q = (inputEl.value || '').trim().replace(/_/g, ' ').toLowerCase();
+          if (q.length < minChars) {
+            var recentHtml = renderTargetNpcRecentSection(npcTypesList, npcNameForDisplay);
+            listEl.innerHTML = recentHtml + '<div class="item-search-msg">Type at least ' + minChars + ' characters to search</div>';
+            attachTargetNpcButtons(listEl, npcTypesList, npcNameForDisplay, inputEl, closeTankingTargetNpcDropdown);
+            openTankingTargetNpcDropdown();
+            return;
+          }
+          var filtered = npcTypesList.filter(function (n) {
+            return npcNameForSearch(n.name).indexOf(q) >= 0;
+          }).slice(0, 80);
+          var dmgDetail = function(npc) {
+            var min = npc.mindmg != null ? npc.mindmg : '?';
+            var max = npc.maxdmg != null ? npc.maxdmg : '?';
+            return 'Lvl ' + (npc.level != null ? npc.level : '?') + ' · AC ' + (npc.AC != null ? npc.AC : '?') + ' · Dmg ' + min + '-' + max;
+          };
+          var html = '<div class="item-search-section">Targets</div>';
+          if (filtered.length === 0) {
+            html += '<div class="item-search-msg">No matching NPCs</div>';
+          } else {
+            filtered.forEach(function (npc) {
+              var displayName = npcNameForDisplay(npc.name).replace(/</g, '&lt;').replace(/"/g, '&quot;');
+              var detail = dmgDetail(npc);
+              html += '<button type="button" class="item-search-item" data-npc-id="' + (npc.id != null ? String(npc.id) : '') + '"><span>' + displayName + '</span><div class="item-search-item-detail">' + detail.replace(/</g, '&lt;') + '</div></button>';
+            });
+          }
+          html += renderTargetNpcRecentSection(npcTypesList, npcNameForDisplay);
+          listEl.innerHTML = html;
+          attachTargetNpcButtons(listEl, npcTypesList, npcNameForDisplay, inputEl, closeTankingTargetNpcDropdown);
+          openTankingTargetNpcDropdown();
+        });
+        inputEl.addEventListener('focus', function () {
+          var q = (inputEl.value || '').trim();
+          if (q.length < minChars) {
+            var recentHtml = renderTargetNpcRecentSection(npcTypesList, npcNameForDisplay);
+            listEl.innerHTML = recentHtml + '<div class="item-search-msg">Type at least ' + minChars + ' characters to search</div>';
+            attachTargetNpcButtons(listEl, npcTypesList, npcNameForDisplay, inputEl, closeTankingTargetNpcDropdown);
+            openTankingTargetNpcDropdown();
+          }
+        });
+        inputEl.addEventListener('keydown', function (e) {
+          if (e.key === 'Escape') { closeTankingTargetNpcDropdown(); inputEl.blur(); }
+        });
+      })();
+
       applyGenericTargetIfNoneSelected();
 
       document.addEventListener('click', function (e) {
@@ -7561,12 +8488,59 @@
         closeEasyDropdown('w2');
         closeTargetNpcDropdown();
         closeRangedTargetNpcDropdown();
+        closeTankingTargetNpcDropdown();
       });
 
       setupItemSearch('w1');
       setupItemSearch('w2');
       setupItemSearch('ranged-weapon');
       setupItemSearch('arrow');
+
+      // ---- Bidirectional character stat sync: melee tab ↔ tanking tab ----
+      (function initCharStatSync() {
+        var SYNC_PAIRS = [
+          ['class',          'tank-class'],
+          ['level',          'tank-level'],
+          ['str',            'tank-str'],
+          ['dex',            'tank-dex'],
+          ['worn-haste',     'tank-worn-haste'],
+          ['worn-attack',    'tank-worn-attack'],
+          ['offense-skill',  'tank-offense-skill'],
+          ['defense-skill',  'tank-defense-skill'],
+          ['dodge-skill',    'tank-dodge-skill'],
+          ['parry-skill',    'tank-parry-skill'],
+          ['riposte-skill',  'tank-riposte-skill'],
+          ['block-skill',    'tank-block-skill'],
+        ];
+        var syncing = false;
+        SYNC_PAIRS.forEach(function(pair) {
+          var meleeEl  = $(pair[0]);
+          var tankEl   = $(pair[1]);
+          if (!meleeEl || !tankEl) return;
+          meleeEl.addEventListener('change', function() {
+            if (syncing) return; syncing = true;
+            tankEl.value = meleeEl.value;
+            tankEl.dispatchEvent(new Event('change'));
+            syncing = false;
+          });
+          meleeEl.addEventListener('input', function() {
+            if (syncing) return; syncing = true;
+            tankEl.value = meleeEl.value;
+            syncing = false;
+          });
+          tankEl.addEventListener('change', function() {
+            if (syncing) return; syncing = true;
+            meleeEl.value = tankEl.value;
+            meleeEl.dispatchEvent(new Event('change'));
+            syncing = false;
+          });
+          tankEl.addEventListener('input', function() {
+            if (syncing) return; syncing = true;
+            meleeEl.value = tankEl.value;
+            syncing = false;
+          });
+        });
+      })();
 
       initEasyModeUi();
 
@@ -7654,7 +8628,601 @@
             .then(function () { submitBtn.disabled = false; });
         });
       })();
+
+      // Expose AA configurator UI builder for era-toggle IIFE (different scope)
+      window.buildAAConfiguratorUI = buildAAConfiguratorUI;
+
+      // Expose gear-stat updater for inventory system (different IIFE scope)
+      window.applyGearStats = function (str, dex, agi) {
+        charCreation.gear.str = str || 0;
+        charCreation.gear.dex = dex || 0;
+        charCreation.gear.agi = agi || 0;
+        renderStatDistributor();
+        syncHiddenStats();
+      };
     })();
+
+// ============================================================
+// Era Toggle Logic
+// ============================================================
+(function () {
+  var DEFAULT_ERA = 'pop';
+
+  function getSelectedEra() {
+    var sel = document.getElementById('era-select');
+    return sel ? sel.value : DEFAULT_ERA;
+  }
+
+  function syncEraSelectors(eraId) {
+    var el = document.getElementById('era-select');
+    if (el && el.value !== eraId) el.value = eraId;
+  }
+
+  function applyEra(eraId) {
+    syncEraSelectors(eraId);
+
+    var hasAA = typeof EraConfig !== 'undefined' && EraConfig.erasHasAA(eraId);
+    var hasBeastlord = typeof EraConfig !== 'undefined' && EraConfig.eraHasBeastlord(eraId);
+
+    // Show/hide AA sections
+    var aaSections = document.querySelectorAll('[data-requires-aa]');
+    aaSections.forEach(function (el) {
+      if (hasAA) {
+        el.classList.remove('hidden');
+      } else {
+        el.classList.add('hidden');
+      }
+    });
+
+    // Show/hide individual AAs by era
+    if (typeof AbilityRegistry !== 'undefined') {
+      AbilityRegistry.AA_DEFINITIONS.forEach(function (aa) {
+        var available = AbilityRegistry.isAAAvailable(aa.id, eraId);
+        var inputEl = aa.inputId ? document.getElementById(aa.inputId) : null;
+        if (inputEl) {
+          var wrapper = inputEl.closest('.char-field, .char-checkbox, [data-aa-id]') || inputEl.parentElement;
+          if (wrapper) {
+            wrapper.style.opacity = available ? '' : '0.4';
+            wrapper.title = available ? '' : ('Available in ' + ((typeof EraConfig !== 'undefined' && EraConfig.getEra(aa.era)) || {label: aa.era}).label + ' and later');
+          }
+          if (!available) {
+            if (inputEl.type === 'checkbox') inputEl.checked = false;
+            else if (inputEl.type === 'number' || inputEl.tagName === 'SELECT') inputEl.value = '0';
+          }
+        }
+      });
+    }
+
+    // Hide beastlord from class selectors in pre-Luclin eras
+    var classSelectors = document.querySelectorAll('#class option[value="beastlord"]');
+    classSelectors.forEach(function (el) {
+      el.style.display = hasBeastlord ? '' : 'none';
+    });
+
+    // Update weapon rank PoP filter state to match era
+    var includePop = eraId === 'pop';
+    ['rank-weapons-include-pop', 'rank-ranged-include-pop'].forEach(function (id) {
+      var el = document.getElementById(id);
+      if (el) el.checked = includePop;
+    });
+
+    // Persist selection
+    try { localStorage.setItem('gsim_era', eraId); } catch (e) {}
+
+    // Rebuild AA configurator so PoP section shows/hides and dim states update
+    if (typeof window.buildAAConfiguratorUI === 'function') window.buildAAConfiguratorUI();
+
+    // Notify listeners (e.g. Vah Shir race option visibility)
+    document.dispatchEvent(new CustomEvent('gsim:erachange', { detail: { eraId: eraId } }));
+  }
+
+  // Wire era dropdown
+  var eraSelectEl = document.getElementById('era-select');
+  if (eraSelectEl) {
+    eraSelectEl.addEventListener('change', function () {
+      applyEra(this.value);
+    });
+  }
+
+  // Restore saved era on load
+  var savedEra = DEFAULT_ERA;
+  try { savedEra = localStorage.getItem('gsim_era') || DEFAULT_ERA; } catch (e) {}
+  applyEra(savedEra);
+
+  // Expose for use in run handlers
+  window.getSelectedEra = getSelectedEra;
+})();
+
+// ============================================================
+// Tanking Simulation Logic
+// ============================================================
+(function () {
+  var btnRunTanking = document.getElementById('btn-run-tanking');
+  if (!btnRunTanking) return;
+
+  // ---- Inventory import ----
+
+  // Spell effect decoder: returns { haste, atk, spellName } from a worn effect spell ID.
+  //
+  // SPA 11 = Attack Speed (haste).
+  //   When base_value > 101: haste% = base_value - 100  (e.g. 140 → 40%).
+  //   When base_value == 101: this is the generic "Haste" worn category (spell 998).
+  //     The actual haste% is NOT in the spell — it is stored per-item in the wornlevel field.
+  //     Formula: haste% = wornlevel + 1  (e.g. wornlevel=40 → 41%).
+  //     Caller must pass itemWornLevel so this function can compute it correctly.
+  //
+  // SPA 2 = ATK bonus: base_value = attack rating added (Aura of Battle, Vengeance I-X, etc.)
+  function decodeWornSpell(spellId, itemWornLevel) {
+    var spells = window.__DPS_SPELLS_EN__;
+    if (!spells || !spellId) return { haste: 0, atk: 0, spellName: '' };
+    var s = spells[spellId] || spells[String(spellId)];
+    if (!s) return { haste: 0, atk: 0, spellName: '' };
+    var haste = 0, atk = 0;
+    for (var i = 1; i <= 12; i++) {
+      var eid = parseInt(s['effectid' + i]);
+      var bv  = parseInt(s['effect_base_value' + i]);
+      if (isNaN(eid) || eid === 254) continue;
+      if (eid === 11 && bv > 100) {
+        // bv=101: generic "Haste" category — real% encoded in item's wornlevel field
+        var h = bv > 101 ? (bv - 100) : ((itemWornLevel || 0) + 1);
+        haste = Math.max(haste, h);
+      }
+      if (eid === 2 && bv > 0) atk = Math.max(atk, bv);
+    }
+    return { haste: haste, atk: atk, spellName: s.name || '' };
+  }
+
+  function lookupItem(id) {
+    // Prefer full items DB, fall back to weapons-only DB
+    var db = window.__DPS_ITEMS__;
+    var item = db && (db[id] || db[String(id)]);
+    if (!item) {
+      var wdb = window.__DPS_WEAPONS_MERGED__;
+      item = wdb && (wdb[id] || wdb[String(id)]);
+    }
+    return item || null;
+  }
+
+  function parseInventoryTsv(text) {
+    var lines = text.split(/\r?\n/);
+    var slots = {};
+    lines.forEach(function (line) {
+      var cols = line.split('\t');
+      if (cols.length < 3) return;
+      var slot = cols[0].trim();
+      var name = cols[1].trim();
+      var id   = parseInt(cols[2].trim(), 10);
+      if (!name || name === 'Empty' || name === 'Location' || isNaN(id)) return;
+      // Slots that can appear twice: Ear, Wrist, Fingers
+      if (!slots[slot]) {
+        slots[slot] = { name: name, id: id };
+      } else if (/^(Ear|Wrist|Fingers)$/.test(slot) && !slots[slot + '2']) {
+        slots[slot + '2'] = { name: name, id: id };
+      }
+    });
+    return slots;
+  }
+
+  function applyInventory(text) {
+    var equippedSlots = parseInventoryTsv(text);
+
+    // ---- Aggregate stats across all equipped items ----
+    var totals = { ac: 0, str: 0, dex: 0, agi: 0, hp: 0, atk: 0 };
+    var hasteItems  = [];   // { name, haste, spellName }
+    var atkItems    = [];   // { name, atk, spellName }
+    var classMask   = 0x7FFF; // intersection starts at ALL_CLASSES, narrow down
+    var hasClassConstraint = false;
+
+    var DISPLAY_ORDER = ['Head','Face','Ear','Ear2','Neck','Shoulders','Back','Arms',
+                         'Wrist','Wrist2','Hands','Fingers','Fingers2',
+                         'Chest','Legs','Feet','Waist',
+                         'Primary','Secondary','Range','Ammo'];
+
+    var slotsDiv   = document.getElementById('shared-inventory-slots');
+    var displayDiv = document.getElementById('shared-inventory-display');
+    var html = '';
+
+    DISPLAY_ORDER.forEach(function (slot) {
+      var entry = equippedSlots[slot];
+      if (!entry) return;
+      var item = lookupItem(entry.id);
+      var label = slot.replace(/2$/, ' (2)');
+      var notes = [];
+
+      if (item) {
+        // Base stats
+        var ac  = parseInt(item.ac)   || 0;
+        var str = parseInt(item.astr) || 0;
+        var dex = parseInt(item.adex) || 0;
+        var agi = parseInt(item.aagi) || 0;
+        var hp  = parseInt(item.hp)   || 0;
+        totals.ac  += ac;
+        totals.str += str;
+        totals.dex += dex;
+        totals.agi += agi;
+        totals.hp  += hp;
+
+        // Weapon damage/delay
+        var dmg = parseInt(item.damage) || 0;
+        var dly = parseInt(item.delay)  || 0;
+        if (dmg > 0) notes.push(dmg + '/' + dly);
+
+        // Worn effect — haste and ATK
+        var we = parseInt(item.worneffect);
+        if (we > 0) {
+          var fx = decodeWornSpell(we, parseInt(item.wornlevel) || 0);
+          if (fx.haste > 0) {
+            hasteItems.push({ slot: slot, name: entry.name, haste: fx.haste, spellName: fx.spellName });
+          }
+          if (fx.atk > 0) {
+            atkItems.push({ slot: slot, name: entry.name, atk: fx.atk, spellName: fx.spellName });
+            totals.atk += fx.atk;
+          }
+        }
+
+        // Class detection — narrow intersection
+        var itemClasses = parseInt(item.classes) || 0;
+        if (itemClasses > 0 && itemClasses !== 0x7FFF) {
+          classMask &= itemClasses;
+          hasClassConstraint = true;
+        }
+
+        // Build inline stat note
+        var statParts = [];
+        if (ac)  statParts.push('AC ' + ac);
+        if (str) statParts.push('STR ' + str);
+        if (dex) statParts.push('DEX ' + dex);
+        if (agi) statParts.push('AGI ' + agi);
+        if (hp)  statParts.push('HP ' + hp);
+        if (statParts.length) notes.push(statParts.join(' '));
+      }
+
+      html += '<div style="display:flex;gap:0.4rem;font-size:0.8rem;line-height:1.5;">'
+            + '<span style="color:#666;min-width:6.5rem;flex-shrink:0;">' + label + '</span>'
+            + '<span style="color:var(--text);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'
+            + entry.name
+            + (notes.length ? ' <span style="color:#7eb8c9;font-size:0.75rem;">[' + notes.join(' | ') + ']</span>' : '')
+            + '</span></div>';
+    });
+
+    if (slotsDiv)   slotsDiv.innerHTML = html;
+    if (displayDiv) displayDiv.style.display = '';
+
+    // ---- Haste analysis ----
+    hasteItems.sort(function (a, b) { return b.haste - a.haste; });
+    var topHaste = hasteItems[0];
+    var totalHaste = hasteItems.length > 0 ? hasteItems[0].haste : 0; // haste doesn't stack; highest wins
+
+    // ---- Auto-fill form fields (tanking tab + melee tab) ----
+
+    function setEl(id, val) {
+      var el = document.getElementById(id);
+      if (el && val) el.value = val;
+    }
+    function setChk(id, val) {
+      var el = document.getElementById(id);
+      if (el) el.checked = !!val;
+    }
+
+    // --- Mainhand weapon (Primary slot) ---
+    var primary   = equippedSlots['Primary'];
+    var secondary = equippedSlots['Secondary'];
+
+    function setWeaponIcon(prefix, iconNum) {
+      var wrapEl = document.getElementById(prefix + '-weapon-icon-wrap');
+      var imgEl  = document.getElementById(prefix + '-weapon-icon');
+      if (!wrapEl || !imgEl) return;
+      if (iconNum > 0) {
+        imgEl.src = 'icons/' + iconNum + '.gif';
+        imgEl.alt = 'Weapon icon';
+        wrapEl.style.display = '';
+      } else {
+        imgEl.src = '';
+        imgEl.alt = '';
+        wrapEl.style.display = 'none';
+      }
+    }
+
+    if (primary) {
+      var pItem = lookupItem(primary.id);
+      // Tanking tab
+      setEl('tank-w1-name',   primary.name);
+      if (pItem && parseInt(pItem.damage) > 0) {
+        var is2h = [1, 4, 35].indexOf(parseInt(pItem.itemtype)) !== -1;
+        setEl('tank-w1-damage', parseInt(pItem.damage));
+        setEl('tank-w1-delay',  parseInt(pItem.delay));
+        setChk('tank-w1-is2h',  is2h);
+        // Melee tab weapon 1
+        setEl('w1-damage', parseInt(pItem.damage));
+        setEl('w1-delay',  parseInt(pItem.delay));
+        // w1-weapon-name is a div, not an input
+        var meleeW1Name = document.getElementById('w1-weapon-name');
+        if (meleeW1Name) meleeW1Name.textContent = primary.name;
+        // w1-is2h-override is a hidden input with value '0'/'1'
+        var hiddenIs2h = document.getElementById('w1-is2h-override');
+        if (hiddenIs2h) hiddenIs2h.value = is2h ? '1' : '0';
+        // Weapon icon
+        setWeaponIcon('w1', parseInt(pItem.icon) || 0);
+      }
+    }
+
+    if (secondary) {
+      var sItem = lookupItem(secondary.id);
+      if (sItem && parseInt(sItem.damage) > 0) {
+        // Melee tab weapon 2
+        setEl('w2-damage', parseInt(sItem.damage));
+        setEl('w2-delay',  parseInt(sItem.delay));
+        var meleeW2Name = document.getElementById('w2-weapon-name');
+        if (meleeW2Name) meleeW2Name.textContent = secondary.name;
+        // Weapon icon
+        setWeaponIcon('w2', parseInt(sItem.icon) || 0);
+      }
+    }
+
+    // --- Worn stats: tanking tab ---
+    if (totals.ac)  setEl('tank-player-ac',    totals.ac);
+    if (totals.str) setEl('tank-str',           totals.str);
+    if (totals.dex) setEl('tank-dex',           totals.dex);
+    if (totals.agi) setEl('tank-player-agi',    totals.agi);
+    if (totalHaste) setEl('tank-worn-haste',    totalHaste);
+    if (totals.atk) setEl('tank-worn-attack',   totals.atk);
+
+    // --- Worn stats: melee tab (via stat distributor if available) ---
+    if (typeof window.applyGearStats === 'function') {
+      window.applyGearStats(totals.str || 0, totals.dex || 0, totals.agi || 0);
+    } else {
+      if (totals.str) setEl('str', totals.str);
+      if (totals.dex) setEl('dex', totals.dex);
+    }
+    if (totalHaste) {
+      setEl('worn-haste', totalHaste);
+      setEl('ranged-worn-haste', totalHaste);
+      // Also update easy-mode haste slider + readout
+      var _easyHasteEl = document.getElementById('easy-worn-haste');
+      if (_easyHasteEl) _easyHasteEl.value = totalHaste;
+      var _easyHasteReadout = document.getElementById('easy-worn-haste-value');
+      if (_easyHasteReadout) _easyHasteReadout.textContent = totalHaste + '%';
+    }
+    if (totals.atk) setEl('worn-attack',  totals.atk);
+
+    // ---- Class detection via class bitmask intersection ----
+    var CLASS_MAP = {
+      1:'warrior', 2:'cleric', 4:'paladin', 8:'ranger', 16:'shadowknight',
+      32:'druid', 64:'monk', 128:'bard', 256:'rogue', 512:'shaman',
+      1024:'necromancer', 2048:'wizard', 4096:'magician', 8192:'enchanter', 16384:'beastlord'
+    };
+    var detectedClass = null;
+    var detectedClassName = null;
+    if (hasClassConstraint && classMask > 0) {
+      // Check if exactly one bit is set
+      if ((classMask & (classMask - 1)) === 0) {
+        detectedClass     = CLASS_MAP[classMask] || null;
+        detectedClassName = detectedClass ? (detectedClass.charAt(0).toUpperCase() + detectedClass.slice(1)) : null;
+      }
+    }
+    if (detectedClass) {
+      var tankClassEl  = document.getElementById('tank-class');
+      var meleeClassEl = document.getElementById('class');
+      if (tankClassEl)  tankClassEl.value  = detectedClass;
+      if (meleeClassEl) meleeClassEl.value = detectedClass;
+      // Trigger change events so dependent UI updates (skill caps, AAs, etc.)
+      if (tankClassEl)  tankClassEl.dispatchEvent(new Event('change'));
+      if (meleeClassEl) meleeClassEl.dispatchEvent(new Event('change'));
+      // syncEasyFromAdvancedBasics (called by the class change handler) resets worn-haste
+      // to the level-based default — re-apply the inventory value after it fires.
+      if (totalHaste) {
+        var hasteEl = document.getElementById('worn-haste');
+        if (hasteEl) hasteEl.value = totalHaste;
+        var easyHasteEl = document.getElementById('easy-worn-haste');
+        if (easyHasteEl) easyHasteEl.value = totalHaste;
+        var easyHasteReadout = document.getElementById('easy-worn-haste-value');
+        if (easyHasteReadout) easyHasteReadout.textContent = totalHaste + '%';
+        var tankHasteEl = document.getElementById('tank-worn-haste');
+        if (tankHasteEl) tankHasteEl.value = totalHaste;
+      }
+    }
+
+    // ---- Inventory summary (below equipment list) ----
+    var summaryEl = document.getElementById('shared-inventory-summary');
+    if (summaryEl) {
+      var summLines = [];
+
+      // Totals
+      summLines.push('<div style="margin-top:0.5rem;padding-top:0.4rem;border-top:1px solid var(--border);display:flex;flex-wrap:wrap;gap:0.25rem 1.5rem;font-size:0.82rem;">');
+      summLines.push('<span><strong style="color:var(--text)">Totals:</strong></span>');
+      [['AC', totals.ac],['STR', totals.str],['DEX', totals.dex],['AGI', totals.agi],['HP', totals.hp]].forEach(function(pair) {
+        if (pair[1]) summLines.push('<span style="color:#7eb8c9;">' + pair[0] + ' <strong>' + pair[1] + '</strong></span>');
+      });
+      summLines.push('</div>');
+
+      // Haste analysis
+      if (hasteItems.length > 0) {
+        summLines.push('<div style="margin-top:0.4rem;font-size:0.82rem;">');
+        summLines.push('<strong style="color:#d4af37;">Worn Haste:</strong> ');
+        summLines.push('<span style="color:#7eb8c9;">' + totalHaste + '%</span>');
+        summLines.push(' <span style="color:#666;">(highest: <em>' + topHaste.name + '</em> ' + topHaste.haste + '% via ' + topHaste.spellName + ')</span>');
+        if (hasteItems.length > 1) {
+          summLines.push(' &mdash; <span style="color:#888;font-size:0.75rem;">Note: worn haste does not stack; only the highest item applies.</span>');
+        }
+        summLines.push('</div>');
+      }
+
+      // ATK worn effects
+      if (atkItems.length > 0) {
+        atkItems.sort(function(a,b){return b.atk-a.atk;});
+        summLines.push('<div style="margin-top:0.4rem;font-size:0.82rem;">');
+        summLines.push('<strong style="color:#d4af37;">Worn ATK effects:</strong> ');
+        summLines.push('<span style="color:#7eb8c9;">' + totals.atk + ' total ATK</span>');
+        summLines.push(' &mdash; ');
+        summLines.push(atkItems.map(function(it){
+          return '<span style="color:#888;">' + it.name + ' <em>(+' + it.atk + ' ' + it.spellName + ')</em></span>';
+        }).join(', '));
+        summLines.push('</div>');
+      }
+
+      // Detected class
+      if (detectedClassName) {
+        summLines.push('<div style="margin-top:0.4rem;font-size:0.82rem;">');
+        summLines.push('<strong style="color:#d4af37;">Detected class:</strong> ');
+        summLines.push('<span style="color:#7eb8c9;">' + detectedClassName + '</span>');
+        summLines.push(' <span style="color:#666;">(auto-filled from class-restricted items)</span>');
+        summLines.push('</div>');
+      }
+
+      summaryEl.innerHTML = summLines.join('');
+    }
+  }
+
+  var fileInput = document.getElementById('shared-inventory-file');
+  if (fileInput) {
+    fileInput.addEventListener('change', function () {
+      var file = fileInput.files && fileInput.files[0];
+      if (!file) return;
+      var reader = new FileReader();
+      reader.onload = function (e) { applyInventory(e.target.result); };
+      reader.readAsText(file);
+      fileInput.value = ''; // allow re-loading same file
+    });
+  }
+
+  // ---- Simulation click handler ----
+  btnRunTanking.addEventListener('click', function () {
+    if (!window.TankingEngine) {
+      alert('Tanking engine not loaded.');
+      return;
+    }
+
+    function v(id, fallback) {
+      var el = document.getElementById(id);
+      if (!el) return fallback;
+      var n = parseFloat(el.value);
+      return isNaN(n) ? fallback : n;
+    }
+    function sel(id, fallback) {
+      var el = document.getElementById(id);
+      return el ? (el.value || fallback) : fallback;
+    }
+    function chk(id) {
+      var el = document.getElementById(id);
+      return el ? !!el.checked : false;
+    }
+
+    var weaponDamage = v('tank-w1-damage', 0);
+    var options = {
+      // Mob
+      mobLevel:        v('tank-mob-level', 60),
+      mobMinDamage:    v('tank-mob-min-dmg', 50),
+      mobMaxDamage:    v('tank-mob-max-dmg', 250),
+      mobAttackDelay:  v('tank-mob-delay', 20),
+      mobAttackCount:  v('tank-mob-attacks', 1),
+      mobAccuracy:     v('tank-mob-accuracy', 0) || undefined,
+      mobAC:           v('tank-mob-ac', 0),
+
+      // Player defense
+      playerLevel:          v('tank-level', 60),
+      playerClassId:        sel('tank-class', 'warrior'),
+      playerAC:             v('tank-player-ac', 1200),
+      playerSpellAC:        v('tank-player-spell-ac', 0),
+      playerAGI:            v('tank-player-agi', 100),
+      playerDefenseSkill:   v('tank-defense-skill', 230),
+      playerDodgeSkill:     v('tank-dodge-skill', 195),
+      playerParrySkill:     v('tank-parry-skill', 200),
+      playerRiposteSkill:   v('tank-riposte-skill', 185),
+      playerBlockSkill:     v('tank-block-skill', 160),
+      playerHPTotal:        v('tank-player-hp', 5000),
+      playerHPRegen:        v('tank-player-hp-regen', 0),
+      healerHPS:            v('tank-healer-hps', 0),
+
+      // Player offense (riposte)
+      playerWeaponDamage:   weaponDamage > 0 ? weaponDamage : undefined,
+      playerWeaponDelay:    v('tank-w1-delay', 30),
+      playerWeaponIs2H:     chk('tank-w1-is2h'),
+      playerOffenseSkill:   v('tank-offense-skill', 252),
+      playerStr:            v('tank-str', 200),
+      playerDex:            v('tank-dex', 150),
+      playerWornAttack:     v('tank-worn-attack', 0),
+
+      // Simulation
+      fightDurationSec: v('tank-duration', 300),
+      chCastTimeSec:    v('tank-ch-cast-time', 10),
+      era: window.getSelectedEra ? window.getSelectedEra() : 'pop',
+      seed: Math.floor(Math.random() * 0xffffffff)
+    };
+
+    // Apply AA options to tanking sim
+    var tankAaOpts = buildAASimOptions(options.playerClassId, options.era);
+    options.playerCritChanceMult    = tankAaOpts.critChanceMult;
+    options.combatStabilityRank     = tankAaOpts.combatStabilityRank;
+    options.combatAgilityRank       = tankAaOpts.combatAgilityRank;
+    options.naturalDurabilityRank   = tankAaOpts.naturalDurabilityRank;
+    options.innateDefenseRank       = tankAaOpts.innateDefenseRank;
+    options.lightningReflexesRank   = tankAaOpts.lightningReflexesRank;
+    options.doubleRiposteRank       = tankAaOpts.doubleRiposteRank;
+    options.returnKickRank          = tankAaOpts.returnKickRank;
+
+    var runs = v('tank-runs', 5);
+    var allReports = [];
+    for (var i = 0; i < runs; i++) {
+      var r = TankingEngine.runTankingFight(Object.assign({}, options, { seed: options.seed + i }));
+      allReports.push(r);
+    }
+
+    var report = allReports[0];
+
+    // Average numeric fields across runs
+    if (runs > 1) {
+      var keys = [
+        'dtps', 'effectiveDtps', 'riposteDps',
+        'totalDamageTaken', 'riposteDamageTotal',
+        'avoidanceRate', 'mitigationPercent',
+        'maxHitTaken', 'riposteMaxHit',
+        'landedSwings', 'missedSwings', 'dodgedSwings',
+        'parriedSwings', 'ripostedSwings', 'blockedSwings',
+        'swingAttempts', 'rounds'
+      ];
+      keys.forEach(function (k) {
+        var sum = allReports.reduce(function (a, r) { return a + (r[k] || 0); }, 0);
+        report[k] = sum / runs;
+      });
+      // Average survival time (only over runs where tank died)
+      var survTimes = allReports.map(function (r) { return r.survivalTimeSec; }).filter(function (t) { return t != null; });
+      report.survivalTimeSec = survTimes.length > 0 ? survTimes.reduce(function (a, b) { return a + b; }, 0) / survTimes.length : null;
+      // Recompute CH chain from averaged DTPS
+      if (window.TankingEngine && TankingEngine.calcCHChain) {
+        report.chChain = TankingEngine.calcCHChain(report.dtps, options.playerHPTotal, options.chCastTimeSec);
+      }
+    }
+
+    var text = TankingEngine.formatTankingReport(report, runs);
+    var reportEl = document.getElementById('tanking-report');
+    var wrapEl = document.getElementById('tanking-report-wrap');
+    if (reportEl) reportEl.textContent = text;
+    if (wrapEl) wrapEl.style.display = '';
+
+    // Log tanking run (USAGE_LOG_URL is defined in the main script closure;
+    // access via a globally-exposed reference if available)
+    var tankLogUrl = window._GSIM_LOG_URL || '';
+    if (window.UsageLog && tankLogUrl) {
+      var payload = UsageLog.buildPayload({
+        simMode: 'tanking',
+        eraId: window.getSelectedEra ? window.getSelectedEra() : 'pop',
+        classId: options.playerClassId || '',
+        level: options.playerLevel,
+        str: options.playerStr,
+        dex: options.playerDex,
+        mobLevel: options.mobLevel,
+        targetAC: options.playerAC,
+        targetHP: options.playerHPTotal,
+        durationSec: options.fightDurationSec,
+        runs: runs,
+        totalDamage: Math.round(report.totalDamageTaken),
+        dps: Math.round(report.riposteDps || 0),
+        dtps: report.dtps
+      });
+      UsageLog.sendLog(payload, tankLogUrl);
+    }
+  });
+})();
   </script>
 </body>
 </html>
