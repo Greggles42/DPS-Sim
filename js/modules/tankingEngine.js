@@ -362,6 +362,34 @@
     return Math.max(1, dmg);
   }
 
+  /**
+   * Roll Return Kick damage (monk AA): uses flying kick formula (skillBase=29, min=level*4/5).
+   */
+  function rollReturnKickDamage(opts, mobMitigation, rng) {
+    var eq = getEQCombat();
+    var level = opts.playerLevel != null ? opts.playerLevel : 60;
+    var FK_SKILL_BASE = 29;
+    if (!eq || !eq.calcMeleeDamage) {
+      return Math.max(1, Math.floor(level * 4 / 5));
+    }
+    var offenseRating = getPlayerOffenseRating(
+      opts.playerOffenseSkill,
+      opts.playerStr,
+      opts.playerWornAttack,
+      opts.playerSpellAttack
+    );
+    var dmg = eq.calcMeleeDamage(FK_SKILL_BASE, offenseRating, mobMitigation, rng, 0);
+    var fkMin = Math.floor(level * 4 / 5);
+    dmg = Math.max(1, Math.max(dmg, fkMin));
+    if (eq.rollMeleeCrit) {
+      var dex = opts.playerDex != null ? opts.playerDex : 150;
+      var critMult = opts.playerCritChanceMult || 0;
+      var critResult = eq.rollMeleeCrit(dmg, 0, level, opts.playerClassId || 'monk', dex, critMult, false, false, 0, false, rng);
+      dmg = critResult.damage;
+    }
+    return Math.max(1, dmg);
+  }
+
   // ---- Complete Heal chain analysis ----
 
   /**
@@ -652,11 +680,10 @@
               report.riposteDamageTotal += riposteDmg2;
               if (riposteDmg2 > report.riposteMaxHit) report.riposteMaxHit = riposteDmg2;
             }
-            // Return Kick (monk): bonus flying kick counter on riposte
+            // Return Kick (monk): bonus flying kick counter on riposte — uses FK damage formula
             if (returnKickChance > 0 && rng() < returnKickChance) {
               report.returnKickHits++;
-              // Flying kick damage: approximated as a riposte-scale hit
-              var rkDmg = rollRiposteDamage(options, mobMitigation, rng);
+              var rkDmg = rollReturnKickDamage(options, mobMitigation, rng);
               report.returnKickDamage += rkDmg;
               report.riposteDamageTotal += rkDmg;
               if (rkDmg > report.riposteMaxHit) report.riposteMaxHit = rkDmg;

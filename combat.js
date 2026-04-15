@@ -1298,10 +1298,13 @@
       if (!T) return;
       const w = weaponSlot === 1 ? w1 : weaponSlot === 2 ? w2 : null;
       let h = 0;
+      const effectiveProcCap = (w && w.procThreatCap != null) ? w.procThreatCap : procThreatCap;
       if (isNonDamagingDetrimental && w && w.procSpellNonDamagingDetrimental && T.detrimentalNonDamageSpellThreat) {
-        h += T.detrimentalNonDamageSpellThreat(resolveTargetMaxHp(options));
+        let ndThreat = T.detrimentalNonDamageSpellThreat(resolveTargetMaxHp(options));
+        if (w.procThreatCap != null) ndThreat = Math.min(ndThreat, w.procThreatCap);
+        h += ndThreat;
       } else if (baseThreatDmg > 0) {
-        h += T.procSpellThreatFromDamage(baseThreatDmg, procThreatCap);
+        h += T.procSpellThreatFromDamage(baseThreatDmg, effectiveProcCap);
       }
       if (!isNonDamagingDetrimental && w && w.procSpellCcAddsMobHpThreat && baseThreatDmg > 0 && T.detrimentalNonDamageSpellThreat) {
         h += T.detrimentalNonDamageSpellThreat(resolveTargetMaxHp(options));

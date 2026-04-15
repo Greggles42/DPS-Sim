@@ -210,6 +210,14 @@
     if (targettype != null) out.targettype = targettype;
     if (isDetrimentalSpell && (damage == null || damage <= 0) && !isSe92OnlyHateSpell) out.nonDamagingDetrimental = true;
     if (isDetrimentalSpell && hasHpDamage && hasStun) out.ccAddsMobHpThreat = true;
+    // Build class bitmask: classesN field = min level to cast (255 = cannot cast). Matches CLASS_BITMASK bit order.
+    var spellClassBitmask = 0;
+    for (var ci = 1; ci <= 16; ci++) {
+      var classLvl = spell['classes' + ci];
+      var classLvlNum = classLvl != null ? (typeof classLvl === 'number' ? classLvl : parseInt(String(classLvl), 10)) : 255;
+      if (!isNaN(classLvlNum) && classLvlNum < 255) spellClassBitmask |= (1 << (ci - 1));
+    }
+    if (spellClassBitmask !== 0) out.classesMask = spellClassBitmask;
     return out;
   }
 

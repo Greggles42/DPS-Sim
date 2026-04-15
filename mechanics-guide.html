@@ -400,7 +400,7 @@
         <li>Roll against <code>wuChance</code> again. If it passes, process another extra FK strike. If it fails at step 1 or 2, stop.</li>
       </ol>
       <p>
-        Each extra strike uses the same <code>processOneBackstabHit</code> logic as the base flying kick (same min/max damage formula, crit chance, damage bonus). The report's <em>Technique of Master Wu</em> section shows extra strike rolls, extra strikes landed, hit rate, total Wu damage, and Wu DPS — tracked separately from the base Flying Kick totals.
+        Each extra strike uses the same flying kick damage formula as the base hit (skillBase=29, min=level×4/5, with crit chance). The report's <em>Technique of Master Wu</em> section shows extra strike rolls, extra strikes landed, hit rate, total Wu damage, and Wu DPS — tracked separately from the base Flying Kick totals.
       </p>
     </div>
 
@@ -611,7 +611,7 @@
       </p>
       <ol>
         <li><strong>Hit check</strong> — does the mob's swing even connect? Uses mob to-hit vs player avoidance (same formula as Section 5). If it misses, the swing is discarded entirely (no avoidance skill roll needed).</li>
-        <li><strong>Block</strong> — <code>rate(blockSkill, divisor=25)</code>. Requires a shield.</li>
+        <li><strong>Block</strong> — <code>rate(blockSkill, divisor=25)</code>. Monk only (no shield required).</li>
         <li><strong>Parry</strong> — <code>rate(parrySkill, divisor=50)</code>. Only valid in-front, not ranged.</li>
         <li><strong>Riposte</strong> — <code>rate(riposteSkill, divisor=55)</code>. Requires a weapon equipped; only in-front.</li>
         <li><strong>Dodge</strong> — <code>rate(dodgeSkill, divisor=45)</code>.</li>
@@ -684,7 +684,7 @@
         When HP hits 0, the sim records the time of death as <strong>survival time</strong>. If HP never drops to 0, survival time is reported as "survived full fight."
       </p>
       <p>
-        <strong>CH chain simulation:</strong> If healer HPS is set, the report also computes a theoretical Complete Heal chain estimate — how many CHs land per minute to sustain the fight, assuming ~3,000 HP CHs on a 3s cast.
+        <strong>CH chain simulation:</strong> The report always computes a Complete Heal chain estimate. Complete Heal fills the tank to full HP (player's total HP). The CH cast time is configurable (default 10s for an unmodified Cleric CH). The estimate shows max safe interval (HP ÷ DTPS), recommended interval (with 1.5× safety factor), clerics needed, and the HP threshold at which a cleric must begin casting.
       </p>
 
       <h3>Key survivability metrics in the report</h3>

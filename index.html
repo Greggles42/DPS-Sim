@@ -1182,7 +1182,10 @@
     .stat-dist-table td { padding: 0.1rem 0.4rem; vertical-align: middle; }
     .stat-dist-table td:first-child { color: var(--text); font-weight: 600; }
     .stat-dist-table td:not(:first-child) { color: var(--muted); text-align: right; }
-    .stat-dist-table td.stat-final { color: var(--color-gold); font-weight: 700; }
+    .stat-dist-table td.stat-final { color: var(--color-gold); font-weight: 700; padding: 0.1rem 0.2rem; }
+    .stat-dist-table td.stat-gear { color: var(--color-gold); font-weight: 600; }
+    .stat-final-input { width: 4rem; text-align: right; background: transparent; border: 1px solid var(--border); color: var(--color-gold); font-weight: 700; font-size: 0.72rem; padding: 0.1rem 0.15rem; }
+    .stat-final-input:focus { outline: 1px solid var(--color-gold); border-color: var(--color-gold); }
     .stat-pts-ctrl { display: flex; align-items: center; gap: 2px; }
     .stat-pts-btn {
       width: 1.2rem; height: 1.2rem;
@@ -1448,7 +1451,7 @@
         <div class="char-field">
           <table class="stat-dist-table">
             <thead><tr>
-              <th>Stat</th><th>Base</th><th title="Creation points">+Pts</th><th title="Stat bonus from worn gear — editable">Gear</th><th>Final</th>
+              <th>Stat</th><th>Base</th><th title="Creation points">+Pts</th><th title="Stat bonus from worn gear (set by Import Inventory)">Gear</th><th title="Final stat — type to override">Final</th>
             </tr></thead>
             <tbody id="stat-dist-body">
               <!-- rows injected by renderStatDistributor() -->
@@ -1914,19 +1917,19 @@
         </div>
         <div style="display:flex;flex-direction:column;">
           <label for="tank-level" class="small-label">Level</label>
-          <input type="number" id="tank-level" value="60" min="1" max="65" style="width:100%;margin-top:auto;">
+          <input type="number" id="tank-level" value="60" min="1" max="65" style="width:100%;margin-top:auto;margin-bottom:0;">
         </div>
         <div style="display:flex;flex-direction:column;">
           <label for="tank-player-hp" class="small-label">Total HP</label>
-          <input type="number" id="tank-player-hp" value="5000" min="1" style="width:100%;margin-top:auto;">
+          <input type="number" id="tank-player-hp" value="5000" min="1" style="width:100%;margin-top:auto;margin-bottom:0;">
         </div>
         <div style="display:flex;flex-direction:column;">
           <label for="tank-player-hp-regen" class="small-label">HP Regen/sec</label>
-          <input type="number" id="tank-player-hp-regen" value="0" min="0" style="width:100%;margin-top:auto;">
+          <input type="number" id="tank-player-hp-regen" value="0" min="0" style="width:100%;margin-top:auto;margin-bottom:0;">
         </div>
         <div style="display:flex;flex-direction:column;">
           <label for="tank-healer-hps" class="small-label">Healer HPS</label>
-          <input type="number" id="tank-healer-hps" value="0" min="0" style="width:100%;margin-top:auto;">
+          <input type="number" id="tank-healer-hps" value="0" min="0" style="width:100%;margin-top:auto;margin-bottom:0;">
         </div>
       </div>
 
@@ -1994,24 +1997,19 @@
       <h2>Player Equipment</h2>
       <p class="hint" style="margin:0 0 0.6rem;">Use <strong>Import Inventory</strong> in the tab bar to import your EQ inventory export. Equipped items are shown above the tab panels. AC, STR, DEX, AGI, haste, and worn ATK are auto-filled.</p>
 
-      <!-- Mainhand weapon -->
-      <p class="hint" style="margin:0 0 0.3rem;font-weight:600;color:var(--text);">Mainhand (Riposte damage)</p>
-      <div class="target-fight-row" style="margin-bottom:0.6rem;">
-        <div style="flex:1 1 12rem;">
-          <label for="tank-w1-name" class="small-label">Weapon Name</label>
-          <input type="text" id="tank-w1-name" placeholder="(none)" style="width:100%;" readonly>
-        </div>
-        <div>
-          <label for="tank-w1-damage" class="small-label">Damage</label>
-          <input type="number" id="tank-w1-damage" value="0" min="0" style="width:5rem;" placeholder="0=skip">
-        </div>
-        <div>
-          <label for="tank-w1-delay" class="small-label">Delay (decisec)</label>
-          <input type="number" id="tank-w1-delay" value="30" min="1" style="width:5rem;">
-        </div>
-        <div style="align-self:flex-end;padding-bottom:0.25rem;">
-          <label class="checkbox-label"><input type="checkbox" id="tank-w1-is2h" style="width:auto;margin:0 0.25rem 0 0;"> 2H</label>
-        </div>
+      <!-- Mainhand weapon — mirrors Weapon 1 card layout -->
+      <div class="weapon-icon-wrap" id="tank-w1-weapon-icon-wrap" style="display:none"><img id="tank-w1-weapon-icon" class="weapon-icon" src="" alt=""></div>
+      <div class="weapon-section-header"><h3 style="margin:0 0 0.25rem;font-size:1rem;font-weight:600;">Mainhand (Riposte damage)</h3></div>
+      <div id="tank-w1-weapon-name" class="weapon-name" aria-live="polite">Unequipped</div>
+      <div class="item-search-wrap">
+        <label for="tank-w1-item-search">Item Search</label>
+        <input type="text" id="tank-w1-item-search" placeholder="Type 4+ characters to search..." autocomplete="off">
+        <div id="tank-w1-item-search-list" class="item-search-list" role="listbox"></div>
+      </div>
+      <div class="weapon-damage-row">
+        <div><label for="tank-w1-damage" class="small-label">Damage</label><input type="number" id="tank-w1-damage" min="0" value="0" placeholder="0 = skip"></div>
+        <div><label for="tank-w1-delay" class="small-label">Delay (decisec)</label><input type="number" id="tank-w1-delay" min="1" value="30" placeholder="30"></div>
+        <div style="align-self:flex-end;padding-bottom:0.25rem;"><label class="checkbox-label"><input type="checkbox" id="tank-w1-is2h" style="width:auto;margin:0 0.25rem 0 0;"> 2H</label></div>
       </div>
 
       <!-- Worn AC / spell AC / haste -->
@@ -2754,6 +2752,7 @@
       }
       let w1DisplayName = '';
       let w2DisplayName = '';
+      let tankW1DisplayName = '';
       let w1FromItemSearch = false;
       let w2FromItemSearch = false;
       let rangedFromItemSearch = false;
@@ -3442,8 +3441,8 @@
             + '<span class="stat-pts-val">' + ptsVal + '</span>'
             + '<button class="stat-pts-btn" data-stat="' + sk + '" data-delta="1" title="Add point">+</button>'
             + '</div></td>'
-            + '<td><input type="number" class="stat-gear-input" data-stat="' + sk + '" value="' + (gearVal || 0) + '" min="0" max="999" style="width:3.2rem;text-align:right;" title="Gear/worn bonus — type to set manually"></td>'
-            + '<td class="stat-final">' + finalVal + '</td>'
+            + '<td class="stat-gear">' + (gearVal || 0) + '</td>'
+            + '<td class="stat-final"><input type="number" class="stat-final-input" data-stat="' + sk + '" value="' + finalVal + '" min="0" max="999" title="Final stat — type to override"></td>'
             + '</tr>';
         });
         body2.innerHTML = html;
@@ -3473,23 +3472,26 @@
           syncHiddenStats();
         };
 
-        // Attach input handler for editable gear column
+        // Attach input handler for editable Final column
         body2.oninput = function (e) {
           var inp = e.target;
-          if (!inp.classList.contains('stat-gear-input')) return;
+          if (!inp.classList.contains('stat-final-input')) return;
           var sk = inp.dataset.stat;
           if (!sk) return;
-          var val = parseInt(inp.value, 10);
-          charCreation.gear[sk] = (isNaN(val) || val < 0) ? 0 : val;
-          syncHiddenStats();
-          // Update Final cell in-place to preserve input focus
+          var finalTyped = parseInt(inp.value, 10);
+          if (isNaN(finalTyped) || finalTyped < 0) return;
           var raceId2 = charCreation.race;
           var ppRank2 = aaConfig.planarPower || 0;
-          var finalVal2 = getFinalStat(raceId2, sk, charCreation.pts[sk] || 0, charCreation.gear[sk], ppRank2);
+          var rd2 = RACE_DATA[raceId2] || RACE_DATA.human;
+          var base2 = rd2[sk] || 75;
+          var pts2 = charCreation.pts[sk] || 0;
+          charCreation.gear[sk] = Math.max(0, finalTyped - base2 - pts2);
+          syncHiddenStats();
+          // Update gear text cell in-place to preserve focus
           var row2 = inp.closest('tr');
           if (row2) {
-            var finalCell = row2.querySelector('.stat-final');
-            if (finalCell) finalCell.textContent = finalVal2;
+            var gearCell = row2.querySelector('.stat-gear');
+            if (gearCell) gearCell.textContent = charCreation.gear[sk];
           }
         };
       }
@@ -3634,6 +3636,11 @@
             else delete weapon1.procSpellNonDamagingDetrimental;
             if (sd1.ccAddsMobHpThreat) weapon1.procSpellCcAddsMobHpThreat = true;
             else delete weapon1.procSpellCcAddsMobHpThreat;
+            // Threat cap: if player class cannot cast this proc, cap at 400; if they can cast it, no cap.
+            if (sd1.classesMask != null && typeof ItemSearch !== 'undefined' && ItemSearch.CLASS_BITMASK) {
+              var w1ClassMask = ItemSearch.CLASS_BITMASK[classId];
+              weapon1.procThreatCap = (w1ClassMask && (sd1.classesMask & w1ClassMask) !== 0) ? undefined : 400;
+            }
           }
         }
         if (weapon2 && weapon2.procSpellId && typeof ItemSearch !== 'undefined' && ItemSearch.getSpellFromLocalData) {
@@ -3650,6 +3657,11 @@
             else delete weapon2.procSpellNonDamagingDetrimental;
             if (sd2.ccAddsMobHpThreat) weapon2.procSpellCcAddsMobHpThreat = true;
             else delete weapon2.procSpellCcAddsMobHpThreat;
+            // Threat cap: if player class cannot cast this proc, cap at 400; if they can cast it, no cap.
+            if (sd2.classesMask != null && typeof ItemSearch !== 'undefined' && ItemSearch.CLASS_BITMASK) {
+              var w2ClassMask = ItemSearch.CLASS_BITMASK[classId];
+              weapon2.procThreatCap = (w2ClassMask && (sd2.classesMask & w2ClassMask) !== 0) ? undefined : 400;
+            }
           }
         }
         var targetRace = (function () {
@@ -7506,7 +7518,7 @@
       }
 
       function getRecent(prefix) {
-        if (prefix === 'w1' || prefix === 'w2') return getRecentWeapons();
+        if (prefix === 'w1' || prefix === 'w2' || prefix === 'tank-w1') return getRecentWeapons();
         if (prefix === 'ranged-weapon') return getRecentRangedWeapons();
         if (prefix === 'arrow') return getRecentArrows();
         return [];
@@ -7794,6 +7806,24 @@
         updateWeaponNameDisplay(prefix === 'w1' ? 'w2' : 'w1');
       }
 
+      function applyTankWeaponFromSearch(weapon) {
+        if (!weapon) return;
+        var dmg = Number(weapon.damage);
+        var dly = Number(weapon.delay);
+        var dmgEl = $('tank-w1-damage');
+        var dlyEl = $('tank-w1-delay');
+        if (dmgEl) dmgEl.value = isNaN(dmg) ? '' : dmg;
+        if (dlyEl) dlyEl.value = isNaN(dly) ? '' : dly;
+        var typeLower = (weapon.type || '').toLowerCase();
+        var is2H = !!weapon.is2H || typeLower === '2hb' || typeLower === '2hs' || typeLower === '2hp' || typeLower === 'bow';
+        var is2HEl = $('tank-w1-is2h');
+        if (is2HEl) is2HEl.checked = is2H;
+        updateWeaponIcon('tank-w1', weapon.icon);
+        tankW1DisplayName = (weapon.name || '').trim() || 'Custom';
+        var nameEl = $('tank-w1-weapon-name');
+        if (nameEl) nameEl.textContent = (dmg <= 0 || dly <= 0) ? 'Unequipped' : tankW1DisplayName;
+      }
+
       function applyRangedWeaponFromSearch(weapon) {
         if (!weapon) return;
         updateItemSearchDebug('Ranged weapon', weapon);
@@ -7890,7 +7920,7 @@
       }
       function slotOkForPrefix(prefix, w) {
         if (!w || typeof ItemSearch === 'undefined' || !ItemSearch.itemMatchesSlot) return true;
-        if (prefix === 'w1') return ItemSearch.itemMatchesSlot(w, ItemSearch.SLOT_PRIMARY);
+        if (prefix === 'w1' || prefix === 'tank-w1') return ItemSearch.itemMatchesSlot(w, ItemSearch.SLOT_PRIMARY);
         if (prefix === 'w2') return ItemSearch.itemMatchesSlot(w, ItemSearch.SLOT_SECONDARY);
         if (prefix === 'ranged-weapon') return ItemSearch.itemMatchesSlot(w, ItemSearch.SLOT_RANGED);
         if (prefix === 'arrow') return ItemSearch.itemMatchesSlot(w, ItemSearch.SLOT_AMMO);
@@ -7902,6 +7932,8 @@
         // Ranged tab always filters by ranger usability, regardless of melee class selection.
         const selectedClassId = (prefix === 'ranged-weapon' || prefix === 'arrow')
           ? 'ranger'
+          : prefix === 'tank-w1'
+          ? (($('tank-class') && $('tank-class').value || '').trim().toLowerCase())
           : (($('class').value || '').trim().toLowerCase());
         return !selectedClassId || ItemSearch.itemMatchesClass(w, selectedClassId);
       }
@@ -8012,6 +8044,9 @@
             } else if (prefix === 'arrow') {
               saveRecentArrow(w);
               applyArrowFromSearch(w);
+            } else if (prefix === 'tank-w1') {
+              saveRecentWeapon(w);
+              applyTankWeaponFromSearch(w);
             } else {
               saveRecentWeapon(w);
               applyWeaponFromSearch(prefix, w);
@@ -8137,6 +8172,8 @@
         openItemSearchDropdown(prefix);
         const selectedClassId = (prefix === 'ranged-weapon' || prefix === 'arrow')
           ? 'ranger'
+          : prefix === 'tank-w1'
+          ? (($('tank-class') && $('tank-class').value || '').trim().toLowerCase())
           : (($('class').value || '').trim().toLowerCase());
         tryItemSearchThenWeaponListFallback(query, selectedClassId).then(function (results) {
           const recentNow = getRecent(prefix);
@@ -8517,6 +8554,7 @@
       setupItemSearch('w2');
       setupItemSearch('ranged-weapon');
       setupItemSearch('arrow');
+      setupItemSearch('tank-w1');
 
       // ---- Bidirectional character stat sync: melee tab ↔ tanking tab ----
       (function initCharStatSync() {
