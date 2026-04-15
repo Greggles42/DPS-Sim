@@ -1448,7 +1448,7 @@
         <div class="char-field">
           <table class="stat-dist-table">
             <thead><tr>
-              <th>Stat</th><th>Base</th><th title="Creation points">+Pts</th><th title="From gear">Gear</th><th>Final</th>
+              <th>Stat</th><th>Base</th><th title="Creation points">+Pts</th><th title="Stat bonus from worn gear — editable">Gear</th><th>Final</th>
             </tr></thead>
             <tbody id="stat-dist-body">
               <!-- rows injected by renderStatDistributor() -->
@@ -2157,6 +2157,7 @@
   <section class="advanced-only" style="margin-top: 1rem;">
     <h2>Version log</h2>
     <ul style="font-size: 0.9rem; color: var(--muted); margin: 0; padding-left: 1.25rem;">
+      <li><strong>1.09</strong> — Fix inventory import stats on Vercel (items-data.js now committed to git). Gear column in stat distributor is now an editable number input — manually type worn stat bonuses or override values after inventory import. Fix tanking sim button (buildAASimOptions exposed to window scope).</li>
       <li><strong>1.08</strong> — Full AA system with era-gated configurator (Luclin/PoP sections show/hide correctly on era change). New AAs: Double Riposte (War/Pal/Rng/SK/Monk/Rog/Bst), Return Kick (Monk), Ferocity (War/Rng/Monk/Rog), Bestial Frenzy (Beastlord), Harmonious Attack (Bard), Natural Durability, Innate Defense, Lightning Reflexes. Technique of Master Wu dedicated report section. Tanking sim tracks Double Riposte extra hits and Return Kick hits. Default era changed to Luclin. Import Inventory button renamed.</li>
       <li><strong>1.07</strong> — UI overhauled (Easy and Advanced: layout, theming, alignment, and controls). Weapon search system cleaned up and refined (merged offline data, filters, rank/search behavior, and related UX). Added initial threat per second calculations. Enabled PoP weapons in weaponrank via toggle. Rank by TPS enabled in weaponrank via toggle.</li>
       <li><strong>1.06</strong> — Item search is fully offline using merged <code>resources/weapons.json</code> (no remote ItemSearch API). Weapon data is merged from weaponlist/luclin/pop with per-item <code>expansion</code> and <code>resources/weapon_exclusions.json</code> for rank/search filters. Reports show approximate <strong>TPS</strong> (threat per second) from swing hate + capped proc hate (<code>threat.js</code> / EQMacEmu-style). Run <code>node scripts/merge-weapons.mjs</code> after editing source JSON. Fixed JSON syntax in <code>popweapons.json</code> (missing comma).</li>
@@ -2547,7 +2548,7 @@
       }
 
       // When releasing: 1) Bump VERSION below. 2) Add a new <li> at the top of the Version log section above.
-      const VERSION = '1.08';
+      const VERSION = '1.09';
       const versionEl = $('app-version');
       if (versionEl) versionEl.textContent = 'v' + VERSION;
 
@@ -3441,7 +3442,7 @@
             + '<span class="stat-pts-val">' + ptsVal + '</span>'
             + '<button class="stat-pts-btn" data-stat="' + sk + '" data-delta="1" title="Add point">+</button>'
             + '</div></td>'
-            + '<td>' + (gearVal > 0 ? '+' + gearVal : '—') + '</td>'
+            + '<td><input type="number" class="stat-gear-input" data-stat="' + sk + '" value="' + (gearVal || 0) + '" min="0" max="999" style="width:3.2rem;text-align:right;" title="Gear/worn bonus — type to set manually"></td>'
             + '<td class="stat-final">' + finalVal + '</td>'
             + '</tr>';
         });
@@ -3454,7 +3455,7 @@
           if (remEl) remEl.classList.toggle('pts-warn', remaining < 0);
         }
 
-        // Attach click handlers
+        // Attach click handlers for +/- point buttons
         body2.onclick = function (e) {
           var btn = e.target.closest('.stat-pts-btn');
           if (!btn) return;
@@ -3470,6 +3471,26 @@
           charCreation.pts[sk] = cur + delta;
           renderStatDistributor();
           syncHiddenStats();
+        };
+
+        // Attach input handler for editable gear column
+        body2.oninput = function (e) {
+          var inp = e.target;
+          if (!inp.classList.contains('stat-gear-input')) return;
+          var sk = inp.dataset.stat;
+          if (!sk) return;
+          var val = parseInt(inp.value, 10);
+          charCreation.gear[sk] = (isNaN(val) || val < 0) ? 0 : val;
+          syncHiddenStats();
+          // Update Final cell in-place to preserve input focus
+          var raceId2 = charCreation.race;
+          var ppRank2 = aaConfig.planarPower || 0;
+          var finalVal2 = getFinalStat(raceId2, sk, charCreation.pts[sk] || 0, charCreation.gear[sk], ppRank2);
+          var row2 = inp.closest('tr');
+          if (row2) {
+            var finalCell = row2.querySelector('.stat-final');
+            if (finalCell) finalCell.textContent = finalVal2;
+          }
         };
       }
 
