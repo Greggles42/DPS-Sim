@@ -1947,6 +1947,10 @@
               <input type="number" id="tank-dex" value="150" min="1" max="400">
             </div>
             <div class="char-field char-field-num">
+              <label for="tank-sta" class="small-label" title="Stamina — used to auto-calculate Total HP">STA</label>
+              <input type="number" id="tank-sta" value="200" min="1" max="400" title="Stamina — affects Total HP calculation">
+            </div>
+            <div class="char-field char-field-num">
               <label for="tank-offense-skill" class="small-label">Offense</label>
               <input type="number" id="tank-offense-skill" value="252" min="0" max="300">
             </div>
@@ -1995,7 +1999,7 @@
          ═══════════════════════════════════════════════════════ -->
     <section class="section--core">
       <h2>Player Equipment</h2>
-      <p class="hint" style="margin:0 0 0.6rem;">Use <strong>Import Inventory</strong> in the tab bar to import your EQ inventory export. Equipped items are shown above the tab panels. AC, STR, DEX, AGI, haste, and worn ATK are auto-filled.</p>
+      <p class="hint" style="margin:0 0 0.6rem;">Use <strong>Import Inventory</strong> in the tab bar to import your EQ inventory export. Equipped items are shown above the tab panels. AC, STR, DEX, AGI, STA, +HP Gear, haste, and worn ATK are auto-filled. Total HP is calculated from class, level, STA, and worn HP.</p>
 
       <!-- Mainhand weapon — mirrors Weapon 1 card layout -->
       <div class="weapon-icon-wrap" id="tank-w1-weapon-icon-wrap" style="display:none"><img id="tank-w1-weapon-icon" class="weapon-icon" src="" alt=""></div>
@@ -2026,6 +2030,10 @@
         <div>
           <label for="tank-worn-haste" class="small-label">Worn Haste %</label>
           <input type="number" id="tank-worn-haste" value="0" min="0" max="100" style="width:5rem;">
+        </div>
+        <div>
+          <label for="tank-worn-hp" class="small-label" title="+HP from gear (auto-filled by Import Inventory)">+HP Gear</label>
+          <input type="number" id="tank-worn-hp" value="0" min="0" style="width:5rem;" title="+HP from worn items — contributes to Total HP">
         </div>
       </div>
     </section>
@@ -3502,9 +3510,13 @@
         var finalStr = getFinalStat(raceId, 'str', charCreation.pts.str, charCreation.gear.str, ppRank);
         var finalDex = getFinalStat(raceId, 'dex', charCreation.pts.dex, charCreation.gear.dex, ppRank);
         var finalAgi = getFinalStat(raceId, 'agi', charCreation.pts.agi, charCreation.gear.agi, ppRank);
+        var finalSta = getFinalStat(raceId, 'sta', charCreation.pts.sta, charCreation.gear.sta, ppRank);
         var strEl = $('str'); if (strEl) strEl.value = finalStr;
         var dexEl = $('dex'); if (dexEl) dexEl.value = finalDex;
         var agiEl = $('agi'); if (agiEl) agiEl.value = finalAgi;
+        // Push final STA to tanking tab so Total HP auto-recalculates
+        var tankStaEl = $('tank-sta'); if (tankStaEl) tankStaEl.value = finalSta;
+        if (typeof window.updateTankHP === 'function') window.updateTankHP();
       }
 
       function initRaceSelector() {
@@ -8694,10 +8706,11 @@
       window.buildAASimOptions = buildAASimOptions;
 
       // Expose gear-stat updater for inventory system (different IIFE scope)
-      window.applyGearStats = function (str, dex, agi) {
+      window.applyGearStats = function (str, dex, agi, sta) {
         charCreation.gear.str = str || 0;
         charCreation.gear.dex = dex || 0;
         charCreation.gear.agi = agi || 0;
+        charCreation.gear.sta = sta || 0;
         renderStatDistributor();
         syncHiddenStats();
       };
@@ -8868,7 +8881,7 @@
     var equippedSlots = parseInventoryTsv(text);
 
     // ---- Aggregate stats across all equipped items ----
-    var totals = { ac: 0, str: 0, dex: 0, agi: 0, hp: 0, atk: 0 };
+    var totals = { ac: 0, str: 0, dex: 0, agi: 0, sta: 0, hp: 0, atk: 0 };
     var hasteItems  = [];   // { name, haste, spellName }
     var atkItems    = [];   // { name, atk, spellName }
     var classMask   = 0x7FFF; // intersection starts at ALL_CLASSES, narrow down
@@ -8896,11 +8909,13 @@
         var str = parseInt(item.astr) || 0;
         var dex = parseInt(item.adex) || 0;
         var agi = parseInt(item.aagi) || 0;
+        var sta = parseInt(item.asta) || 0;
         var hp  = parseInt(item.hp)   || 0;
         totals.ac  += ac;
         totals.str += str;
         totals.dex += dex;
         totals.agi += agi;
+        totals.sta += sta;
         totals.hp  += hp;
 
         // Weapon damage/delay
@@ -9025,12 +9040,15 @@
     if (totals.str) setEl('tank-str',           totals.str);
     if (totals.dex) setEl('tank-dex',           totals.dex);
     if (totals.agi) setEl('tank-player-agi',    totals.agi);
+    if (totals.sta) setEl('tank-sta',           totals.sta);
+    if (totals.hp != null) setEl('tank-worn-hp', totals.hp);
     if (totalHaste) setEl('tank-worn-haste',    totalHaste);
     if (totals.atk) setEl('tank-worn-attack',   totals.atk);
+    updateTankHP();
 
     // --- Worn stats: melee tab (via stat distributor if available) ---
     if (typeof window.applyGearStats === 'function') {
-      window.applyGearStats(totals.str || 0, totals.dex || 0, totals.agi || 0);
+      window.applyGearStats(totals.str || 0, totals.dex || 0, totals.agi || 0, totals.sta || 0);
     } else {
       if (totals.str) setEl('str', totals.str);
       if (totals.dex) setEl('dex', totals.dex);
@@ -9091,7 +9109,7 @@
       // Totals
       summLines.push('<div style="margin-top:0.5rem;padding-top:0.4rem;border-top:1px solid var(--border);display:flex;flex-wrap:wrap;gap:0.25rem 1.5rem;font-size:0.82rem;">');
       summLines.push('<span><strong style="color:var(--text)">Totals:</strong></span>');
-      [['AC', totals.ac],['STR', totals.str],['DEX', totals.dex],['AGI', totals.agi],['HP', totals.hp]].forEach(function(pair) {
+      [['AC', totals.ac],['STR', totals.str],['DEX', totals.dex],['AGI', totals.agi],['STA', totals.sta],['HP', totals.hp]].forEach(function(pair) {
         if (pair[1]) summLines.push('<span style="color:#7eb8c9;">' + pair[0] + ' <strong>' + pair[1] + '</strong></span>');
       });
       summLines.push('</div>');
@@ -9145,6 +9163,56 @@
       fileInput.value = ''; // allow re-loading same file
     });
   }
+
+  // ---- Tank HP auto-calculation ----
+  // HP = class_factor*level + STA_contribution (EQEmu bracket formula) + worn_hp
+  // Natural Durability AA % is applied separately inside tankingEngine.js
+  var TANK_CLASS_HP_FACTOR = {
+    warrior: 22, paladin: 19, shadowknight: 19, ranger: 17,
+    monk: 17, beastlord: 17, rogue: 15, bard: 15, cleric: 15,
+    shaman: 14, druid: 13, necromancer: 11, wizard: 11,
+    magician: 11, enchanter: 11
+  };
+
+  function calcTankHP(classId, level, sta, wornHP) {
+    var factor = TANK_CLASS_HP_FACTOR[classId] || 15;
+    var l = Math.min(Math.max(level | 0, 1), 65);
+    var s = Math.max(sta | 0, 0);
+    // EQEmu STA-to-HP bracket formula: HP/STA ratio increases each 10 levels
+    var staHp = 0;
+    staHp += Math.min(l, 10)        * s / 10;
+    if (l > 10) staHp += (Math.min(l, 20) - 10) * s / 10;
+    if (l > 20) staHp += (Math.min(l, 30) - 20) * s * 2 / 10;
+    if (l > 30) staHp += (Math.min(l, 40) - 30) * s * 2 / 10;
+    if (l > 40) staHp += (Math.min(l, 50) - 40) * s * 3 / 10;
+    if (l > 50) staHp += (Math.min(l, 60) - 50) * s * 4 / 10;
+    if (l > 60) staHp += (Math.min(l, 65) - 60) * s * 5 / 10;
+    return Math.max(1, (factor * l) + Math.floor(staHp) + Math.max(0, wornHP | 0));
+  }
+
+  function updateTankHP() {
+    var classId = ($('tank-class') && $('tank-class').value) || 'warrior';
+    var level   = parseInt(($('tank-level')   && $('tank-level').value)   || '60', 10) || 60;
+    var sta     = parseInt(($('tank-sta')     && $('tank-sta').value)     || '200', 10) || 0;
+    var wornHP  = parseInt(($('tank-worn-hp') && $('tank-worn-hp').value) || '0', 10) || 0;
+    var hp = calcTankHP(classId, level, sta, wornHP);
+    var hpEl = $('tank-player-hp');
+    if (hpEl) hpEl.value = hp;
+  }
+
+  // Wire HP-affecting inputs so Total HP auto-updates
+  ['tank-class', 'tank-level', 'tank-sta', 'tank-worn-hp'].forEach(function (id) {
+    var el = $(id);
+    if (!el) return;
+    el.addEventListener('change', updateTankHP);
+    el.addEventListener('input',  updateTankHP);
+  });
+
+  // Expose for cross-IIFE access (e.g. syncHiddenStats in melee tab)
+  window.updateTankHP = updateTankHP;
+
+  // Initial calculation on page load
+  updateTankHP();
 
   // ---- Simulation click handler ----
   btnRunTanking.addEventListener('click', function () {
