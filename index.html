@@ -446,6 +446,13 @@
     .damage-pie-legend dt:first-child { margin-top: 0; }
     .damage-pie-legend dd { margin-left: 1rem; color: var(--muted); }
     .damage-pie-legend dd.sub { margin-left: 1.25rem; font-size: 0.75rem; }
+    .easy-results-row { display: flex; align-items: center; justify-content: center; gap: 2rem; }
+    .easy-dps-cell { flex: 0 0 auto; min-width: 120px; }
+    .easy-pie-cell { flex: 1 1 auto; }
+    #easy-damage-pie-container { margin-top: 0; }
+    #easy-damage-pie-container .damage-pie-legend { max-width: none; }
+    #easy-damage-pie-container .damage-pie-legend dt { color: #e8d9a0; }
+    #easy-damage-pie-container .damage-pie-legend dd { color: #a89060; }
     .histogram-section { margin-bottom: 1.5rem; }
     .histogram-section h3 { font-size: 0.9rem; color: var(--muted); margin: 0 0 0.5rem; }
     .histogram-chart { display: flex; align-items: flex-end; gap: 2px; height: 120px; min-height: 120px; padding: 0.5rem 0; }
@@ -828,6 +835,7 @@
     .easy-history-table thead th { white-space: normal; line-height: 1.25; }
     .easy-history-table th { color: var(--muted); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.03em; }
     .easy-history-table td.easy-history-dps { color: var(--accent); font-weight: 600; text-align: right; padding-right: 0.35rem; }
+    .fw-tag { display: inline-block; margin-left: 0.3em; font-size: 0.65rem; font-weight: 700; color: #6ee7b7; background: rgba(110,231,183,0.12); border: 1px solid rgba(110,231,183,0.35); border-radius: 3px; padding: 0 0.3em; vertical-align: middle; letter-spacing: 0.04em; }
 
     /* Fantasy shell (Easy + shared) */
     .parchment-bg {
@@ -1095,6 +1103,10 @@
       border: 1px solid rgba(212, 175, 55, 0.18);
       border-radius: 6px;
       background: var(--panel);
+      max-width: 900px;
+    }
+    #shared-inventory-display {
+      max-width: 900px;
     }
     #aa-configurator summary {
       list-style: none;
@@ -1345,9 +1357,15 @@
               <span class="font-fantasy text-lg md:text-xl tracking-[0.3em] text-white">CALCULATE DPS</span>
               <iconify-icon icon="ra:lightning-bolt" class="text-2xl text-[#d4af37]"></iconify-icon>
             </button>
-            <div class="flex flex-col items-center">
-              <span class="text-[10px] text-gray-500 uppercase tracking-widest mb-1">Resulting Output</span>
-              <div id="easy-dps-value" class="easy-dps-value text-4xl md:text-5xl font-fantasy text-[#d4af37]/90 tracking-tighter">—</div>
+            <div class="easy-results-row">
+              <div class="flex flex-col items-center justify-center easy-dps-cell">
+                <span class="text-[10px] text-gray-500 uppercase tracking-widest mb-1">Resulting Output</span>
+                <div id="easy-dps-value" class="easy-dps-value text-4xl md:text-5xl font-fantasy text-[#d4af37]/90 tracking-tighter">—</div>
+              </div>
+              <div id="easy-pie-section" class="hidden easy-pie-cell">
+                <h4 class="text-[10px] text-[#d4af37] font-bold uppercase tracking-widest mb-3 font-fantasy">Damage Breakdown</h4>
+                <div id="easy-damage-pie-container" class="damage-pie-container" aria-hidden="true"></div>
+              </div>
             </div>
           </div>
           <div class="grid grid-cols-1 gap-6 pb-4">
@@ -1369,7 +1387,7 @@
   <div class="tab-bar" style="align-items:center;">
     <button type="button" class="tab-btn active" id="tab-melee" aria-selected="true">Melee</button>
     <button type="button" class="tab-btn" id="tab-ranged" aria-selected="false">Ranged</button>
-    <button type="button" class="tab-btn" id="tab-tanking" aria-selected="false">Tanking</button>
+    <button type="button" class="tab-btn" id="tab-tanking" aria-selected="false" title="Work in Progress — results may be incomplete or inaccurate">Tanking <span style="font-size:0.65em;opacity:0.7;vertical-align:middle;">(WIP)</span></button>
     <label style="margin-left:auto;margin-right:0.5rem;cursor:pointer;display:inline-flex;align-items:center;gap:0.4rem;font-size:0.78rem;font-weight:600;color:var(--muted);padding:0.3rem 0.75rem;border:1px solid var(--border);border-radius:4px;background:rgba(255,255,255,0.04);white-space:nowrap;" title="Import your EQ /outputfile inventory export (.txt) to auto-fill stats across all tabs">
       &#8599; Import Inventory
       <input type="file" id="shared-inventory-file" accept=".txt" style="display:none;">
@@ -1885,6 +1903,10 @@
 
   <div id="tanking-tab" class="tab-panel hidden">
   <div class="tab-content-wrapper">
+  <div style="margin:0.75rem 0 1rem;padding:0.65rem 1rem;background:rgba(251,191,36,0.08);border:1px solid rgba(251,191,36,0.35);border-radius:5px;font-size:0.82rem;color:#fbbf24;display:flex;align-items:center;gap:0.5rem;">
+    <span style="font-size:1rem;">⚠</span>
+    <span><strong>Work in Progress</strong> — The tanking simulator is under active development. Results may be incomplete or inaccurate. Use figures as rough estimates only.</span>
+  </div>
   <div class="grid" style="grid-template-columns:1fr;">
 
     <!-- ═══════════════════════════════════════════════════════
@@ -2163,6 +2185,9 @@
   <section class="advanced-only" style="margin-top: 1rem;">
     <h2>Version log</h2>
     <ul style="font-size: 0.9rem; color: var(--muted); margin: 0; padding-left: 1.25rem;">
+      <li><strong>1.12</strong> — Damage breakdown pie chart added to Easy mode (side-by-side with DPS result). Fistweaving now shows a (FW) tag next to Weapon 2 in simulation history. Default final stats when no inventory is loaded: level 60 → 255 STR/AGI/DEX/STA, all other levels → 150/100/100/100. Tanking tab marked as Work in Progress. Inventory import now applies gear stat bonuses to the stat distributor Gear column and computes Finals from race base + allocated pts + gear. Equipment summary shows stat pills (AC, STR, STA, DEX, AGI, WIS, INT, CHA, HP, Mana, ATK, Regen, FT) and itemised worn ATK breakdown. Fix: inventory summary was silently aborting due to a ReferenceError in updateTankHP ($ not in scope outside the main IIFE). Equipped items and AA configurator cards now match page content width.</li>
+      <li><strong>1.11</strong> — Tank HP auto-calculation from class, level, STA, and worn HP (EQEmu bracket formula). Fix Blasphemous Blade threat classification.</li>
+      <li><strong>1.10</strong> — Tanking weapon card. Proc threat capped per EQMacEmu rules. Return Kick formula corrected. Guide fixes.</li>
       <li><strong>1.09</strong> — Fix inventory import stats on Vercel (items-data.js now committed to git). Gear column in stat distributor is now an editable number input — manually type worn stat bonuses or override values after inventory import. Fix tanking sim button (buildAASimOptions exposed to window scope).</li>
       <li><strong>1.08</strong> — Full AA system with era-gated configurator (Luclin/PoP sections show/hide correctly on era change). New AAs: Double Riposte (War/Pal/Rng/SK/Monk/Rog/Bst), Return Kick (Monk), Ferocity (War/Rng/Monk/Rog), Bestial Frenzy (Beastlord), Harmonious Attack (Bard), Natural Durability, Innate Defense, Lightning Reflexes. Technique of Master Wu dedicated report section. Tanking sim tracks Double Riposte extra hits and Return Kick hits. Default era changed to Luclin. Import Inventory button renamed.</li>
       <li><strong>1.07</strong> — UI overhauled (Easy and Advanced: layout, theming, alignment, and controls). Weapon search system cleaned up and refined (merged offline data, filters, rank/search behavior, and related UX). Added initial threat per second calculations. Enabled PoP weapons in weaponrank via toggle. Rank by TPS enabled in weaponrank via toggle.</li>
@@ -2554,7 +2579,7 @@
       }
 
       // When releasing: 1) Bump VERSION below. 2) Add a new <li> at the top of the Version log section above.
-      const VERSION = '1.09';
+      const VERSION = '1.12';
       const versionEl = $('app-version');
       if (versionEl) versionEl.textContent = 'v' + VERSION;
 
@@ -3401,6 +3426,7 @@
         pts: { str: 0, agi: 0, dex: 0, sta: 0 },
         gear: { str: 0, agi: 0, dex: 0, sta: 0 },
       };
+      window.inventoryLoaded = false;
       var CREATION_POINTS = 25;
 
       function getStatCap(raceId, statKey, ppRank) {
@@ -3478,6 +3504,8 @@
           charCreation.pts[sk] = cur + delta;
           renderStatDistributor();
           syncHiddenStats();
+          var lvl3 = parseInt(($('level') && $('level').value) || '60', 10) || 60;
+          applyDefaultStatsByLevel(lvl3); // no-op if inventory loaded; re-asserts defaults otherwise
         };
 
         // Attach input handler for editable Final column
@@ -3527,6 +3555,8 @@
           charCreation.pts = { str: 0, agi: 0, dex: 0, sta: 0 };
           renderStatDistributor();
           syncHiddenStats();
+          var lvl = parseInt(($('level') && $('level').value) || '60', 10) || 60;
+          applyDefaultStatsByLevel(lvl); // no-op if inventory is loaded; re-asserts defaults otherwise
         });
         // Vah Shir visibility gated by Luclin era
         function updateVahShirOpt() {
@@ -3541,6 +3571,8 @@
               charCreation.pts = { str: 0, agi: 0, dex: 0, sta: 0 };
               renderStatDistributor();
               syncHiddenStats();
+              var lvl2 = parseInt(($('level') && $('level').value) || '60', 10) || 60;
+              applyDefaultStatsByLevel(lvl2); // no-op if inventory loaded
             }
           }
         }
@@ -4164,6 +4196,15 @@
         } else if (pieContainer) {
           pieContainer.innerHTML = '';
         }
+        const easyPieContainer = $('easy-damage-pie-container');
+        const easyPieSection = $('easy-pie-section');
+        if (easyPieContainer && report.weapon1) {
+          renderDamagePieChart(easyPieContainer, report, 195);
+          if (easyPieSection) easyPieSection.classList.remove('hidden');
+        } else if (easyPieContainer) {
+          easyPieContainer.innerHTML = '';
+          if (easyPieSection) easyPieSection.classList.add('hidden');
+        }
 
         const totalAttack = report.displayedAttack != null ? report.displayedAttack : report.offenseRating;
         const weaponDps = report.durationSec > 0 ? (report.totalDamage / report.durationSec) : 0;
@@ -4184,7 +4225,8 @@
           procDps: procDps,
           attack: totalAttack,
           mobAC: targetAC,
-          dps: weaponDps
+          dps: weaponDps,
+          fistweaving: !!report.fistweaving
         });
         if (SIM_HISTORY.length > SIM_HISTORY_MAX) SIM_HISTORY.pop();
         renderSimHistory();
@@ -4263,7 +4305,7 @@
         });
       }
 
-      function renderDamagePieChart(container, report) {
+      function renderDamagePieChart(container, report, size) {
         container.innerHTML = '';
         if (!report || !report.weapon1) return;
         const w1 = report.weapon1;
@@ -4286,7 +4328,7 @@
         const total = segments.reduce(function (s, seg) { return s + seg.value; }, 0);
         if (total <= 0) return;
 
-        const size = 260;
+        size = (size != null && size > 0) ? size : 260;
         const canvas = document.createElement('canvas');
         canvas.width = size;
         canvas.height = size;
@@ -6405,9 +6447,10 @@
         const header = '<div class="sim-history-row sim-history-header"><span class="sim-history-w1">Weapon 1</span><span class="sim-history-w2">Weapon 2</span><span class="sim-history-target">Target</span><span class="sim-history-atk">Attack</span><span class="sim-history-ac">Mob AC</span><span class="sim-history-dps">DPS</span></div>';
         const rows = SIM_HISTORY.map(function (h) {
           var targetDisplay = (h.targetName != null && h.targetName !== '') ? h.targetName : '—';
+          var w2Display = (h.weapon2 || '—').replace(/</g, '&lt;') + (h.fistweaving ? ' <span class="fw-tag">FW</span>' : '');
           return '<div class="sim-history-row">' +
             '<span class="sim-history-w1" title="' + (h.weapon1 || '').replace(/"/g, '&quot;') + '">' + (h.weapon1 || '—').replace(/</g, '&lt;') + '</span>' +
-            '<span class="sim-history-w2" title="' + (h.weapon2 || '').replace(/"/g, '&quot;') + '">' + (h.weapon2 || '—').replace(/</g, '&lt;') + '</span>' +
+            '<span class="sim-history-w2" title="' + (h.weapon2 || '').replace(/"/g, '&quot;') + '">' + w2Display + '</span>' +
             '<span class="sim-history-target" title="' + targetDisplay.replace(/"/g, '&quot;') + '">' + targetDisplay.replace(/</g, '&lt;') + '</span>' +
             '<span class="sim-history-atk">' + (h.attack != null ? h.attack : '—') + '</span>' +
             '<span class="sim-history-ac">' + (h.mobAC != null ? h.mobAC : '—') + '</span>' +
@@ -6580,20 +6623,19 @@
         if (lvl < 1) lvl = 1;
         if (lvl > 60) lvl = 60;
         var wornHaste = 0;
-        var str = 255;
-        var dex = 255;
         if (lvl >= 10 && lvl <= 39) wornHaste = 22;
         else if (lvl >= 40 && lvl <= 59) wornHaste = 34;
         else if (lvl === 60) wornHaste = 41;
-        if (lvl >= 1 && lvl <= 39) { str = 100; dex = 100; }
-        else if (lvl >= 40 && lvl <= 59) { str = 150; dex = 150; }
+        var isMax = (lvl === 60);
         return {
           level: lvl,
           wornHaste: wornHaste,
-          spellHaste: lvl === 60 ? 85 : 0,
-          spellAttack: lvl === 60 ? 150 : 0,
-          str: str,
-          dex: dex
+          spellHaste: isMax ? 85 : 0,
+          spellAttack: isMax ? 150 : 0,
+          str: isMax ? 255 : 150,
+          agi: isMax ? 255 : 100,
+          dex: isMax ? 255 : 100,
+          sta: isMax ? 255 : 100,
         };
       }
       function easyClassHasSpellCastingFury(classId) {
@@ -6673,10 +6715,9 @@
         if (spellHaste) spellHaste.value = String(assumptions.spellHaste);
         var spellAttack = $('spell-attack');
         if (spellAttack) spellAttack.value = String(assumptions.spellAttack);
-        var strEl = $('str');
-        if (strEl) strEl.value = String(assumptions.str);
-        var dexEl = $('dex');
-        if (dexEl) dexEl.value = String(assumptions.dex);
+        if (!window.inventoryLoaded) {
+          applyDefaultStatsByLevel(assumptions.level);
+        }
         var classId = (($('class') && $('class').value) || '').toLowerCase();
         aaConfig.ambidexterity = assumptions.level === 60 ? 1 : 0;
         aaConfig.combatFury = assumptions.level === 60 ? 3 : 0;
@@ -6822,7 +6863,9 @@
           '<th style="text-align:right;">DPS</th>' +
           '</tr></thead><tbody>';
         var rows = SIM_HISTORY.slice(0, 25).map(function (h) {
-          var combo = (h.weaponCombo || ((h.weapon1 || '-') + ' + ' + (h.weapon2 || '-'))).replace(/</g, '&lt;');
+          var comboPlain = (h.weaponCombo || ((h.weapon1 || '-') + ' + ' + (h.weapon2 || '-'))).replace(/</g, '&lt;');
+          var fwTag = h.fistweaving ? '<span class="fw-tag">FW</span>' : '';
+          var comboDisplay = h.fistweaving ? comboPlain + fwTag : comboPlain;
           var level = h.level != null ? h.level : '-';
           var worn = h.wornHaste != null ? (h.wornHaste + '%') : '-';
           var eff = h.effectiveHaste != null ? (Number(h.effectiveHaste).toFixed(1) + '%') : '-';
@@ -6833,7 +6876,7 @@
           var proc = typeof h.procDps === 'number' ? h.procDps.toFixed(2) : '-';
           var dps = (typeof h.dps === 'number') ? h.dps.toFixed(2) : '-';
           return '<tr>' +
-            '<td title="' + combo.replace(/"/g, '&quot;') + '">' + combo + '</td>' +
+            '<td title="' + comboPlain.replace(/"/g, '&quot;') + '">' + comboDisplay + '</td>' +
             '<td>' + level + '</td>' +
             '<td>' + worn + '</td>' +
             '<td>' + eff + '</td>' +
@@ -7292,17 +7335,24 @@
         lastMeleeLevel = parseInt(($('level') && $('level').value) || '60', 10) || 60;
         if (typeof buildAAConfiguratorUI === 'function') buildAAConfiguratorUI();
       });
+      function applyDefaultStatsByLevel(level) {
+        if (window.inventoryLoaded) return;
+        var lvl = parseInt(level, 10) || 60;
+        var str, agi, dex, sta;
+        if (lvl === 60) { str = 255; agi = 255; dex = 255; sta = 255; }
+        else            { str = 150; agi = 100; dex = 100; sta = 100; }
+        var strEl = $('str'); if (strEl) strEl.value = String(str);
+        var dexEl = $('dex'); if (dexEl) dexEl.value = String(dex);
+        var agiEl = $('agi'); if (agiEl) agiEl.value = String(agi);
+        var tankStaEl = $('tank-sta'); if (tankStaEl) tankStaEl.value = String(sta);
+        if (typeof window.updateTankHP === 'function') window.updateTankHP();
+      }
+
       function onMeleeLevelEdited() {
         var newLevel = parseInt(($('level') && $('level').value) || '60', 10) || 60;
         var reduced = newLevel < lastMeleeLevel;
         onClassOrLevelChange({ clampOnly: reduced });
-        var scaled = typeof getEasyAssumptionsByLevel === 'function' ? getEasyAssumptionsByLevel(newLevel) : null;
-        if (scaled) {
-          var strEl = $('str');
-          var dexEl = $('dex');
-          if (strEl) strEl.value = String(scaled.str);
-          if (dexEl) dexEl.value = String(scaled.dex);
-        }
+        applyDefaultStatsByLevel(newLevel);
         lastMeleeLevel = newLevel;
       }
       $('level').addEventListener('change', onMeleeLevelEdited);
@@ -7440,6 +7490,7 @@
       initRaceSelector();
       renderStatDistributor();
       syncHiddenStats();
+      applyDefaultStatsByLevel(parseInt(($('level') && $('level').value) || '60', 10) || 60);
 
       applyWeaponPreset('w1', 'unequipped');
       updateWeaponNameDisplay('w1');
@@ -8831,7 +8882,7 @@
     if (!spells || !spellId) return { haste: 0, atk: 0, spellName: '' };
     var s = spells[spellId] || spells[String(spellId)];
     if (!s) return { haste: 0, atk: 0, spellName: '' };
-    var haste = 0, atk = 0;
+    var haste = 0, atk = 0, regen = 0, ft = 0;
     for (var i = 1; i <= 12; i++) {
       var eid = parseInt(s['effectid' + i]);
       var bv  = parseInt(s['effect_base_value' + i]);
@@ -8841,9 +8892,11 @@
         var h = bv > 101 ? (bv - 100) : ((itemWornLevel || 0) + 1);
         haste = Math.max(haste, h);
       }
-      if (eid === 2 && bv > 0) atk = Math.max(atk, bv);
+      if (eid === 2  && bv > 0) atk   = Math.max(atk,   bv);
+      if (eid === 15 && bv > 0) regen = Math.max(regen,  bv); // HP Regen
+      if (eid === 84 && bv > 0) ft    = Math.max(ft,     bv); // Flowing Thought (mana regen)
     }
-    return { haste: haste, atk: atk, spellName: s.name || '' };
+    return { haste: haste, atk: atk, regen: regen, ft: ft, spellName: s.name || '' };
   }
 
   function lookupItem(id) {
@@ -8878,10 +8931,11 @@
   }
 
   function applyInventory(text) {
+    window.inventoryLoaded = true;
     var equippedSlots = parseInventoryTsv(text);
 
     // ---- Aggregate stats across all equipped items ----
-    var totals = { ac: 0, str: 0, dex: 0, agi: 0, sta: 0, hp: 0, atk: 0 };
+    var totals = { ac: 0, str: 0, dex: 0, agi: 0, sta: 0, wis: 0, int: 0, cha: 0, hp: 0, mana: 0, atk: 0, mr: 0, fr: 0, cr: 0, dr: 0, pr: 0, regen: 0, ft: 0 };
     var hasteItems  = [];   // { name, haste, spellName }
     var atkItems    = [];   // { name, atk, spellName }
     var classMask   = 0x7FFF; // intersection starts at ALL_CLASSES, narrow down
@@ -8905,18 +8959,36 @@
 
       if (item) {
         // Base stats
-        var ac  = parseInt(item.ac)   || 0;
-        var str = parseInt(item.astr) || 0;
-        var dex = parseInt(item.adex) || 0;
-        var agi = parseInt(item.aagi) || 0;
-        var sta = parseInt(item.asta) || 0;
-        var hp  = parseInt(item.hp)   || 0;
-        totals.ac  += ac;
-        totals.str += str;
-        totals.dex += dex;
-        totals.agi += agi;
-        totals.sta += sta;
-        totals.hp  += hp;
+        var ac   = parseInt(item.ac)   || 0;
+        var str  = parseInt(item.astr) || 0;
+        var dex  = parseInt(item.adex) || 0;
+        var agi  = parseInt(item.aagi) || 0;
+        var sta  = parseInt(item.asta) || 0;
+        var wis  = parseInt(item.awis) || 0;
+        var int_ = parseInt(item.aint) || 0;
+        var cha  = parseInt(item.acha) || 0;
+        var hp   = parseInt(item.hp)   || 0;
+        var mana = parseInt(item.mana) || 0;
+        var mr   = parseInt(item.mr)   || 0;
+        var fr   = parseInt(item.fr)   || 0;
+        var cr   = parseInt(item.cr)   || 0;
+        var dr   = parseInt(item.dr)   || 0;
+        var pr   = parseInt(item.pr)   || 0;
+        totals.ac   += ac;
+        totals.str  += str;
+        totals.dex  += dex;
+        totals.agi  += agi;
+        totals.sta  += sta;
+        totals.wis  += wis;
+        totals.int  += int_;
+        totals.cha  += cha;
+        totals.hp   += hp;
+        totals.mana += mana;
+        totals.mr   += mr;
+        totals.fr   += fr;
+        totals.cr   += cr;
+        totals.dr   += dr;
+        totals.pr   += pr;
 
         // Weapon damage/delay
         var dmg = parseInt(item.damage) || 0;
@@ -8934,6 +9006,8 @@
             atkItems.push({ slot: slot, name: entry.name, atk: fx.atk, spellName: fx.spellName });
             totals.atk += fx.atk;
           }
+          if (fx.regen > 0) totals.regen += fx.regen;
+          if (fx.ft    > 0) totals.ft    += fx.ft;
         }
 
         // Class detection — narrow intersection
@@ -8949,6 +9023,7 @@
         if (str) statParts.push('STR ' + str);
         if (dex) statParts.push('DEX ' + dex);
         if (agi) statParts.push('AGI ' + agi);
+        if (sta) statParts.push('STA ' + sta);
         if (hp)  statParts.push('HP ' + hp);
         if (statParts.length) notes.push(statParts.join(' '));
       }
@@ -9106,48 +9181,75 @@
     if (summaryEl) {
       var summLines = [];
 
-      // Totals
-      summLines.push('<div style="margin-top:0.5rem;padding-top:0.4rem;border-top:1px solid var(--border);display:flex;flex-wrap:wrap;gap:0.25rem 1.5rem;font-size:0.82rem;">');
-      summLines.push('<span><strong style="color:var(--text)">Totals:</strong></span>');
-      [['AC', totals.ac],['STR', totals.str],['DEX', totals.dex],['AGI', totals.agi],['STA', totals.sta],['HP', totals.hp]].forEach(function(pair) {
-        if (pair[1]) summLines.push('<span style="color:#7eb8c9;">' + pair[0] + ' <strong>' + pair[1] + '</strong></span>');
-      });
+      // Stat totals grid — always show all six stats
+      var statPairsMain = [
+        ['AC',   totals.ac],
+        ['STR',  totals.str],
+        ['STA',  totals.sta],
+        ['DEX',  totals.dex],
+        ['AGI',  totals.agi],
+        ['WIS',  totals.wis],
+        ['INT',  totals.int],
+        ['CHA',  totals.cha],
+        ['HP',   totals.hp],
+        ['Mana', totals.mana],
+      ];
+      var statPairsEffect = [
+        ['ATK',   totals.atk],
+        ['Regen', totals.regen],
+        ['FT',    totals.ft],
+      ];
+      function renderPill(pair) {
+        var val = pair[1] || 0;
+        var color = val > 0 ? '#7eb8c9' : 'var(--muted)';
+        return '<span style="display:inline-flex;flex-direction:column;align-items:center;min-width:2.6rem;' +
+          'background:var(--input-bg);border:1px solid var(--border);border-radius:3px;padding:0.15rem 0.4rem;">' +
+          '<span style="font-size:0.65rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.04em;">' + pair[0] + '</span>' +
+          '<strong style="color:' + color + ';">' + val + '</strong>' +
+          '</span>';
+      }
+      summLines.push('<div style="margin-top:0.6rem;padding-top:0.5rem;border-top:1px solid var(--border);">');
+      summLines.push('<div style="display:flex;flex-wrap:wrap;gap:0.3rem 0.75rem;font-size:0.8rem;">');
+      statPairsMain.forEach(function(pair) { summLines.push(renderPill(pair)); });
+      summLines.push('</div>');
+      summLines.push('<div style="display:flex;flex-wrap:wrap;gap:0.3rem 0.75rem;font-size:0.8rem;margin-top:0.3rem;">');
+      statPairsEffect.forEach(function(pair) { summLines.push(renderPill(pair)); });
       summLines.push('</div>');
 
-      // Haste analysis
+      // Haste
       if (hasteItems.length > 0) {
-        summLines.push('<div style="margin-top:0.4rem;font-size:0.82rem;">');
+        summLines.push('<div style="margin-top:0.4rem;font-size:0.8rem;color:var(--muted);">');
         summLines.push('<strong style="color:#d4af37;">Worn Haste:</strong> ');
         summLines.push('<span style="color:#7eb8c9;">' + totalHaste + '%</span>');
-        summLines.push(' <span style="color:#666;">(highest: <em>' + topHaste.name + '</em> ' + topHaste.haste + '% via ' + topHaste.spellName + ')</span>');
+        summLines.push(' <span>(highest: <em>' + topHaste.name + '</em> ' + topHaste.haste + '% via ' + topHaste.spellName + ')</span>');
         if (hasteItems.length > 1) {
-          summLines.push(' &mdash; <span style="color:#888;font-size:0.75rem;">Note: worn haste does not stack; only the highest item applies.</span>');
+          summLines.push(' &mdash; <span style="font-size:0.72rem;">Worn haste does not stack; only the highest applies.</span>');
         }
         summLines.push('</div>');
       }
 
       // ATK worn effects
       if (atkItems.length > 0) {
-        atkItems.sort(function(a,b){return b.atk-a.atk;});
-        summLines.push('<div style="margin-top:0.4rem;font-size:0.82rem;">');
-        summLines.push('<strong style="color:#d4af37;">Worn ATK effects:</strong> ');
-        summLines.push('<span style="color:#7eb8c9;">' + totals.atk + ' total ATK</span>');
-        summLines.push(' &mdash; ');
-        summLines.push(atkItems.map(function(it){
-          return '<span style="color:#888;">' + it.name + ' <em>(+' + it.atk + ' ' + it.spellName + ')</em></span>';
+        atkItems.sort(function(a, b) { return b.atk - a.atk; });
+        summLines.push('<div style="margin-top:0.4rem;font-size:0.8rem;color:var(--muted);">');
+        summLines.push('<strong style="color:#d4af37;">Worn ATK:</strong> ');
+        summLines.push('<span style="color:#7eb8c9;">' + totals.atk + ' total</span> &mdash; ');
+        summLines.push(atkItems.map(function(it) {
+          return '<span>' + it.name + ' <em style="color:#7eb8c9;">(+' + it.atk + ' via ' + it.spellName + ')</em></span>';
         }).join(', '));
         summLines.push('</div>');
       }
 
       // Detected class
       if (detectedClassName) {
-        summLines.push('<div style="margin-top:0.4rem;font-size:0.82rem;">');
+        summLines.push('<div style="margin-top:0.35rem;font-size:0.8rem;color:var(--muted);">');
         summLines.push('<strong style="color:#d4af37;">Detected class:</strong> ');
         summLines.push('<span style="color:#7eb8c9;">' + detectedClassName + '</span>');
-        summLines.push(' <span style="color:#666;">(auto-filled from class-restricted items)</span>');
+        summLines.push(' <span>(auto-filled from class-restricted items)</span>');
         summLines.push('</div>');
       }
 
+      summLines.push('</div>');
       summaryEl.innerHTML = summLines.join('');
     }
   }
@@ -9191,18 +9293,19 @@
   }
 
   function updateTankHP() {
-    var classId = ($('tank-class') && $('tank-class').value) || 'warrior';
-    var level   = parseInt(($('tank-level')   && $('tank-level').value)   || '60', 10) || 60;
-    var sta     = parseInt(($('tank-sta')     && $('tank-sta').value)     || '200', 10) || 0;
-    var wornHP  = parseInt(($('tank-worn-hp') && $('tank-worn-hp').value) || '0', 10) || 0;
+    var gel = function(id) { return document.getElementById(id); };
+    var classId = (gel('tank-class') && gel('tank-class').value) || 'warrior';
+    var level   = parseInt((gel('tank-level')   && gel('tank-level').value)   || '60', 10) || 60;
+    var sta     = parseInt((gel('tank-sta')     && gel('tank-sta').value)     || '200', 10) || 0;
+    var wornHP  = parseInt((gel('tank-worn-hp') && gel('tank-worn-hp').value) || '0', 10) || 0;
     var hp = calcTankHP(classId, level, sta, wornHP);
-    var hpEl = $('tank-player-hp');
+    var hpEl = gel('tank-player-hp');
     if (hpEl) hpEl.value = hp;
   }
 
   // Wire HP-affecting inputs so Total HP auto-updates
   ['tank-class', 'tank-level', 'tank-sta', 'tank-worn-hp'].forEach(function (id) {
-    var el = $(id);
+    var el = document.getElementById(id);
     if (!el) return;
     el.addEventListener('change', updateTankHP);
     el.addEventListener('input',  updateTankHP);
