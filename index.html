@@ -545,17 +545,13 @@
       vertical-align: 0.04em;
     }
     #sim-history-list { max-height: 340px; overflow-y: auto; font-size: 0.85rem; }
-    .sim-history-counts { font-size: 0.75rem; color: var(--muted); margin-bottom: 0.4rem; display: flex; gap: 1rem; }
-    .sim-history-counts strong { color: var(--text); }
-    .sim-history-row { display: grid; grid-template-columns: 1fr 1fr minmax(0, 1fr) auto auto auto auto auto; gap: 0.5rem 0.75rem; align-items: center; padding: 0.5rem 0; border-bottom: 1px solid var(--border); }
+    .sim-history-row { display: grid; grid-template-columns: 1fr 1fr minmax(0, 1fr) auto auto auto; gap: 0.5rem 0.75rem; align-items: center; padding: 0.5rem 0; border-bottom: 1px solid var(--border); }
     .sim-history-row:last-child { border-bottom: none; }
     .sim-history-header { font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); padding-bottom: 0.35rem; border-bottom: 1px solid var(--border); margin-bottom: 0.25rem; }
     .sim-history-row .sim-history-w1, .sim-history-row .sim-history-w2, .sim-history-row .sim-history-target { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .sim-history-row .sim-history-atk, .sim-history-row .sim-history-ac, .sim-history-row .sim-history-dps, .sim-history-row .sim-history-era, .sim-history-row .sim-history-mode { text-align: right; white-space: nowrap; }
+    .sim-history-row .sim-history-atk, .sim-history-row .sim-history-ac, .sim-history-row .sim-history-dps { text-align: right; white-space: nowrap; }
     .sim-history-row .sim-history-dps { font-weight: 600; color: var(--accent); }
-    .sim-mode-badge { display: inline-block; font-size: 0.65rem; font-weight: 700; padding: 0 0.3em; border-radius: 3px; vertical-align: middle; letter-spacing: 0.03em; }
-    .sim-mode-badge.mode-easy { color: #6ee7b7; background: rgba(110,231,183,0.12); border: 1px solid rgba(110,231,183,0.35); }
-    .sim-mode-badge.mode-advanced { color: var(--accent); background: rgba(212,175,55,0.1); border: 1px solid rgba(212,175,55,0.3); }
+    #easy-result-log-list .sim-history-row, #easy-result-log-list .sim-history-header { font-family: 'Zodiak', Georgia, serif; font-size: 0.8rem; }
     .sim-history-clear-btn { margin-top: 0.5rem; padding: 0.4rem 0.75rem; font-size: 0.85rem; background: var(--input-bg); color: var(--muted); border: 1px solid var(--border); border-radius: 4px; cursor: pointer; }
     .sim-history-clear-btn:hover { color: var(--text); border-color: var(--accent); }
 
@@ -1342,7 +1338,7 @@
       </aside>
       <section class="flex-1 min-h-0 overflow-y-auto scrollbar-fantasy p-4 md:p-8 bg-[radial-gradient(circle_at_center,_#1a1a22_0%,_#0a0a0c_100%)]">
         <div class="max-w-[min(100%,110rem)] mx-auto w-full space-y-8 px-0">
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
             <div class="ornate-border parchment-bg p-6 space-y-6 shadow-2xl">
               <h3 class="font-fantasy text-sm text-[#d4af37] border-b border-[#d4af37]/20 pb-2 mb-2 tracking-widest">CHARACTER &amp; FIGHT</h3>
               <div class="space-y-4">
@@ -1419,32 +1415,30 @@
                 </div>
               </div>
             </div>
-          </div>
-          <div class="flex flex-col items-center gap-6 py-2">
-            <button type="button" id="btn-run-easy" class="magic-btn px-12 md:px-16 py-4 rounded-sm flex items-center justify-center gap-4 group w-full max-w-md">
-              <span class="font-fantasy text-lg md:text-xl tracking-[0.3em] text-white">CALCULATE DPS</span>
-              <iconify-icon icon="ra:lightning-bolt" class="text-2xl text-[#d4af37]"></iconify-icon>
-            </button>
-            <div class="easy-results-row">
-              <div class="flex flex-col items-center justify-center easy-dps-cell">
-                <span class="text-[10px] text-gray-500 uppercase tracking-widest mb-1">Resulting Output</span>
-                <div id="easy-dps-value" class="easy-dps-value text-4xl md:text-5xl font-fantasy text-[#d4af37]/90 tracking-tighter">—</div>
+            <div class="md:col-span-2 flex flex-col items-center gap-6 py-2">
+              <button type="button" id="btn-run-easy" class="magic-btn px-12 md:px-16 py-4 rounded-sm flex items-center justify-center gap-4 group w-full max-w-md">
+                <span class="font-fantasy text-lg md:text-xl tracking-[0.3em] text-white">CALCULATE DPS</span>
+                <iconify-icon icon="ra:lightning-bolt" class="text-2xl text-[#d4af37]"></iconify-icon>
+              </button>
+              <div class="easy-results-row">
+                <div class="flex flex-col items-center justify-center easy-dps-cell">
+                  <span class="text-[10px] text-gray-500 uppercase tracking-widest mb-1">Resulting Output</span>
+                  <div id="easy-dps-value" class="easy-dps-value text-4xl md:text-5xl font-fantasy text-[#d4af37]/90 tracking-tighter">—</div>
+                </div>
+                <div id="easy-pie-section" class="hidden easy-pie-cell">
+                  <h4 class="text-[10px] text-[#d4af37] font-bold uppercase tracking-widest mb-3 font-fantasy">Damage Breakdown</h4>
+                  <div id="easy-damage-pie-container" class="damage-pie-container" aria-hidden="true"></div>
+                </div>
               </div>
-              <div id="easy-pie-section" class="hidden easy-pie-cell">
-                <h4 class="text-[10px] text-[#d4af37] font-bold uppercase tracking-widest mb-3 font-fantasy">Damage Breakdown</h4>
-                <div id="easy-damage-pie-container" class="damage-pie-container" aria-hidden="true"></div>
-              </div>
             </div>
           </div>
-          <div class="grid grid-cols-1 gap-6 pb-4">
-            <div class="ornate-border bg-black/40 p-6 flex flex-col easy-history-wrap">
-              <h4 class="text-[10px] text-gray-500 font-bold uppercase tracking-widest mb-4">Session History</h4>
-              <div id="easy-result-log-list" class="flex-1 overflow-auto scrollbar-fantasy"></div>
-            </div>
-            <div class="ornate-border bg-black/20 p-6 easy-assumptions-wrap">
-              <h4 class="text-[10px] text-[#d4af37] font-bold uppercase tracking-widest mb-4 font-fantasy">Simulation Assumptions</h4>
-              <textarea id="easy-assumptions" placeholder="Configured assumptions will appear here." class="w-full min-h-[200px] resize-y bg-[#0a0a0c]/80 border border-white/10 text-gray-300 rounded p-3 focus:border-[#d4af37] outline-none"></textarea>
-            </div>
+          <div class="ornate-border bg-black/40 p-6 easy-history-wrap">
+            <h4 class="text-[10px] text-gray-500 font-bold uppercase tracking-widest mb-4">Session History</h4>
+            <div id="easy-result-log-list" class="overflow-auto scrollbar-fantasy" style="max-height:380px;"></div>
+          </div>
+          <div class="ornate-border bg-black/20 p-6 easy-assumptions-wrap">
+            <h4 class="text-[10px] text-[#d4af37] font-bold uppercase tracking-widest mb-4 font-fantasy">Simulation Assumptions</h4>
+            <textarea id="easy-assumptions" placeholder="Configured assumptions will appear here." class="w-full min-h-[200px] resize-y bg-[#0a0a0c]/80 border border-white/10 text-gray-300 rounded p-3 focus:border-[#d4af37] outline-none"></textarea>
           </div>
         </div>
       </section>
@@ -6815,16 +6809,10 @@
           listEl.innerHTML = '<p class="hint" style="margin: 0;">No runs yet this session.</p>';
           return;
         }
-        var easyCount = 0, advCount = 0;
-        SIM_HISTORY.forEach(function (h) { if (h.mode === 'advanced') advCount++; else easyCount++; });
-        var countLine = '<div class="sim-history-counts"><span>Easy: <strong>' + easyCount + '</strong></span><span>Advanced: <strong>' + advCount + '</strong></span><span>Total: <strong>' + SIM_HISTORY.length + '</strong></span></div>';
-        const header = '<div class="sim-history-row sim-history-header"><span class="sim-history-w1">Weapon 1</span><span class="sim-history-w2">Weapon 2</span><span class="sim-history-target">Target</span><span class="sim-history-atk">Attack</span><span class="sim-history-ac">Mob AC</span><span class="sim-history-dps">DPS</span><span class="sim-history-era">Era</span><span class="sim-history-mode">Mode</span></div>';
+        const header = '<div class="sim-history-row sim-history-header"><span class="sim-history-w1">Weapon 1</span><span class="sim-history-w2">Weapon 2</span><span class="sim-history-target">Target</span><span class="sim-history-atk">Attack</span><span class="sim-history-ac">Mob AC</span><span class="sim-history-dps">DPS</span></div>';
         const rows = SIM_HISTORY.map(function (h) {
           var targetDisplay = (h.targetName != null && h.targetName !== '') ? h.targetName : '—';
           var w2Display = (h.weapon2 || '—').replace(/</g, '&lt;') + (h.fistweaving ? ' <span class="fw-tag">FW</span>' : '');
-          var eraLabel = ERA_LABELS[h.era] || h.era || '—';
-          var modeClass = h.mode === 'advanced' ? 'mode-advanced' : 'mode-easy';
-          var modeLabel = h.mode === 'advanced' ? 'Adv' : 'Easy';
           return '<div class="sim-history-row">' +
             '<span class="sim-history-w1" title="' + (h.weapon1 || '').replace(/"/g, '&quot;') + '">' + (h.weapon1 || '—').replace(/</g, '&lt;') + '</span>' +
             '<span class="sim-history-w2" title="' + (h.weapon2 || '').replace(/"/g, '&quot;') + '">' + w2Display + '</span>' +
@@ -6832,11 +6820,9 @@
             '<span class="sim-history-atk">' + (h.attack != null ? h.attack : '—') + '</span>' +
             '<span class="sim-history-ac">' + (h.mobAC != null ? h.mobAC : '—') + '</span>' +
             '<span class="sim-history-dps">' + (typeof h.dps === 'number' ? h.dps.toFixed(2) : '—') + '</span>' +
-            '<span class="sim-history-era">' + eraLabel + '</span>' +
-            '<span class="sim-history-mode"><span class="sim-mode-badge ' + modeClass + '">' + modeLabel + '</span></span>' +
             '</div>';
         }).join('');
-        listEl.innerHTML = countLine + header + rows;
+        listEl.innerHTML = header + rows;
       }
 
       const clearHistoryBtn = $('sim-history-clear');
@@ -9189,6 +9175,12 @@
       window.buildAAConfiguratorUI = buildAAConfiguratorUI;
       window.buildAASimOptions = buildAASimOptions;
 
+      // Expose weapon name setter for inventory import (different scope)
+      window.setInventoryWeaponNames = function (w1Name, w2Name) {
+        if (w1Name != null) { w1DisplayName = w1Name; w1FromItemSearch = true; }
+        if (w2Name != null) { w2DisplayName = w2Name; w2FromItemSearch = true; }
+      };
+
       // Expose gear-stat updater for inventory system (different IIFE scope)
       window.applyGearStats = function (str, dex, agi, sta) {
         charCreation.gear.str = str || 0;
@@ -9591,6 +9583,13 @@
         // Proc fields
         applyItemProcFields('w2', sItem);
       }
+    }
+
+    // --- Weapon display names for sim history ---
+    if (typeof window.setInventoryWeaponNames === 'function') {
+      var invW1Name = (primary && primary.name) ? primary.name : null;
+      var invW2Name = (secondary && secondary.name) ? secondary.name : null;
+      window.setInventoryWeaponNames(invW1Name, invW2Name);
     }
 
     // --- Worn stats: tanking tab ---
