@@ -4,11 +4,10 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>gSim for Project Quarm</title>
-  <script>
-    tailwind.config = { corePlugins: { preflight: false } };
-  </script>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://code.iconify.design/iconify-icon/1.0.7/iconify-icon.min.js"></script>
+  <link rel="preconnect" href="https://api.fontshare.com" crossorigin>
+  <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="tailwind.css" rel="stylesheet">
   <link href="https://api.fontshare.com/v2/css?f[]=zodiak@400,700&amp;f[]=satoshi@400,500,700&amp;display=swap" rel="stylesheet">
   <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&amp;display=swap" rel="stylesheet">
   <style>
@@ -236,7 +235,13 @@
       grid-template-columns: max-content minmax(3.5rem, max-content);
     }
     .char-primary-grid--hasteatk {
-      grid-template-columns: repeat(2, minmax(3.5rem, max-content)) repeat(2, minmax(5rem, max-content));
+      grid-template-columns: repeat(3, minmax(5.5rem, max-content)) repeat(2, minmax(5rem, max-content));
+    }
+    .char-primary-grid--hasteatk > *:nth-child(4),
+    .char-primary-grid--hasteatk > *:nth-child(5),
+    .char-primary-grid--hasteatk > *:nth-child(9),
+    .char-primary-grid--hasteatk > *:nth-child(10) {
+      margin-left: 1rem;
     }
     .char-primary-grid--ranged {
       grid-template-columns: max-content repeat(6, minmax(3.5rem, max-content));
@@ -542,13 +547,18 @@
       font-size: 0.82em;
       vertical-align: 0.04em;
     }
-    #sim-history-list { max-height: 320px; overflow-y: auto; font-size: 0.85rem; }
-    .sim-history-row { display: grid; grid-template-columns: 1fr 1fr minmax(0, 1fr) auto auto auto; gap: 0.5rem 0.75rem; align-items: center; padding: 0.5rem 0; border-bottom: 1px solid var(--border); }
+    #sim-history-list { max-height: 340px; overflow-y: auto; font-size: 0.85rem; }
+    .sim-history-counts { font-size: 0.75rem; color: var(--muted); margin-bottom: 0.4rem; display: flex; gap: 1rem; }
+    .sim-history-counts strong { color: var(--text); }
+    .sim-history-row { display: grid; grid-template-columns: 1fr 1fr minmax(0, 1fr) auto auto auto auto auto; gap: 0.5rem 0.75rem; align-items: center; padding: 0.5rem 0; border-bottom: 1px solid var(--border); }
     .sim-history-row:last-child { border-bottom: none; }
     .sim-history-header { font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); padding-bottom: 0.35rem; border-bottom: 1px solid var(--border); margin-bottom: 0.25rem; }
     .sim-history-row .sim-history-w1, .sim-history-row .sim-history-w2, .sim-history-row .sim-history-target { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .sim-history-row .sim-history-atk, .sim-history-row .sim-history-ac, .sim-history-row .sim-history-dps { text-align: right; white-space: nowrap; }
+    .sim-history-row .sim-history-atk, .sim-history-row .sim-history-ac, .sim-history-row .sim-history-dps, .sim-history-row .sim-history-era, .sim-history-row .sim-history-mode { text-align: right; white-space: nowrap; }
     .sim-history-row .sim-history-dps { font-weight: 600; color: var(--accent); }
+    .sim-mode-badge { display: inline-block; font-size: 0.65rem; font-weight: 700; padding: 0 0.3em; border-radius: 3px; vertical-align: middle; letter-spacing: 0.03em; }
+    .sim-mode-badge.mode-easy { color: #6ee7b7; background: rgba(110,231,183,0.12); border: 1px solid rgba(110,231,183,0.35); }
+    .sim-mode-badge.mode-advanced { color: var(--accent); background: rgba(212,175,55,0.1); border: 1px solid rgba(212,175,55,0.3); }
     .sim-history-clear-btn { margin-top: 0.5rem; padding: 0.4rem 0.75rem; font-size: 0.85rem; background: var(--input-bg); color: var(--muted); border: 1px solid var(--border); border-radius: 4px; cursor: pointer; }
     .sim-history-clear-btn:hover { color: var(--text); border-color: var(--accent); }
 
@@ -827,14 +837,12 @@
     }
     .easy-assumptions-wrap h3, .easy-assumptions-wrap h4, .easy-history-wrap h3, .easy-history-wrap h4 { margin: 0 0 0.5rem; font-size: 0.85rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
     #easy-assumptions { width: 100%; min-height: 200px; resize: vertical; background: var(--input-bg); border: 1px solid var(--border); color: var(--text); border-radius: 4px; padding: 0.55rem 0.8rem; font-family: inherit; font-size: 0.88rem; }
-    .easy-history-table-wrap { max-height: 320px; overflow-x: auto; overflow-y: auto; padding-right: 0.45rem; }
-    .easy-history-table { width: 100%; min-width: 0; table-layout: fixed; border-collapse: collapse; font-size: 0.78rem; }
-    .easy-history-table th, .easy-history-table td { border-bottom: 1px solid var(--border); padding: 0.28rem 0.35rem; text-align: left; vertical-align: top; }
-    .easy-history-table th:first-child, .easy-history-table td:first-child { width: 26%; white-space: normal; word-break: break-word; }
-    .easy-history-table th:not(:first-child), .easy-history-table td:not(:first-child) { white-space: nowrap; }
-    .easy-history-table thead th { white-space: normal; line-height: 1.25; }
-    .easy-history-table th { color: var(--muted); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.03em; }
-    .easy-history-table td.easy-history-dps { color: var(--accent); font-weight: 600; text-align: right; padding-right: 0.35rem; }
+    .easy-history-table-wrap { overflow-x: auto; overflow-y: auto; max-height: 380px; width: 100%; }
+    .easy-history-table { table-layout: auto; border-collapse: collapse; font-size: 0.78rem; white-space: nowrap; }
+    .easy-history-table th, .easy-history-table td { border-bottom: 1px solid var(--border); padding: 0.28rem 0.5rem; text-align: left; vertical-align: middle; }
+    .easy-history-table th:first-child, .easy-history-table td:first-child { white-space: normal; min-width: 10rem; max-width: 18rem; word-break: break-word; }
+    .easy-history-table th { color: var(--muted); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.03em; white-space: nowrap; }
+    .easy-history-table td.easy-history-dps { color: var(--accent); font-weight: 600; text-align: right; }
     .fw-tag { display: inline-block; margin-left: 0.3em; font-size: 0.65rem; font-weight: 700; color: #6ee7b7; background: rgba(110,231,183,0.12); border: 1px solid rgba(110,231,183,0.35); border-radius: 3px; padding: 0 0.3em; vertical-align: middle; letter-spacing: 0.04em; }
 
     /* Fantasy shell (Easy + shared) */
@@ -1198,6 +1206,11 @@
     .stat-dist-table td.stat-gear { color: var(--color-gold); font-weight: 600; }
     .stat-final-input { width: 4rem; text-align: right; background: transparent; border: 1px solid var(--border); color: var(--color-gold); font-weight: 700; font-size: 0.72rem; padding: 0.1rem 0.15rem; }
     .stat-final-input:focus { outline: 1px solid var(--color-gold); border-color: var(--color-gold); }
+    .stat-th-buffed { display: none; color: var(--accent); }
+    .stat-dist-table.has-stat-buffs .stat-th-buffed { display: table-cell; }
+    .stat-buffed-cell { display: none; color: var(--accent); font-weight: 700; padding: 0.1rem 0.4rem; text-align: right; }
+    .stat-dist-table.has-stat-buffs .stat-buffed-cell { display: table-cell; }
+    .char-effective-stats { margin-top: 0.5rem; border: 1px solid var(--border); }
     .stat-pts-ctrl { display: flex; align-items: center; gap: 2px; }
     .stat-pts-btn {
       width: 1.2rem; height: 1.2rem;
@@ -1218,6 +1231,64 @@
       margin-top: 0.25rem;
     }
     #stat-pts-remaining.pts-warn { color: #e07; }
+
+    /* ── Char + Buff side-by-side row ────────────────────────────── */
+    .char-buff-pair {
+      display: flex;
+      gap: var(--section-gap);
+      align-items: flex-start;
+    }
+    .char-buff-pair > section { flex: 1 1 0; min-width: 0; }
+
+    /* ── Buff Panel ───────────────────────────────────────────────── */
+    .buff-panel { margin-top: 0.5rem; }
+    .buff-panel summary { cursor: pointer; font-size: 0.85rem; color: var(--accent); user-select: none; }
+    .buff-panel summary:hover { color: var(--gold, #d4af37); }
+    .buff-columns {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 0.75rem 1rem;
+      margin-top: 0.6rem;
+    }
+    .buff-col-header {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--muted);
+      border-bottom: 1px solid var(--border, #444);
+      margin-bottom: 0.3rem;
+      padding-bottom: 0.15rem;
+    }
+    .buff-item {
+      display: flex;
+      align-items: baseline;
+      gap: 0.35rem;
+      margin-bottom: 0.2rem;
+      font-size: 0.78rem;
+    }
+    .buff-item input[type="checkbox"] { flex-shrink: 0; margin: 0; accent-color: var(--accent); }
+    .buff-item label { cursor: pointer; line-height: 1.3; }
+    .buff-item label .buff-source {
+      font-size: 0.65rem;
+      color: var(--muted);
+      margin-left: 0.2rem;
+    }
+    .buff-item.dominated label { opacity: 0.45; text-decoration: line-through; }
+    .buff-totals {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem 1rem;
+      margin-top: 0.75rem;
+      padding: 0.4rem 0.6rem;
+      background: rgba(255,255,255,0.04);
+      border-radius: 4px;
+      font-size: 0.78rem;
+    }
+    .buff-totals span { white-space: nowrap; }
+    .buff-totals .bt-label { color: var(--muted); }
+    .buff-totals .bt-val  { color: var(--accent); font-weight: 600; }
+    .buff-totals .bt-zero { color: var(--muted); opacity: 0.5; }
+    .buff-totals .bt-separator { width: 1px; height: 0.9em; background: var(--border); display: inline-block; margin: 0 0.15rem; vertical-align: middle; }
 
   </style>
 </head>
@@ -1369,13 +1440,13 @@
             </div>
           </div>
           <div class="grid grid-cols-1 gap-6 pb-4">
+            <div class="ornate-border bg-black/40 p-6 flex flex-col easy-history-wrap">
+              <h4 class="text-[10px] text-gray-500 font-bold uppercase tracking-widest mb-4">Session History</h4>
+              <div id="easy-result-log-list" class="flex-1 overflow-auto scrollbar-fantasy"></div>
+            </div>
             <div class="ornate-border bg-black/20 p-6 easy-assumptions-wrap">
               <h4 class="text-[10px] text-[#d4af37] font-bold uppercase tracking-widest mb-4 font-fantasy">Simulation Assumptions</h4>
               <textarea id="easy-assumptions" placeholder="Configured assumptions will appear here." class="w-full min-h-[200px] resize-y bg-[#0a0a0c]/80 border border-white/10 text-gray-300 rounded p-3 focus:border-[#d4af37] outline-none"></textarea>
-            </div>
-            <div class="ornate-border bg-black/40 p-6 flex flex-col easy-history-wrap min-h-[260px]">
-              <h4 class="text-[10px] text-gray-500 font-bold uppercase tracking-widest mb-4">Session History</h4>
-              <div id="easy-result-log-list" class="flex-1 min-h-[220px] overflow-auto scrollbar-fantasy"></div>
             </div>
           </div>
         </div>
@@ -1414,7 +1485,8 @@
   <div class="tab-content-wrapper">
   <div id="melee-tab" class="tab-panel">
   <div class="grid">
-    <section class="section--core grid-full-width char-haste-section" id="character-haste-section">
+    <div class="grid-full-width char-buff-pair">
+    <section class="section--core char-haste-section" id="character-haste-section">
       <div class="char-haste-inner">
         <div class="char-haste-left">
       <h2>Character & Haste</h2>
@@ -1469,7 +1541,7 @@
         <div class="char-field">
           <table class="stat-dist-table">
             <thead><tr>
-              <th>Stat</th><th>Base</th><th title="Creation points">+Pts</th><th title="Stat bonus from worn gear (set by Import Inventory)">Gear</th><th title="Final stat — type to override">Final</th>
+              <th>Stat</th><th>Base</th><th title="Creation points">+Pts</th><th title="Stat bonus from worn gear (set by Import Inventory)">Gear</th><th title="Final stat — type to override">Final</th><th class="stat-th-buffed" title="Final stat + active buff bonuses">Buffed</th>
             </tr></thead>
             <tbody id="stat-dist-body">
               <!-- rows injected by renderStatDistributor() -->
@@ -1485,14 +1557,27 @@
 
       <!-- Haste / ATK — below stats -->
       <div class="char-primary-row char-primary-grid char-primary-grid--hasteatk">
-        <label for="worn-haste">Worn haste % <span class="info-icon" title="Item haste; capped to 10% at level 1-25, uncapped at level 26+">&#8505;</span></label>
-        <label for="spell-haste">Spell haste % <span class="info-icon" title="(60% Haste + 25% v3 bard haste)">&#8505;</span></label>
+        <label for="worn-haste">Worn haste % <span class="info-icon" title="Item haste (SPA 11 from gear); capped to 10% at level 1-25. Stacks with V1 spell haste up to 100% combined.">&#8505;</span></label>
+        <label for="spell-haste">V1 Haste % <span class="info-icon" title="V1 spell haste (SPA 11 from spells/buffs). Worn + V1 combined cannot exceed 100%. V3 bard haste (capped at 25%) adds on top.">&#8505;</span></label>
+        <label for="v3-haste">V3 Haste % <span class="info-icon" title="Bard V3 haste (SPA 119, e.g. Warsong of the Vah Shir). Hard cap: 25%. Auto-filled by bard song buffs; can be overridden manually.">&#8505;</span></label>
         <label for="worn-attack">Worn ATK <span class="info-icon" title="don't include atk from weapon, it will automatically be included">&#8505;</span></label>
         <label for="spell-attack">Spell ATK</label>
         <input type="number" id="worn-haste" min="0" max="999" value="41" placeholder="41" size="3" inputmode="numeric" autocomplete="off">
-        <input type="number" id="spell-haste" min="0" max="999" value="85" placeholder="85" size="3" inputmode="numeric" autocomplete="off">
+        <input type="number" id="spell-haste" min="0" max="999" value="60" placeholder="60" size="3" inputmode="numeric" autocomplete="off">
+        <input type="number" id="v3-haste" min="0" max="25" value="0" placeholder="0" size="3" inputmode="numeric" autocomplete="off">
         <input type="number" id="worn-attack" min="0" max="999" value="0" placeholder="0" size="5" inputmode="numeric" autocomplete="off">
         <input type="number" id="spell-attack" min="0" max="999" value="0" placeholder="0" size="5" inputmode="numeric" autocomplete="off">
+      </div>
+      <div class="buff-totals char-effective-stats" id="char-effective-stats" style="display:none">
+        <span class="bt-label">Net haste:</span>
+        <span title="Worn haste from items"><span class="bt-label">Worn </span><span class="bt-val" id="eff-worn-haste">0%</span></span>
+        <span title="V1 spell haste from buffs"><span class="bt-label">+ V1 </span><span class="bt-val" id="eff-v1-haste">0%</span></span>
+        <span title="Worn + V1 combined, capped at 100%"><span class="bt-label">= </span><span class="bt-val" id="eff-combined-haste">0%</span></span>
+        <span id="eff-v3-wrap" style="display:none" title="Bard V3 haste, capped at 25%"><span class="bt-label">+ V3 </span><span class="bt-val" id="eff-v3-haste">0%</span></span>
+        <span title="Total effective haste used in simulation"><span class="bt-label">→ </span><span class="bt-val" id="eff-haste">0%</span></span>
+        <span class="bt-separator"></span>
+        <span><span class="bt-label">Spell ATK </span><span class="bt-val" id="eff-spell-atk">+0</span></span>
+        <span id="eff-worn-atk-wrap" style="display:none"><span class="bt-label">Worn ATK </span><span class="bt-val" id="eff-worn-atk">+0</span></span>
       </div>
 
       <!-- Skills & class-specific options -->
@@ -1564,6 +1649,38 @@
         <div class="char-haste-icon-wrap"><img id="class-icon" src="" alt="" class="class-icon" aria-hidden="true"></div>
       </div>
     </section>
+
+    <section class="section--core advanced-only" id="buff-section">
+      <details class="buff-panel" id="buff-details">
+        <summary>Buffs <span id="buff-active-count" style="color:var(--muted);font-size:0.75rem;"></span></summary>
+        <div class="buff-columns">
+          <div id="buff-col-haste">
+            <div class="buff-col-header">Haste</div>
+            <!-- populated by renderBuffPanel() -->
+          </div>
+          <div class="buff-col-right">
+            <div id="buff-col-offensive">
+              <div class="buff-col-header">Offensive</div>
+            </div>
+            <div id="buff-col-defensive" style="margin-top:0.6rem">
+              <div class="buff-col-header">Defensive</div>
+            </div>
+          </div>
+        </div>
+        <div class="buff-totals" id="buff-totals" style="display:none">
+          <span><span class="bt-label">Haste v1: </span><span class="bt-val" id="bt-haste-v1">+0%</span></span>
+          <span id="bt-haste-v3-wrap" style="display:none"><span class="bt-label">V3 (bard): </span><span class="bt-val" id="bt-haste-v3">+0%</span></span>
+          <span><span class="bt-label">Spell ATK: </span><span class="bt-val" id="bt-atk">0</span></span>
+          <span id="bt-worn-atk-wrap" style="display:none"><span class="bt-label">Worn ATK: </span><span class="bt-val" id="bt-worn-atk">0</span></span>
+          <span><span class="bt-label">STR: </span><span class="bt-val" id="bt-str">+0</span></span>
+          <span><span class="bt-label">DEX: </span><span class="bt-val" id="bt-dex">+0</span></span>
+          <span><span class="bt-label">AGI: </span><span class="bt-val" id="bt-agi">+0</span></span>
+          <span><span class="bt-label">STA: </span><span class="bt-val" id="bt-sta">+0</span></span>
+          <span><span class="bt-label">AC (raw): </span><span class="bt-val" id="bt-ac">+0</span></span>
+        </div>
+      </details>
+    </section>
+    </div><!-- /.char-buff-pair -->
 
     <section class="section--core weapon-section">
       <div class="weapon-icon-wrap" id="w1-weapon-icon-wrap" style="display:none"><img id="w1-weapon-icon" class="weapon-icon" src="" alt=""></div>
@@ -1745,7 +1862,7 @@
         <label for="ranged-class">Class</label>
         <label for="ranged-level">Level</label>
         <label for="ranged-worn-haste">Worn haste % <span class="info-icon" title="Item haste; capped to 10% at level 1-25, uncapped at level 26+">&#8505;</span></label>
-        <label for="ranged-spell-haste">Spell haste % <span class="info-icon" title="(60% Haste + 25% v3 bard haste)">&#8505;</span></label>
+        <label for="ranged-spell-haste">V1 Haste % <span class="info-icon" title="V1 spell haste. Worn + V1 combined cannot exceed 100%. V3 bard haste (capped 25%) adds on top.">&#8505;</span></label>
         <label for="ranged-quiver-weight-reduction">Quiver WR% <span class="info-icon" title="Quiver haste = (BagWR ÷ 4) ÷ 100 (EQ GetQuiverHaste). Applied after standard haste; separate from 125% cap. bow_delay_reduction = quiver_haste × speed + 1; applied only if speed − reduction > 1000 (min delay ~1s). Example: 40% WR → 10% quiver haste.">&#8505;</span></label>
         <label for="ranged-worn-attack">Worn ATK <span class="info-icon" title="don't include atk from weapon, it will automatically be included">&#8505;</span></label>
         <label for="ranged-spell-attack">Spell ATK</label>
@@ -1754,7 +1871,7 @@
         </select>
         <input type="number" id="ranged-level" min="1" max="65" value="60" placeholder="60" size="3" inputmode="numeric" autocomplete="off">
         <input type="number" id="ranged-worn-haste" min="0" max="999" value="41" placeholder="41" size="3" inputmode="numeric" autocomplete="off">
-        <input type="number" id="ranged-spell-haste" min="0" max="999" value="85" placeholder="85" size="3" inputmode="numeric" autocomplete="off">
+        <input type="number" id="ranged-spell-haste" min="0" max="999" value="60" placeholder="60" size="3" inputmode="numeric" autocomplete="off">
         <input type="number" id="ranged-quiver-weight-reduction" min="0" max="100" value="0" placeholder="e.g. 40" size="3" inputmode="numeric" autocomplete="off">
         <input type="number" id="ranged-worn-attack" min="0" max="999" value="0" placeholder="0" size="5" inputmode="numeric" autocomplete="off">
         <input type="number" id="ranged-spell-attack" min="0" max="999" value="0" placeholder="0" size="5" inputmode="numeric" autocomplete="off">
@@ -2185,6 +2302,7 @@
   <section class="advanced-only" style="margin-top: 1rem;">
     <h2>Version log</h2>
     <ul style="font-size: 0.9rem; color: var(--muted); margin: 0; padding-left: 1.25rem;">
+      <li><strong>1.13</strong> — Fix proc spells not loading on inventory import: weapon proc fields (spell name, damage, resist type, proc rate, proc level) are now populated from local spell data when an inventory is imported. Fix proc spells not firing when a weapon is selected via item search but spell data hadn't resolved yet: <code>getWeapon()</code> now falls back to local spell data if the proc name field is empty but a spell ID is set. <code>normalizeItemForWeapon</code> now extracts <code>proclevel</code> so the level gate is consistent between the item-search and preset weapon paths.</li>
       <li><strong>1.12</strong> — Damage breakdown pie chart added to Easy mode (side-by-side with DPS result). Fistweaving now shows a (FW) tag next to Weapon 2 in simulation history. Default final stats when no inventory is loaded: level 60 → 255 STR/AGI/DEX/STA, all other levels → 150/100/100/100. Tanking tab marked as Work in Progress. Inventory import now applies gear stat bonuses to the stat distributor Gear column and computes Finals from race base + allocated pts + gear. Equipment summary shows stat pills (AC, STR, STA, DEX, AGI, WIS, INT, CHA, HP, Mana, ATK, Regen, FT) and itemised worn ATK breakdown. Fix: inventory summary was silently aborting due to a ReferenceError in updateTankHP ($ not in scope outside the main IIFE). Equipped items and AA configurator cards now match page content width.</li>
       <li><strong>1.11</strong> — Tank HP auto-calculation from class, level, STA, and worn HP (EQEmu bracket formula). Fix Blasphemous Blade threat classification.</li>
       <li><strong>1.10</strong> — Tanking weapon card. Proc threat capped per EQMacEmu rules. Return Kick formula corrected. Guide fixes.</li>
@@ -2251,6 +2369,7 @@
   <script src="threat.js"></script>
   <script src="js/modules/eraConfig.js"></script>
   <script src="js/modules/abilityRegistry.js"></script>
+  <script src="js/modules/buffs.js"></script>
   <script src="js/modules/tankingEngine.js"></script>
   <script src="js/ui/usageLog.js"></script>
   <script src="combat.js"></script>
@@ -2579,7 +2698,7 @@
       }
 
       // When releasing: 1) Bump VERSION below. 2) Add a new <li> at the top of the Version log section above.
-      const VERSION = '1.12';
+      const VERSION = '1.13';
       const versionEl = $('app-version');
       if (versionEl) versionEl.textContent = 'v' + VERSION;
 
@@ -2601,23 +2720,254 @@
         if (worn < 0) worn = 0;
         return lvl > 25 ? worn : Math.min(10, worn);
       }
-      function getTotalHastePercent(level, wornHastePercent, spellHastePercent) {
+      /**
+       * Compute total haste percentage.
+       *   - Worn haste (level-capped) + V1 spell haste combined cannot exceed 100%.
+       *   - V3 bard haste stacks on top, hard-capped at 25%.
+       */
+      function getTotalHastePercent(level, wornHastePercent, v1HastePercent, v3HastePercent) {
         var wornCapped = getCappedWornHastePercent(level, wornHastePercent);
-        var spell = !Number.isNaN(Number(spellHastePercent)) ? Number(spellHastePercent) : 0;
-        if (spell < 0) spell = 0;
-        return wornCapped + spell;
+        var v1 = Math.max(0, Number(v1HastePercent) || 0);
+        var v3 = Math.min(25, Math.max(0, Number(v3HastePercent) || 0));
+        return Math.min(wornCapped + v1, 100) + v3;
       }
+      // ── Buff Panel ──────────────────────────────────────────────────────
+      function getActiveBuffIds() {
+        var ids = [];
+        if (!window.Buffs) return ids;
+        var checkboxes = document.querySelectorAll('.buff-checkbox:checked');
+        for (var i = 0; i < checkboxes.length; i++) ids.push(checkboxes[i].value);
+        return ids;
+      }
+
+      function getBuffEffects() {
+        if (!window.Buffs) return null;
+        var ids = getActiveBuffIds();
+        if (!ids.length) return null;
+        var lvl = parseInt(($('level') && $('level').value) || '60', 10) || 60;
+        return window.Buffs.resolveBuffEffects(ids, lvl);
+      }
+
+      var _baseSpellHaste = null;         // manual override offset while buffs are active (normally 0)
+      var _preBuffSpellHaste = null;      // value to restore when all buffs are cleared
+      var _preBuffRangedSpellHaste = null; // ranged counterpart
+      var _preBuffV3Haste = null;          // v3-haste value to restore when all buffs are cleared
+
+      function updateBuffTotals() {
+        if (!window.Buffs) return;
+        var ids = getActiveBuffIds();
+        var countEl = $('buff-active-count');
+        if (countEl) countEl.textContent = ids.length ? '(' + ids.length + ' active)' : '';
+
+        var totalsEl = $('buff-totals');
+        if (!totalsEl) return;
+
+        var spellHasteEl = $('spell-haste');
+        var rangedSpellHasteEl = $('ranged-spell-haste');
+        var v3HasteEl = $('v3-haste');
+
+        if (!ids.length) {
+          totalsEl.style.display = 'none';
+          document.querySelectorAll('.buff-item.dominated').forEach(function (el) { el.classList.remove('dominated'); });
+          var tblEmpty = document.querySelector('.stat-dist-table');
+          if (tblEmpty) tblEmpty.classList.remove('has-stat-buffs');
+          if (typeof renderStatDistributor === 'function') renderStatDistributor();
+          var effEmpty = $('char-effective-stats');
+          if (effEmpty) effEmpty.style.display = 'none';
+          // Restore pre-buff spell haste values
+          if (_preBuffSpellHaste !== null && spellHasteEl) {
+            spellHasteEl._buffUpdate = true;
+            spellHasteEl.value = String(_preBuffSpellHaste);
+            spellHasteEl._buffUpdate = false;
+            _preBuffSpellHaste = null;
+          }
+          if (_preBuffRangedSpellHaste !== null && rangedSpellHasteEl) {
+            rangedSpellHasteEl._buffUpdate = true;
+            rangedSpellHasteEl.value = String(_preBuffRangedSpellHaste);
+            rangedSpellHasteEl._buffUpdate = false;
+            _preBuffRangedSpellHaste = null;
+          }
+          if (_preBuffV3Haste !== null && v3HasteEl) {
+            v3HasteEl._buffUpdate = true;
+            v3HasteEl.value = String(_preBuffV3Haste);
+            v3HasteEl._buffUpdate = false;
+            _preBuffV3Haste = null;
+          }
+          _baseSpellHaste = null;
+          return;
+        }
+
+        var playerLvl = parseInt(($('level') && $('level').value) || '60', 10) || 60;
+        var result = window.Buffs.resolveBuffsWithDominance(ids, playerLvl);
+        var t = result.totals;
+        totalsEl.style.display = '';
+
+        // Update spell-haste inputs with V1 haste only (V3 bard haste is computed separately)
+        var buffV1 = t.hasteV1 || 0;
+        var buffV3 = t.hasteBard || 0;
+        if (spellHasteEl) {
+          if (_preBuffSpellHaste === null) {
+            // First buff activation: save original value and reset base to 0
+            _preBuffSpellHaste = parseInt(spellHasteEl.value, 10) || 0;
+            _baseSpellHaste = 0;
+          }
+          spellHasteEl._buffUpdate = true;
+          spellHasteEl.value = String(_baseSpellHaste + buffV1);
+          spellHasteEl._buffUpdate = false;
+        }
+        if (rangedSpellHasteEl) {
+          if (_preBuffRangedSpellHaste === null) {
+            _preBuffRangedSpellHaste = parseInt(rangedSpellHasteEl.value, 10) || 0;
+          }
+          rangedSpellHasteEl._buffUpdate = true;
+          rangedSpellHasteEl.value = String(_baseSpellHaste + buffV1);
+          rangedSpellHasteEl._buffUpdate = false;
+        }
+        if (v3HasteEl) {
+          if (_preBuffV3Haste === null) {
+            _preBuffV3Haste = parseInt(v3HasteEl.value, 10) || 0;
+          }
+          v3HasteEl._buffUpdate = true;
+          v3HasteEl.value = String(Math.min(25, buffV3));
+          v3HasteEl._buffUpdate = false;
+        }
+
+        function setVal(id, v, isPercent) {
+          var el = $(id);
+          if (!el) return;
+          var display = (v > 0 ? '+' : '') + v + (isPercent ? '%' : '');
+          el.textContent = display;
+          el.parentElement.className = v ? 'bt-val' : 'bt-zero';
+        }
+        setVal('bt-haste-v1', buffV1, true);
+        var v3Wrap = $('bt-haste-v3-wrap');
+        if (v3Wrap) v3Wrap.style.display = buffV3 ? '' : 'none';
+        var v3El = $('bt-haste-v3');
+        if (v3El) {
+          var v3Cap = Math.min(buffV3, 25);
+          v3El.textContent = '+' + buffV3 + '%' + (buffV3 > 25 ? ' (cap 25%)' : '');
+          v3El.parentElement.className = buffV3 ? 'bt-val' : 'bt-zero';
+        }
+        setVal('bt-str', t.str);
+        setVal('bt-dex', t.dex);
+        setVal('bt-agi', t.agi);
+        setVal('bt-sta', t.sta);
+        setVal('bt-ac',  t.ac);
+
+        // Net spell ATK and worn ATK (show totals, not incremental contributions)
+        var spellAtkInput = parseInt(($('spell-attack') && $('spell-attack').value) || '0', 10) || 0;
+        var wornAtkInput  = parseInt(($('worn-attack')  && $('worn-attack').value)  || '0', 10) || 0;
+        var netSpellAtk = spellAtkInput + (t.atk || 0);
+        var netWornAtk  = wornAtkInput  + (t.wornAtk || 0);
+        var atkEl = $('bt-atk');
+        if (atkEl) { atkEl.textContent = String(netSpellAtk); atkEl.parentElement.className = netSpellAtk ? 'bt-val' : 'bt-zero'; }
+        var wornAtkWrap = $('bt-worn-atk-wrap');
+        if (wornAtkWrap) wornAtkWrap.style.display = t.wornAtk ? '' : 'none';
+        var wornAtkEl = $('bt-worn-atk');
+        if (wornAtkEl) { wornAtkEl.textContent = String(netWornAtk); wornAtkEl.parentElement.className = netWornAtk ? 'bt-val' : 'bt-zero'; }
+
+        // Buffed column in stat table
+        var hasStatBuff = !!(t.str || t.dex || t.agi || t.sta);
+        var tbl = document.querySelector('.stat-dist-table');
+        if (tbl) tbl.classList.toggle('has-stat-buffs', hasStatBuff);
+        if (typeof renderStatDistributor === 'function') renderStatDistributor();
+
+        // Effective stats readout below haste/ATK inputs
+        var effEl = $('char-effective-stats');
+        var v3InputVal = parseInt((v3HasteEl && v3HasteEl.value) || '0', 10) || 0;
+        var hasHasteOrAtk = !!(buffV1 || v3InputVal || t.atk || t.wornAtk);
+        if (effEl) {
+          effEl.style.display = hasHasteOrAtk ? '' : 'none';
+          if (hasHasteOrAtk) {
+            // Compute net haste breakdown — read from inputs so manual overrides are reflected
+            var playerLvlEff = parseInt(($('level') && $('level').value) || '60', 10) || 60;
+            var wornHPct = getCappedWornHastePercent(playerLvlEff, parsePercentInput('worn-haste'));
+            var v1Pct    = parseInt((spellHasteEl && spellHasteEl.value) || '0', 10) || 0;
+            var v3Pct    = Math.min(25, v3InputVal);
+            var combined = Math.min(wornHPct + v1Pct, 100);
+            var netHaste = combined + v3Pct;
+
+            var effWornEl = $('eff-worn-haste');
+            if (effWornEl) effWornEl.textContent = wornHPct + '%';
+            var effV1El = $('eff-v1-haste');
+            if (effV1El) effV1El.textContent = v1Pct + '%';
+            var effCombEl = $('eff-combined-haste');
+            if (effCombEl) {
+              effCombEl.textContent = combined + '%';
+              effCombEl.title = (wornHPct + v1Pct > 100) ? 'Capped at 100% (worn ' + wornHPct + '% + V1 ' + v1Pct + '% = ' + (wornHPct + v1Pct) + '%, capped)' : '';
+            }
+            var effV3Wrap = $('eff-v3-wrap');
+            if (effV3Wrap) effV3Wrap.style.display = v3InputVal ? '' : 'none';
+            var effV3El = $('eff-v3-haste');
+            if (effV3El) effV3El.textContent = v3Pct + '%';
+            var effHasteEl = $('eff-haste');
+            if (effHasteEl) effHasteEl.textContent = netHaste + '%';
+
+            var effSpellAtkEl = $('eff-spell-atk');
+            if (effSpellAtkEl) effSpellAtkEl.textContent = String(netSpellAtk);
+            var wornWrap = $('eff-worn-atk-wrap');
+            if (wornWrap) wornWrap.style.display = t.wornAtk ? '' : 'none';
+            var effWornAtkEl = $('eff-worn-atk');
+            if (effWornAtkEl) effWornAtkEl.textContent = String(netWornAtk);
+          }
+        }
+
+        // Mark dominated buffs
+        document.querySelectorAll('.buff-item[data-buff-id]').forEach(function (el) {
+          el.classList.toggle('dominated', result.dominated.has(el.dataset.buffId));
+        });
+      }
+
+      function renderBuffPanel() {
+        if (!window.Buffs) return;
+        var colMap = { haste: 'buff-col-haste', offensive: 'buff-col-offensive', defensive: 'buff-col-defensive' };
+        var cols = {};
+        Object.keys(colMap).forEach(function (cat) {
+          var el = $(colMap[cat]);
+          if (el) {
+            // Keep the header, clear the rest
+            var header = el.querySelector('.buff-col-header');
+            el.innerHTML = '';
+            if (header) el.appendChild(header);
+            cols[cat] = el;
+          }
+        });
+
+        window.Buffs.BUFFS.forEach(function (buff) {
+          var col = cols[buff.category];
+          if (!col) return;
+          var item = document.createElement('div');
+          item.className = 'buff-item';
+          item.dataset.buffId = buff.id;
+          var cb = document.createElement('input');
+          cb.type = 'checkbox';
+          cb.className = 'buff-checkbox';
+          cb.id = 'buff-' + buff.id;
+          cb.value = buff.id;
+          cb.addEventListener('change', updateBuffTotals);
+          var lbl = document.createElement('label');
+          lbl.htmlFor = 'buff-' + buff.id;
+          lbl.innerHTML = buff.name + ' <span class="buff-source">' + buff.source + '</span>';
+          item.appendChild(cb);
+          item.appendChild(lbl);
+          col.appendChild(item);
+        });
+      }
+      // ── End Buff Panel ──────────────────────────────────────────────────
+
       function getMeleeTotalHastePercent() {
         var level = parseInt($('level').value, 10) || 60;
         var worn = parsePercentInput('worn-haste');
-        var spell = parsePercentInput('spell-haste');
-        return getTotalHastePercent(level, worn, spell);
+        var v1   = parsePercentInput('spell-haste');
+        var v3   = Math.min(25, parsePercentInput('v3-haste'));
+        return getTotalHastePercent(level, worn, v1, v3);
       }
       function getRangedTotalHastePercent() {
         var level = parseInt($('ranged-level').value, 10) || 60;
-        var worn = parsePercentInput('ranged-worn-haste');
-        var spell = parsePercentInput('ranged-spell-haste');
-        return getTotalHastePercent(level, worn, spell);
+        var worn  = parsePercentInput('ranged-worn-haste');
+        var v1    = parsePercentInput('ranged-spell-haste');
+        var v3    = Math.min(25, parsePercentInput('v3-haste'));  // v3 is shared (same buffs)
+        return getTotalHastePercent(level, worn, v1, v3);
       }
       function getRangedQuiverHasteDecimal() {
         var quiverWr = parsePercentInput('ranged-quiver-weight-reduction');
@@ -3460,6 +3810,7 @@
         var remaining = CREATION_POINTS - ptsUsed();
 
         var html = '';
+        var buffFxForStat = (typeof getBuffEffects === 'function') ? getBuffEffects() : null;
         STAT_KEYS.forEach(function (sk) {
           var baseVal = rd[sk] || 75;
           var ptsVal = charCreation.pts[sk] || 0;
@@ -3467,6 +3818,8 @@
           var cap = getStatCap(raceId, sk, ppRank);
           var maxPts = Math.max(0, cap - baseVal - ptsVal); // can't exceed cap with points
           var finalVal = getFinalStat(raceId, sk, ptsVal, gearVal, ppRank);
+          var buffBonus = buffFxForStat ? (buffFxForStat[sk] || 0) : 0;
+          var buffedVal = Math.min(255, finalVal + buffBonus);
           html += '<tr>'
             + '<td>' + STAT_LABELS[sk] + '</td>'
             + '<td>' + baseVal + '</td>'
@@ -3477,6 +3830,7 @@
             + '</div></td>'
             + '<td class="stat-gear">' + (gearVal || 0) + '</td>'
             + '<td class="stat-final"><input type="number" class="stat-final-input" data-stat="' + sk + '" value="' + finalVal + '" min="0" max="999" title="Final stat — type to override"></td>'
+            + '<td class="stat-buffed-cell">' + buffedVal + '</td>'
             + '</tr>';
         });
         body2.innerHTML = html;
@@ -3602,9 +3956,22 @@
       function getWeapon(prefix) {
         const damage = parseInt($(prefix + '-damage').value, 10) || 0;
         const delay = parseInt($(prefix + '-delay').value, 10) || 0;
-        const proc = $(prefix + '-proc').value.trim() || null;
+        var procNameRaw = $(prefix + '-proc').value.trim();
+        const procSpellIdElEarly = $(prefix + '-proc-spell-id');
+        const procSpellIdEarly = procSpellIdElEarly && procSpellIdElEarly.value !== '' ? (parseInt(procSpellIdElEarly.value, 10) || null) : null;
+        // If proc name is empty but we have a spell ID, try to resolve the name and damage from local spell data
+        var earlySpellForFallback = null;
+        if (procSpellIdEarly && typeof ItemSearch !== 'undefined' && ItemSearch.getSpellFromLocalData) {
+          earlySpellForFallback = ItemSearch.getSpellFromLocalData(procSpellIdEarly);
+          if (!procNameRaw && earlySpellForFallback && earlySpellForFallback.name) procNameRaw = earlySpellForFallback.name;
+        }
+        const proc = procNameRaw || null;
         const procDamageEl = $(prefix + '-proc-damage');
-        const procSpellDamage = procDamageEl && procDamageEl.value !== '' ? parseInt(procDamageEl.value, 10) : 0;
+        var procSpellDamage = procDamageEl && procDamageEl.value !== '' ? parseInt(procDamageEl.value, 10) : 0;
+        // If damage is 0 but spell data has damage, use it (e.g. if applyWeaponFromSearch ran before spell data loaded)
+        if ((!procSpellDamage || isNaN(procSpellDamage)) && earlySpellForFallback && earlySpellForFallback.damage != null) {
+          procSpellDamage = earlySpellForFallback.damage;
+        }
         const procRateEl = $(prefix + '-proc-rate');
         const procRate = procRateEl && procRateEl.value !== '' ? (parseInt(procRateEl.value, 10) || 0) : 0;
         const procLevelEl = $(prefix + '-proc-level');
@@ -3773,9 +4140,10 @@
           return;
         }
 
-        const hastePercent = getMeleeTotalHastePercent();
-        const wornAttack = parseInt($('worn-attack').value, 10) || 0;
-        const spellAttack = parseInt($('spell-attack').value, 10) || 0;
+        const buffFx = getBuffEffects();
+        const hastePercent = getMeleeTotalHastePercent(); // spell-haste input already reflects buff haste
+        const wornAttack = (parseInt($('worn-attack').value, 10) || 0) + (buffFx ? buffFx.wornAtk || 0 : 0);
+        const spellAttack = (parseInt($('spell-attack').value, 10) || 0) + (buffFx ? buffFx.atk || 0 : 0);
         let doubleAttackSkill = parseInt($('double-attack').value, 10) || 0;
         let dualWieldSkill = parseInt($('dual-wield').value, 10) || 0;
         const level = parseInt($('level').value, 10) || 60;
@@ -3787,9 +4155,9 @@
         const targetPR = parseResist('target-pr');
         const targetDR = parseResist('target-dr');
         const durationSec = parseInt($('duration').value, 10) || 6000;
-        const str = parseInt($('str').value, 10) || 255;
+        const str = Math.min(255, (parseInt($('str').value, 10) || 255) + (buffFx ? buffFx.str : 0));
         const runs = Math.max(1, Math.min(1000, parseInt($('runs').value, 10) || 20));
-        const dex = parseInt($('dex').value, 10) || 255;
+        const dex = Math.min(255, (parseInt($('dex').value, 10) || 255) + (buffFx ? buffFx.dex : 0));
         const fromBehind = document.querySelector('input[name="from-behind"]:checked').value === '1';
         const classId = ($('class').value || '').toLowerCase();
         const eraId = ($('era-select') && $('era-select').value) || 'classic';
@@ -4226,7 +4594,9 @@
           attack: totalAttack,
           mobAC: targetAC,
           dps: weaponDps,
-          fistweaving: !!report.fistweaving
+          fistweaving: !!report.fistweaving,
+          era: ($('era-select') && $('era-select').value) || 'classic',
+          mode: document.body.getAttribute('data-ui-mode') || 'easy',
         });
         if (SIM_HISTORY.length > SIM_HISTORY_MAX) SIM_HISTORY.pop();
         renderSimHistory();
@@ -4754,8 +5124,9 @@
         const targetCR = parseResist('target-cr');
         const targetPR = parseResist('target-pr');
         const targetDR = parseResist('target-dr');
-        const str = parseInt($('str').value, 10) || 255;
-        const dex = parseInt($('dex').value, 10) || 255;
+        const rankBuffFx = getBuffEffects();
+        const str = Math.min(255, (parseInt($('str').value, 10) || 255) + (rankBuffFx ? rankBuffFx.str : 0));
+        const dex = Math.min(255, (parseInt($('dex').value, 10) || 255) + (rankBuffFx ? rankBuffFx.dex : 0));
         const fromBehind = document.querySelector('input[name="from-behind"]:checked').value === '1';
         const rankEraId = ($('era-select') && $('era-select').value) || 'classic';
         const rankAaOpts = buildAASimOptions(classId, rankEraId);
@@ -4775,10 +5146,10 @@
           rankSpecialAttackType = 'backstab';
         }
         const baseOptions = {
-          hastePercent: getMeleeTotalHastePercent(),
+          hastePercent: getMeleeTotalHastePercent(), // spell-haste input already reflects buff haste
           offenseSkill,
-          wornAttack: parseInt($('worn-attack').value, 10) || 0,
-          spellAttack: parseInt($('spell-attack').value, 10) || 0,
+          wornAttack: (parseInt($('worn-attack').value, 10) || 0) + (rankBuffFx ? rankBuffFx.wornAtk || 0 : 0),
+          spellAttack: (parseInt($('spell-attack').value, 10) || 0) + (rankBuffFx ? rankBuffFx.atk || 0 : 0),
           toHitBonus,
           ambidexterity: rankAaOpts.ambidexterity,
           critDmgDebugDmgBonus: (function () { var el = $('crit-dmg-debug-dmg-bonus'); return !!(el && ((typeof el.checked === 'boolean' && el.checked) || String(el.value) === '1' || String(el.value).toLowerCase() === 'true')); })(),
@@ -6437,6 +6808,7 @@
           exportRankWeaponsToCsv();
         });
       }
+      var ERA_LABELS = { classic: 'Classic', kunark: 'Kunark', velious: 'Velious', luclin: 'Luclin', pop: 'PoP' };
       function renderSimHistory() {
         const listEl = $('sim-history-list');
         if (!listEl) return;
@@ -6444,10 +6816,16 @@
           listEl.innerHTML = '<p class="hint" style="margin: 0;">No runs yet this session.</p>';
           return;
         }
-        const header = '<div class="sim-history-row sim-history-header"><span class="sim-history-w1">Weapon 1</span><span class="sim-history-w2">Weapon 2</span><span class="sim-history-target">Target</span><span class="sim-history-atk">Attack</span><span class="sim-history-ac">Mob AC</span><span class="sim-history-dps">DPS</span></div>';
+        var easyCount = 0, advCount = 0;
+        SIM_HISTORY.forEach(function (h) { if (h.mode === 'advanced') advCount++; else easyCount++; });
+        var countLine = '<div class="sim-history-counts"><span>Easy: <strong>' + easyCount + '</strong></span><span>Advanced: <strong>' + advCount + '</strong></span><span>Total: <strong>' + SIM_HISTORY.length + '</strong></span></div>';
+        const header = '<div class="sim-history-row sim-history-header"><span class="sim-history-w1">Weapon 1</span><span class="sim-history-w2">Weapon 2</span><span class="sim-history-target">Target</span><span class="sim-history-atk">Attack</span><span class="sim-history-ac">Mob AC</span><span class="sim-history-dps">DPS</span><span class="sim-history-era">Era</span><span class="sim-history-mode">Mode</span></div>';
         const rows = SIM_HISTORY.map(function (h) {
           var targetDisplay = (h.targetName != null && h.targetName !== '') ? h.targetName : '—';
           var w2Display = (h.weapon2 || '—').replace(/</g, '&lt;') + (h.fistweaving ? ' <span class="fw-tag">FW</span>' : '');
+          var eraLabel = ERA_LABELS[h.era] || h.era || '—';
+          var modeClass = h.mode === 'advanced' ? 'mode-advanced' : 'mode-easy';
+          var modeLabel = h.mode === 'advanced' ? 'Adv' : 'Easy';
           return '<div class="sim-history-row">' +
             '<span class="sim-history-w1" title="' + (h.weapon1 || '').replace(/"/g, '&quot;') + '">' + (h.weapon1 || '—').replace(/</g, '&lt;') + '</span>' +
             '<span class="sim-history-w2" title="' + (h.weapon2 || '').replace(/"/g, '&quot;') + '">' + w2Display + '</span>' +
@@ -6455,9 +6833,11 @@
             '<span class="sim-history-atk">' + (h.attack != null ? h.attack : '—') + '</span>' +
             '<span class="sim-history-ac">' + (h.mobAC != null ? h.mobAC : '—') + '</span>' +
             '<span class="sim-history-dps">' + (typeof h.dps === 'number' ? h.dps.toFixed(2) : '—') + '</span>' +
+            '<span class="sim-history-era">' + eraLabel + '</span>' +
+            '<span class="sim-history-mode"><span class="sim-mode-badge ' + modeClass + '">' + modeLabel + '</span></span>' +
             '</div>';
         }).join('');
-        listEl.innerHTML = header + rows;
+        listEl.innerHTML = countLine + header + rows;
       }
 
       const clearHistoryBtn = $('sim-history-clear');
@@ -6850,17 +7230,26 @@
           listEl.innerHTML = '<div class="easy-history-empty" role="status"><iconify-icon icon="lucide:scroll-text" style="font-size:2rem;opacity:0.45;color:#d4af37"></iconify-icon><span>No simulations logged</span></div>';
           return;
         }
+        var easyCount = 0, advCount = 0;
+        SIM_HISTORY.forEach(function (h) { if (h.mode === 'advanced') advCount++; else easyCount++; });
+        var countLine = '<div class="sim-history-counts" style="margin-bottom:0.5rem;">' +
+          '<span>Easy: <strong>' + easyCount + '</strong></span>' +
+          '<span>Advanced: <strong>' + advCount + '</strong></span>' +
+          '<span>Total: <strong>' + SIM_HISTORY.length + '</strong></span>' +
+          '</div>';
         var header = '<table class="easy-history-table"><thead><tr>' +
-          '<th>Weapon Combination</th>' +
-          '<th>Level</th>' +
-          '<th>Worn<br>Haste</th>' +
-          '<th>Effective<br>Haste</th>' +
-          '<th>Net ATK</th>' +
-          '<th>Target AC</th>' +
-          '<th>Mainhand<br>DPS</th>' +
-          '<th>Offhand<br>DPS</th>' +
-          '<th>Proc DPS</th>' +
-          '<th style="text-align:right;">DPS</th>' +
+          '<th>Weapons</th>' +
+          '<th>Lvl</th>' +
+          '<th>Worn H%</th>' +
+          '<th>Eff H%</th>' +
+          '<th>ATK</th>' +
+          '<th>Mob AC</th>' +
+          '<th>MH DPS</th>' +
+          '<th>OH DPS</th>' +
+          '<th>Proc</th>' +
+          '<th style="text-align:right;">Total DPS</th>' +
+          '<th>Era</th>' +
+          '<th>Mode</th>' +
           '</tr></thead><tbody>';
         var rows = SIM_HISTORY.slice(0, 25).map(function (h) {
           var comboPlain = (h.weaponCombo || ((h.weapon1 || '-') + ' + ' + (h.weapon2 || '-'))).replace(/</g, '&lt;');
@@ -6875,6 +7264,9 @@
           var oh = typeof h.offhandDps === 'number' ? h.offhandDps.toFixed(2) : '-';
           var proc = typeof h.procDps === 'number' ? h.procDps.toFixed(2) : '-';
           var dps = (typeof h.dps === 'number') ? h.dps.toFixed(2) : '-';
+          var eraLabel = (typeof ERA_LABELS !== 'undefined' ? ERA_LABELS[h.era] : null) || h.era || '—';
+          var modeClass = h.mode === 'advanced' ? 'mode-advanced' : 'mode-easy';
+          var modeLabel = h.mode === 'advanced' ? 'Adv' : 'Easy';
           return '<tr>' +
             '<td title="' + comboPlain.replace(/"/g, '&quot;') + '">' + comboDisplay + '</td>' +
             '<td>' + level + '</td>' +
@@ -6886,9 +7278,11 @@
             '<td>' + oh + '</td>' +
             '<td>' + proc + '</td>' +
             '<td class="easy-history-dps">' + dps + '</td>' +
+            '<td>' + eraLabel + '</td>' +
+            '<td><span class="sim-mode-badge ' + modeClass + '">' + modeLabel + '</span></td>' +
             '</tr>';
         }).join('');
-        listEl.innerHTML = '<div class="easy-history-table-wrap">' + header + rows + '</tbody></table></div>';
+        listEl.innerHTML = countLine + '<div class="easy-history-table-wrap">' + header + rows + '</tbody></table></div>';
       }
       function initEasyModeUi() {
         var classEl = $('class');
@@ -7190,7 +7584,9 @@
           procDps: rangedProcDps,
           attack: rangedTotalAttack,
           mobAC: options.targetAC,
-          dps: rangedDps
+          dps: rangedDps,
+          era: ($('era-select') && $('era-select').value) || 'classic',
+          mode: document.body.getAttribute('data-ui-mode') || 'easy',
         });
         if (SIM_HISTORY.length > SIM_HISTORY_MAX) SIM_HISTORY.pop();
         renderSimHistory();
@@ -7357,6 +7753,9 @@
       }
       $('level').addEventListener('change', onMeleeLevelEdited);
       $('level').addEventListener('input', onMeleeLevelEdited);
+      // Re-compute bard song effects when level changes
+      $('level').addEventListener('change', updateBuffTotals);
+      $('level').addEventListener('input', updateBuffTotals);
 
       var DUELIST_DISC_LABEL_BASE = 'Duelist (12s random window: double melee damage)';
       var INNERFLAME_DISC_LABEL_BASE = 'Inner Flame (12s random window: bonus melee damage)';
@@ -7411,12 +7810,44 @@
         syncRangedArcheryCap();
       }
       updateClassIcon();
-      ['worn-haste', 'spell-haste'].forEach(function (id) {
+      ['worn-haste', 'spell-haste', 'v3-haste'].forEach(function (id) {
         var el = $(id);
         if (!el) return;
         el.addEventListener('input', updateSpecialReuseDisplay);
         el.addEventListener('change', updateSpecialReuseDisplay);
       });
+      // Keep effective-stats bar in sync when worn-haste changes
+      (function () {
+        var el = $('worn-haste');
+        if (el) {
+          el.addEventListener('input', updateBuffTotals);
+          el.addEventListener('change', updateBuffTotals);
+        }
+      })();
+      // When user manually edits spell-haste while buffs are active, update the stored base
+      (function () {
+        var el = $('spell-haste');
+        if (!el) return;
+        el.addEventListener('input', function () {
+          if (el._buffUpdate) return; // skip programmatic updates
+          var fx = (typeof getBuffEffects === 'function') ? getBuffEffects() : null;
+          var buffV1 = fx ? (fx.hasteV1 || 0) : 0;  // only v1 goes into this input
+          _baseSpellHaste = Math.max(0, (parseInt(el.value, 10) || 0) - buffV1);
+        });
+      })();
+      // v3-haste: refresh display on manual edit; track override for save/restore
+      (function () {
+        var el = $('v3-haste');
+        if (!el) return;
+        el.addEventListener('input', function () {
+          if (el._buffUpdate) return;
+          // If buffs are active and user overrides, record the override as the new pre-buff base
+          if (_preBuffV3Haste !== null) {
+            _preBuffV3Haste = Math.min(25, Math.max(0, parseInt(el.value, 10) || 0));
+          }
+          updateBuffTotals(); // refresh effective stats bar
+        });
+      })();
       function onSpecialReuseInput(id, kind) {
         const el = document.getElementById(id);
         if (!el) return;
@@ -7485,6 +7916,9 @@
       }
 
       $('class').dispatchEvent(new Event('change'));
+
+      // Init buff panel
+      renderBuffPanel();
 
       // Init stat distributor and race selector
       initRaceSelector();
@@ -8893,8 +9327,8 @@
         haste = Math.max(haste, h);
       }
       if (eid === 2  && bv > 0) atk   = Math.max(atk,   bv);
-      if (eid === 15 && bv > 0) regen = Math.max(regen,  bv); // HP Regen
-      if (eid === 84 && bv > 0) ft    = Math.max(ft,     bv); // Flowing Thought (mana regen)
+      if (eid === 0  && bv > 0) regen = Math.max(regen,  bv); // HP Regen (SE_CurrentHP)
+      if (eid === 15 && bv > 0) ft    = Math.max(ft,     bv); // Flowing Thought / mana regen (SE_CurrentMana)
     }
     return { haste: haste, atk: atk, regen: regen, ft: ft, spellName: s.name || '' };
   }
@@ -9074,6 +9508,52 @@
       }
     }
 
+    // Set proc fields for a weapon prefix from a raw item (uses local spell data if available)
+    function applyItemProcFields(prefix, item) {
+      var procSpellId = null;
+      var pe = parseInt(item.proceffect, 10);
+      if (!isNaN(pe) && pe > 0) procSpellId = pe;
+      var procRate = parseInt(item.procrate, 10) || 0;
+      var procLevel = parseInt(item.proclevel, 10) || 0;
+
+      var procSpellIdEl = document.getElementById(prefix + '-proc-spell-id');
+      if (procSpellIdEl) procSpellIdEl.value = procSpellId != null ? String(procSpellId) : '';
+      var procRateEl = document.getElementById(prefix + '-proc-rate');
+      if (procRateEl) procRateEl.value = procRate > 0 ? String(procRate) : '0';
+      var procLevelEl = document.getElementById(prefix + '-proc-level');
+      if (procLevelEl) procLevelEl.value = (procLevel > 0) ? String(procLevel) : '';
+
+      // Clear proc name and damage first, then fill from spell data
+      var procEl = document.getElementById(prefix + '-proc');
+      var procDmgEl = document.getElementById(prefix + '-proc-damage');
+      if (procEl) procEl.value = '';
+      if (procDmgEl) procDmgEl.value = '';
+
+      if (procSpellId && typeof ItemSearch !== 'undefined' && ItemSearch.getSpellFromLocalData) {
+        var spellData = ItemSearch.getSpellFromLocalData(procSpellId);
+        if (spellData && spellData.name) {
+          if (procEl) procEl.value = spellData.name;
+          if (procDmgEl) procDmgEl.value = spellData.damage != null ? String(spellData.damage) : '';
+          var rtEl = document.getElementById(prefix + '-proc-spell-resist-type');
+          if (rtEl) rtEl.value = spellData.resisttype != null ? String(spellData.resisttype) : '';
+          var rmEl = document.getElementById(prefix + '-proc-spell-resist-modifier');
+          if (rmEl) rmEl.value = spellData.resistModifier != null ? String(spellData.resistModifier) : '';
+          var npEl = document.getElementById(prefix + '-proc-spell-no-partial');
+          if (npEl) npEl.value = spellData.noPartialResist ? '1' : '';
+          var meEl = document.getElementById(prefix + '-proc-spell-movement-effect');
+          if (meEl) meEl.value = spellData.movementEffect ? '1' : '';
+        } else if (ItemSearch.fetchSpellById) {
+          // Async fallback if local data not yet available
+          ItemSearch.fetchSpellById(procSpellId).then(function (spell) {
+            if (spell && spell.name) {
+              if (procEl) procEl.value = spell.name;
+              if (procDmgEl) procDmgEl.value = spell.damage != null ? String(spell.damage) : '';
+            }
+          });
+        }
+      }
+    }
+
     if (primary) {
       var pItem = lookupItem(primary.id);
       // Tanking tab
@@ -9094,6 +9574,8 @@
         if (hiddenIs2h) hiddenIs2h.value = is2h ? '1' : '0';
         // Weapon icon
         setWeaponIcon('w1', parseInt(pItem.icon) || 0);
+        // Proc fields
+        applyItemProcFields('w1', pItem);
       }
     }
 
@@ -9107,6 +9589,8 @@
         if (meleeW2Name) meleeW2Name.textContent = secondary.name;
         // Weapon icon
         setWeaponIcon('w2', parseInt(sItem.icon) || 0);
+        // Proc fields
+        applyItemProcFields('w2', sItem);
       }
     }
 
@@ -9252,6 +9736,9 @@
       summLines.push('</div>');
       summaryEl.innerHTML = summLines.join('');
     }
+
+    // Update easy-mode weapon summaries to reflect the newly imported proc/weapon info
+    if (typeof syncEasyWeaponSummaries === 'function') syncEasyWeaponSummaries();
   }
 
   var fileInput = document.getElementById('shared-inventory-file');
@@ -9456,5 +9943,6 @@
   });
 })();
   </script>
+  <script src="https://code.iconify.design/iconify-icon/1.0.7/iconify-icon.min.js" async></script>
 </body>
 </html>

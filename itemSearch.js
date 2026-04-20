@@ -553,6 +553,10 @@
     if (item.procEffectData && typeof item.procEffectData === 'object' && item.procEffectData.damage != null) {
       procDamage = num(item.procEffectData.damage);
     }
+    var procLevelRaw = get(item, ['proclevel', 'procLevel', 'proc_level', 'ProcLevel', 'proc_min_level', 'procMinLevel']);
+    var procLevel = (procLevelRaw != null) ? parseInt(procLevelRaw, 10) : null;
+    if (isNaN(procLevel)) procLevel = null;
+
     var procRate = num(get(item, ['procrate', 'procRate', 'proc_rate', 'ProcRate', 'proc_rate_mod']));
     if (procRate == null || (typeof procRate === 'number' && isNaN(procRate))) {
       for (var prKey in item) {
@@ -660,6 +664,7 @@
       proc: procName || '',
       procDamage: procDamage,
       procRate: procRate,
+      procLevel: (procLevel != null && procLevel > 0) ? procLevel : undefined,
       procSpellId: procSpellId != null ? procSpellId : undefined,
       elemType: elemType || '',
       elemDamage: elemDamage,
