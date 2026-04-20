@@ -235,13 +235,10 @@
       grid-template-columns: max-content minmax(3.5rem, max-content);
     }
     .char-primary-grid--hasteatk {
-      grid-template-columns: repeat(3, minmax(5.5rem, max-content)) repeat(2, minmax(5rem, max-content));
+      grid-template-columns: repeat(3, minmax(5.5rem, max-content));
     }
-    .char-primary-grid--hasteatk > *:nth-child(4),
-    .char-primary-grid--hasteatk > *:nth-child(5),
-    .char-primary-grid--hasteatk > *:nth-child(9),
-    .char-primary-grid--hasteatk > *:nth-child(10) {
-      margin-left: 1rem;
+    .char-primary-grid--atk {
+      grid-template-columns: repeat(2, minmax(5rem, max-content));
     }
     .char-primary-grid--ranged {
       grid-template-columns: max-content repeat(6, minmax(3.5rem, max-content));
@@ -1560,11 +1557,13 @@
         <label for="worn-haste">Worn haste % <span class="info-icon" title="Item haste (SPA 11 from gear); capped to 10% at level 1-25. Stacks with V1 spell haste up to 100% combined.">&#8505;</span></label>
         <label for="spell-haste">V1 Haste % <span class="info-icon" title="V1 spell haste (SPA 11 from spells/buffs). Worn + V1 combined cannot exceed 100%. V3 bard haste (capped at 25%) adds on top.">&#8505;</span></label>
         <label for="v3-haste">V3 Haste % <span class="info-icon" title="Bard V3 haste (SPA 119, e.g. Warsong of the Vah Shir). Hard cap: 25%. Auto-filled by bard song buffs; can be overridden manually.">&#8505;</span></label>
-        <label for="worn-attack">Worn ATK <span class="info-icon" title="don't include atk from weapon, it will automatically be included">&#8505;</span></label>
-        <label for="spell-attack">Spell ATK</label>
         <input type="number" id="worn-haste" min="0" max="999" value="41" placeholder="41" size="3" inputmode="numeric" autocomplete="off">
         <input type="number" id="spell-haste" min="0" max="999" value="60" placeholder="60" size="3" inputmode="numeric" autocomplete="off">
         <input type="number" id="v3-haste" min="0" max="25" value="0" placeholder="0" size="3" inputmode="numeric" autocomplete="off">
+      </div>
+      <div class="char-primary-row char-primary-grid char-primary-grid--atk">
+        <label for="worn-attack">Worn ATK <span class="info-icon" title="don't include atk from weapon, it will automatically be included">&#8505;</span></label>
+        <label for="spell-attack">Spell ATK</label>
         <input type="number" id="worn-attack" min="0" max="999" value="0" placeholder="0" size="5" inputmode="numeric" autocomplete="off">
         <input type="number" id="spell-attack" min="0" max="999" value="0" placeholder="0" size="5" inputmode="numeric" autocomplete="off">
       </div>
