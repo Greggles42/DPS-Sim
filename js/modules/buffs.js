@@ -302,6 +302,17 @@
       ],
     },
     {
+      id: 'torrent_of_hate_recourse',
+      name: 'Torrent of Hate Recourse',
+      category: 'offensive',
+      source: 'SK',
+      spellId: 2485,
+      sai: 35,
+      effects: [
+        { spa: SPA.ATK, value: 35 },
+      ],
+    },
+    {
       id: 'warsong_vah_shir',
       name: 'Warsong of the Vah Shir',
       category: 'haste',

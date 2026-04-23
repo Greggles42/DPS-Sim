@@ -208,6 +208,7 @@
     };
     if (bonusHate !== 0) out.bonusHate = bonusHate;
     if (targettype != null) out.targettype = targettype;
+    if (!isDetrimentalSpell) out.beneficial = true;
     if (isDetrimentalSpell && (damage == null || damage <= 0) && !isSe92OnlyHateSpell) out.nonDamagingDetrimental = true;
     if (isDetrimentalSpell && hasHpDamage && hasStun) out.ccAddsMobHpThreat = true;
     // Build class bitmask: classesN field = min level to cast (255 = cannot cast). Matches CLASS_BITMASK bit order.

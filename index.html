@@ -246,6 +246,7 @@
     .char-haste-section .char-primary-grid > label {
       margin: 0;
       align-self: end;
+      white-space: nowrap;
     }
     .char-haste-section .char-primary-grid > select,
     .char-haste-section .char-primary-grid > input[type="number"] {
@@ -1109,6 +1110,39 @@
     #shared-inventory-display {
       max-width: 900px;
     }
+    #shared-inventory-display summary {
+      list-style: none;
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 0.4rem 0.75rem;
+      padding: 0.5rem 0.75rem;
+      cursor: pointer;
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: var(--color-gold);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      user-select: none;
+    }
+    #shared-inventory-display summary::-webkit-details-marker { display: none; }
+    #shared-inventory-display summary::before {
+      content: '▶';
+      font-size: 0.6rem;
+      color: var(--muted);
+      transition: transform 0.15s;
+      flex-shrink: 0;
+    }
+    #shared-inventory-display[open] summary::before { transform: rotate(90deg); }
+    #shared-inventory-pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.25rem 0.5rem;
+      font-size: 0.8rem;
+    }
+    #shared-inventory-body {
+      padding: 0 0.75rem 0.6rem;
+    }
     #aa-configurator summary {
       list-style: none;
       display: flex;
@@ -1291,7 +1325,7 @@
       <iconify-icon icon="ra:crossed-swords" class="text-2xl md:text-3xl text-[#d4af37] flex-shrink-0"></iconify-icon>
       <div class="flex flex-col min-w-0">
         <span class="font-fantasy text-base md:text-xl tracking-widest text-[#d4af37] truncate"><span class="app-title-g-small">g</span>Sim for Project Quarm</span>
-        <span class="text-[10px] text-gray-500 uppercase tracking-tighter">Everquest DPS Simulator · <span id="app-version">v1.07</span></span>
+        <span class="text-[10px] text-gray-500 uppercase tracking-tighter">Everquest DPS Simulator · <span id="app-version">v1.15</span></span>
       </div>
     </div>
     <div class="flex items-center gap-3 md:gap-8 flex-shrink-0">
@@ -1338,7 +1372,7 @@
       </aside>
       <section class="flex-1 min-h-0 overflow-y-auto scrollbar-fantasy p-4 md:p-8 bg-[radial-gradient(circle_at_center,_#1a1a22_0%,_#0a0a0c_100%)]">
         <div class="max-w-[min(100%,110rem)] mx-auto w-full space-y-8 px-0">
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-8 items-stretch">
             <div class="ornate-border parchment-bg p-6 space-y-6 shadow-2xl">
               <h3 class="font-fantasy text-sm text-[#d4af37] border-b border-[#d4af37]/20 pb-2 mb-2 tracking-widest">CHARACTER &amp; FIGHT</h3>
               <div class="space-y-4">
@@ -1457,11 +1491,13 @@
   </div>
 
   <!-- Shared inventory display — shown for all tabs when inventory is loaded -->
-  <div id="shared-inventory-display" style="display:none;margin:0.5rem 0;padding:0.6rem 0.75rem;background:var(--input-bg);border:1px solid var(--border);border-radius:4px;">
-    <p class="hint" style="margin:0 0 0.4rem;font-weight:600;">Equipped Items</p>
-    <div id="shared-inventory-slots" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(18rem,1fr));gap:0.1rem 1.5rem;color:var(--text);"></div>
-    <div id="shared-inventory-summary"></div>
-  </div>
+  <details id="shared-inventory-display" style="display:none;margin:0.5rem 0;background:var(--input-bg);border:1px solid var(--border);border-radius:4px;">
+    <summary>Equipped Items <div id="shared-inventory-pills"></div></summary>
+    <div id="shared-inventory-body">
+      <div id="shared-inventory-slots" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(18rem,1fr));gap:0.1rem 1.5rem;color:var(--text);"></div>
+      <div id="shared-inventory-summary"></div>
+    </div>
+  </details>
 
   <!-- AA Configurator — shared across all tabs -->
   <details id="aa-configurator">
@@ -1545,6 +1581,7 @@
       <input type="hidden" id="str" value="255">
       <input type="hidden" id="dex" value="255">
       <input type="hidden" id="agi" value="255">
+      <input type="hidden" id="cha" value="0">
 
       <!-- Haste / ATK — below stats -->
       <div class="char-primary-row char-primary-grid char-primary-grid--hasteatk">
@@ -1561,7 +1598,7 @@
         <input type="number" id="worn-attack" min="0" max="999" value="0" placeholder="0" size="5" inputmode="numeric" autocomplete="off">
         <input type="number" id="spell-attack" min="0" max="999" value="0" placeholder="0" size="5" inputmode="numeric" autocomplete="off">
       </div>
-      <div class="buff-totals char-effective-stats" id="char-effective-stats" style="display:none">
+      <div class="buff-totals char-effective-stats" id="char-effective-stats">
         <span class="bt-label">Net haste:</span>
         <span title="Worn haste from items"><span class="bt-label">Worn </span><span class="bt-val" id="eff-worn-haste">0%</span></span>
         <span title="V1 spell haste from buffs"><span class="bt-label">+ V1 </span><span class="bt-val" id="eff-v1-haste">0%</span></span>
@@ -1639,7 +1676,7 @@
         </div>
       </details>
         </div>
-        <div class="char-haste-icon-wrap"><img id="class-icon" src="" alt="" class="class-icon" aria-hidden="true"></div>
+        <div class="char-haste-icon-wrap"><img id="class-icon" alt="" class="class-icon" aria-hidden="true"></div>
       </div>
     </section>
 
@@ -1676,7 +1713,7 @@
     </div><!-- /.char-buff-pair -->
 
     <section class="section--core weapon-section">
-      <div class="weapon-icon-wrap" id="w1-weapon-icon-wrap" style="display:none"><img id="w1-weapon-icon" class="weapon-icon" src="" alt=""></div>
+      <div class="weapon-icon-wrap" id="w1-weapon-icon-wrap" style="display:none"><img id="w1-weapon-icon" class="weapon-icon" alt=""></div>
       <div class="weapon-section-header"><h2>Weapon 1 (Main Hand)</h2></div>
       <div id="w1-weapon-name" class="weapon-name" aria-live="polite"></div>
       <div id="w1-weapon-skill" class="weapon-skill"></div>
@@ -1734,7 +1771,7 @@
     </section>
 
     <section id="weapon2-section" class="section--core weapon-section">
-      <div class="weapon-icon-wrap" id="w2-weapon-icon-wrap" style="display:none"><img id="w2-weapon-icon" class="weapon-icon" src="" alt=""></div>
+      <div class="weapon-icon-wrap" id="w2-weapon-icon-wrap" style="display:none"><img id="w2-weapon-icon" class="weapon-icon" alt=""></div>
       <div class="weapon-section-header"><h2>Weapon 2 (Offhand, optional)</h2></div>
       <div id="w2-weapon-name" class="weapon-name" aria-live="polite"></div>
       <div id="w2-weapon-skill" class="weapon-skill"></div>
@@ -1894,7 +1931,7 @@
     </section>
 
     <section class="section--core weapon-section">
-      <div class="weapon-icon-wrap" id="ranged-weapon-weapon-icon-wrap" style="display:none"><img id="ranged-weapon-weapon-icon" class="weapon-icon" src="" alt=""></div>
+      <div class="weapon-icon-wrap" id="ranged-weapon-weapon-icon-wrap" style="display:none"><img id="ranged-weapon-weapon-icon" class="weapon-icon" alt=""></div>
       <div class="weapon-section-header"><h2>Ranged weapon</h2></div>
       <div id="ranged-weapon-name" class="weapon-name" aria-live="polite">Unequipped</div>
       <div id="ranged-weapon-weapon-skill" class="weapon-skill"></div>
@@ -1934,7 +1971,7 @@
     </section>
 
     <section class="section--core weapon-section">
-      <div class="weapon-icon-wrap" id="arrow-weapon-icon-wrap" style="display:none"><img id="arrow-weapon-icon" class="weapon-icon" src="" alt=""></div>
+      <div class="weapon-icon-wrap" id="arrow-weapon-icon-wrap" style="display:none"><img id="arrow-weapon-icon" class="weapon-icon" alt=""></div>
       <div class="weapon-section-header"><h2>Arrow type</h2></div>
       <div id="arrow-weapon-name" class="weapon-name" aria-live="polite">Unequipped</div>
       <div id="arrow-weapon-skill" class="weapon-skill"></div>
@@ -2295,6 +2332,8 @@
   <section class="advanced-only" style="margin-top: 1rem;">
     <h2>Version log</h2>
     <ul style="font-size: 0.9rem; color: var(--muted); margin: 0; padding-left: 1.25rem;">
+      <li><strong>1.15</strong> — Fix inventory import not loading proc data: <code>lookupItem</code> now merges weapon-specific fields (<code>proceffect</code>, <code>banedmgamt</code>, <code>elemdmgtype</code>, <code>skillmodtype</code>, etc.) from <code>weapons-data.js</code> when <code>items-data.js</code> lacks them — proc spells were silently missing after inventory import. After import, weapons are now fully re-applied through the same code path as manual weapon search, populating all proc fields correctly. Fix crash (<code>ReferenceError: Cannot access 'classId' before initialization</code>) when simulating weapons with beneficial proc spells (Rune III, Major Shielding, etc.) — temporal dead zone violation in proc threat-cap block. Beneficial non-damaging procs (buffs, runes, shielding) are now correctly skipped during simulation. Spell ATK field is zeroed when buffs are first activated; any manually entered value after that point is treated as additional bonus ATK on top of buff contributions.</li>
+      <li><strong>1.14</strong> — Session history cleaned up: era/mode columns removed; easy mode history uses Zodiak font. Easy mode layout: Calculate DPS button and results centred under the Character and Weapons cards (col-span-2 row inside the 2-col grid); Session History and Simulation Assumptions are now separate full-width blocks. Inventory import: sim history now shows the imported weapon name instead of raw damage/delay. Fix buff checkboxes missing on web server (buffs.js was untracked). Haste inputs (Worn, V1 Spell, V3 Bard) moved to their own row; Worn ATK and Spell ATK on a separate row below.</li>
       <li><strong>1.13</strong> — Fix proc spells not loading on inventory import: weapon proc fields (spell name, damage, resist type, proc rate, proc level) are now populated from local spell data when an inventory is imported. Fix proc spells not firing when a weapon is selected via item search but spell data hadn't resolved yet: <code>getWeapon()</code> now falls back to local spell data if the proc name field is empty but a spell ID is set. <code>normalizeItemForWeapon</code> now extracts <code>proclevel</code> so the level gate is consistent between the item-search and preset weapon paths.</li>
       <li><strong>1.12</strong> — Damage breakdown pie chart added to Easy mode (side-by-side with DPS result). Fistweaving now shows a (FW) tag next to Weapon 2 in simulation history. Default final stats when no inventory is loaded: level 60 → 255 STR/AGI/DEX/STA, all other levels → 150/100/100/100. Tanking tab marked as Work in Progress. Inventory import now applies gear stat bonuses to the stat distributor Gear column and computes Finals from race base + allocated pts + gear. Equipment summary shows stat pills (AC, STR, STA, DEX, AGI, WIS, INT, CHA, HP, Mana, ATK, Regen, FT) and itemised worn ATK breakdown. Fix: inventory summary was silently aborting due to a ReferenceError in updateTankHP ($ not in scope outside the main IIFE). Equipped items and AA configurator cards now match page content width.</li>
       <li><strong>1.11</strong> — Tank HP auto-calculation from class, level, STA, and worn HP (EQEmu bracket formula). Fix Blasphemous Blade threat classification.</li>
@@ -2724,6 +2763,55 @@
         var v3 = Math.min(25, Math.max(0, Number(v3HastePercent) || 0));
         return Math.min(wornCapped + v1, 100) + v3;
       }
+
+      /** Always-visible net haste breakdown below the haste inputs. */
+      function updateEffectiveHasteDisplay() {
+        var effEl = $('char-effective-stats');
+        if (!effEl) return;
+        var lvl      = parseInt(($('level') && $('level').value) || '60', 10) || 60;
+        var wornRaw  = parsePercentInput('worn-haste');
+        var wornPct  = getCappedWornHastePercent(lvl, wornRaw);
+        var v1Pct    = parsePercentInput('spell-haste');
+        var v3Raw    = parsePercentInput('v3-haste');
+        var v3Pct    = Math.min(25, v3Raw);
+        var combined = Math.min(wornPct + v1Pct, 100);
+        var net      = combined + v3Pct;
+
+        var wornEl = $('eff-worn-haste');
+        if (wornEl) wornEl.textContent = wornPct + '%' + (wornRaw > wornPct ? ' (cap ' + wornPct + '%)' : '');
+        var v1El = $('eff-v1-haste');
+        if (v1El) v1El.textContent = v1Pct + '%';
+        var combEl = $('eff-combined-haste');
+        if (combEl) {
+          combEl.textContent = combined + '%';
+          combEl.title = (wornPct + v1Pct > 100)
+            ? 'Capped at 100% — worn ' + wornPct + '% + V1 ' + v1Pct + '% = ' + (wornPct + v1Pct) + '%, capped to 100%'
+            : '';
+        }
+        var v3Wrap = $('eff-v3-wrap');
+        if (v3Wrap) v3Wrap.style.display = v3Pct ? '' : 'none';
+        var v3El = $('eff-v3-haste');
+        if (v3El) v3El.textContent = v3Pct + '%';
+        var netEl = $('eff-haste');
+        if (netEl) netEl.textContent = net + '%';
+
+        // ATK portion — only update if elements exist; hide worn ATK wrap when 0
+        var spellAtkInput = parseInt(($('spell-attack') && $('spell-attack').value) || '0', 10) || 0;
+        var wornAtkInput  = parseInt(($('worn-attack')  && $('worn-attack').value)  || '0', 10) || 0;
+        var effSpellAtkEl = $('eff-spell-atk');
+        if (effSpellAtkEl) effSpellAtkEl.textContent = (spellAtkInput >= 0 ? '+' : '') + spellAtkInput;
+        var wornWrap = $('eff-worn-atk-wrap');
+        if (wornWrap) wornWrap.style.display = wornAtkInput ? '' : 'none';
+        var effWornAtkEl = $('eff-worn-atk');
+        if (effWornAtkEl) effWornAtkEl.textContent = (wornAtkInput >= 0 ? '+' : '') + wornAtkInput;
+      }
+
+      // Wire haste inputs so the net display updates on manual edits too
+      ['worn-haste', 'spell-haste', 'v3-haste', 'level', 'worn-attack', 'spell-attack'].forEach(function (id) {
+        var el = document.getElementById(id);
+        if (el) el.addEventListener('input', updateEffectiveHasteDisplay);
+      });
+
       // ── Buff Panel ──────────────────────────────────────────────────────
       function getActiveBuffIds() {
         var ids = [];
@@ -2740,11 +2828,14 @@
         var lvl = parseInt(($('level') && $('level').value) || '60', 10) || 60;
         return window.Buffs.resolveBuffEffects(ids, lvl);
       }
+      // Expose so tanking and other tabs can share the same buff resolution
+      window.getBuffEffects = getBuffEffects;
 
       var _baseSpellHaste = null;         // manual override offset while buffs are active (normally 0)
       var _preBuffSpellHaste = null;      // value to restore when all buffs are cleared
       var _preBuffRangedSpellHaste = null; // ranged counterpart
       var _preBuffV3Haste = null;          // v3-haste value to restore when all buffs are cleared
+      var _preBuffSpellAtk = null;         // spell-attack value to restore when all buffs are cleared
 
       function updateBuffTotals() {
         if (!window.Buffs) return;
@@ -2765,8 +2856,7 @@
           var tblEmpty = document.querySelector('.stat-dist-table');
           if (tblEmpty) tblEmpty.classList.remove('has-stat-buffs');
           if (typeof renderStatDistributor === 'function') renderStatDistributor();
-          var effEmpty = $('char-effective-stats');
-          if (effEmpty) effEmpty.style.display = 'none';
+          updateEffectiveHasteDisplay();
           // Restore pre-buff spell haste values
           if (_preBuffSpellHaste !== null && spellHasteEl) {
             spellHasteEl._buffUpdate = true;
@@ -2785,6 +2875,13 @@
             v3HasteEl.value = String(_preBuffV3Haste);
             v3HasteEl._buffUpdate = false;
             _preBuffV3Haste = null;
+          }
+          var spellAtkEl = $('spell-attack');
+          if (_preBuffSpellAtk !== null && spellAtkEl) {
+            spellAtkEl._buffUpdate = true;
+            spellAtkEl.value = String(_preBuffSpellAtk);
+            spellAtkEl._buffUpdate = false;
+            _preBuffSpellAtk = null;
           }
           _baseSpellHaste = null;
           return;
@@ -2823,6 +2920,17 @@
           v3HasteEl._buffUpdate = true;
           v3HasteEl.value = String(Math.min(25, buffV3));
           v3HasteEl._buffUpdate = false;
+        }
+
+        // Zero out spell-attack when buffs first become active; user can add bonus ATK on top
+        var spellAtkEl = $('spell-attack');
+        if (spellAtkEl) {
+          if (_preBuffSpellAtk === null) {
+            _preBuffSpellAtk = parseInt(spellAtkEl.value, 10) || 0;
+          }
+          spellAtkEl._buffUpdate = true;
+          spellAtkEl.value = '0';
+          spellAtkEl._buffUpdate = false;
         }
 
         function setVal(id, v, isPercent) {
@@ -2865,45 +2973,8 @@
         if (tbl) tbl.classList.toggle('has-stat-buffs', hasStatBuff);
         if (typeof renderStatDistributor === 'function') renderStatDistributor();
 
-        // Effective stats readout below haste/ATK inputs
-        var effEl = $('char-effective-stats');
-        var v3InputVal = parseInt((v3HasteEl && v3HasteEl.value) || '0', 10) || 0;
-        var hasHasteOrAtk = !!(buffV1 || v3InputVal || t.atk || t.wornAtk);
-        if (effEl) {
-          effEl.style.display = hasHasteOrAtk ? '' : 'none';
-          if (hasHasteOrAtk) {
-            // Compute net haste breakdown — read from inputs so manual overrides are reflected
-            var playerLvlEff = parseInt(($('level') && $('level').value) || '60', 10) || 60;
-            var wornHPct = getCappedWornHastePercent(playerLvlEff, parsePercentInput('worn-haste'));
-            var v1Pct    = parseInt((spellHasteEl && spellHasteEl.value) || '0', 10) || 0;
-            var v3Pct    = Math.min(25, v3InputVal);
-            var combined = Math.min(wornHPct + v1Pct, 100);
-            var netHaste = combined + v3Pct;
-
-            var effWornEl = $('eff-worn-haste');
-            if (effWornEl) effWornEl.textContent = wornHPct + '%';
-            var effV1El = $('eff-v1-haste');
-            if (effV1El) effV1El.textContent = v1Pct + '%';
-            var effCombEl = $('eff-combined-haste');
-            if (effCombEl) {
-              effCombEl.textContent = combined + '%';
-              effCombEl.title = (wornHPct + v1Pct > 100) ? 'Capped at 100% (worn ' + wornHPct + '% + V1 ' + v1Pct + '% = ' + (wornHPct + v1Pct) + '%, capped)' : '';
-            }
-            var effV3Wrap = $('eff-v3-wrap');
-            if (effV3Wrap) effV3Wrap.style.display = v3InputVal ? '' : 'none';
-            var effV3El = $('eff-v3-haste');
-            if (effV3El) effV3El.textContent = v3Pct + '%';
-            var effHasteEl = $('eff-haste');
-            if (effHasteEl) effHasteEl.textContent = netHaste + '%';
-
-            var effSpellAtkEl = $('eff-spell-atk');
-            if (effSpellAtkEl) effSpellAtkEl.textContent = String(netSpellAtk);
-            var wornWrap = $('eff-worn-atk-wrap');
-            if (wornWrap) wornWrap.style.display = t.wornAtk ? '' : 'none';
-            var effWornAtkEl = $('eff-worn-atk');
-            if (effWornAtkEl) effWornAtkEl.textContent = String(netWornAtk);
-          }
-        }
+        // Effective stats readout — always updated via updateEffectiveHasteDisplay()
+        updateEffectiveHasteDisplay();
 
         // Mark dominated buffs
         document.querySelectorAll('.buff-item[data-buff-id]').forEach(function (el) {
@@ -3763,11 +3834,14 @@
       };
       var STAT_KEYS = ['str', 'agi', 'dex', 'sta'];
       var STAT_LABELS = { str: 'STR', agi: 'AGI', dex: 'DEX', sta: 'STA' };
+      // Secondary stats — gear-only, no creation point allocation
+      var SECONDARY_STAT_KEYS = ['cha'];
+      var SECONDARY_STAT_LABELS = { cha: 'CHA' };
 
       var charCreation = {
         race: 'human',
         pts: { str: 0, agi: 0, dex: 0, sta: 0 },
-        gear: { str: 0, agi: 0, dex: 0, sta: 0 },
+        gear: { str: 0, agi: 0, dex: 0, sta: 0, cha: 0 },
       };
       window.inventoryLoaded = false;
       var CREATION_POINTS = 25;
@@ -3826,6 +3900,18 @@
             + '<td class="stat-buffed-cell">' + buffedVal + '</td>'
             + '</tr>';
         });
+        // Secondary stats — gear only, no base or creation point allocation
+        SECONDARY_STAT_KEYS.forEach(function (sk) {
+          var gearVal = charCreation.gear[sk] || 0;
+          html += '<tr>'
+            + '<td>' + SECONDARY_STAT_LABELS[sk] + '</td>'
+            + '<td style="color:var(--muted);">—</td>'
+            + '<td></td>'
+            + '<td class="stat-gear">' + gearVal + '</td>'
+            + '<td class="stat-final"><input type="number" class="stat-final-input stat-final-secondary" data-stat="' + sk + '" value="' + gearVal + '" min="0" max="999" title="Final ' + SECONDARY_STAT_LABELS[sk] + ' — from gear"></td>'
+            + '<td class="stat-buffed-cell" style="color:var(--muted);">—</td>'
+            + '</tr>';
+        });
         body2.innerHTML = html;
 
         var cntEl = $('stat-pts-count');
@@ -3842,12 +3928,14 @@
           var sk = btn.dataset.stat;
           var delta = parseInt(btn.dataset.delta, 10);
           if (!sk || isNaN(delta)) return;
+          if (e.shiftKey) delta *= 5;
           var cur = charCreation.pts[sk] || 0;
           var rem = CREATION_POINTS - ptsUsed();
           var rd2 = RACE_DATA[charCreation.race] || RACE_DATA.human;
           var capPts = getStatCap(charCreation.race, sk, aaConfig.planarPower || 0) - (rd2[sk] || 75);
-          if (delta > 0 && (rem <= 0 || cur >= capPts)) return;
-          if (delta < 0 && cur <= 0) return;
+          if (delta > 0) delta = Math.min(delta, Math.min(rem, capPts - cur));
+          if (delta < 0) delta = Math.max(delta, -cur);
+          if (delta === 0) return;
           charCreation.pts[sk] = cur + delta;
           renderStatDistributor();
           syncHiddenStats();
@@ -3863,12 +3951,17 @@
           if (!sk) return;
           var finalTyped = parseInt(inp.value, 10);
           if (isNaN(finalTyped) || finalTyped < 0) return;
-          var raceId2 = charCreation.race;
-          var ppRank2 = aaConfig.planarPower || 0;
-          var rd2 = RACE_DATA[raceId2] || RACE_DATA.human;
-          var base2 = rd2[sk] || 75;
-          var pts2 = charCreation.pts[sk] || 0;
-          charCreation.gear[sk] = Math.max(0, finalTyped - base2 - pts2);
+          // Secondary stats (CHA etc.) have no base or pts — final IS the gear value
+          if (SECONDARY_STAT_KEYS.indexOf(sk) !== -1) {
+            charCreation.gear[sk] = Math.max(0, finalTyped);
+          } else {
+            var raceId2 = charCreation.race;
+            var ppRank2 = aaConfig.planarPower || 0;
+            var rd2 = RACE_DATA[raceId2] || RACE_DATA.human;
+            var base2 = rd2[sk] || 75;
+            var pts2 = charCreation.pts[sk] || 0;
+            charCreation.gear[sk] = Math.max(0, finalTyped - base2 - pts2);
+          }
           syncHiddenStats();
           // Update gear text cell in-place to preserve focus
           var row2 = inp.closest('tr');
@@ -3889,6 +3982,7 @@
         var strEl = $('str'); if (strEl) strEl.value = finalStr;
         var dexEl = $('dex'); if (dexEl) dexEl.value = finalDex;
         var agiEl = $('agi'); if (agiEl) agiEl.value = finalAgi;
+        var chaEl = $('cha'); if (chaEl) chaEl.value = charCreation.gear.cha || 0;
         // Push final STA to tanking tab so Total HP auto-recalculates
         var tankStaEl = $('tank-sta'); if (tankStaEl) tankStaEl.value = finalSta;
         if (typeof window.updateTankHP === 'function') window.updateTankHP();
@@ -4040,9 +4134,15 @@
             else delete weapon1.procSpellNonDamagingDetrimental;
             if (sd1.ccAddsMobHpThreat) weapon1.procSpellCcAddsMobHpThreat = true;
             else delete weapon1.procSpellCcAddsMobHpThreat;
+            // Beneficial non-damaging procs (buffs/runes/shielding) have no DPS impact — skip proc simulation
+            if (sd1.beneficial && (sd1.damage == null || sd1.damage <= 0)) {
+              weapon1.procSpell = null;
+              weapon1.procSpellId = undefined;
+            }
             // Threat cap: if player class cannot cast this proc, cap at 400; if they can cast it, no cap.
             if (sd1.classesMask != null && typeof ItemSearch !== 'undefined' && ItemSearch.CLASS_BITMASK) {
-              var w1ClassMask = ItemSearch.CLASS_BITMASK[classId];
+              var w1ClassId = ($('class').value || '').toLowerCase();
+              var w1ClassMask = ItemSearch.CLASS_BITMASK[w1ClassId];
               weapon1.procThreatCap = (w1ClassMask && (sd1.classesMask & w1ClassMask) !== 0) ? undefined : 400;
             }
           }
@@ -4061,9 +4161,15 @@
             else delete weapon2.procSpellNonDamagingDetrimental;
             if (sd2.ccAddsMobHpThreat) weapon2.procSpellCcAddsMobHpThreat = true;
             else delete weapon2.procSpellCcAddsMobHpThreat;
+            // Beneficial non-damaging procs (buffs/runes/shielding) have no DPS impact — skip proc simulation
+            if (sd2.beneficial && (sd2.damage == null || sd2.damage <= 0)) {
+              weapon2.procSpell = null;
+              weapon2.procSpellId = undefined;
+            }
             // Threat cap: if player class cannot cast this proc, cap at 400; if they can cast it, no cap.
             if (sd2.classesMask != null && typeof ItemSearch !== 'undefined' && ItemSearch.CLASS_BITMASK) {
-              var w2ClassMask = ItemSearch.CLASS_BITMASK[classId];
+              var w2ClassId = ($('class').value || '').toLowerCase();
+              var w2ClassMask = ItemSearch.CLASS_BITMASK[w2ClassId];
               weapon2.procThreatCap = (w2ClassMask && (sd2.classesMask & w2ClassMask) !== 0) ? undefined : 400;
             }
           }
@@ -7215,13 +7321,6 @@
           listEl.innerHTML = '<div class="easy-history-empty" role="status"><iconify-icon icon="lucide:scroll-text" style="font-size:2rem;opacity:0.45;color:#d4af37"></iconify-icon><span>No simulations logged</span></div>';
           return;
         }
-        var easyCount = 0, advCount = 0;
-        SIM_HISTORY.forEach(function (h) { if (h.mode === 'advanced') advCount++; else easyCount++; });
-        var countLine = '<div class="sim-history-counts" style="margin-bottom:0.5rem;">' +
-          '<span>Easy: <strong>' + easyCount + '</strong></span>' +
-          '<span>Advanced: <strong>' + advCount + '</strong></span>' +
-          '<span>Total: <strong>' + SIM_HISTORY.length + '</strong></span>' +
-          '</div>';
         var header = '<table class="easy-history-table"><thead><tr>' +
           '<th>Weapons</th>' +
           '<th>Lvl</th>' +
@@ -7267,7 +7366,7 @@
             '<td><span class="sim-mode-badge ' + modeClass + '">' + modeLabel + '</span></td>' +
             '</tr>';
         }).join('');
-        listEl.innerHTML = countLine + '<div class="easy-history-table-wrap">' + header + rows + '</tbody></table></div>';
+        listEl.innerHTML = '<div class="easy-history-table-wrap">' + header + rows + '</tbody></table></div>';
       }
       function initEasyModeUi() {
         var classEl = $('class');
@@ -7833,6 +7932,17 @@
           updateBuffTotals(); // refresh effective stats bar
         });
       })();
+      // spell-attack: if user edits while buffs are active, treat as additional bonus ATK
+      (function () {
+        var el = $('spell-attack');
+        if (!el) return;
+        el.addEventListener('input', function () {
+          if (el._buffUpdate) return;
+          // When buffs are active the field value is bonus-on-top-of-buffs; don't touch _preBuffSpellAtk
+          // (it already holds the pre-buff value for restore). Just let the display refresh.
+          updateEffectiveHasteDisplay();
+        });
+      })();
       function onSpecialReuseInput(id, kind) {
         const el = document.getElementById(id);
         if (!el) return;
@@ -7904,6 +8014,7 @@
 
       // Init buff panel
       renderBuffPanel();
+      updateEffectiveHasteDisplay();
 
       // Init stat distributor and race selector
       initRaceSelector();
@@ -8168,7 +8279,10 @@
             $(prefix + '-proc').value = spellFromLocal.name;
             if (procDmgEl) procDmgEl.value = spellFromLocal.damage != null ? spellFromLocal.damage : (isNaN(procDmg) ? '' : procDmg);
             var bufEl = $(prefix + '-proc-buff-duration');
-            if (bufEl) bufEl.value = (spellFromLocal.buffdurationTicks != null && spellFromLocal.buffdurationTicks > 0) ? String(spellFromLocal.buffdurationTicks) : '';
+            if (bufEl) {
+              var isBeneficialNonDamaging = spellFromLocal.beneficial && (spellFromLocal.damage == null || spellFromLocal.damage <= 0);
+              bufEl.value = (!isBeneficialNonDamaging && spellFromLocal.buffdurationTicks != null && spellFromLocal.buffdurationTicks > 0) ? String(spellFromLocal.buffdurationTicks) : '';
+            }
             var rtEl = $(prefix + '-proc-spell-resist-type');
             if (rtEl) rtEl.value = spellFromLocal.resisttype != null ? String(spellFromLocal.resisttype) : '';
             var rmEl = $(prefix + '-proc-spell-resist-modifier');
@@ -8287,6 +8401,7 @@
         }
         updateWeaponNameDisplay(prefix === 'w1' ? 'w2' : 'w1');
       }
+      window.applyWeaponFromSearch = applyWeaponFromSearch;
 
       function applyTankWeaponFromSearch(weapon) {
         if (!weapon) return;
@@ -9182,11 +9297,12 @@
       };
 
       // Expose gear-stat updater for inventory system (different IIFE scope)
-      window.applyGearStats = function (str, dex, agi, sta) {
+      window.applyGearStats = function (str, dex, agi, sta, cha) {
         charCreation.gear.str = str || 0;
         charCreation.gear.dex = dex || 0;
         charCreation.gear.agi = agi || 0;
         charCreation.gear.sta = sta || 0;
+        charCreation.gear.cha = cha || 0;
         renderStatDistributor();
         syncHiddenStats();
       };
@@ -9312,14 +9428,19 @@
       var eid = parseInt(s['effectid' + i]);
       var bv  = parseInt(s['effect_base_value' + i]);
       if (isNaN(eid) || eid === 254) continue;
+      // Formula 101 = scales with caster/wearer level. At level 60 the value reaches
+      // effect_limit_value (e.g. Fungal Regrowth: base 5, limit 15 → 15 at level 60).
+      var fm = parseInt(s['formula' + i]);
+      var lv = parseInt(s['effect_limit_value' + i]);
+      var ev = (fm === 101 && !isNaN(lv) && lv > bv) ? lv : bv;
       if (eid === 11 && bv > 100) {
         // bv=101: generic "Haste" category — real% encoded in item's wornlevel field
         var h = bv > 101 ? (bv - 100) : ((itemWornLevel || 0) + 1);
         haste = Math.max(haste, h);
       }
-      if (eid === 2  && bv > 0) atk   = Math.max(atk,   bv);
-      if (eid === 0  && bv > 0) regen = Math.max(regen,  bv); // HP Regen (SE_CurrentHP)
-      if (eid === 15 && bv > 0) ft    = Math.max(ft,     bv); // Flowing Thought / mana regen (SE_CurrentMana)
+      if (eid === 2  && ev > 0) atk   = Math.max(atk,   ev);
+      if (eid === 0  && ev > 0) regen = Math.max(regen,  ev); // HP Regen (SE_CurrentHP)
+      if (eid === 15 && ev > 0) ft    = Math.max(ft,     ev); // Flowing Thought / mana regen (SE_CurrentMana)
     }
     return { haste: haste, atk: atk, regen: regen, ft: ft, spellName: s.name || '' };
   }
@@ -9331,6 +9452,13 @@
     if (!item) {
       var wdb = window.__DPS_WEAPONS_MERGED__;
       item = wdb && (wdb[id] || wdb[String(id)]);
+    }
+    // items-data.js omits weapon-specific fields (proceffect, banedmgamt, elemdmgtype, etc.).
+    // Merge them from weapons-data.js when missing so inventory import has full weapon data.
+    if (item && item.proceffect === undefined) {
+      var wdb2 = window.__DPS_WEAPONS_MERGED__;
+      var wItem = wdb2 && (wdb2[id] || wdb2[String(id)]);
+      if (wItem) item = Object.assign({}, item, wItem);
     }
     return item || null;
   }
@@ -9462,7 +9590,7 @@
     });
 
     if (slotsDiv)   slotsDiv.innerHTML = html;
-    if (displayDiv) displayDiv.style.display = '';
+    if (displayDiv) { displayDiv.style.display = ''; displayDiv.open = true; }
 
     // ---- Haste analysis ----
     hasteItems.sort(function (a, b) { return b.haste - a.haste; });
@@ -9565,8 +9693,13 @@
         if (hiddenIs2h) hiddenIs2h.value = is2h ? '1' : '0';
         // Weapon icon
         setWeaponIcon('w1', parseInt(pItem.icon) || 0);
-        // Proc fields
-        applyItemProcFields('w1', pItem);
+        // Re-apply weapon fully via the search path so all proc fields are correctly populated
+        if (typeof ItemSearch !== 'undefined' && ItemSearch.normalizeItemForWeapon && typeof window.applyWeaponFromSearch === 'function') {
+          var w1Normalized = ItemSearch.normalizeItemForWeapon(pItem);
+          if (w1Normalized) window.applyWeaponFromSearch('w1', w1Normalized);
+        } else {
+          applyItemProcFields('w1', pItem);
+        }
       }
     }
 
@@ -9580,8 +9713,13 @@
         if (meleeW2Name) meleeW2Name.textContent = secondary.name;
         // Weapon icon
         setWeaponIcon('w2', parseInt(sItem.icon) || 0);
-        // Proc fields
-        applyItemProcFields('w2', sItem);
+        // Re-apply weapon fully via the search path so all proc fields are correctly populated
+        if (typeof ItemSearch !== 'undefined' && ItemSearch.normalizeItemForWeapon && typeof window.applyWeaponFromSearch === 'function') {
+          var w2Normalized = ItemSearch.normalizeItemForWeapon(sItem);
+          if (w2Normalized) window.applyWeaponFromSearch('w2', w2Normalized);
+        } else {
+          applyItemProcFields('w2', sItem);
+        }
       }
     }
 
@@ -9605,7 +9743,7 @@
 
     // --- Worn stats: melee tab (via stat distributor if available) ---
     if (typeof window.applyGearStats === 'function') {
-      window.applyGearStats(totals.str || 0, totals.dex || 0, totals.agi || 0, totals.sta || 0);
+      window.applyGearStats(totals.str || 0, totals.dex || 0, totals.agi || 0, totals.sta || 0, totals.cha || 0);
     } else {
       if (totals.str) setEl('str', totals.str);
       if (totals.dex) setEl('dex', totals.dex);
@@ -9659,44 +9797,43 @@
     }
 
     // ---- Inventory summary (below equipment list) ----
+    var pillsEl  = document.getElementById('shared-inventory-pills');
     var summaryEl = document.getElementById('shared-inventory-summary');
+
+    // Stat pills — rendered into the summary bar so they're visible when collapsed
+    var statPairsMain = [
+      ['AC',   totals.ac],
+      ['STR',  totals.str],
+      ['STA',  totals.sta],
+      ['DEX',  totals.dex],
+      ['AGI',  totals.agi],
+      ['CHA',  totals.cha],
+      ['WIS',  totals.wis],
+      ['INT',  totals.int],
+      ['HP',   totals.hp],
+      ['Mana', totals.mana],
+    ];
+    var statPairsEffect = [
+      ['ATK',   totals.atk],
+      ['Regen', totals.regen],
+      ['FT',    totals.ft],
+    ];
+    function renderPill(pair) {
+      var val = pair[1] || 0;
+      var color = val > 0 ? '#7eb8c9' : 'var(--muted)';
+      return '<span style="display:inline-flex;flex-direction:column;align-items:center;min-width:2.6rem;' +
+        'background:rgba(0,0,0,0.3);border:1px solid var(--border);border-radius:3px;padding:0.1rem 0.35rem;">' +
+        '<span style="font-size:0.6rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.04em;">' + pair[0] + '</span>' +
+        '<strong style="font-size:0.78rem;color:' + color + ';">' + val + '</strong>' +
+        '</span>';
+    }
+    if (pillsEl) {
+      var pillHtml = statPairsMain.concat(statPairsEffect).map(renderPill).join('');
+      pillsEl.innerHTML = pillHtml;
+    }
+
     if (summaryEl) {
       var summLines = [];
-
-      // Stat totals grid — always show all six stats
-      var statPairsMain = [
-        ['AC',   totals.ac],
-        ['STR',  totals.str],
-        ['STA',  totals.sta],
-        ['DEX',  totals.dex],
-        ['AGI',  totals.agi],
-        ['WIS',  totals.wis],
-        ['INT',  totals.int],
-        ['CHA',  totals.cha],
-        ['HP',   totals.hp],
-        ['Mana', totals.mana],
-      ];
-      var statPairsEffect = [
-        ['ATK',   totals.atk],
-        ['Regen', totals.regen],
-        ['FT',    totals.ft],
-      ];
-      function renderPill(pair) {
-        var val = pair[1] || 0;
-        var color = val > 0 ? '#7eb8c9' : 'var(--muted)';
-        return '<span style="display:inline-flex;flex-direction:column;align-items:center;min-width:2.6rem;' +
-          'background:var(--input-bg);border:1px solid var(--border);border-radius:3px;padding:0.15rem 0.4rem;">' +
-          '<span style="font-size:0.65rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.04em;">' + pair[0] + '</span>' +
-          '<strong style="color:' + color + ';">' + val + '</strong>' +
-          '</span>';
-      }
-      summLines.push('<div style="margin-top:0.6rem;padding-top:0.5rem;border-top:1px solid var(--border);">');
-      summLines.push('<div style="display:flex;flex-wrap:wrap;gap:0.3rem 0.75rem;font-size:0.8rem;">');
-      statPairsMain.forEach(function(pair) { summLines.push(renderPill(pair)); });
-      summLines.push('</div>');
-      summLines.push('<div style="display:flex;flex-wrap:wrap;gap:0.3rem 0.75rem;font-size:0.8rem;margin-top:0.3rem;">');
-      statPairsEffect.forEach(function(pair) { summLines.push(renderPill(pair)); });
-      summLines.push('</div>');
 
       // Haste
       if (hasteItems.length > 0) {
@@ -9731,7 +9868,6 @@
         summLines.push('</div>');
       }
 
-      summLines.push('</div>');
       summaryEl.innerHTML = summLines.join('');
     }
 
@@ -9824,6 +9960,14 @@
       return el ? !!el.checked : false;
     }
 
+    // Resolve buffs using the same model as the melee tab
+    var buffFx = (typeof window.getBuffEffects === 'function') ? window.getBuffEffects() : null;
+    function statWithBuff(inputId, buffKey, fallback, cap) {
+      var base = parseInt((document.getElementById(inputId) || {}).value, 10) || fallback;
+      var bonus = buffFx ? (buffFx[buffKey] || 0) : 0;
+      return cap != null ? Math.min(cap, base + bonus) : (base + bonus);
+    }
+
     var weaponDamage = v('tank-w1-damage', 0);
     var options = {
       // Mob
@@ -9835,18 +9979,20 @@
       mobAccuracy:     v('tank-mob-accuracy', 0) || undefined,
       mobAC:           v('tank-mob-ac', 0),
 
-      // Player defense
+      // Player defense — stats from the shared character model (#str/#dex/#agi, set by
+      // syncHiddenStats which incorporates race base + point allocation + gear), plus
+      // any active buff bonuses resolved via the same getBuffEffects() used by melee.
       playerLevel:          v('tank-level', 60),
       playerClassId:        sel('tank-class', 'warrior'),
-      playerAC:             v('tank-player-ac', 1200),
+      playerAC:             v('tank-player-ac', 1200) + (buffFx ? buffFx.ac || 0 : 0),
       playerSpellAC:        v('tank-player-spell-ac', 0),
-      playerAGI:            v('tank-player-agi', 100),
+      playerAGI:            statWithBuff('agi', 'agi', 100, 255),
       playerDefenseSkill:   v('tank-defense-skill', 230),
       playerDodgeSkill:     v('tank-dodge-skill', 195),
       playerParrySkill:     v('tank-parry-skill', 200),
       playerRiposteSkill:   v('tank-riposte-skill', 185),
       playerBlockSkill:     v('tank-block-skill', 160),
-      playerHPTotal:        v('tank-player-hp', 5000),
+      playerHPTotal:        v('tank-player-hp', 5000) + (buffFx ? buffFx.hp || 0 : 0),
       playerHPRegen:        v('tank-player-hp-regen', 0),
       healerHPS:            v('tank-healer-hps', 0),
 
@@ -9855,9 +10001,9 @@
       playerWeaponDelay:    v('tank-w1-delay', 30),
       playerWeaponIs2H:     chk('tank-w1-is2h'),
       playerOffenseSkill:   v('tank-offense-skill', 252),
-      playerStr:            v('tank-str', 200),
-      playerDex:            v('tank-dex', 150),
-      playerWornAttack:     v('tank-worn-attack', 0),
+      playerStr:            statWithBuff('str', 'str', 200, 255),
+      playerDex:            statWithBuff('dex', 'dex', 150, 255),
+      playerWornAttack:     v('tank-worn-attack', 0) + (buffFx ? (buffFx.wornAtk || 0) + (buffFx.atk || 0) : 0),
 
       // Simulation
       fightDurationSec: v('tank-duration', 300),
