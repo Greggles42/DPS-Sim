@@ -1,0 +1,1298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>gSim Mobile</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+<link href="https://api.fontshare.com/v2/css?f[]=zodiak@400,700&f[]=satoshi@400,500,700&display=swap" rel="stylesheet" />
+<style>
+  html, body { margin: 0; padding: 0; background: #07070a; color: #e8e4d4;
+    font-family: 'Satoshi', system-ui, sans-serif; height: 100vh; overflow: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+  *, *::before, *::after { box-sizing: border-box; }
+  input, textarea { font-family: inherit; }
+  #root { width: 100vw; height: 100vh; max-width: 480px; margin: 0 auto; position: relative; }
+  @media (min-width: 481px) {
+    body { background: #000; display: flex; align-items: center; justify-content: center; }
+    #root { height: 100vh; max-height: 900px; border-left: 1px solid rgba(212,175,55,0.15); border-right: 1px solid rgba(212,175,55,0.15); }
+  }
+  ::-webkit-scrollbar { width: 4px; height: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: rgba(212,175,55,0.25); border-radius: 2px; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script type="text/babel" data-presets="react">
+
+// --- theme.jsx ---
+// gSim Mobile — Theme tokens
+// Based on the design handoff (design_handoff_gsim_overhaul/final/theme.jsx),
+// extended with density + accent-hue hooks for Tweaks.
+
+const GSIM_THEME = {
+  // Gold accents
+  GOLD: '#d4af37',
+  GOLD_BRIGHT: '#e8c547',
+  GOLD_DIM: 'rgba(212,175,55,0.35)',
+  GOLD_FAINT: 'rgba(212,175,55,0.14)',
+  GOLD_BORDER: 'rgba(212,175,55,0.22)',
+  GOLD_GLOW: 'rgba(212,175,55,0.45)',
+
+  // Structural
+  CRIMSON: '#8b0000',
+  CRIMSON_GLOW: 'rgba(139,0,0,0.35)',
+  BG: '#07070a',
+  BG_2: '#0d0d10',
+  PANEL: '#121216',
+  PANEL_2: '#17171c',
+  INPUT: '#101013',
+  BORDER: 'rgba(255,255,255,0.08)',
+  BORDER_STRONG: 'rgba(255,255,255,0.14)',
+
+  // Text
+  TEXT: '#e8e4d4',
+  TEXT_DIM: '#b8b4a4',
+  MUTED: '#7a7668',
+  MUTED_DIM: '#4a4638',
+
+  // Data viz
+  TPS_BLUE: '#7eb8c9',
+  PIE_BLUE: '#7aa8e0',
+  PIE_BLUE_DARK: '#4d78b5',
+  PIE_VIOLET: '#b892d6',
+  DANGER: '#d07070',
+  GREEN: '#6ee7b7',
+
+  // Type
+  FONT_DISPLAY: '"Cinzel", serif',
+  FONT_BODY: '"Satoshi", system-ui, sans-serif',
+  FONT_SERIF: '"Zodiak", Georgia, serif',
+  FONT_MONO: '"JetBrains Mono", ui-monospace, "Cascadia Code", "SF Mono", monospace',
+};
+
+// Shorthand font helpers
+const tCinzel = () => ({ fontFamily: GSIM_THEME.FONT_DISPLAY });
+const tSatoshi = () => ({ fontFamily: GSIM_THEME.FONT_BODY });
+const tZodiak = () => ({ fontFamily: GSIM_THEME.FONT_SERIF });
+const tMono = () => ({ fontFamily: GSIM_THEME.FONT_MONO });
+
+// Gold corner brackets — the signature ornament
+function GsimCorners({ children, style = {}, size = 10, color, inner = 0 }) {
+  const g = color || GSIM_THEME.GOLD;
+  const b = `1.5px solid ${g}`;
+  const C = (s) => <div style={{ position: 'absolute', width: size, height: size, pointerEvents: 'none', ...s }} />;
+  return (
+    <div style={{ position: 'relative', ...style }}>
+      <C style={{ top: -1 + inner, left: -1 + inner, borderTop: b, borderLeft: b }} />
+      <C style={{ top: -1 + inner, right: -1 + inner, borderTop: b, borderRight: b }} />
+      <C style={{ bottom: -1 + inner, left: -1 + inner, borderBottom: b, borderLeft: b }} />
+      <C style={{ bottom: -1 + inner, right: -1 + inner, borderBottom: b, borderRight: b }} />
+      {children}
+    </div>
+  );
+}
+
+// Gold divider with center diamond
+function GoldDivider({ style = {}, color }) {
+  const g = color || GSIM_THEME.GOLD_DIM;
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 6, ...style }}>
+      <div style={{ flex: 1, height: 1, background: `linear-gradient(90deg, transparent, ${g}, transparent)` }} />
+      <div style={{ width: 4, height: 4, transform: 'rotate(45deg)', background: g }} />
+      <div style={{ flex: 1, height: 1, background: `linear-gradient(90deg, transparent, ${g}, transparent)` }} />
+    </div>
+  );
+}
+
+// Section heading — "▸ LABEL · hint"
+function SectionHead({ label, hint, action }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 8, gap: 8 }}>
+      <div style={{ ...tCinzel(), fontSize: 9, letterSpacing: '0.22em', color: GSIM_THEME.GOLD, textTransform: 'uppercase', fontWeight: 700, whiteSpace: 'nowrap' }}>{label}</div>
+      {hint && <div style={{ fontSize: 9, color: GSIM_THEME.MUTED, letterSpacing: '0.06em', flex: 1, textAlign: 'right', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{hint}</div>}
+      {action && <div style={{ ...tCinzel(), fontSize: 9, letterSpacing: '0.14em', color: GSIM_THEME.GOLD, fontWeight: 700, cursor: 'pointer' }}>{action}</div>}
+    </div>
+  );
+}
+
+// Generic panel
+function Panel({ children, style = {}, padding = 12, corners = false, ornate = false }) {
+  const base = {
+    padding, borderRadius: 4,
+    background: ornate
+      ? `linear-gradient(180deg, ${GSIM_THEME.PANEL_2}, ${GSIM_THEME.PANEL})`
+      : GSIM_THEME.PANEL,
+    border: `1px solid ${GSIM_THEME.BORDER}`,
+    ...style,
+  };
+  if (corners) {
+    return (
+      <GsimCorners style={{ ...base, background: base.background }}>{children}</GsimCorners>
+    );
+  }
+  return <div style={base}>{children}</div>;
+}
+
+Object.assign(window, {
+  GSIM_THEME, tCinzel, tSatoshi, tZodiak, tMono,
+  GsimCorners, GoldDivider, SectionHead, Panel,
+});
+
+
+// --- data.jsx ---
+// gSim Mobile — sample data derived from the existing mobile.jsx + desktop spec
+
+const GSIM_DATA = {
+  classes: [
+    { name: 'Bard', tag: 'BRD', archetype: 'Hybrid' },
+    { name: 'Beastlord', tag: 'BST', archetype: 'Hybrid' },
+    { name: 'Cleric', tag: 'CLR', archetype: 'Priest' },
+    { name: 'Druid', tag: 'DRU', archetype: 'Priest' },
+    { name: 'Enchanter', tag: 'ENC', archetype: 'Caster' },
+    { name: 'Magician', tag: 'MAG', archetype: 'Caster' },
+    { name: 'Monk', tag: 'MNK', archetype: 'Melee' },
+    { name: 'Necromancer', tag: 'NEC', archetype: 'Caster' },
+    { name: 'Paladin', tag: 'PAL', archetype: 'Hybrid' },
+    { name: 'Ranger', tag: 'RNG', archetype: 'Hybrid' },
+    { name: 'Rogue', tag: 'ROG', archetype: 'Melee' },
+    { name: 'Shadowknight', tag: 'SHD', archetype: 'Hybrid' },
+    { name: 'Shaman', tag: 'SHM', archetype: 'Priest' },
+    { name: 'Warrior', tag: 'WAR', archetype: 'Melee' },
+    { name: 'Wizard', tag: 'WIZ', archetype: 'Caster' },
+  ],
+  races: ['Human', 'Barbarian', 'Iksar', 'Vah Shir'],
+  eras: ['Classic', 'Kunark', 'Velious', 'Luclin', 'PoP', 'GoD'],
+  stats: { STR: 255, AGI: 209, DEX: 186, STA: 255, WIS: 92, INT: 68 },
+  gear: [
+    ['Primary',   "Caen's Bo Staff of Fury",      "43d/30"],
+    ['Secondary', '—',                             'empty'],
+    ['Head',      'Crown of the Kromzek Kings',   '+25 STR'],
+    ['Face',      'Fine Steel Mask',              '+8 STR'],
+    ['Ear 1',     'Earring of Essence',           '+12 INT'],
+    ['Ear 2',     'Abashi\'s Rod of Disempowerment','+15 WIS'],
+    ['Neck',      'Scaled Mystic Tunic',          '+20 STA'],
+    ['Shoulders', 'Zlandicar\'s Scaled Pauldrons','+30 STR'],
+    ['Back',      'Cloak of Destruction',         '+35 STR'],
+    ['Arms',      'Jaundiced Bone Bracer',        '+18 STR'],
+    ['Wrist 1',   'Silver Bracelet of Speed',     '+41% HASTE'],
+    ['Wrist 2',   'Hand-engraved Bracer',         '+12 DEX'],
+    ['Hands',     'Golden Efreeti Gloves',        '+22 STR'],
+    ['Finger 1',  'Ring of Rage',                 '+20 STR'],
+    ['Finger 2',  'Shiny Brass Idol',             '+15 AGI'],
+    ['Chest',     'Breastplate of the Ancients',  '+45 STA'],
+    ['Legs',      'Flayed Barbarian Leggings',    '+60 STR'],
+    ['Feet',      'Shoes of the Hidden Path',     '+10 AGI'],
+    ['Waist',     'Girdle of Rapidity',           '+18 HASTE'],
+    ['Range',     'Tranquil Staff',               '+proc'],
+  ],
+  buffGroups: [
+    { label: 'Haste', buffs: [
+      { name: 'Visions of Grandeur',     tag: 'ENC', active: true,  hint: '+37% haste' },
+      { name: 'Speed of the Shissar',    tag: 'ENC', active: false, hint: '+45% haste' },
+      { name: 'Quickness',               tag: 'ENC', active: false, hint: '+25% haste' },
+    ]},
+    { label: 'Offensive', buffs: [
+      { name: 'Ancient: Feral Avatar',   tag: 'SHM', active: true,  hint: '+55 STR, +95 ATK' },
+      { name: 'Strength of Nature',      tag: 'DRU', active: false, hint: '+35 STR' },
+      { name: 'Savagery',                tag: 'BST', active: false, hint: '+30 STR' },
+      { name: 'Ferocity',                tag: 'BST', active: false, hint: '+35 ATK' },
+    ]},
+    { label: 'Bard Songs', buffs: [
+      { name: 'Warsong of the Vah Shir', tag: 'BRD', active: true,  hint: '+ATK mod' },
+      { name: 'McVaxius\'s Berserker Crescendo', tag: 'BRD', active: false, hint: '+ATK' },
+    ]},
+    { label: 'Potions & Clickies', buffs: [
+      { name: 'Bracer of Benevolence',   tag: 'ITM', active: false, hint: 'Clicky AC' },
+      { name: 'Mask of Tinkering',       tag: 'ITM', active: false, hint: 'Clicky DS' },
+    ]},
+    { label: 'Slot Buffs', buffs: [
+      { name: 'Spirit of Wolf',          tag: 'DRU', active: false, hint: 'Run speed' },
+    ]},
+  ],
+  target: { name: 'Kaas Thox Xi Aten Ha Ra', lvl: 66, ac: 800, zone: 'Plane of Time' },
+  npcs: [
+    { name: 'Kaas Thox Xi Aten Ha Ra', lvl: 66, ac: 800, zone: 'PoTime', hp: 1800000 },
+    { name: 'The Rathe Council',       lvl: 66, ac: 750, zone: 'PoEarthB', hp: 950000 },
+    { name: 'Quarm',                   lvl: 70, ac: 900, zone: 'PoTime',  hp: 2400000 },
+    { name: 'Mithaniel Marr',          lvl: 68, ac: 820, zone: 'PoValor', hp: 1600000 },
+    { name: 'Emperor Ssraeshza',       lvl: 65, ac: 700, zone: 'Ssra',    hp: 1100000 },
+    { name: 'Aten Ha Ra',              lvl: 64, ac: 710, zone: 'Vex Thal',hp: 980000 },
+    { name: 'Tunare',                  lvl: 70, ac: 850, zone: 'PoGrowth',hp: 2100000 },
+    { name: 'Bertoxxulous',            lvl: 70, ac: 860, zone: 'PoDisease',hp: 2000000 },
+  ],
+  weapons: [
+    { name: "Caen's Bo Staff of Fury", type: '2HB', d: 43, delay: 30, rating: 99 },
+    { name: 'Iksar Berserker Club',   type: '2HB', d: 41, delay: 31, rating: 94 },
+    { name: 'Staff of Phoenix Fire',  type: '2HB', d: 42, delay: 32, rating: 92 },
+    { name: 'Fleshrippers',           type: 'H2H', d: 21, delay: 19, rating: 88 },
+    { name: 'Epic: Celestial Fists',  type: 'H2H', d: 9,  delay: 16, rating: 96 },
+    { name: 'Tranquil Staff',         type: '2HB', d: 40, delay: 34, rating: 85 },
+    { name: 'Crafted Warhammer',      type: '1HB', d: 20, delay: 25, rating: 72 },
+    { name: 'Yaulp VI Truncheon',     type: '1HB', d: 22, delay: 24, rating: 78 },
+  ],
+  rankResults: [
+    { rank: 1, name: "Caen's Bo Staff of Fury",  dps: 77.48, delta: null,   tag: '43d/30 · 2HB' },
+    { rank: 2, name: 'Epic: Celestial Fists',    dps: 75.02, delta: -2.46,  tag: '9d/16 · H2H' },
+    { rank: 3, name: 'Iksar Berserker Club',     dps: 73.91, delta: -3.57,  tag: '41d/31 · 2HB' },
+    { rank: 4, name: 'Staff of Phoenix Fire',    dps: 72.40, delta: -5.08,  tag: '42d/32 · 2HB' },
+    { rank: 5, name: 'Fleshrippers',             dps: 68.13, delta: -9.35,  tag: '21d/19 · H2H' },
+    { rank: 6, name: 'Tranquil Staff',           dps: 66.22, delta: -11.26, tag: '40d/34 · 2HB' },
+    { rank: 7, name: 'Yaulp VI Truncheon',       dps: 58.44, delta: -19.04, tag: '22d/24 · 1HB' },
+    { rank: 8, name: 'Crafted Warhammer',        dps: 52.11, delta: -25.37, tag: '20d/25 · 1HB' },
+  ],
+};
+
+window.GSIM_DATA = GSIM_DATA;
+
+
+// --- primitives.jsx ---
+// gSim Mobile — shared primitives (charts, bars, pills, toggles)
+
+const T = window.GSIM_THEME;
+
+// ─── StatChip ───
+function StatChip({ k, v, size = 'md', variant = 'gold' }) {
+  const sizes = {
+    sm: { pad: '4px 2px', kfs: 7, vfs: 12 },
+    md: { pad: '6px 2px', kfs: 8, vfs: 14 },
+    lg: { pad: '8px 4px', kfs: 9, vfs: 17 },
+  };
+  const s = sizes[size];
+  const col = variant === 'gold' ? T.GOLD : variant === 'blue' ? T.TPS_BLUE : T.TEXT;
+  return (
+    <div style={{ background: T.INPUT, borderRadius: 4, padding: s.pad, textAlign: 'center', border: `1px solid ${T.BORDER}` }}>
+      <div style={{ fontSize: s.kfs, color: T.MUTED, letterSpacing: '0.14em', ...window.tCinzel(), fontWeight: 600 }}>{k}</div>
+      <div style={{ fontSize: s.vfs, color: col, fontWeight: 700, ...window.tMono() }}>{v}</div>
+    </div>
+  );
+}
+
+// ─── PieChart ───
+function PieChart({ size = 90, segs, hollow = 0.52, shadow = true }) {
+  const r = size/2; let a = -Math.PI/2;
+  const arcs = segs.map((s, i) => {
+    const end = a + (s.pct/100)*Math.PI*2;
+    const x1 = r + r*Math.cos(a), y1 = r + r*Math.sin(a);
+    const x2 = r + r*Math.cos(end), y2 = r + r*Math.sin(end);
+    const large = end - a > Math.PI ? 1 : 0;
+    const d = `M${r},${r} L${x1},${y1} A${r},${r} 0 ${large} 1 ${x2},${y2} Z`;
+    a = end; return <path key={i} d={d} fill={s.color}/>;
+  });
+  return (
+    <svg width={size} height={size} style={{ filter: shadow ? 'drop-shadow(0 2px 8px rgba(0,0,0,0.4))' : undefined }}>
+      {arcs}
+      {hollow > 0 && <circle cx={r} cy={r} r={r*hollow} fill={T.PANEL}/>}
+    </svg>
+  );
+}
+
+// ─── Histogram ───
+function Histogram({ color, seed = 1, bars = 28, height = 44 }) {
+  const data = React.useMemo(() => Array.from({ length: bars }, (_, i) => {
+    const t = i / (bars - 1);
+    const n = Math.sin(seed * 12.9898 + i * 78.233) * 43758.5453;
+    const noise = n - Math.floor(n);
+    const bell = Math.exp(-Math.pow((t - 0.35) * 2.5, 2)) * 0.85 + 0.1;
+    return 5 + bell * (height - 8) + noise * 5;
+  }), [seed, bars, height]);
+  return (
+    <div style={{ display: 'flex', alignItems: 'flex-end', gap: 1.5, height }}>
+      {data.map((h, i) => <div key={i} style={{ flex: 1, height: h, background: color, borderRadius: '1.5px 1.5px 0 0', opacity: 0.82 }} />)}
+    </div>
+  );
+}
+
+// ─── SegmentedControl ───
+function SegmentedControl({ options, value, onChange, size = 'md', disabled = [] }) {
+  const sizes = { sm: { pad: '4px 0', fs: 9 }, md: { pad: '6px 0', fs: 10 }, lg: { pad: '8px 0', fs: 11 } };
+  const s = sizes[size];
+  return (
+    <div style={{ display: 'flex', gap: 2, padding: 3, background: T.INPUT, borderRadius: 6, border: `1px solid ${T.BORDER}` }}>
+      {options.map(opt => {
+        const active = opt === value;
+        const dis = disabled.includes(opt);
+        return (
+          <div key={opt} onClick={() => !dis && onChange(opt)} style={{
+            flex: 1, textAlign: 'center', padding: s.pad, ...window.tCinzel(),
+            fontSize: s.fs, letterSpacing: '0.14em', textTransform: 'uppercase', fontWeight: 700,
+            borderRadius: 4, background: active ? T.GOLD_FAINT : 'transparent',
+            color: active ? T.GOLD : (dis ? T.MUTED_DIM : T.MUTED),
+            border: active ? `1px solid ${T.GOLD_BORDER}` : '1px solid transparent',
+            cursor: dis ? 'not-allowed' : 'pointer',
+            opacity: dis ? 0.5 : 1,
+            transition: 'all 120ms ease',
+          }}>{opt}</div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ─── BuffCheckbox ───
+function BuffCheckbox({ on, onChange }) {
+  return (
+    <div onClick={onChange} style={{
+      width: 16, height: 16, borderRadius: 3,
+      border: `1px solid ${on ? T.GOLD : T.BORDER_STRONG}`,
+      background: on ? T.GOLD : 'transparent',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      color: T.BG, fontSize: 10, fontWeight: 900, flexShrink: 0,
+      cursor: 'pointer', transition: 'all 120ms ease',
+      boxShadow: on ? '0 0 8px rgba(212,175,55,0.35)' : 'none',
+    }}>{on && '✓'}</div>
+  );
+}
+
+// ─── Slider ───
+function Slider({ value, onChange, max = 100, color }) {
+  const ref = React.useRef(null);
+  const c = color || T.GOLD;
+  const pct = Math.min(100, Math.max(0, (value / max) * 100));
+  const handle = (e) => {
+    const r = ref.current.getBoundingClientRect();
+    const touch = e.touches ? e.touches[0] : e;
+    const x = Math.max(0, Math.min(r.width, touch.clientX - r.left));
+    onChange(Math.round((x / r.width) * max));
+  };
+  return (
+    <div ref={ref}
+      onMouseDown={(e) => { handle(e); const m = ev => handle(ev); const u = () => { window.removeEventListener('mousemove', m); window.removeEventListener('mouseup', u); }; window.addEventListener('mousemove', m); window.addEventListener('mouseup', u); }}
+      onTouchStart={handle} onTouchMove={handle}
+      style={{ flex: 1, height: 18, display: 'flex', alignItems: 'center', cursor: 'pointer', touchAction: 'none' }}>
+      <div style={{ width: '100%', height: 4, background: T.INPUT, borderRadius: 2, position: 'relative', border: `1px solid ${T.BORDER}` }}>
+        <div style={{ width: `${pct}%`, height: '100%', background: `linear-gradient(90deg, ${T.GOLD_DIM}, ${c})`, borderRadius: 2 }} />
+        <div style={{ position: 'absolute', left: `${pct}%`, top: -6, width: 16, height: 16, borderRadius: '50%', background: c, boxShadow: `0 0 8px ${T.GOLD_GLOW}`, transform: 'translateX(-50%)', border: '1px solid rgba(255,255,255,0.2)' }} />
+      </div>
+    </div>
+  );
+}
+
+// ─── GoldButton (primary CTA) ───
+function GoldButton({ children, onClick, size = 'md', full = false, disabled = false, icon }) {
+  const sizes = {
+    sm: { pad: '8px 14px', fs: 11, r: 4 },
+    md: { pad: '14px 20px', fs: 12, r: 6 },
+    lg: { pad: '16px 24px', fs: 14, r: 8 },
+  };
+  const s = sizes[size];
+  return (
+    <div onClick={!disabled ? onClick : undefined} style={{
+      padding: s.pad, borderRadius: s.r,
+      background: disabled ? T.INPUT : `linear-gradient(145deg, ${T.GOLD} 0%, #8a6b14 100%)`,
+      border: `1px solid ${disabled ? T.BORDER : 'rgba(139,0,0,0.5)'}`,
+      textAlign: 'center', ...window.tCinzel(),
+      fontSize: s.fs, letterSpacing: '0.22em', color: disabled ? T.MUTED : '#0a0a0c',
+      fontWeight: 800, textTransform: 'uppercase',
+      boxShadow: disabled ? 'none' : `0 0 24px ${T.GOLD_GLOW}, inset 0 1px 0 rgba(255,255,255,0.3)`,
+      width: full ? '100%' : 'auto', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+      cursor: disabled ? 'not-allowed' : 'pointer',
+      userSelect: 'none',
+      transition: 'transform 100ms ease',
+    }}
+      onMouseDown={(e) => !disabled && (e.currentTarget.style.transform = 'scale(0.98)')}
+      onMouseUp={(e) => !disabled && (e.currentTarget.style.transform = 'scale(1)')}
+      onMouseLeave={(e) => !disabled && (e.currentTarget.style.transform = 'scale(1)')}
+    >
+      {icon && <span style={{ fontSize: s.fs + 2 }}>{icon}</span>}
+      {children}
+    </div>
+  );
+}
+
+// ─── OutlineButton ───
+function OutlineButton({ children, onClick, full = false, size = 'md', icon }) {
+  const sizes = { sm: { pad: '6px 10px', fs: 9 }, md: { pad: '10px 14px', fs: 10 }, lg: { pad: '14px 20px', fs: 12 } };
+  const s = sizes[size];
+  return (
+    <div onClick={onClick} style={{
+      padding: s.pad, borderRadius: 4, ...window.tCinzel(),
+      fontSize: s.fs, letterSpacing: '0.18em', color: T.GOLD,
+      fontWeight: 700, textTransform: 'uppercase',
+      border: `1px solid ${T.GOLD_BORDER}`, background: T.BG_2,
+      textAlign: 'center', cursor: 'pointer', userSelect: 'none',
+      width: full ? '100%' : 'auto',
+      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+    }}>
+      {icon && <span>{icon}</span>}{children}
+    </div>
+  );
+}
+
+// ─── Count-up animated number ───
+function CountUp({ value, duration = 900, format = (v) => v.toFixed(2), trigger = 0, style = {} }) {
+  const [display, setDisplay] = React.useState(0);
+  React.useEffect(() => {
+    const start = performance.now();
+    const from = 0, to = value;
+    let raf;
+    const step = (t) => {
+      const p = Math.min(1, (t - start) / duration);
+      const eased = 1 - Math.pow(1 - p, 3);
+      setDisplay(from + (to - from) * eased);
+      if (p < 1) raf = requestAnimationFrame(step);
+    };
+    raf = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(raf);
+  }, [value, duration, trigger]);
+  return <span style={style}>{format(display)}</span>;
+}
+
+// ─── AA Dots ───
+function AADots({ value, max }) {
+  return (
+    <div style={{ display: 'flex', gap: 3 }}>
+      {Array.from({ length: max }, (_, i) => (
+        <div key={i} style={{
+          width: 11, height: 11, borderRadius: 2,
+          background: i < value ? T.GOLD : 'transparent',
+          border: `1px solid ${i < value ? T.GOLD : T.BORDER_STRONG}`,
+          boxShadow: i < value ? `0 0 4px ${T.GOLD_GLOW}` : 'none',
+        }} />
+      ))}
+    </div>
+  );
+}
+
+Object.assign(window, {
+  StatChip, PieChart, Histogram, SegmentedControl, BuffCheckbox,
+  Slider, GoldButton, OutlineButton, CountUp, AADots,
+});
+
+
+// --- drilldowns.jsx ---
+// gSim Mobile — Drill-down screens: class picker, weapon search, buff picker, NPC search, Rank All
+
+const DT = window.GSIM_THEME;
+const GD = window.GSIM_DATA;
+
+// ─── Generic Modal/Sheet ───
+function DrillSheet({ title, onBack, children, trailing }) {
+  return (
+    <div style={{ position: 'absolute', inset: 0, background: DT.BG, display: 'flex', flexDirection: 'column', zIndex: 30 }}>
+      <div style={{ padding: '54px 14px 10px', borderBottom: `1px solid ${DT.GOLD_BORDER}`, background: 'linear-gradient(180deg, rgba(0,0,0,0.7), transparent)', display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
+        <div onClick={onBack} style={{ width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', color: DT.GOLD, fontSize: 20, cursor: 'pointer', border: `1px solid ${DT.GOLD_BORDER}`, borderRadius: 4, background: DT.BG_2 }}>‹</div>
+        <div style={{ ...window.tCinzel(), fontSize: 13, letterSpacing: '0.18em', color: DT.GOLD, fontWeight: 700, textTransform: 'uppercase', flex: 1 }}>{title}</div>
+        {trailing}
+      </div>
+      <div style={{ flex: 1, overflowY: 'auto', padding: '12px 14px 40px' }}>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+// ─── Search input ───
+function SearchInput({ value, onChange, placeholder }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px', background: DT.INPUT, border: `1px solid ${DT.BORDER_STRONG}`, borderRadius: 6, marginBottom: 12 }}>
+      <span style={{ color: DT.MUTED, fontSize: 14 }}>⌕</span>
+      <input
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        style={{ flex: 1, background: 'transparent', border: 0, outline: 0, color: DT.TEXT, fontSize: 13, ...window.tSatoshi() }}
+      />
+    </div>
+  );
+}
+
+// ─── Class Picker ───
+function ClassPicker({ current, onPick, onBack }) {
+  const [q, setQ] = React.useState('');
+  const filtered = GD.classes.filter(c => c.name.toLowerCase().includes(q.toLowerCase()));
+  const byArch = {};
+  filtered.forEach(c => { (byArch[c.archetype] = byArch[c.archetype] || []).push(c); });
+  return (
+    <DrillSheet title="Select Class" onBack={onBack}>
+      <SearchInput value={q} onChange={setQ} placeholder="Search class…" />
+      {Object.entries(byArch).map(([arch, list]) => (
+        <div key={arch} style={{ marginBottom: 14 }}>
+          <div style={{ ...window.tCinzel(), fontSize: 9, letterSpacing: '0.22em', color: DT.MUTED, textTransform: 'uppercase', marginBottom: 6, fontWeight: 700 }}>{arch}</div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+            {list.map(c => {
+              const active = c.name === current;
+              return (
+                <div key={c.name} onClick={() => onPick(c.name)} style={{
+                  padding: 10, borderRadius: 4,
+                  background: active ? `linear-gradient(90deg, ${DT.CRIMSON_GLOW}, transparent)` : DT.PANEL,
+                  border: `1px solid ${active ? DT.CRIMSON : DT.BORDER}`,
+                  borderLeft: active ? `3px solid ${DT.CRIMSON}` : `1px solid ${DT.BORDER}`,
+                  cursor: 'pointer',
+                }}>
+                  <div style={{ ...window.tCinzel(), fontSize: 12, color: active ? DT.GOLD : DT.TEXT, fontWeight: 700, letterSpacing: '0.06em' }}>{c.name}</div>
+                  <div style={{ fontSize: 8, color: DT.MUTED, letterSpacing: '0.16em', marginTop: 2 }}>{c.tag}</div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      ))}
+    </DrillSheet>
+  );
+}
+
+// ─── NPC / Target Search ───
+function TargetPicker({ current, onPick, onBack }) {
+  const [q, setQ] = React.useState('');
+  const filtered = GD.npcs.filter(n => n.name.toLowerCase().includes(q.toLowerCase()) || n.zone.toLowerCase().includes(q.toLowerCase()));
+  return (
+    <DrillSheet title="Target NPC" onBack={onBack}>
+      <SearchInput value={q} onChange={setQ} placeholder="Search NPCs by name or zone…" />
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        {filtered.map(n => {
+          const active = n.name === current.name;
+          return (
+            <div key={n.name} onClick={() => onPick(n)} style={{
+              padding: '10px 12px', borderRadius: 4,
+              background: active ? DT.GOLD_FAINT : DT.PANEL,
+              border: `1px solid ${active ? DT.GOLD_BORDER : DT.BORDER}`,
+              cursor: 'pointer',
+            }}>
+              <div style={{ ...window.tZodiak(), fontSize: 14, color: active ? DT.GOLD : DT.TEXT, marginBottom: 3 }}>{n.name}</div>
+              <div style={{ display: 'flex', gap: 10, fontSize: 10, color: DT.MUTED, ...window.tMono(), letterSpacing: '0.04em' }}>
+                <span>Lvl {n.lvl}</span>
+                <span>AC {n.ac}</span>
+                <span>HP {(n.hp/1000).toFixed(0)}k</span>
+                <span style={{ marginLeft: 'auto', color: DT.TEXT_DIM }}>{n.zone}</span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </DrillSheet>
+  );
+}
+
+// ─── Weapon Search ───
+function WeaponSearch({ slot, current, onPick, onBack }) {
+  const [q, setQ] = React.useState('');
+  const filtered = GD.weapons.filter(w => w.name.toLowerCase().includes(q.toLowerCase()));
+  return (
+    <DrillSheet title={`Weapon · ${slot}`} onBack={onBack}>
+      <SearchInput value={q} onChange={setQ} placeholder="Type 4+ chars to search items…" />
+      <div style={{ fontSize: 9, color: DT.MUTED, letterSpacing: '0.14em', ...window.tCinzel(), marginBottom: 8, fontWeight: 600 }}>TOP RESULTS</div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        {filtered.map(w => (
+          <div key={w.name} onClick={() => onPick(w)} style={{
+            padding: 10, borderRadius: 4, background: DT.PANEL,
+            border: `1px solid ${DT.BORDER}`, display: 'flex', gap: 10, alignItems: 'center', cursor: 'pointer',
+          }}>
+            <div style={{ width: 36, height: 36, background: DT.INPUT, border: `1px solid ${DT.GOLD_BORDER}`, borderRadius: 4, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: DT.GOLD, ...window.tCinzel(), fontSize: 14 }}>⚔</div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ ...window.tZodiak(), fontSize: 13, color: DT.TEXT, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{w.name}</div>
+              <div style={{ fontSize: 10, color: DT.MUTED, ...window.tMono(), marginTop: 2 }}>{w.type} · {w.d}d/{w.delay}</div>
+            </div>
+            <div style={{ textAlign: 'right' }}>
+              <div style={{ fontSize: 8, color: DT.MUTED, letterSpacing: '0.14em' }}>RATING</div>
+              <div style={{ ...window.tMono(), fontSize: 14, color: DT.GOLD, fontWeight: 700 }}>{w.rating}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </DrillSheet>
+  );
+}
+
+// ─── Buff Picker ───
+function BuffPicker({ buffs, onToggle, onBack }) {
+  return (
+    <DrillSheet title="Buffs" onBack={onBack}>
+      {GD.buffGroups.map(grp => {
+        const active = grp.buffs.filter(b => buffs[b.name]).length;
+        return (
+          <div key={grp.label} style={{ marginBottom: 14 }}>
+            <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 6 }}>
+              <div style={{ ...window.tCinzel(), fontSize: 10, letterSpacing: '0.22em', color: DT.GOLD, textTransform: 'uppercase', fontWeight: 700 }}>{grp.label}</div>
+              <div style={{ ...window.tMono(), fontSize: 10, color: DT.MUTED }}>{active}/{grp.buffs.length}</div>
+            </div>
+            <div style={{ background: DT.PANEL, border: `1px solid ${DT.BORDER}`, borderRadius: 4, padding: '4px 10px' }}>
+              {grp.buffs.map((b, i) => (
+                <div key={b.name} onClick={() => onToggle(b.name)} style={{
+                  display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0',
+                  borderBottom: i < grp.buffs.length - 1 ? `1px solid rgba(255,255,255,0.04)` : 0,
+                  cursor: 'pointer',
+                }}>
+                  <window.BuffCheckbox on={!!buffs[b.name]} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 12, color: buffs[b.name] ? DT.TEXT : DT.TEXT_DIM, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{b.name}</div>
+                    <div style={{ fontSize: 9, color: DT.MUTED, ...window.tMono(), marginTop: 1 }}>{b.hint}</div>
+                  </div>
+                  <div style={{ fontSize: 8, color: DT.MUTED, letterSpacing: '0.14em', ...window.tCinzel(), fontWeight: 600 }}>{b.tag}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      })}
+    </DrillSheet>
+  );
+}
+
+// ─── Rank All ───
+function RankAll({ onBack, onPickWeapon }) {
+  const [scope, setScope] = React.useState('Primary');
+  const baseline = GD.rankResults[0].dps;
+  return (
+    <DrillSheet title="Rank All Weapons" onBack={onBack} trailing={<div style={{ ...window.tCinzel(), fontSize: 9, letterSpacing: '0.16em', color: DT.GOLD, fontWeight: 700 }}>⚡ RE-RUN</div>}>
+      <div style={{ marginBottom: 12, fontSize: 10, color: DT.MUTED, lineHeight: 1.55 }}>
+        Tests all equippable weapons against your current build (class · era · buffs · target). Top 200 combos.
+      </div>
+      <window.SegmentedControl options={['Primary', 'Secondary', 'Both']} value={scope} onChange={setScope} size="sm" />
+      <div style={{ height: 12 }} />
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+        {GD.rankResults.map((r) => {
+          const deltaPct = r.delta == null ? 0 : (r.delta / baseline) * 100;
+          return (
+            <div key={r.name} onClick={() => onPickWeapon && onPickWeapon(r)} style={{
+              padding: 10, background: DT.PANEL, border: `1px solid ${DT.BORDER}`, borderRadius: 4,
+              display: 'grid', gridTemplateColumns: '26px 1fr auto', gap: 10, alignItems: 'center', cursor: 'pointer',
+            }}>
+              <div style={{ ...window.tCinzel(), fontSize: 14, color: r.rank === 1 ? DT.GOLD : DT.MUTED, textAlign: 'center', fontWeight: 700 }}>{r.rank}</div>
+              <div style={{ minWidth: 0 }}>
+                <div style={{ ...window.tZodiak(), fontSize: 13, color: DT.TEXT, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.name}</div>
+                <div style={{ fontSize: 9, color: DT.MUTED, ...window.tMono(), marginTop: 2 }}>{r.tag}</div>
+              </div>
+              <div style={{ textAlign: 'right' }}>
+                <div style={{ ...window.tMono(), fontSize: 15, color: r.rank === 1 ? DT.GOLD : DT.TEXT, fontWeight: 700 }}>{r.dps.toFixed(2)}</div>
+                <div style={{ ...window.tMono(), fontSize: 9, color: r.delta == null ? DT.GREEN : DT.DANGER }}>
+                  {r.delta == null ? 'best' : `${r.delta.toFixed(2)} · ${deltaPct.toFixed(1)}%`}
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </DrillSheet>
+  );
+}
+
+Object.assign(window, { DrillSheet, SearchInput, ClassPicker, TargetPicker, WeaponSearch, BuffPicker, RankAll });
+
+
+// --- build-scroll.jsx ---
+// gSim Mobile — Build tab (Scroll variant / V1)
+// Single-scroll, dense, canonical. Mirrors the original mobile.jsx spec.
+
+const BT = window.GSIM_THEME;
+const BD = window.GSIM_DATA;
+
+function BuildTabScroll({ state, update, openDrill }) {
+  const { cls, race, easyMode, hasteVal, buffs, target } = state;
+  const activeClass = BD.classes.find(c => c.name === cls) || BD.classes[6];
+  const totalBuffs = BD.buffGroups.flatMap(g => g.buffs);
+  const activeBuffCount = totalBuffs.filter(b => buffs[b.name]).length;
+
+  return (
+    <>
+      {/* Class strip */}
+      <window.Panel padding={10} style={{ marginBottom: 10 }}>
+        <window.SectionHead label="Class & Race" action="CHANGE ›" />
+        <div onClick={() => openDrill('class')} style={{ display: 'flex', gap: 10, alignItems: 'center', cursor: 'pointer' }}>
+          <div style={{
+            width: 44, height: 44, border: `1px solid ${BT.GOLD_BORDER}`,
+            background: `linear-gradient(145deg, rgba(139,0,0,0.35), rgba(0,0,0,0.5))`,
+            borderRadius: 4, display: 'flex', alignItems: 'center', justifyContent: 'center',
+            color: BT.GOLD, fontSize: 18, flexShrink: 0,
+          }}>◈</div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ ...window.tCinzel(), color: BT.GOLD, fontSize: 15, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase' }}>{activeClass.name}</div>
+            <div style={{ fontSize: 10, color: BT.MUTED, marginTop: 2 }}>{race} · Lvl 60 · {activeClass.archetype}</div>
+          </div>
+          <div style={{ color: BT.MUTED, fontSize: 18 }}>›</div>
+        </div>
+        {/* race pills */}
+        <div style={{ display: 'flex', gap: 4, marginTop: 10, flexWrap: 'wrap' }}>
+          {BD.races.map(r => {
+            const a = r === race;
+            return (
+              <div key={r} onClick={() => update({ race: r })} style={{
+                padding: '4px 8px', borderRadius: 3, fontSize: 9,
+                ...window.tCinzel(), letterSpacing: '0.12em', fontWeight: 600,
+                border: `1px solid ${a ? BT.GOLD_BORDER : BT.BORDER}`,
+                background: a ? BT.GOLD_FAINT : 'transparent',
+                color: a ? BT.GOLD : BT.MUTED, cursor: 'pointer',
+                textTransform: 'uppercase',
+              }}>{r}</div>
+            );
+          })}
+        </div>
+      </window.Panel>
+
+      {/* Stats */}
+      <window.Panel padding={10} style={{ marginBottom: 10 }}>
+        <window.SectionHead label="Character Stats" hint="auto · +16 pts remaining" />
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 5 }}>
+          <window.StatChip k="STR" v={BD.stats.STR} />
+          <window.StatChip k="AGI" v={BD.stats.AGI} />
+          <window.StatChip k="DEX" v={BD.stats.DEX} />
+          <window.StatChip k="STA" v={BD.stats.STA} />
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 5, marginTop: 5 }}>
+          <window.StatChip k="AC" v="445" />
+          <window.StatChip k="HP" v="1820" />
+          <window.StatChip k="ATK" v="95" variant="blue" />
+          <window.StatChip k="HASTE" v={`${hasteVal}%`} />
+        </div>
+      </window.Panel>
+
+      {/* Worn Haste */}
+      <window.Panel padding={10} style={{ marginBottom: 10 }}>
+        <window.SectionHead label="Worn Haste" hint={easyMode ? 'easy · slider' : 'advanced · input'} action={<span onClick={() => update({ easyMode: !easyMode })}>TOGGLE</span>} />
+        {easyMode ? (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <window.Slider value={hasteVal} onChange={(v) => update({ hasteVal: v })} max={100} />
+            <div style={{ ...window.tMono(), fontSize: 16, fontWeight: 700, color: BT.GOLD, minWidth: 44, textAlign: 'right' }}>{hasteVal}%</div>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <div style={{ width: 80, height: 34, background: BT.INPUT, border: `1px solid ${BT.GOLD_DIM}`, borderRadius: 4, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', padding: '0 10px', ...window.tMono(), fontSize: 16, color: BT.GOLD, fontWeight: 700 }}>{hasteVal}%</div>
+            <div style={{ flex: 1, fontSize: 9, color: BT.MUTED_DIM, lineHeight: 1.4 }}>Override detected.<br/>Applies before caps.</div>
+          </div>
+        )}
+        <div style={{ marginTop: 8, fontSize: 10, color: BT.MUTED, fontStyle: 'italic' }}>Highest src: Silver Bracelet of Speed (41%)</div>
+      </window.Panel>
+
+      {/* Equipped items */}
+      <window.Panel padding={10} style={{ marginBottom: 10 }}>
+        <window.SectionHead label="Equipped Items" hint="20 slots · 445 AC" action="IMPORT ›" />
+        <div style={{ display: 'flex', flexDirection: 'column' }}>
+          {BD.gear.slice(0, 6).map(([slot, name, stat], i) => (
+            <div key={slot} onClick={() => openDrill('weapon', slot)} style={{
+              display: 'grid', gridTemplateColumns: '64px 1fr auto', alignItems: 'baseline',
+              padding: '7px 0', borderBottom: i < 5 ? `1px solid rgba(255,255,255,0.04)` : 0,
+              gap: 8, cursor: 'pointer',
+            }}>
+              <span style={{ color: BT.MUTED, fontSize: 9, letterSpacing: '0.1em', textTransform: 'uppercase', ...window.tCinzel(), fontWeight: 600 }}>{slot}</span>
+              <span style={{ ...window.tZodiak(), color: BT.TEXT, fontSize: 12, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{name}</span>
+              <span style={{ color: BT.TPS_BLUE, fontSize: 10, ...window.tMono() }}>{stat}</span>
+            </div>
+          ))}
+          <div style={{ padding: '10px 0 2px', textAlign: 'center', fontSize: 10, color: BT.GOLD, letterSpacing: '0.18em', ...window.tCinzel(), fontWeight: 700 }}>+ VIEW ALL 20 SLOTS</div>
+        </div>
+      </window.Panel>
+
+      {/* Target */}
+      <window.Panel padding={10} style={{ marginBottom: 10 }}>
+        <window.SectionHead label="Target & Fight" action="CHANGE ›" />
+        <div onClick={() => openDrill('target')} style={{ cursor: 'pointer' }}>
+          <div style={{ ...window.tZodiak(), fontSize: 14, color: BT.TEXT, marginBottom: 3 }}>{target.name}</div>
+          <div style={{ display: 'flex', gap: 8, fontSize: 10, color: BT.MUTED, ...window.tMono(), flexWrap: 'wrap' }}>
+            <span>Lvl {target.lvl}</span><span>AC {target.ac}</span>
+            <span>{target.zone}</span>
+          </div>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, marginTop: 10 }}>
+          <div style={{ padding: '8px 10px', background: BT.INPUT, border: `1px solid ${BT.BORDER}`, borderRadius: 4 }}>
+            <div style={{ fontSize: 8, color: BT.MUTED, letterSpacing: '0.16em', ...window.tCinzel(), fontWeight: 600 }}>DURATION</div>
+            <div style={{ ...window.tMono(), fontSize: 13, color: BT.TEXT, fontWeight: 700 }}>6000s</div>
+          </div>
+          <div style={{ padding: '8px 10px', background: BT.INPUT, border: `1px solid ${BT.BORDER}`, borderRadius: 4 }}>
+            <div style={{ fontSize: 8, color: BT.MUTED, letterSpacing: '0.16em', ...window.tCinzel(), fontWeight: 600 }}>RUNS</div>
+            <div style={{ ...window.tMono(), fontSize: 13, color: BT.TEXT, fontWeight: 700 }}>20</div>
+          </div>
+        </div>
+      </window.Panel>
+
+      {/* Buffs */}
+      <window.Panel padding={10} style={{ marginBottom: 10 }}>
+        <window.SectionHead label="Buffs" hint={`${activeBuffCount} of ${totalBuffs.length} active`} action={<span onClick={() => openDrill('buffs')}>EDIT ›</span>} />
+        <div style={{ display: 'flex', flexDirection: 'column' }}>
+          {totalBuffs.slice(0, 5).map((b, i) => {
+            const on = !!buffs[b.name];
+            return (
+              <div key={b.name} onClick={() => update({ buffs: { ...buffs, [b.name]: !on } })} style={{
+                display: 'flex', alignItems: 'center', gap: 10, padding: '7px 0',
+                borderBottom: i < 4 ? `1px solid rgba(255,255,255,0.04)` : 0, cursor: 'pointer',
+              }}>
+                <window.BuffCheckbox on={on} />
+                <span style={{ flex: 1, fontSize: 12, color: on ? BT.TEXT : BT.MUTED, minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{b.name}</span>
+                <span style={{ fontSize: 8, color: BT.MUTED, letterSpacing: '0.14em', ...window.tCinzel(), fontWeight: 600 }}>{b.tag}</span>
+              </div>
+            );
+          })}
+        </div>
+        <div style={{ marginTop: 8, padding: '6px 8px', background: BT.INPUT, borderRadius: 3, fontSize: 9, color: BT.TEXT_DIM, ...window.tMono() }}>
+          <span style={{ color: BT.GOLD }}>Σ</span> Haste +60% · ATK +95 · STR +55
+        </div>
+      </window.Panel>
+
+      {/* Rank All */}
+      <window.Panel padding={10} style={{ marginBottom: 10 }}>
+        <div onClick={() => openDrill('rank')} style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
+          <div style={{ fontSize: 20 }}>🏆</div>
+          <div style={{ flex: 1 }}>
+            <div style={{ ...window.tCinzel(), fontSize: 11, color: BT.GOLD, letterSpacing: '0.18em', fontWeight: 700 }}>RANK ALL WEAPONS</div>
+            <div style={{ fontSize: 9, color: BT.MUTED, marginTop: 2 }}>Simulates every equippable weapon</div>
+          </div>
+          <div style={{ color: BT.MUTED, fontSize: 18 }}>›</div>
+        </div>
+      </window.Panel>
+    </>
+  );
+}
+
+window.BuildTabScroll = BuildTabScroll;
+
+
+// --- tabs.jsx ---
+// gSim Mobile — Sim, Report, History tabs
+
+const ST = window.GSIM_THEME;
+const SD = window.GSIM_DATA;
+
+// ═══ SIM TAB ═══
+function SimTab({ state, update, density }) {
+  const { target, lastRun, simStatus, hasteVal, buffs, simCounter } = state;
+  const isCompact = density === 'compact';
+  const heroSize = isCompact ? 58 : 68;
+
+  const totalBuffs = SD.buffGroups.flatMap(g => g.buffs);
+  const activeBuffCount = totalBuffs.filter(b => buffs[b.name]).length;
+
+  const runSim = () => {
+    update({ simStatus: 'running' });
+    const start = performance.now();
+    const steps = [
+      'Calculating to-hit model…',
+      'Rolling weapon swings…',
+      'Processing procs & crits…',
+      'Averaging 20 runs…',
+    ];
+    let i = 0;
+    const tick = () => {
+      if (i >= steps.length) {
+        // Produce slightly-varied result
+        const variance = (Math.sin(performance.now() / 100) + 1) * 2;
+        const dps = 75 + variance + Math.random() * 4;
+        const result = {
+          dps: parseFloat(dps.toFixed(2)),
+          tps: parseFloat((dps * 1.3).toFixed(2)),
+          stddev: parseFloat((Math.random() * 0.6).toFixed(2)),
+          crits: 380 + Math.round(Math.random() * 40),
+          totalDmg: Math.round(dps * 6000),
+          mode: 'ADV',
+          weapon: "Caen's Bo",
+          atk: 1314,
+          era: 'Luclin',
+          time: Date.now(),
+        };
+        update({
+          simStatus: 'done',
+          lastRun: result,
+          simCounter: (simCounter || 0) + 1,
+          history: [result, ...(state.history || [])].slice(0, 12),
+        });
+        return;
+      }
+      update({ simStep: steps[i] });
+      i++;
+      setTimeout(tick, 180);
+    };
+    setTimeout(tick, 150);
+  };
+
+  if (simStatus === 'running') {
+    return (
+      <div style={{ padding: '40px 10px', textAlign: 'center' }}>
+        <div style={{ marginBottom: 20 }}>
+          <div style={{ ...window.tCinzel(), fontSize: 10, letterSpacing: '0.25em', color: ST.MUTED, textTransform: 'uppercase', marginBottom: 6 }}>Simulating</div>
+          <div style={{ ...window.tCinzel(), fontSize: 32, color: ST.GOLD, letterSpacing: '0.04em', fontWeight: 700 }}>
+            <span style={{ animation: 'gsPulse 1.2s ease-in-out infinite' }}>⚡</span>
+          </div>
+        </div>
+        <div style={{ fontSize: 11, color: ST.TEXT_DIM, ...window.tMono() }}>{state.simStep || '…'}</div>
+        <div style={{ maxWidth: 180, margin: '22px auto 0', height: 3, background: ST.INPUT, borderRadius: 2, overflow: 'hidden' }}>
+          <div style={{ width: '80%', height: '100%', background: `linear-gradient(90deg, ${ST.GOLD}, transparent)`, animation: 'gsSlide 1.2s ease-in-out infinite' }} />
+        </div>
+        <style>{`
+          @keyframes gsPulse { 0%,100% { opacity: 1 } 50% { opacity: 0.3 } }
+          @keyframes gsSlide { 0% { transform: translateX(-100%) } 100% { transform: translateX(200%) } }
+        `}</style>
+      </div>
+    );
+  }
+
+  const r = lastRun;
+
+  return (
+    <>
+      {/* Hero */}
+      <div style={{
+        position: 'relative', padding: isCompact ? 14 : 18, borderRadius: 6,
+        background: `radial-gradient(ellipse at 50% 0%, rgba(212,175,55,0.18), ${ST.PANEL} 70%)`,
+        border: `1px solid ${ST.GOLD_BORDER}`, textAlign: 'center', marginBottom: 10,
+        boxShadow: '0 4px 20px rgba(0,0,0,0.5)',
+        overflow: 'hidden',
+      }}>
+        <window.GsimCorners size={8}>
+          <div style={{ fontSize: 9, letterSpacing: '0.28em', color: ST.MUTED, textTransform: 'uppercase', ...window.tCinzel(), fontWeight: 600, marginBottom: 2 }}>Total DPS</div>
+          <div style={{ ...window.tCinzel(), fontSize: heroSize, fontWeight: 700, color: ST.GOLD, lineHeight: 1, textShadow: '0 0 30px rgba(212,175,55,0.4)' }}>
+            <window.CountUp value={r.dps} trigger={simCounter} duration={900} />
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'center', gap: 14, marginTop: 8, fontSize: 10, color: ST.MUTED, letterSpacing: '0.1em', ...window.tCinzel() }}>
+            <span>TPS <span style={{ color: ST.TPS_BLUE, fontWeight: 700, ...window.tMono() }}>
+              <window.CountUp value={r.tps} trigger={simCounter} duration={900} />
+            </span></span>
+            <span style={{ color: ST.MUTED_DIM }}>·</span>
+            <span>σ <span style={{ color: ST.TEXT, ...window.tMono() }}>{r.stddev}</span></span>
+            <span style={{ color: ST.MUTED_DIM }}>·</span>
+            <span>CRIT <span style={{ color: ST.TEXT, ...window.tMono() }}>{r.crits}</span></span>
+          </div>
+        </window.GsimCorners>
+      </div>
+
+      {/* Target & Config summary */}
+      <window.Panel padding={10} style={{ marginBottom: 10 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 9, letterSpacing: '0.18em', color: ST.MUTED, ...window.tCinzel(), fontWeight: 600, textTransform: 'uppercase', marginBottom: 2 }}>Target</div>
+            <div style={{ ...window.tZodiak(), fontSize: 13, color: ST.TEXT }}>{target.name}</div>
+            <div style={{ fontSize: 10, color: ST.MUTED, ...window.tMono(), marginTop: 2 }}>Lvl {target.lvl} · AC {target.ac} · 6000s · 20 runs</div>
+          </div>
+          <div style={{ textAlign: 'right' }}>
+            <div style={{ fontSize: 9, letterSpacing: '0.18em', color: ST.MUTED, ...window.tCinzel(), fontWeight: 600 }}>HASTE</div>
+            <div style={{ ...window.tMono(), fontSize: 16, color: ST.GOLD, fontWeight: 700 }}>{hasteVal}%</div>
+          </div>
+        </div>
+      </window.Panel>
+
+      {/* Damage breakdown */}
+      <window.Panel padding={10} style={{ marginBottom: 10 }}>
+        <window.SectionHead label="Damage Breakdown" hint={`${r.totalDmg.toLocaleString()} total dmg`} />
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+          <window.PieChart size={isCompact ? 80 : 100} segs={[
+            { pct: 61.1, color: ST.PIE_BLUE },
+            { pct: 23.1, color: ST.PIE_BLUE_DARK },
+            { pct: 15.8, color: ST.PIE_VIOLET },
+          ]} />
+          <div style={{ flex: 1, fontSize: 11 }}>
+            {[['Primary hand', 61.1, ST.PIE_BLUE], ['Damage bonus', 23.1, ST.PIE_BLUE_DARK], ['Flying Kick', 15.8, ST.PIE_VIOLET]].map(([n, p, c]) => (
+              <div key={n} style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+                <div style={{ width: 9, height: 9, background: c, borderRadius: 1 }} />
+                <span style={{ color: ST.TEXT, flex: 1 }}>{n}</span>
+                <span style={{ color: ST.GOLD, ...window.tMono(), fontSize: 11, fontWeight: 700 }}>{p}%</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </window.Panel>
+
+      {/* Histograms */}
+      <window.Panel padding={10} style={{ marginBottom: 10 }}>
+        <window.SectionHead label="Per-Swing Damage" />
+        <div style={{ fontSize: 10, color: ST.TEXT, marginBottom: 4, display: 'flex', justifyContent: 'space-between' }}>
+          <span style={{ ...window.tZodiak() }}>Caen's Bo — 43d/30</span>
+          <span style={{ color: ST.MUTED, ...window.tMono() }}>4,389 · 33–374</span>
+        </div>
+        <window.Histogram color={ST.GOLD} seed={7 + (simCounter || 0)} />
+        <div style={{ marginTop: 10, fontSize: 10, color: ST.TEXT, marginBottom: 4, display: 'flex', justifyContent: 'space-between' }}>
+          <span style={{ ...window.tZodiak() }}>Flying Kick</span>
+          <span style={{ color: ST.MUTED, ...window.tMono() }}>941 · 48–283</span>
+        </div>
+        <window.Histogram color={ST.PIE_VIOLET} seed={23 + (simCounter || 0)} />
+      </window.Panel>
+
+      {/* Run button */}
+      <div style={{ marginTop: 4 }}>
+        <window.GoldButton full size="lg" onClick={runSim} icon="⚡">Re-Simulate</window.GoldButton>
+        <div style={{ marginTop: 6, textAlign: 'center', fontSize: 9, color: ST.MUTED, letterSpacing: '0.14em', ...window.tCinzel() }}>
+          {activeBuffCount} BUFFS · {hasteVal}% HASTE · 20 RUNS
+        </div>
+      </div>
+    </>
+  );
+}
+
+// ═══ REPORT TAB ═══
+function ReportTab({ state }) {
+  const r = state.lastRun;
+  const lines = React.useMemo(() => [
+    '',
+    '  Weapon skill cap (2hb): 252 (Quarm/TAKP)',
+    `  Target: ${state.target.name}, Lvl ${state.target.lvl}, AC ${state.target.ac}`,
+    '',
+    '═══ Executive Summary ═══',
+    '',
+    `  Duration:           6000 seconds`,
+    `  Runs averaged:      20`,
+    `  Total DPS:          ${r.dps.toFixed(2)}`,
+    `  DPS std dev:        ${r.stddev}`,
+    `  Total damage:       ${r.totalDmg.toLocaleString()}`,
+    `  TPS (approx):       ${r.tps.toFixed(2)}`,
+    `  Critical hits:      ${r.crits}`,
+    `  Crit DPS gain:      3.37`,
+    '',
+    '═══ Offense & To-Hit Model ═══',
+    '',
+    '  Calculated to-hit:  511',
+    '  Offense skill:      252  (0-255)',
+    '  Offense rating:     467',
+    '    From STR:         120',
+    '    From other:       347',
+    '  Displayed ATK:      1314',
+    `  Haste (eff):        ${state.hasteVal}.0%`,
+    '',
+    '═══ Weapon Overview ═══',
+    '',
+    "  Weapon 1: 43d/30 (Caen's Bo)",
+    '    Damage bonus:     29',
+    '    Bonus damage:     127,603',
+    `    Total damage:     ${r.totalDmg.toLocaleString()}`,
+    `    Weapon DPS:       ${r.dps.toFixed(2)}`,
+    '',
+    '═══ Procs & Specials ═══',
+    '',
+    '  Flying Kick hits:   941',
+    '  Flying Kick DPS:    12.26',
+    '  Proc rate:          2.5/min (effective)',
+  ], [r, state.target, state.hasteVal]);
+
+  const [activeTool, setActiveTool] = React.useState('Combat');
+  return (
+    <>
+      <div style={{ display: 'flex', gap: 6, marginBottom: 10, overflowX: 'auto', paddingBottom: 2 }}>
+        {['Combat', 'Detailed', '.txt', '.csv'].map((b) => {
+          const a = b === activeTool;
+          return (
+            <div key={b} onClick={() => setActiveTool(b)} style={{
+              padding: '7px 11px', border: `1px solid ${a ? ST.GOLD_BORDER : ST.BORDER}`,
+              background: a ? ST.GOLD_FAINT : ST.INPUT, borderRadius: 4,
+              fontSize: 9, letterSpacing: '0.14em', textTransform: 'uppercase',
+              color: a ? ST.GOLD : ST.MUTED, ...window.tCinzel(), whiteSpace: 'nowrap', fontWeight: 700,
+              cursor: 'pointer',
+            }}>{b === 'Combat' || b === 'Detailed' ? b : 'Export ' + b}</div>
+          );
+        })}
+      </div>
+      <div style={{
+        background: ST.INPUT, border: `1px solid ${ST.BORDER}`, borderRadius: 4,
+        padding: 12, ...window.tMono(), fontSize: 10, color: ST.TEXT_DIM, lineHeight: 1.55,
+        whiteSpace: 'pre', overflowX: 'auto',
+      }}>
+        {lines.map((l, i) => (
+          <div key={i} style={{
+            color: l.startsWith('═══') ? ST.GOLD : (/DPS|TPS|damage:/.test(l) ? ST.TEXT : ST.TEXT_DIM),
+            fontWeight: l.startsWith('═══') ? 700 : 400,
+          }}>{l || '\u00a0'}</div>
+        ))}
+      </div>
+    </>
+  );
+}
+
+// ═══ HISTORY TAB ═══
+function HistoryTab({ state, update }) {
+  const history = state.history || [];
+  const easyCount = history.filter(h => h.mode === 'EZ').length;
+  const advCount = history.filter(h => h.mode === 'ADV').length;
+  const best = history.reduce((m, h) => h.dps > (m?.dps || 0) ? h : m, null);
+
+  const fmtTime = (t) => {
+    const s = Math.floor((Date.now() - t) / 1000);
+    if (s < 60) return `${s}s ago`;
+    if (s < 3600) return `${Math.floor(s/60)}m ago`;
+    return `${Math.floor(s/3600)}h ago`;
+  };
+
+  if (history.length === 0) {
+    return (
+      <div style={{ padding: '60px 20px', textAlign: 'center', color: ST.MUTED }}>
+        <div style={{ fontSize: 32, marginBottom: 12, opacity: 0.5 }}>◷</div>
+        <div style={{ ...window.tCinzel(), fontSize: 11, letterSpacing: '0.2em', fontWeight: 700, color: ST.TEXT_DIM }}>NO RUNS YET</div>
+        <div style={{ fontSize: 11, marginTop: 6, lineHeight: 1.5 }}>Run a simulation from the Sim tab to log results here.</div>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <div style={{ display: 'flex', gap: 10, marginBottom: 10, alignItems: 'center', fontSize: 10, padding: '0 2px' }}>
+        <span style={{ color: ST.MUTED, ...window.tCinzel(), letterSpacing: '0.12em' }}>EZ <span style={{ color: ST.GREEN, ...window.tMono(), fontWeight: 700 }}>{easyCount}</span></span>
+        <span style={{ color: ST.MUTED, ...window.tCinzel(), letterSpacing: '0.12em' }}>ADV <span style={{ color: ST.GOLD, ...window.tMono(), fontWeight: 700 }}>{advCount}</span></span>
+        <span style={{ color: ST.MUTED, ...window.tCinzel(), letterSpacing: '0.12em' }}>TOTAL <span style={{ color: ST.TEXT, ...window.tMono(), fontWeight: 700 }}>{history.length}</span></span>
+        <div style={{ flex: 1 }} />
+        <span onClick={() => update({ history: [] })} style={{ color: ST.DANGER, letterSpacing: '0.14em', ...window.tCinzel(), fontSize: 9, fontWeight: 700, cursor: 'pointer' }}>CLEAR</span>
+      </div>
+
+      {best && (
+        <div style={{ padding: 10, background: `linear-gradient(90deg, ${ST.GOLD_FAINT}, transparent)`, border: `1px solid ${ST.GOLD_BORDER}`, borderRadius: 4, marginBottom: 10 }}>
+          <div style={{ fontSize: 8, ...window.tCinzel(), letterSpacing: '0.22em', color: ST.GOLD, fontWeight: 700, marginBottom: 2 }}>★ PERSONAL BEST</div>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+            <div style={{ ...window.tCinzel(), ...window.tMono(), fontSize: 24, color: ST.GOLD, fontWeight: 700, lineHeight: 1 }}>{best.dps.toFixed(2)}</div>
+            <div style={{ fontSize: 10, color: ST.TEXT_DIM, ...window.tMono() }}>{best.weapon} · {fmtTime(best.time)}</div>
+          </div>
+        </div>
+      )}
+
+      {history.map((h, i) => {
+        const color = h.mode === 'EZ' ? ST.GREEN : ST.GOLD;
+        return (
+          <div key={i} style={{ padding: 12, background: ST.PANEL, border: `1px solid ${ST.BORDER}`, borderRadius: 4, marginBottom: 6 }}>
+            <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 6 }}>
+              <div style={{ ...window.tCinzel(), ...window.tMono(), fontSize: 22, color, fontWeight: 700, lineHeight: 1 }}>{h.dps.toFixed(2)}</div>
+              <div style={{ fontSize: 9, color, letterSpacing: '0.12em', ...window.tCinzel(), padding: '2px 8px', border: `1px solid ${color}`, borderRadius: 3, fontWeight: 700 }}>{h.mode}</div>
+            </div>
+            <div style={{ fontSize: 10, color: ST.MUTED, display: 'flex', gap: 8, ...window.tMono(), flexWrap: 'wrap' }}>
+              <span>{h.weapon}</span>
+              <span>ATK {h.atk}</span>
+              <span>{h.era}</span>
+              <span style={{ marginLeft: 'auto' }}>{fmtTime(h.time)}</span>
+            </div>
+          </div>
+        );
+      })}
+    </>
+  );
+}
+
+Object.assign(window, { SimTab, ReportTab, HistoryTab });
+
+
+// --- app.jsx ---
+// gSim Mobile — Main app shell. Top bar, tab switcher, drill routing, Tweaks integration.
+
+const MST = window.GSIM_THEME;
+const MSD = window.GSIM_DATA;
+
+function buildInitialState() {
+  const buffs = {};
+  MSD.buffGroups.forEach(g => g.buffs.forEach(b => { buffs[b.name] = b.active; }));
+  return {
+    cls: 'Monk',
+    race: 'Iksar',
+    mode: 'Melee',
+    easyMode: false,
+    hasteVal: 41,
+    buffs,
+    target: MSD.target,
+    lastRun: {
+      dps: 77.48, tps: 100.72, stddev: 0.39, crits: 390,
+      totalDmg: 464851, mode: 'ADV', weapon: "Caen's Bo", atk: 1314, era: 'Luclin',
+      time: Date.now() - 120000,
+    },
+    simStatus: 'idle',
+    simStep: '',
+    simCounter: 0,
+    history: [
+      { dps: 77.48, tps: 100.72, stddev: 0.39, crits: 390, totalDmg: 464851, mode: 'ADV', weapon: "Caen's Bo", atk: 1314, era: 'Luclin', time: Date.now() - 120000 },
+      { dps: 144.89, tps: 188.35, stddev: 0.41, crits: 410, totalDmg: 869340, mode: 'EZ', weapon: 'Epic Fists', atk: 1516, era: 'Luclin', time: Date.now() - 300000 },
+    ],
+  };
+}
+
+function GsimMobileApp({ variant = 'scroll', density = 'comfy' }) {
+  const [state, setState] = React.useState(buildInitialState);
+  const [tab, setTab] = React.useState('Build');
+  const [drill, setDrill] = React.useState(null); // {kind, arg}
+  const update = (patch) => setState(s => ({ ...s, ...patch }));
+  const openDrill = (kind, arg) => setDrill({ kind, arg });
+  const closeDrill = () => setDrill(null);
+
+  // jump from stepper to Sim
+  React.useEffect(() => {
+    if (state._jumpTab) {
+      setTab(state._jumpTab);
+      update({ _jumpTab: null });
+    }
+  }, [state._jumpTab]);
+
+  const tabs = [
+    { l: 'Build', ic: '⚔' },
+    { l: 'Sim', ic: '◉' },
+    { l: 'Report', ic: '≡' },
+    { l: 'History', ic: '◷' },
+  ];
+
+  const BuildComponent =
+    variant === 'stepper' ? window.BuildTabStepper :
+    variant === 'compact' ? window.BuildTabCompact :
+    window.BuildTabScroll;
+
+  return (
+    <div style={{
+      width: '100%', height: '100%',
+      background: `radial-gradient(circle at 15% 0%, rgba(212,175,55,0.05) 0%, transparent 45%), radial-gradient(circle at 85% 100%, rgba(139,0,0,0.08) 0%, transparent 55%), ${MST.BG}`,
+      color: MST.TEXT, ...window.tSatoshi(),
+      display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative',
+    }}>
+      {/* Top bar */}
+      <div style={{ padding: '54px 14px 10px', borderBottom: `1px solid ${MST.GOLD_BORDER}`, background: 'linear-gradient(180deg, rgba(0,0,0,0.65), transparent)', flexShrink: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+          <div>
+            <div style={{ ...window.tCinzel(), fontSize: 18, fontWeight: 700, color: MST.GOLD, letterSpacing: '0.04em', lineHeight: 1 }}>
+              g<span style={{ fontSize: 13 }}>SIM</span>
+            </div>
+            <div style={{ fontSize: 7, letterSpacing: '0.28em', color: MST.MUTED, textTransform: 'uppercase', marginTop: 3 }}>Project Quarm · v1.13</div>
+          </div>
+          {/* HUD */}
+          <div style={{ display: 'flex', gap: 10, alignItems: 'center', padding: '5px 10px', background: `radial-gradient(ellipse at 100% 50%, rgba(212,175,55,0.12), rgba(0,0,0,0.5))`, border: `1px solid ${MST.GOLD_BORDER}`, borderRadius: 4 }}>
+            <div style={{ textAlign: 'right' }}>
+              <div style={{ fontSize: 7, color: MST.MUTED, letterSpacing: '0.16em', ...window.tCinzel() }}>TPS</div>
+              <div style={{ ...window.tCinzel(), ...window.tMono(), fontSize: 13, color: MST.TPS_BLUE, fontWeight: 700, lineHeight: 1 }}>{state.lastRun.tps.toFixed(2)}</div>
+            </div>
+            <div style={{ width: 1, height: 24, background: MST.GOLD_DIM }} />
+            <div style={{ textAlign: 'right' }}>
+              <div style={{ fontSize: 7, color: MST.MUTED, letterSpacing: '0.16em', ...window.tCinzel() }}>DPS</div>
+              <div style={{ ...window.tCinzel(), ...window.tMono(), fontSize: 15, color: MST.GOLD, fontWeight: 700, lineHeight: 1, textShadow: `0 0 8px ${MST.GOLD_GLOW}` }}>{state.lastRun.dps.toFixed(2)}</div>
+            </div>
+          </div>
+        </div>
+        <window.SegmentedControl options={['Melee', 'Ranged', 'Tank']} value={state.mode} onChange={(v) => update({ mode: v })} size="sm" disabled={['Tank']} />
+      </div>
+
+      {/* Content */}
+      <div style={{ flex: 1, overflowY: 'auto', padding: '12px 12px 94px', minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+        {tab === 'Build' && <BuildComponent state={state} update={update} openDrill={openDrill} />}
+        {tab === 'Sim' && <window.SimTab state={state} update={update} density={density} />}
+        {tab === 'Report' && <window.ReportTab state={state} />}
+        {tab === 'History' && <window.HistoryTab state={state} update={update} />}
+      </div>
+
+      {/* Bottom tab bar */}
+      <div style={{
+        position: 'absolute', bottom: 0, left: 0, right: 0,
+        background: 'rgba(10,10,12,0.94)', borderTop: `1px solid ${MST.GOLD_BORDER}`,
+        backdropFilter: 'blur(12px)', paddingBottom: 30, zIndex: 20,
+      }}>
+        <div style={{ display: 'flex', padding: '10px 0 6px' }}>
+          {tabs.map(t => {
+            const active = tab === t.l;
+            return (
+              <div key={t.l} onClick={() => setTab(t.l)} style={{ flex: 1, textAlign: 'center', ...window.tCinzel(), cursor: 'pointer' }}>
+                <div style={{ fontSize: 18, color: active ? MST.GOLD : MST.MUTED, lineHeight: 1, marginBottom: 3, textShadow: active ? `0 0 8px ${MST.GOLD_GLOW}` : 'none' }}>{t.ic}</div>
+                <div style={{ fontSize: 9, letterSpacing: '0.14em', textTransform: 'uppercase', color: active ? MST.GOLD : MST.MUTED, fontWeight: 700 }}>{t.l}</div>
+                {active && <div style={{ width: 20, height: 2, background: MST.GOLD, borderRadius: 2, margin: '3px auto 0', boxShadow: `0 0 6px ${MST.GOLD_GLOW}` }} />}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Drill-downs */}
+      {drill?.kind === 'class' && <window.ClassPicker current={state.cls} onPick={(c) => { update({ cls: c }); closeDrill(); }} onBack={closeDrill} />}
+      {drill?.kind === 'target' && <window.TargetPicker current={state.target} onPick={(t) => { update({ target: t }); closeDrill(); }} onBack={closeDrill} />}
+      {drill?.kind === 'weapon' && <window.WeaponSearch slot={drill.arg} onPick={() => closeDrill()} onBack={closeDrill} />}
+      {drill?.kind === 'buffs' && <window.BuffPicker buffs={state.buffs} onToggle={(n) => update({ buffs: { ...state.buffs, [n]: !state.buffs[n] } })} onBack={closeDrill} />}
+      {drill?.kind === 'rank' && <window.RankAll onBack={closeDrill} onPickWeapon={() => closeDrill()} />}
+    </div>
+  );
+}
+
+window.GsimMobileApp = GsimMobileApp;
+window.buildInitialState = buildInitialState;
+
+
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(<window.GsimMobileApp variant="scroll" density="comfy" />);
+</script>
+</body>
+</html>

@@ -3,6 +3,13 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script>
+    // Redirect touch/mobile devices to the mobile UI before anything else loads
+    if (/Mobi|Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
+        (navigator.maxTouchPoints > 1 && window.innerWidth < 1024)) {
+      window.location.replace('gSim-Mobile-V1.html');
+    }
+  </script>
   <title>gSim for Project Quarm</title>
   <link rel="preconnect" href="https://api.fontshare.com" crossorigin>
   <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin>
@@ -1325,7 +1332,7 @@
       <iconify-icon icon="ra:crossed-swords" class="text-2xl md:text-3xl text-[#d4af37] flex-shrink-0"></iconify-icon>
       <div class="flex flex-col min-w-0">
         <span class="font-fantasy text-base md:text-xl tracking-widest text-[#d4af37] truncate"><span class="app-title-g-small">g</span>Sim for Project Quarm</span>
-        <span class="text-[10px] text-gray-500 uppercase tracking-tighter">Everquest DPS Simulator · <span id="app-version">v1.15</span></span>
+        <span class="text-[10px] text-gray-500 uppercase tracking-tighter">Everquest DPS Simulator · <span id="app-version">v1.16</span></span>
       </div>
     </div>
     <div class="flex items-center gap-3 md:gap-8 flex-shrink-0">
@@ -2332,6 +2339,7 @@
   <section class="advanced-only" style="margin-top: 1rem;">
     <h2>Version log</h2>
     <ul style="font-size: 0.9rem; color: var(--muted); margin: 0; padding-left: 1.25rem;">
+      <li><strong>1.16</strong> — Mobile redirect: visiting <code>index.html</code> on a phone or tablet automatically redirects to the mobile UI (<code>gSim-Mobile-V1.html</code>) before any resources load. Detection uses user-agent matching plus a touch-points + viewport-width fallback for edge cases.</li>
       <li><strong>1.15</strong> — Fix inventory import not loading proc data: <code>lookupItem</code> now merges weapon-specific fields (<code>proceffect</code>, <code>banedmgamt</code>, <code>elemdmgtype</code>, <code>skillmodtype</code>, etc.) from <code>weapons-data.js</code> when <code>items-data.js</code> lacks them — proc spells were silently missing after inventory import. After import, weapons are now fully re-applied through the same code path as manual weapon search, populating all proc fields correctly. Fix crash (<code>ReferenceError: Cannot access 'classId' before initialization</code>) when simulating weapons with beneficial proc spells (Rune III, Major Shielding, etc.) — temporal dead zone violation in proc threat-cap block. Beneficial non-damaging procs (buffs, runes, shielding) are now correctly skipped during simulation. Spell ATK field is zeroed when buffs are first activated; any manually entered value after that point is treated as additional bonus ATK on top of buff contributions.</li>
       <li><strong>1.14</strong> — Session history cleaned up: era/mode columns removed; easy mode history uses Zodiak font. Easy mode layout: Calculate DPS button and results centred under the Character and Weapons cards (col-span-2 row inside the 2-col grid); Session History and Simulation Assumptions are now separate full-width blocks. Inventory import: sim history now shows the imported weapon name instead of raw damage/delay. Fix buff checkboxes missing on web server (buffs.js was untracked). Haste inputs (Worn, V1 Spell, V3 Bard) moved to their own row; Worn ATK and Spell ATK on a separate row below.</li>
       <li><strong>1.13</strong> — Fix proc spells not loading on inventory import: weapon proc fields (spell name, damage, resist type, proc rate, proc level) are now populated from local spell data when an inventory is imported. Fix proc spells not firing when a weapon is selected via item search but spell data hadn't resolved yet: <code>getWeapon()</code> now falls back to local spell data if the proc name field is empty but a spell ID is set. <code>normalizeItemForWeapon</code> now extracts <code>proclevel</code> so the level gate is consistent between the item-search and preset weapon paths.</li>
