@@ -406,10 +406,6 @@
         flex: 1 1 auto;
         min-width: 300px;
         margin-top: 0;
-        position: sticky;
-        top: 1.5rem;
-        max-height: calc(100vh - 3rem);
-        overflow-y: auto;
       }
     }
     .main-left {
@@ -545,7 +541,7 @@
       font-size: 0.82em;
       vertical-align: 0.04em;
     }
-    #sim-history-list { max-height: 340px; overflow-y: auto; font-size: 0.85rem; }
+    #sim-history-list { font-size: 0.85rem; }
     .sim-history-row { display: grid; grid-template-columns: 1fr 1fr minmax(0, 1fr) auto auto auto; gap: 0.5rem 0.75rem; align-items: center; padding: 0.5rem 0; border-bottom: 1px solid var(--border); }
     .sim-history-row:last-child { border-bottom: none; }
     .sim-history-header { font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); padding-bottom: 0.35rem; border-bottom: 1px solid var(--border); margin-bottom: 0.25rem; }
@@ -731,6 +727,8 @@
     .mode-toggle-row { margin: 0.25rem 0 1rem; }
     .easy-only { display: none !important; }
     body[data-ui-mode="easy"] .easy-only { display: flex !important; }
+    #mobile-layout-link { display: none; }
+    body[data-ui-mode="easy"] #mobile-layout-link { display: block; }
     body[data-ui-mode="easy"] .advanced-only { display: none !important; }
     .easy-layout {
       background: var(--panel);
@@ -830,13 +828,23 @@
       padding: 0.75rem;
     }
     .easy-assumptions-wrap h3, .easy-assumptions-wrap h4, .easy-history-wrap h3, .easy-history-wrap h4 { margin: 0 0 0.5rem; font-size: 0.85rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
-    #easy-assumptions { width: 100%; min-height: 200px; resize: vertical; background: var(--input-bg); border: 1px solid var(--border); color: var(--text); border-radius: 4px; padding: 0.55rem 0.8rem; font-family: inherit; font-size: 0.88rem; }
-    .easy-history-table-wrap { overflow-x: auto; overflow-y: auto; max-height: 380px; width: 100%; }
-    .easy-history-table { table-layout: auto; border-collapse: collapse; font-size: 0.78rem; white-space: nowrap; }
-    .easy-history-table th, .easy-history-table td { border-bottom: 1px solid var(--border); padding: 0.28rem 0.5rem; text-align: left; vertical-align: middle; }
-    .easy-history-table th:first-child, .easy-history-table td:first-child { white-space: normal; min-width: 10rem; max-width: 18rem; word-break: break-word; }
+    #easy-assumptions { width: 100%; background: var(--input-bg); border: 1px solid var(--border); color: var(--text); border-radius: 4px; padding: 0.55rem 0.8rem; font-family: inherit; font-size: 0.88rem; white-space: pre-wrap; word-break: break-word; margin: 0; }
+    .easy-history-table-wrap { overflow-x: auto; width: 100%; }
+    .easy-history-table { table-layout: auto; border-collapse: collapse; font-size: 0.78rem; white-space: nowrap; width: 100%; }
+    .easy-history-table th, .easy-history-table td { border-bottom: 1px solid var(--border); padding: 0.35rem 0.75rem; text-align: left; vertical-align: middle; }
     .easy-history-table th { color: var(--muted); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.03em; white-space: nowrap; }
-    .easy-history-table td.easy-history-dps { color: var(--accent); font-weight: 600; text-align: right; }
+    .easy-history-table thead th[rowspan] { vertical-align: bottom; }
+    /* Weapons column */
+    .easy-history-table .eht-weapons { white-space: normal; min-width: 10rem; max-width: 18rem; word-break: break-word; }
+    /* Numeric columns: centered */
+    .easy-history-table .eht-num { text-align: center; }
+    /* DPS group header */
+    .easy-history-table .eht-dps-group { text-align: center; border-bottom: 2px solid rgba(212,175,55,0.45); color: var(--accent); padding-bottom: 0.2rem; }
+    /* DPS sub-columns */
+    .easy-history-table .eht-dps { text-align: center; background: rgba(212,175,55,0.04); }
+    .easy-history-table .eht-dps-first { border-left: 1px solid rgba(212,175,55,0.2); }
+    .easy-history-table .eht-dps-last { border-right: 1px solid rgba(212,175,55,0.2); }
+    .easy-history-table td.easy-history-dps { color: var(--accent); font-weight: 600; }
     .fw-tag { display: inline-block; margin-left: 0.3em; font-size: 0.65rem; font-weight: 700; color: #6ee7b7; background: rgba(110,231,183,0.12); border: 1px solid rgba(110,231,183,0.35); border-radius: 3px; padding: 0 0.3em; vertical-align: middle; letter-spacing: 0.04em; }
 
     /* Fantasy shell (Easy + shared) */
@@ -1052,7 +1060,12 @@
       font-style: italic;
       text-align: center;
     }
-    #easy-mode-root #easy-assumptions { font-family: 'Zodiak', Georgia, serif; font-size: 0.72rem; line-height: 1.45; min-height: 200px; }
+    body[data-ui-mode="easy"] #easy-mode-root { display: block !important; }
+    .easy-lower-cards { display: flex; flex-direction: column; gap: 2rem; }
+    #easy-mode-root #easy-assumptions { font-family: 'Zodiak', Georgia, serif; font-size: 0.72rem; line-height: 1.45; }
+    @media (min-width: 768px) {
+      #easy-class-aside { position: sticky; top: 3.5rem; align-self: flex-start; max-height: calc(100vh - 3.5rem); overflow-y: auto; }
+    }
     #easy-mode-root .easy-assumptions-wrap,
     #easy-mode-root .easy-history-wrap {
       margin-top: 0;
@@ -1325,7 +1338,7 @@
       <iconify-icon icon="ra:crossed-swords" class="text-2xl md:text-3xl text-[#d4af37] flex-shrink-0"></iconify-icon>
       <div class="flex flex-col min-w-0">
         <span class="font-fantasy text-base md:text-xl tracking-widest text-[#d4af37] truncate"><span class="app-title-g-small">g</span>Sim for Project Quarm</span>
-        <span class="text-[10px] text-gray-500 uppercase tracking-tighter">Everquest DPS Simulator · <span id="app-version">v1.15</span></span>
+        <span class="text-[10px] text-gray-500 uppercase tracking-tighter">Everquest DPS Simulator · <span id="app-version">v1.16</span></span>
       </div>
     </div>
     <div class="flex items-center gap-3 md:gap-8 flex-shrink-0">
@@ -1360,9 +1373,9 @@
     </div>
   </header>
 
-  <div id="easy-mode-root" class="easy-only flex-1 flex flex-col min-h-0 overflow-hidden">
-    <div class="flex flex-1 flex-col md:flex-row min-h-0 overflow-hidden">
-      <aside class="w-full md:w-64 md:max-w-[16rem] flex-shrink-0 border-b md:border-b-0 md:border-r border-white/5 bg-[#0a0a0c] flex flex-col min-h-0">
+  <div id="easy-mode-root" class="easy-only">
+    <div class="flex flex-col md:flex-row">
+      <aside class="w-full md:w-64 md:max-w-[16rem] flex-shrink-0 border-b md:border-b-0 md:border-r border-white/5 bg-[#0a0a0c]" id="easy-class-aside">
         <div class="p-4 border-b border-white/5">
           <span class="text-[10px] text-gray-500 font-bold uppercase tracking-[0.2em]">Class Select</span>
         </div>
@@ -1370,7 +1383,7 @@
           <div id="easy-class-buttons" class="easy-class-stack flex flex-col gap-1"></div>
         </nav>
       </aside>
-      <section class="flex-1 min-h-0 overflow-y-auto scrollbar-fantasy p-4 md:p-8 bg-[radial-gradient(circle_at_center,_#1a1a22_0%,_#0a0a0c_100%)]">
+      <section class="flex-1 p-4 md:p-8 bg-[radial-gradient(circle_at_center,_#1a1a22_0%,_#0a0a0c_100%)]">
         <div class="max-w-[min(100%,110rem)] mx-auto w-full space-y-8 px-0">
           <div class="grid grid-cols-1 md:grid-cols-2 gap-8 items-stretch">
             <div class="ornate-border parchment-bg p-6 space-y-6 shadow-2xl">
@@ -1449,7 +1462,7 @@
                 </div>
               </div>
             </div>
-            <div class="md:col-span-2 flex flex-col items-center gap-6 py-2">
+            <div class="md:col-span-2 flex flex-col items-center gap-6 py-2" style="justify-self:center;width:100%;">
               <button type="button" id="btn-run-easy" class="magic-btn px-12 md:px-16 py-4 rounded-sm flex items-center justify-center gap-4 group w-full max-w-md">
                 <span class="font-fantasy text-lg md:text-xl tracking-[0.3em] text-white">CALCULATE DPS</span>
                 <iconify-icon icon="ra:lightning-bolt" class="text-2xl text-[#d4af37]"></iconify-icon>
@@ -1466,13 +1479,15 @@
               </div>
             </div>
           </div>
-          <div class="ornate-border bg-black/40 p-6 easy-history-wrap">
-            <h4 class="text-[10px] text-gray-500 font-bold uppercase tracking-widest mb-4">Session History</h4>
-            <div id="easy-result-log-list" class="overflow-auto scrollbar-fantasy" style="max-height:380px;"></div>
-          </div>
-          <div class="ornate-border bg-black/20 p-6 easy-assumptions-wrap">
-            <h4 class="text-[10px] text-[#d4af37] font-bold uppercase tracking-widest mb-4 font-fantasy">Simulation Assumptions</h4>
-            <textarea id="easy-assumptions" placeholder="Configured assumptions will appear here." class="w-full min-h-[200px] resize-y bg-[#0a0a0c]/80 border border-white/10 text-gray-300 rounded p-3 focus:border-[#d4af37] outline-none"></textarea>
+          <div class="easy-lower-cards">
+            <div class="ornate-border bg-black/40 p-6 easy-history-wrap">
+              <h4 class="text-[10px] text-gray-500 font-bold uppercase tracking-widest mb-4">Session History</h4>
+              <div id="easy-result-log-list"></div>
+            </div>
+            <div class="ornate-border bg-black/20 p-6 easy-assumptions-wrap">
+              <h4 class="text-[10px] text-[#d4af37] font-bold uppercase tracking-widest mb-4 font-fantasy">Simulation Assumptions</h4>
+              <pre id="easy-assumptions" class="w-full bg-[#0a0a0c]/80 border border-white/10 text-gray-300 rounded p-3"></pre>
+            </div>
           </div>
         </div>
       </section>
@@ -2332,6 +2347,7 @@
   <section class="advanced-only" style="margin-top: 1rem;">
     <h2>Version log</h2>
     <ul style="font-size: 0.9rem; color: var(--muted); margin: 0; padding-left: 1.25rem;">
+      <li><strong>1.16</strong> — Advanced mode: simulation history, charts, and damage breakdown cards now extend vertically without internal scrolling — full-page scroll provides visibility. Easy mode: simulation assumptions box auto-sizes to content (no scroll window); Calculate DPS button, result output, and damage breakdown are centered under the Character &amp; Fight and Weapons cards; session history columns reordered with improved spacing, centered numeric values, and a DPS group visual indicator (gold bracket + tint) over MH / OH / Proc / Total columns; Era and Mode columns removed, Worn H% removed, Eff H% renamed to Haste %; Session History and Simulation Assumptions cards match in width. Mobile layout moved from automatic redirect to a link at the bottom of Easy mode. Mobile weapon search fixed: raw weapon data uses <code>Name</code> (capital N) but search was checking <code>name</code> — all results were silently dropped. Mobile weapon icons now load from <code>icons/{id}.gif</code> in both the search list and the equipped weapons card, with a fallback glyph on missing icon.</li>
       <li><strong>1.15</strong> — Fix inventory import not loading proc data: <code>lookupItem</code> now merges weapon-specific fields (<code>proceffect</code>, <code>banedmgamt</code>, <code>elemdmgtype</code>, <code>skillmodtype</code>, etc.) from <code>weapons-data.js</code> when <code>items-data.js</code> lacks them — proc spells were silently missing after inventory import. After import, weapons are now fully re-applied through the same code path as manual weapon search, populating all proc fields correctly. Fix crash (<code>ReferenceError: Cannot access 'classId' before initialization</code>) when simulating weapons with beneficial proc spells (Rune III, Major Shielding, etc.) — temporal dead zone violation in proc threat-cap block. Beneficial non-damaging procs (buffs, runes, shielding) are now correctly skipped during simulation. Spell ATK field is zeroed when buffs are first activated; any manually entered value after that point is treated as additional bonus ATK on top of buff contributions.</li>
       <li><strong>1.14</strong> — Session history cleaned up: era/mode columns removed; easy mode history uses Zodiak font. Easy mode layout: Calculate DPS button and results centred under the Character and Weapons cards (col-span-2 row inside the 2-col grid); Session History and Simulation Assumptions are now separate full-width blocks. Inventory import: sim history now shows the imported weapon name instead of raw damage/delay. Fix buff checkboxes missing on web server (buffs.js was untracked). Haste inputs (Worn, V1 Spell, V3 Bard) moved to their own row; Worn ATK and Spell ATK on a separate row below.</li>
       <li><strong>1.13</strong> — Fix proc spells not loading on inventory import: weapon proc fields (spell name, damage, resist type, proc rate, proc level) are now populated from local spell data when an inventory is imported. Fix proc spells not firing when a weapon is selected via item search but spell data hadn't resolved yet: <code>getWeapon()</code> now falls back to local spell data if the proc name field is empty but a spell ID is set. <code>normalizeItemForWeapon</code> now extracts <code>proclevel</code> so the level gate is consistent between the item-search and preset weapon paths.</li>
@@ -2395,6 +2411,9 @@
   </p>
   <p class="muted" style="margin-top: 0.35rem; font-size: 0.85rem;">
     <a href="mechanics-guide.html" style="color: var(--accent);">Damage Mechanics Guide</a> - transparent breakdown of formulas, ATK/AC behavior, and prioritization.
+  </p>
+  <p class="muted" id="mobile-layout-link" style="margin-top: 0.35rem; font-size: 0.85rem;">
+    <a href="gSim-Mobile-V1.html" style="color: var(--accent);">Mobile layout</a> - simplified view optimized for phone screens.
   </p>
   </div>
 
@@ -2730,7 +2749,7 @@
       }
 
       // When releasing: 1) Bump VERSION below. 2) Add a new <li> at the top of the Version log section above.
-      const VERSION = '1.13';
+      const VERSION = '1.16';
       const versionEl = $('app-version');
       if (versionEl) versionEl.textContent = 'v' + VERSION;
 
@@ -3834,8 +3853,8 @@
       };
       var STAT_KEYS = ['str', 'agi', 'dex', 'sta'];
       var STAT_LABELS = { str: 'STR', agi: 'AGI', dex: 'DEX', sta: 'STA' };
-      // Secondary stats — gear-only, no creation point allocation
-      var SECONDARY_STAT_KEYS = ['cha'];
+      // Secondary stats — gear-only, no creation point allocation (CHA excluded: not used in offensive sims)
+      var SECONDARY_STAT_KEYS = [];
       var SECONDARY_STAT_LABELS = { cha: 'CHA' };
 
       var charCreation = {
@@ -4505,6 +4524,10 @@
             offenseSkill: reports[0].offenseSkill,
             offenseRating: reports[0].offenseRating,
             offenseRatingFromStr: reports[0].offenseRatingFromStr,
+            offenseRatingFromWornAttack: reports[0].offenseRatingFromWornAttack,
+            offenseRatingFromSpellAttack: reports[0].offenseRatingFromSpellAttack,
+            dualWieldEffective: reports[0].dualWieldEffective,
+            dualWieldPct: reports[0].dualWieldPct,
             displayedAttack: reports[0].displayedAttack,
             baseDamageCap: reports[0].baseDamageCap || null,
             critHits: Math.round(reports.reduce((s, r) => s + (r.critHits || 0), 0) / runs),
@@ -7151,7 +7174,7 @@
         var isRaid = easyTarget && easyTarget.value === 'raid';
         lines.push('- Target: ' + (isRaid ? 'Raid Content (650 AC, level 65, 75 to all resists)' : 'Group Content (level-scaled mob: level = character level, AC 5–200 by level)'));
         lines.push('');
-        assumptions.value = lines.join('\n');
+        assumptions.textContent = lines.join('\n');
       }
       function syncEasyFromAdvancedBasics() {
         var levelSrc = $('level'); var easyLevel = $('easy-level');
@@ -7321,26 +7344,27 @@
           listEl.innerHTML = '<div class="easy-history-empty" role="status"><iconify-icon icon="lucide:scroll-text" style="font-size:2rem;opacity:0.45;color:#d4af37"></iconify-icon><span>No simulations logged</span></div>';
           return;
         }
-        var header = '<table class="easy-history-table"><thead><tr>' +
-          '<th>Weapons</th>' +
-          '<th>Lvl</th>' +
-          '<th>Worn H%</th>' +
-          '<th>Eff H%</th>' +
-          '<th>ATK</th>' +
-          '<th>Mob AC</th>' +
-          '<th>MH DPS</th>' +
-          '<th>OH DPS</th>' +
-          '<th>Proc</th>' +
-          '<th style="text-align:right;">Total DPS</th>' +
-          '<th>Era</th>' +
-          '<th>Mode</th>' +
-          '</tr></thead><tbody>';
+        var header = '<table class="easy-history-table"><thead>' +
+          '<tr>' +
+          '<th class="eht-weapons" rowspan="2">Weapons</th>' +
+          '<th class="eht-num" rowspan="2">Lvl</th>' +
+          '<th class="eht-num" rowspan="2">Haste %</th>' +
+          '<th class="eht-num" rowspan="2">ATK</th>' +
+          '<th class="eht-num" rowspan="2">Mob AC</th>' +
+          '<th class="eht-dps-group eht-dps-first eht-dps-last" colspan="4">DPS</th>' +
+          '</tr>' +
+          '<tr>' +
+          '<th class="eht-dps eht-dps-first">MH</th>' +
+          '<th class="eht-dps">OH</th>' +
+          '<th class="eht-dps">Proc</th>' +
+          '<th class="eht-dps eht-dps-last">Total</th>' +
+          '</tr>' +
+          '</thead><tbody>';
         var rows = SIM_HISTORY.slice(0, 25).map(function (h) {
           var comboPlain = (h.weaponCombo || ((h.weapon1 || '-') + ' + ' + (h.weapon2 || '-'))).replace(/</g, '&lt;');
           var fwTag = h.fistweaving ? '<span class="fw-tag">FW</span>' : '';
           var comboDisplay = h.fistweaving ? comboPlain + fwTag : comboPlain;
           var level = h.level != null ? h.level : '-';
-          var worn = h.wornHaste != null ? (h.wornHaste + '%') : '-';
           var eff = h.effectiveHaste != null ? (Number(h.effectiveHaste).toFixed(1) + '%') : '-';
           var netAtk = h.netAttackRating != null ? h.netAttackRating : (h.attack != null ? h.attack : '-');
           var ac = h.mobAC != null ? h.mobAC : '-';
@@ -7348,22 +7372,16 @@
           var oh = typeof h.offhandDps === 'number' ? h.offhandDps.toFixed(2) : '-';
           var proc = typeof h.procDps === 'number' ? h.procDps.toFixed(2) : '-';
           var dps = (typeof h.dps === 'number') ? h.dps.toFixed(2) : '-';
-          var eraLabel = (typeof ERA_LABELS !== 'undefined' ? ERA_LABELS[h.era] : null) || h.era || '—';
-          var modeClass = h.mode === 'advanced' ? 'mode-advanced' : 'mode-easy';
-          var modeLabel = h.mode === 'advanced' ? 'Adv' : 'Easy';
           return '<tr>' +
-            '<td title="' + comboPlain.replace(/"/g, '&quot;') + '">' + comboDisplay + '</td>' +
-            '<td>' + level + '</td>' +
-            '<td>' + worn + '</td>' +
-            '<td>' + eff + '</td>' +
-            '<td>' + netAtk + '</td>' +
-            '<td>' + ac + '</td>' +
-            '<td>' + mh + '</td>' +
-            '<td>' + oh + '</td>' +
-            '<td>' + proc + '</td>' +
-            '<td class="easy-history-dps">' + dps + '</td>' +
-            '<td>' + eraLabel + '</td>' +
-            '<td><span class="sim-mode-badge ' + modeClass + '">' + modeLabel + '</span></td>' +
+            '<td class="eht-weapons" title="' + comboPlain.replace(/"/g, '&quot;') + '">' + comboDisplay + '</td>' +
+            '<td class="eht-num">' + level + '</td>' +
+            '<td class="eht-num">' + eff + '</td>' +
+            '<td class="eht-num">' + netAtk + '</td>' +
+            '<td class="eht-num">' + ac + '</td>' +
+            '<td class="eht-dps eht-dps-first">' + mh + '</td>' +
+            '<td class="eht-dps">' + oh + '</td>' +
+            '<td class="eht-dps">' + proc + '</td>' +
+            '<td class="eht-dps eht-dps-last easy-history-dps">' + dps + '</td>' +
             '</tr>';
         }).join('');
         listEl.innerHTML = '<div class="easy-history-table-wrap">' + header + rows + '</tbody></table></div>';
@@ -7411,11 +7429,11 @@
         var btnSwapEasy = $('btn-swap-weapons-easy');
         if (btnSwapEasy) btnSwapEasy.addEventListener('click', function () { swapWeapons(); });
         var assumptions = $('easy-assumptions');
-        if (assumptions && !assumptions.value) updateEasyAssumptionsFromLevel(parseInt(($('easy-level') && $('easy-level').value) || '1', 10) || 1, (($('class') && $('class').value) || '').toLowerCase());
+        if (assumptions && !assumptions.textContent) updateEasyAssumptionsFromLevel(parseInt(($('easy-level') && $('easy-level').value) || '1', 10) || 1, (($('class') && $('class').value) || '').toLowerCase());
         window.setEasyAssumptions = function (list) {
           var el = $('easy-assumptions'); if (!el) return;
-          if (Array.isArray(list)) { el.value = list.map(function (line) { return '- ' + String(line); }).join('\n'); return; }
-          el.value = String(list || '');
+          if (Array.isArray(list)) { el.textContent = list.map(function (line) { return '- ' + String(line); }).join('\n'); return; }
+          el.textContent = String(list || '');
         };
         setUiMode(UI_MODES.EASY);
         renderEasyHistory();

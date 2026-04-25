@@ -1,0 +1,2373 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>gSim Mobile</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+<link href="https://api.fontshare.com/v2/css?f[]=zodiak@400,700&f[]=satoshi@400,500,700&display=swap" rel="stylesheet" />
+<style>
+  html, body { margin: 0; padding: 0; background: #07070a; color: #e8e4d4;
+    font-family: 'Satoshi', system-ui, sans-serif;
+    height: 100%; min-height: -webkit-fill-available;
+    overflow: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+  *, *::before, *::after { box-sizing: border-box; }
+  input, textarea { font-family: inherit; }
+  #root {
+    width: 100vw; max-width: 480px; margin: 0 auto; position: relative;
+    height: 100vh; height: 100dvh;
+    min-height: -webkit-fill-available;
+  }
+  /* Safe-area padding for the bottom tab bar — handles iPhone home indicator */
+  .gs-tabbar {
+    padding-bottom: max(30px, env(safe-area-inset-bottom)) !important;
+  }
+  @media (min-width: 481px) {
+    body { background: #000; display: flex; align-items: center; justify-content: center; }
+    #root { height: 100vh; height: 100dvh; max-height: 900px; border-left: 1px solid rgba(212,175,55,0.15); border-right: 1px solid rgba(212,175,55,0.15); }
+  }
+  ::-webkit-scrollbar { width: 4px; height: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: rgba(212,175,55,0.25); border-radius: 2px; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script src="js/modules/buffs.js"></script>
+<script src="resources/weapons-data.js"></script>
+<script src="itemSearch.js"></script>
+<script src="weaponSkillCaps.js"></script>
+<script src="combat.js"></script>
+<script>
+  // Run after all data scripts have loaded.
+  // Put ItemSearch into local-only mode so it never tries to hit the remote API.
+  if (window.ItemSearch && window.ItemSearch.setLocalSearchOnlyMode) {
+    window.ItemSearch.setLocalSearchOnlyMode();
+  }
+</script>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script type="text/babel" data-presets="react">
+
+// --- theme.jsx ---
+// gSim Mobile — Theme tokens
+// Based on the design handoff (design_handoff_gsim_overhaul/final/theme.jsx),
+// extended with density + accent-hue hooks for Tweaks.
+
+const GSIM_THEME = {
+  // Gold accents
+  GOLD: '#d4af37',
+  GOLD_BRIGHT: '#e8c547',
+  GOLD_DIM: 'rgba(212,175,55,0.35)',
+  GOLD_FAINT: 'rgba(212,175,55,0.14)',
+  GOLD_BORDER: 'rgba(212,175,55,0.22)',
+  GOLD_GLOW: 'rgba(212,175,55,0.45)',
+
+  // Structural
+  CRIMSON: '#8b0000',
+  CRIMSON_GLOW: 'rgba(139,0,0,0.35)',
+  BG: '#07070a',
+  BG_2: '#0d0d10',
+  PANEL: '#121216',
+  PANEL_2: '#17171c',
+  INPUT: '#101013',
+  BORDER: 'rgba(255,255,255,0.08)',
+  BORDER_STRONG: 'rgba(255,255,255,0.14)',
+
+  // Text
+  TEXT: '#e8e4d4',
+  TEXT_DIM: '#b8b4a4',
+  MUTED: '#7a7668',
+  MUTED_DIM: '#4a4638',
+
+  // Data viz
+  TPS_BLUE: '#7eb8c9',
+  PIE_BLUE: '#7aa8e0',
+  PIE_BLUE_DARK: '#4d78b5',
+  PIE_VIOLET: '#b892d6',
+  DANGER: '#d07070',
+  GREEN: '#6ee7b7',
+
+  // Type
+  FONT_DISPLAY: '"Cinzel", serif',
+  FONT_BODY: '"Satoshi", system-ui, sans-serif',
+  FONT_SERIF: '"Zodiak", Georgia, serif',
+  FONT_MONO: '"JetBrains Mono", ui-monospace, "Cascadia Code", "SF Mono", monospace',
+};
+
+// Shorthand font helpers
+const tCinzel = () => ({ fontFamily: GSIM_THEME.FONT_DISPLAY });
+const tSatoshi = () => ({ fontFamily: GSIM_THEME.FONT_BODY });
+const tZodiak = () => ({ fontFamily: GSIM_THEME.FONT_SERIF });
+const tMono = () => ({ fontFamily: GSIM_THEME.FONT_MONO });
+
+// Gold corner brackets — the signature ornament
+function GsimCorners({ children, style = {}, size = 10, color, inner = 0 }) {
+  const g = color || GSIM_THEME.GOLD;
+  const b = `1.5px solid ${g}`;
+  const C = (s) => <div style={{ position: 'absolute', width: size, height: size, pointerEvents: 'none', ...s }} />;
+  return (
+    <div style={{ position: 'relative', ...style }}>
+      <C style={{ top: -1 + inner, left: -1 + inner, borderTop: b, borderLeft: b }} />
+      <C style={{ top: -1 + inner, right: -1 + inner, borderTop: b, borderRight: b }} />
+      <C style={{ bottom: -1 + inner, left: -1 + inner, borderBottom: b, borderLeft: b }} />
+      <C style={{ bottom: -1 + inner, right: -1 + inner, borderBottom: b, borderRight: b }} />
+      {children}
+    </div>
+  );
+}
+
+// Gold divider with center diamond
+function GoldDivider({ style = {}, color }) {
+  const g = color || GSIM_THEME.GOLD_DIM;
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 6, ...style }}>
+      <div style={{ flex: 1, height: 1, background: `linear-gradient(90deg, transparent, ${g}, transparent)` }} />
+      <div style={{ width: 4, height: 4, transform: 'rotate(45deg)', background: g }} />
+      <div style={{ flex: 1, height: 1, background: `linear-gradient(90deg, transparent, ${g}, transparent)` }} />
+    </div>
+  );
+}
+
+// Section heading — "▸ LABEL · hint"
+function SectionHead({ label, hint, action }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 8, gap: 8 }}>
+      <div style={{ ...tCinzel(), fontSize: 9, letterSpacing: '0.22em', color: GSIM_THEME.GOLD, textTransform: 'uppercase', fontWeight: 700, whiteSpace: 'nowrap' }}>{label}</div>
+      {hint && <div style={{ fontSize: 9, color: GSIM_THEME.MUTED, letterSpacing: '0.06em', flex: 1, textAlign: 'right', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{hint}</div>}
+      {action && <div style={{ ...tCinzel(), fontSize: 9, letterSpacing: '0.14em', color: GSIM_THEME.GOLD, fontWeight: 700, cursor: 'pointer' }}>{action}</div>}
+    </div>
+  );
+}
+
+// Generic panel
+function Panel({ children, style = {}, padding = 12, corners = false, ornate = false }) {
+  const base = {
+    padding, borderRadius: 4,
+    background: ornate
+      ? `linear-gradient(180deg, ${GSIM_THEME.PANEL_2}, ${GSIM_THEME.PANEL})`
+      : GSIM_THEME.PANEL,
+    border: `1px solid ${GSIM_THEME.BORDER}`,
+    ...style,
+  };
+  if (corners) {
+    return (
+      <GsimCorners style={{ ...base, background: base.background }}>{children}</GsimCorners>
+    );
+  }
+  return <div style={base}>{children}</div>;
+}
+
+Object.assign(window, {
+  GSIM_THEME, tCinzel, tSatoshi, tZodiak, tMono,
+  GsimCorners, GoldDivider, SectionHead, Panel,
+});
+
+
+// --- data.jsx ---
+// gSim Mobile — sample data derived from the existing mobile.jsx + desktop spec
+
+const GSIM_DATA = {
+  classes: [
+    { name: 'Bard', tag: 'BRD', archetype: 'Hybrid' },
+    { name: 'Beastlord', tag: 'BST', archetype: 'Hybrid' },
+    { name: 'Cleric', tag: 'CLR', archetype: 'Priest' },
+    { name: 'Druid', tag: 'DRU', archetype: 'Priest' },
+    { name: 'Enchanter', tag: 'ENC', archetype: 'Caster' },
+    { name: 'Magician', tag: 'MAG', archetype: 'Caster' },
+    { name: 'Monk', tag: 'MNK', archetype: 'Melee' },
+    { name: 'Necromancer', tag: 'NEC', archetype: 'Caster' },
+    { name: 'Paladin', tag: 'PAL', archetype: 'Hybrid' },
+    { name: 'Ranger', tag: 'RNG', archetype: 'Hybrid' },
+    { name: 'Rogue', tag: 'ROG', archetype: 'Melee' },
+    { name: 'Shadowknight', tag: 'SHD', archetype: 'Hybrid' },
+    { name: 'Shaman', tag: 'SHM', archetype: 'Priest' },
+    { name: 'Warrior', tag: 'WAR', archetype: 'Melee' },
+    { name: 'Wizard', tag: 'WIZ', archetype: 'Caster' },
+  ],
+  races: ['Human', 'Barbarian', 'Iksar', 'Vah Shir'],
+  eras: ['Classic', 'Kunark', 'Velious', 'Luclin', 'PoP', 'GoD'],
+  stats: { STR: 255, AGI: 209, DEX: 186, STA: 255, WIS: 92, INT: 68 },
+  gear: [
+    ['Primary',   "Caen's Bo Staff of Fury",      "43d/30"],
+    ['Secondary', '—',                             'empty'],
+    ['Head',      'Crown of the Kromzek Kings',   '+25 STR'],
+    ['Face',      'Fine Steel Mask',              '+8 STR'],
+    ['Ear 1',     'Earring of Essence',           '+12 INT'],
+    ['Ear 2',     'Abashi\'s Rod of Disempowerment','+15 WIS'],
+    ['Neck',      'Scaled Mystic Tunic',          '+20 STA'],
+    ['Shoulders', 'Zlandicar\'s Scaled Pauldrons','+30 STR'],
+    ['Back',      'Cloak of Destruction',         '+35 STR'],
+    ['Arms',      'Jaundiced Bone Bracer',        '+18 STR'],
+    ['Wrist 1',   'Silver Bracelet of Speed',     '+41% HASTE'],
+    ['Wrist 2',   'Hand-engraved Bracer',         '+12 DEX'],
+    ['Hands',     'Golden Efreeti Gloves',        '+22 STR'],
+    ['Finger 1',  'Ring of Rage',                 '+20 STR'],
+    ['Finger 2',  'Shiny Brass Idol',             '+15 AGI'],
+    ['Chest',     'Breastplate of the Ancients',  '+45 STA'],
+    ['Legs',      'Flayed Barbarian Leggings',    '+60 STR'],
+    ['Feet',      'Shoes of the Hidden Path',     '+10 AGI'],
+    ['Waist',     'Girdle of Rapidity',           '+18 HASTE'],
+    ['Range',     'Tranquil Staff',               '+proc'],
+  ],
+  buffGroups: [
+    { label: 'Haste', buffs: [
+      { name: 'Visions of Grandeur',     tag: 'ENC', active: true,  hint: '+37% haste' },
+      { name: 'Speed of the Shissar',    tag: 'ENC', active: false, hint: '+45% haste' },
+      { name: 'Quickness',               tag: 'ENC', active: false, hint: '+25% haste' },
+    ]},
+    { label: 'Offensive', buffs: [
+      { name: 'Ancient: Feral Avatar',   tag: 'SHM', active: true,  hint: '+55 STR, +95 ATK' },
+      { name: 'Strength of Nature',      tag: 'DRU', active: false, hint: '+35 STR' },
+      { name: 'Savagery',                tag: 'BST', active: false, hint: '+30 STR' },
+      { name: 'Ferocity',                tag: 'BST', active: false, hint: '+35 ATK' },
+    ]},
+    { label: 'Bard Songs', buffs: [
+      { name: 'Warsong of the Vah Shir', tag: 'BRD', active: true,  hint: '+ATK mod' },
+      { name: 'McVaxius\'s Berserker Crescendo', tag: 'BRD', active: false, hint: '+ATK' },
+    ]},
+    { label: 'Potions & Clickies', buffs: [
+      { name: 'Bracer of Benevolence',   tag: 'ITM', active: false, hint: 'Clicky AC' },
+      { name: 'Mask of Tinkering',       tag: 'ITM', active: false, hint: 'Clicky DS' },
+    ]},
+    { label: 'Slot Buffs', buffs: [
+      { name: 'Spirit of Wolf',          tag: 'DRU', active: false, hint: 'Run speed' },
+    ]},
+  ],
+  target: { name: 'Kaas Thox Xi Aten Ha Ra', lvl: 66, ac: 800, zone: 'Plane of Time' },
+  npcs: [
+    { name: 'Kaas Thox Xi Aten Ha Ra', lvl: 66, ac: 800, zone: 'PoTime', hp: 1800000 },
+    { name: 'The Rathe Council',       lvl: 66, ac: 750, zone: 'PoEarthB', hp: 950000 },
+    { name: 'Quarm',                   lvl: 70, ac: 900, zone: 'PoTime',  hp: 2400000 },
+    { name: 'Mithaniel Marr',          lvl: 68, ac: 820, zone: 'PoValor', hp: 1600000 },
+    { name: 'Emperor Ssraeshza',       lvl: 65, ac: 700, zone: 'Ssra',    hp: 1100000 },
+    { name: 'Aten Ha Ra',              lvl: 64, ac: 710, zone: 'Vex Thal',hp: 980000 },
+    { name: 'Tunare',                  lvl: 70, ac: 850, zone: 'PoGrowth',hp: 2100000 },
+    { name: 'Bertoxxulous',            lvl: 70, ac: 860, zone: 'PoDisease',hp: 2000000 },
+  ],
+  weapons: [
+    { name: "Caen's Bo Staff of Fury", type: '2HB', d: 43, delay: 30, rating: 99 },
+    { name: 'Iksar Berserker Club',   type: '2HB', d: 41, delay: 31, rating: 94 },
+    { name: 'Staff of Phoenix Fire',  type: '2HB', d: 42, delay: 32, rating: 92 },
+    { name: 'Fleshrippers',           type: 'H2H', d: 21, delay: 19, rating: 88 },
+    { name: 'Epic: Celestial Fists',  type: 'H2H', d: 9,  delay: 16, rating: 96 },
+    { name: 'Tranquil Staff',         type: '2HB', d: 40, delay: 34, rating: 85 },
+    { name: 'Crafted Warhammer',      type: '1HB', d: 20, delay: 25, rating: 72 },
+    { name: 'Yaulp VI Truncheon',     type: '1HB', d: 22, delay: 24, rating: 78 },
+  ],
+  rankResults: [
+    { rank: 1, name: "Caen's Bo Staff of Fury",  dps: 77.48, delta: null,   tag: '43d/30 · 2HB' },
+    { rank: 2, name: 'Epic: Celestial Fists',    dps: 75.02, delta: -2.46,  tag: '9d/16 · H2H' },
+    { rank: 3, name: 'Iksar Berserker Club',     dps: 73.91, delta: -3.57,  tag: '41d/31 · 2HB' },
+    { rank: 4, name: 'Staff of Phoenix Fire',    dps: 72.40, delta: -5.08,  tag: '42d/32 · 2HB' },
+    { rank: 5, name: 'Fleshrippers',             dps: 68.13, delta: -9.35,  tag: '21d/19 · H2H' },
+    { rank: 6, name: 'Tranquil Staff',           dps: 66.22, delta: -11.26, tag: '40d/34 · 2HB' },
+    { rank: 7, name: 'Yaulp VI Truncheon',       dps: 58.44, delta: -19.04, tag: '22d/24 · 1HB' },
+    { rank: 8, name: 'Crafted Warhammer',        dps: 52.11, delta: -25.37, tag: '20d/25 · 1HB' },
+  ],
+};
+
+window.GSIM_DATA = GSIM_DATA;
+
+
+// --- primitives.jsx ---
+// gSim Mobile — shared primitives (charts, bars, pills, toggles)
+
+const T = window.GSIM_THEME;
+
+// ─── StatChip ───
+function StatChip({ k, v, size = 'md', variant = 'gold' }) {
+  const sizes = {
+    sm: { pad: '4px 2px', kfs: 7, vfs: 12 },
+    md: { pad: '6px 2px', kfs: 8, vfs: 14 },
+    lg: { pad: '8px 4px', kfs: 9, vfs: 17 },
+  };
+  const s = sizes[size];
+  const col = variant === 'gold' ? T.GOLD : variant === 'blue' ? T.TPS_BLUE : T.TEXT;
+  return (
+    <div style={{ background: T.INPUT, borderRadius: 4, padding: s.pad, textAlign: 'center', border: `1px solid ${T.BORDER}` }}>
+      <div style={{ fontSize: s.kfs, color: T.MUTED, letterSpacing: '0.14em', ...window.tCinzel(), fontWeight: 600 }}>{k}</div>
+      <div style={{ fontSize: s.vfs, color: col, fontWeight: 700, ...window.tMono() }}>{v}</div>
+    </div>
+  );
+}
+
+// ─── PieChart ───
+function PieChart({ size = 90, segs, hollow = 0.52, shadow = true }) {
+  const r = size/2; let a = -Math.PI/2;
+  const arcs = segs.map((s, i) => {
+    const end = a + (s.pct/100)*Math.PI*2;
+    const x1 = r + r*Math.cos(a), y1 = r + r*Math.sin(a);
+    const x2 = r + r*Math.cos(end), y2 = r + r*Math.sin(end);
+    const large = end - a > Math.PI ? 1 : 0;
+    const d = `M${r},${r} L${x1},${y1} A${r},${r} 0 ${large} 1 ${x2},${y2} Z`;
+    a = end; return <path key={i} d={d} fill={s.color}/>;
+  });
+  return (
+    <svg width={size} height={size} style={{ filter: shadow ? 'drop-shadow(0 2px 8px rgba(0,0,0,0.4))' : undefined }}>
+      {arcs}
+      {hollow > 0 && <circle cx={r} cy={r} r={r*hollow} fill={T.PANEL}/>}
+    </svg>
+  );
+}
+
+// ─── Histogram ───
+function Histogram({ color, seed = 1, bars = 28, height = 44, hitList }) {
+  const data = React.useMemo(() => {
+    if (hitList && hitList.length > 0) {
+      const vmin = Math.min(...hitList), vmax = Math.max(...hitList);
+      const range = vmax - vmin || 1;
+      const counts = new Array(bars).fill(0);
+      hitList.forEach(v => { const i = Math.min(bars - 1, Math.floor(((v - vmin) / range) * bars)); counts[i]++; });
+      const peak = Math.max(...counts) || 1;
+      return counts.map(c => Math.max(3, Math.round((c / peak) * (height - 4))));
+    }
+    return Array.from({ length: bars }, (_, i) => {
+      const t = i / (bars - 1);
+      const n = Math.sin(seed * 12.9898 + i * 78.233) * 43758.5453;
+      const noise = n - Math.floor(n);
+      const bell = Math.exp(-Math.pow((t - 0.35) * 2.5, 2)) * 0.85 + 0.1;
+      return 5 + bell * (height - 8) + noise * 5;
+    });
+  }, [seed, bars, height, hitList]);
+  return (
+    <div style={{ display: 'flex', alignItems: 'flex-end', gap: 1.5, height }}>
+      {data.map((h, i) => <div key={i} style={{ flex: 1, height: h, background: color, borderRadius: '1.5px 1.5px 0 0', opacity: 0.82 }} />)}
+    </div>
+  );
+}
+
+// ─── SegmentedControl ───
+function SegmentedControl({ options, value, onChange, size = 'md', disabled = [] }) {
+  const sizes = { sm: { pad: '4px 0', fs: 9 }, md: { pad: '6px 0', fs: 10 }, lg: { pad: '8px 0', fs: 11 } };
+  const s = sizes[size];
+  return (
+    <div style={{ display: 'flex', gap: 2, padding: 3, background: T.INPUT, borderRadius: 6, border: `1px solid ${T.BORDER}` }}>
+      {options.map(opt => {
+        const active = opt === value;
+        const dis = disabled.includes(opt);
+        return (
+          <div key={opt} onClick={() => !dis && onChange(opt)} style={{
+            flex: 1, textAlign: 'center', padding: s.pad, ...window.tCinzel(),
+            fontSize: s.fs, letterSpacing: '0.14em', textTransform: 'uppercase', fontWeight: 700,
+            borderRadius: 4, background: active ? T.GOLD_FAINT : 'transparent',
+            color: active ? T.GOLD : (dis ? T.MUTED_DIM : T.MUTED),
+            border: active ? `1px solid ${T.GOLD_BORDER}` : '1px solid transparent',
+            cursor: dis ? 'not-allowed' : 'pointer',
+            opacity: dis ? 0.5 : 1,
+            transition: 'all 120ms ease',
+          }}>{opt}</div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ─── BuffCheckbox ───
+function BuffCheckbox({ on, onChange }) {
+  return (
+    <div onClick={onChange} style={{
+      width: 16, height: 16, borderRadius: 3,
+      border: `1px solid ${on ? T.GOLD : T.BORDER_STRONG}`,
+      background: on ? T.GOLD : 'transparent',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      color: T.BG, fontSize: 10, fontWeight: 900, flexShrink: 0,
+      cursor: 'pointer', transition: 'all 120ms ease',
+      boxShadow: on ? '0 0 8px rgba(212,175,55,0.35)' : 'none',
+    }}>{on && '✓'}</div>
+  );
+}
+
+// ─── Slider ───
+function Slider({ value, onChange, max = 100, color }) {
+  const ref = React.useRef(null);
+  const c = color || T.GOLD;
+  const pct = Math.min(100, Math.max(0, (value / max) * 100));
+  const handle = (e) => {
+    const r = ref.current.getBoundingClientRect();
+    const touch = e.touches ? e.touches[0] : e;
+    const x = Math.max(0, Math.min(r.width, touch.clientX - r.left));
+    onChange(Math.round((x / r.width) * max));
+  };
+  return (
+    <div ref={ref}
+      onMouseDown={(e) => { handle(e); const m = ev => handle(ev); const u = () => { window.removeEventListener('mousemove', m); window.removeEventListener('mouseup', u); }; window.addEventListener('mousemove', m); window.addEventListener('mouseup', u); }}
+      onTouchStart={handle} onTouchMove={handle}
+      style={{ flex: 1, height: 18, display: 'flex', alignItems: 'center', cursor: 'pointer', touchAction: 'none' }}>
+      <div style={{ width: '100%', height: 4, background: T.INPUT, borderRadius: 2, position: 'relative', border: `1px solid ${T.BORDER}` }}>
+        <div style={{ width: `${pct}%`, height: '100%', background: `linear-gradient(90deg, ${T.GOLD_DIM}, ${c})`, borderRadius: 2 }} />
+        <div style={{ position: 'absolute', left: `${pct}%`, top: -6, width: 16, height: 16, borderRadius: '50%', background: c, boxShadow: `0 0 8px ${T.GOLD_GLOW}`, transform: 'translateX(-50%)', border: '1px solid rgba(255,255,255,0.2)' }} />
+      </div>
+    </div>
+  );
+}
+
+// ─── GoldButton (primary CTA) ───
+function GoldButton({ children, onClick, size = 'md', full = false, disabled = false, icon }) {
+  const sizes = {
+    sm: { pad: '8px 14px', fs: 11, r: 4 },
+    md: { pad: '14px 20px', fs: 12, r: 6 },
+    lg: { pad: '16px 24px', fs: 14, r: 8 },
+  };
+  const s = sizes[size];
+  return (
+    <div onClick={!disabled ? onClick : undefined} style={{
+      padding: s.pad, borderRadius: s.r,
+      background: disabled ? T.INPUT : `linear-gradient(145deg, ${T.GOLD} 0%, #8a6b14 100%)`,
+      border: `1px solid ${disabled ? T.BORDER : 'rgba(139,0,0,0.5)'}`,
+      textAlign: 'center', ...window.tCinzel(),
+      fontSize: s.fs, letterSpacing: '0.22em', color: disabled ? T.MUTED : '#0a0a0c',
+      fontWeight: 800, textTransform: 'uppercase',
+      boxShadow: disabled ? 'none' : `0 0 24px ${T.GOLD_GLOW}, inset 0 1px 0 rgba(255,255,255,0.3)`,
+      width: full ? '100%' : 'auto', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+      cursor: disabled ? 'not-allowed' : 'pointer',
+      userSelect: 'none',
+      transition: 'transform 100ms ease',
+    }}
+      onMouseDown={(e) => !disabled && (e.currentTarget.style.transform = 'scale(0.98)')}
+      onMouseUp={(e) => !disabled && (e.currentTarget.style.transform = 'scale(1)')}
+      onMouseLeave={(e) => !disabled && (e.currentTarget.style.transform = 'scale(1)')}
+    >
+      {icon && <span style={{ fontSize: s.fs + 2 }}>{icon}</span>}
+      {children}
+    </div>
+  );
+}
+
+// ─── OutlineButton ───
+function OutlineButton({ children, onClick, full = false, size = 'md', icon }) {
+  const sizes = { sm: { pad: '6px 10px', fs: 9 }, md: { pad: '10px 14px', fs: 10 }, lg: { pad: '14px 20px', fs: 12 } };
+  const s = sizes[size];
+  return (
+    <div onClick={onClick} style={{
+      padding: s.pad, borderRadius: 4, ...window.tCinzel(),
+      fontSize: s.fs, letterSpacing: '0.18em', color: T.GOLD,
+      fontWeight: 700, textTransform: 'uppercase',
+      border: `1px solid ${T.GOLD_BORDER}`, background: T.BG_2,
+      textAlign: 'center', cursor: 'pointer', userSelect: 'none',
+      width: full ? '100%' : 'auto',
+      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+    }}>
+      {icon && <span>{icon}</span>}{children}
+    </div>
+  );
+}
+
+// ─── Count-up animated number ───
+function CountUp({ value, duration = 900, format = (v) => v.toFixed(2), trigger = 0, style = {} }) {
+  const [display, setDisplay] = React.useState(0);
+  React.useEffect(() => {
+    const start = performance.now();
+    const from = 0, to = value;
+    let raf;
+    const step = (t) => {
+      const p = Math.min(1, (t - start) / duration);
+      const eased = 1 - Math.pow(1 - p, 3);
+      setDisplay(from + (to - from) * eased);
+      if (p < 1) raf = requestAnimationFrame(step);
+    };
+    raf = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(raf);
+  }, [value, duration, trigger]);
+  return <span style={style}>{format(display)}</span>;
+}
+
+// ─── AA Dots ───
+function AADots({ value, max }) {
+  return (
+    <div style={{ display: 'flex', gap: 3 }}>
+      {Array.from({ length: max }, (_, i) => (
+        <div key={i} style={{
+          width: 11, height: 11, borderRadius: 2,
+          background: i < value ? T.GOLD : 'transparent',
+          border: `1px solid ${i < value ? T.GOLD : T.BORDER_STRONG}`,
+          boxShadow: i < value ? `0 0 4px ${T.GOLD_GLOW}` : 'none',
+        }} />
+      ))}
+    </div>
+  );
+}
+
+Object.assign(window, {
+  StatChip, PieChart, Histogram, SegmentedControl, BuffCheckbox,
+  Slider, GoldButton, OutlineButton, CountUp, AADots,
+});
+
+
+// --- drilldowns.jsx ---
+// gSim Mobile — Drill-down screens: class picker, weapon search, buff picker, NPC search, Rank All
+
+const DT = window.GSIM_THEME;
+const GD = window.GSIM_DATA;
+
+// ─── Generic Modal/Sheet ───
+function DrillSheet({ title, onBack, children, trailing }) {
+  return (
+    <div style={{ position: 'absolute', inset: 0, background: DT.BG, display: 'flex', flexDirection: 'column', zIndex: 30 }}>
+      <div style={{ padding: '54px 14px 10px', borderBottom: `1px solid ${DT.GOLD_BORDER}`, background: 'linear-gradient(180deg, rgba(0,0,0,0.7), transparent)', display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
+        <div onClick={onBack} style={{ width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', color: DT.GOLD, fontSize: 20, cursor: 'pointer', border: `1px solid ${DT.GOLD_BORDER}`, borderRadius: 4, background: DT.BG_2 }}>‹</div>
+        <div style={{ ...window.tCinzel(), fontSize: 13, letterSpacing: '0.18em', color: DT.GOLD, fontWeight: 700, textTransform: 'uppercase', flex: 1 }}>{title}</div>
+        {trailing}
+      </div>
+      <div style={{ flex: 1, overflowY: 'auto', padding: '12px 14px 40px' }}>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+// ─── Search input ───
+function SearchInput({ value, onChange, placeholder }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px', background: DT.INPUT, border: `1px solid ${DT.BORDER_STRONG}`, borderRadius: 6, marginBottom: 12 }}>
+      <span style={{ color: DT.MUTED, fontSize: 14 }}>⌕</span>
+      <input
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        style={{ flex: 1, background: 'transparent', border: 0, outline: 0, color: DT.TEXT, fontSize: 13, ...window.tSatoshi() }}
+      />
+    </div>
+  );
+}
+
+// ─── Class Picker ───
+function ClassPicker({ current, onPick, onBack }) {
+  const [q, setQ] = React.useState('');
+  const filtered = GD.classes.filter(c => c.name.toLowerCase().includes(q.toLowerCase()));
+  const byArch = {};
+  filtered.forEach(c => { (byArch[c.archetype] = byArch[c.archetype] || []).push(c); });
+  return (
+    <DrillSheet title="Select Class" onBack={onBack}>
+      <SearchInput value={q} onChange={setQ} placeholder="Search class…" />
+      {Object.entries(byArch).map(([arch, list]) => (
+        <div key={arch} style={{ marginBottom: 14 }}>
+          <div style={{ ...window.tCinzel(), fontSize: 9, letterSpacing: '0.22em', color: DT.MUTED, textTransform: 'uppercase', marginBottom: 6, fontWeight: 700 }}>{arch}</div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+            {list.map(c => {
+              const active = c.name === current;
+              return (
+                <div key={c.name} onClick={() => onPick(c.name)} style={{
+                  padding: 10, borderRadius: 4,
+                  background: active ? `linear-gradient(90deg, ${DT.CRIMSON_GLOW}, transparent)` : DT.PANEL,
+                  border: `1px solid ${active ? DT.CRIMSON : DT.BORDER}`,
+                  borderLeft: active ? `3px solid ${DT.CRIMSON}` : `1px solid ${DT.BORDER}`,
+                  cursor: 'pointer',
+                }}>
+                  <div style={{ ...window.tCinzel(), fontSize: 12, color: active ? DT.GOLD : DT.TEXT, fontWeight: 700, letterSpacing: '0.06em' }}>{c.name}</div>
+                  <div style={{ fontSize: 8, color: DT.MUTED, letterSpacing: '0.16em', marginTop: 2 }}>{c.tag}</div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      ))}
+    </DrillSheet>
+  );
+}
+
+// ─── NPC / Target Search ───
+function TargetPicker({ current, onPick, onBack }) {
+  const [q, setQ] = React.useState('');
+  const filtered = GD.npcs.filter(n => n.name.toLowerCase().includes(q.toLowerCase()) || n.zone.toLowerCase().includes(q.toLowerCase()));
+  return (
+    <DrillSheet title="Target NPC" onBack={onBack}>
+      <SearchInput value={q} onChange={setQ} placeholder="Search NPCs by name or zone…" />
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        {filtered.map(n => {
+          const active = n.name === current.name;
+          return (
+            <div key={n.name} onClick={() => onPick(n)} style={{
+              padding: '10px 12px', borderRadius: 4,
+              background: active ? DT.GOLD_FAINT : DT.PANEL,
+              border: `1px solid ${active ? DT.GOLD_BORDER : DT.BORDER}`,
+              cursor: 'pointer',
+            }}>
+              <div style={{ ...window.tZodiak(), fontSize: 14, color: active ? DT.GOLD : DT.TEXT, marginBottom: 3 }}>{n.name}</div>
+              <div style={{ display: 'flex', gap: 10, fontSize: 10, color: DT.MUTED, ...window.tMono(), letterSpacing: '0.04em' }}>
+                <span>Lvl {n.lvl}</span>
+                <span>AC {n.ac}</span>
+                <span>HP {(n.hp/1000).toFixed(0)}k</span>
+                <span style={{ marginLeft: 'auto', color: DT.TEXT_DIM }}>{n.zone}</span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </DrillSheet>
+  );
+}
+
+// ─── Weapon Search ───
+function WeaponSearch({ slot, current, onPick, onBack }) {
+  const [q, setQ] = React.useState('');
+
+  const results = React.useMemo(() => {
+    if (q.length < 4) return [];
+    const qLow = q.toLowerCase();
+    const db = window.__DPS_WEAPONS_MERGED__ || {};
+    const normalize = window.ItemSearch && window.ItemSearch.normalizeItemForWeapon
+      ? window.ItemSearch.normalizeItemForWeapon.bind(window.ItemSearch)
+      : null;
+    const hits = [];
+    for (const raw of Object.values(db)) {
+      const rawName = raw.name || raw.Name || '';
+      if (!rawName) continue;
+      if (!rawName.toLowerCase().includes(qLow)) continue;
+      let w;
+      try { w = normalize ? normalize(raw) : raw; } catch(e) { w = raw; }
+      hits.push(w);
+      if (hits.length >= 50) break;
+    }
+    hits.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+    return hits;
+  }, [q]);
+
+  function handlePick(w) {
+    onPick({
+      name: w.name || '',
+      type: (w.type || '').toUpperCase(),
+      d: w.damage || w.d || 0,
+      delay: w.delay || 0,
+      icon: w.icon || null,
+    });
+  }
+
+  function WeaponIcon({ icon, size = 36 }) {
+    const [err, setErr] = React.useState(false);
+    const base = { width: size, height: size, background: DT.INPUT, border: `1px solid ${DT.GOLD_BORDER}`, borderRadius: 4, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: DT.GOLD, ...window.tCinzel(), fontSize: 14 };
+    if (icon && !err) {
+      return <div style={base}><img src={`icons/${icon}.gif`} alt="" onError={() => setErr(true)} style={{ width: size - 4, height: size - 4, objectFit: 'contain', imageRendering: 'pixelated' }} /></div>;
+    }
+    return <div style={base}>⚔</div>;
+  }
+
+  return (
+    <DrillSheet title={`Weapon · ${slot}`} onBack={onBack}>
+      <SearchInput value={q} onChange={setQ} placeholder="Type 4+ chars to search items…" />
+      {q.length > 0 && q.length < 4 && (
+        <div style={{ fontSize: 10, color: DT.MUTED, textAlign: 'center', padding: '12px 0' }}>Keep typing… ({4 - q.length} more char{4 - q.length !== 1 ? 's' : ''})</div>
+      )}
+      {q.length >= 4 && results.length === 0 && (
+        <div style={{ fontSize: 10, color: DT.MUTED, textAlign: 'center', padding: '12px 0' }}>No weapons found.</div>
+      )}
+      {results.length > 0 && (
+        <>
+          <div style={{ fontSize: 9, color: DT.MUTED, letterSpacing: '0.14em', ...window.tCinzel(), marginBottom: 8, fontWeight: 600 }}>{results.length} RESULT{results.length !== 1 ? 'S' : ''}</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {results.map(w => (
+              <div key={w.name + (w.delay||'')} onClick={() => handlePick(w)} style={{
+                padding: 10, borderRadius: 4, background: DT.PANEL,
+                border: `1px solid ${DT.BORDER}`, display: 'flex', gap: 10, alignItems: 'center', cursor: 'pointer',
+              }}>
+                <WeaponIcon icon={w.icon} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ ...window.tZodiak(), fontSize: 13, color: DT.TEXT, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{w.name}</div>
+                  <div style={{ fontSize: 10, color: DT.MUTED, ...window.tMono(), marginTop: 2 }}>
+                    {(w.type || '').toUpperCase() || '—'} · {w.damage || w.d || '?'}d/{w.delay || '?'}
+                    {w.is2H ? ' · 2H' : ''}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+    </DrillSheet>
+  );
+}
+
+// ─── Buff Picker ───
+function BuffPicker({ buffs, onToggle, onBack }) {
+  return (
+    <DrillSheet title="Buffs" onBack={onBack}>
+      {GD.buffGroups.map(grp => {
+        const active = grp.buffs.filter(b => buffs[b.name]).length;
+        return (
+          <div key={grp.label} style={{ marginBottom: 14 }}>
+            <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 6 }}>
+              <div style={{ ...window.tCinzel(), fontSize: 10, letterSpacing: '0.22em', color: DT.GOLD, textTransform: 'uppercase', fontWeight: 700 }}>{grp.label}</div>
+              <div style={{ ...window.tMono(), fontSize: 10, color: DT.MUTED }}>{active}/{grp.buffs.length}</div>
+            </div>
+            <div style={{ background: DT.PANEL, border: `1px solid ${DT.BORDER}`, borderRadius: 4, padding: '4px 10px' }}>
+              {grp.buffs.map((b, i) => (
+                <div key={b.name} onClick={() => onToggle(b.name)} style={{
+                  display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0',
+                  borderBottom: i < grp.buffs.length - 1 ? `1px solid rgba(255,255,255,0.04)` : 0,
+                  cursor: 'pointer',
+                }}>
+                  <window.BuffCheckbox on={!!buffs[b.name]} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 12, color: buffs[b.name] ? DT.TEXT : DT.TEXT_DIM, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{b.name}</div>
+                    <div style={{ fontSize: 9, color: DT.MUTED, ...window.tMono(), marginTop: 1 }}>{b.hint}</div>
+                  </div>
+                  <div style={{ fontSize: 8, color: DT.MUTED, letterSpacing: '0.14em', ...window.tCinzel(), fontWeight: 600 }}>{b.tag}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      })}
+    </DrillSheet>
+  );
+}
+
+// ─── Rank All ───
+// Shared helpers (mirrors desktop index.html)
+const RANK_CLASS_BITMASK = { warrior:1, cleric:2, paladin:4, ranger:8, shadowknight:16, druid:32, monk:64, bard:128, rogue:256, shaman:512, necromancer:1024, wizard:2048, magician:4096, enchanter:8192, beastlord:16384 };
+const RANK_ITEM_TYPE_TO_TYPE = { 0:'1hs', 1:'2hs', 2:'1hp', 3:'1hb', 4:'2hb', 7:'h2h', 35:'2hp', 45:'h2h' };
+const RANK_SKILL_ALIASES = { '2hp':'1hp', 'bow':'archery' };
+const RANK_VALID_KEYS = ['1hb','1hs','1hp','2hb','2hs','h2h','archery','throwing'];
+const RANK_OFFHAND_BLOCKED = { '2hb':1,'2hs':1,'2hp':1,'archery':1,'bow':1 };
+const RANK_CUSTOM_MONK = [{ id:'custom-epic-fists', Name:'Epic Fists', damage:9, delay:16, reqlevel:46, itemtype:7, classes:64, slots:24576 }];
+const RANK_SLOT_PRIMARY = 8192;
+const RANK_SLOT_SECONDARY = 16384;
+const RANK_MOBILE_CLASSES = { warrior:{toHitBonus:24,doubleAttack:250,dualWield:245}, cleric:{toHitBonus:0,doubleAttack:0,dualWield:0}, paladin:{toHitBonus:0,doubleAttack:200,dualWield:0}, ranger:{toHitBonus:0,doubleAttack:200,dualWield:252}, shadowknight:{toHitBonus:0,doubleAttack:200,dualWield:0}, druid:{toHitBonus:0,doubleAttack:0,dualWield:0}, monk:{toHitBonus:0,doubleAttack:250,dualWield:252}, bard:{toHitBonus:0,doubleAttack:0,dualWield:245}, rogue:{toHitBonus:0,doubleAttack:252,dualWield:252}, shaman:{toHitBonus:0,doubleAttack:0,dualWield:0}, necromancer:{toHitBonus:0,doubleAttack:0,dualWield:0}, wizard:{toHitBonus:0,doubleAttack:0,dualWield:0}, magician:{toHitBonus:0,doubleAttack:0,dualWield:0}, enchanter:{toHitBonus:0,doubleAttack:0,dualWield:0}, beastlord:{toHitBonus:0,doubleAttack:0,dualWield:252} };
+
+function rankSkillKey(type, is2H) {
+  const t = (type || '').toLowerCase();
+  const k = RANK_SKILL_ALIASES[t] || t;
+  return RANK_VALID_KEYS.indexOf(k) >= 0 ? k : (is2H ? '2hb' : '1hb');
+}
+function rankNormWeapon(id, raw) {
+  const dmg = parseInt(raw.damage, 10), dly = parseInt(raw.delay, 10);
+  if (isNaN(dmg)||dmg<1||isNaN(dly)||dly<1) return null;
+  const it = raw.itemtype != null ? parseInt(raw.itemtype,10) : NaN;
+  const typeStr = (!isNaN(it) && RANK_ITEM_TYPE_TO_TYPE[it]) ? RANK_ITEM_TYPE_TO_TYPE[it] : '1hb';
+  const is2H = (typeStr==='2hb'||typeStr==='2hs'||typeStr==='2hp');
+  return { id, name:(raw.Name||String(id)), damage:dmg, delay:dly, type:typeStr, is2H,
+    proc:'', procDamage:0, procRate:Number(raw.procrate)||0,
+    procLevel:(raw.proclevel>0?Number(raw.proclevel):undefined),
+    elemType:undefined, elemDamage:0, baneDamage:0, wornAttackBonus:0,
+    isLore: String(raw.lore||'').indexOf('*')>=0,
+    classes: raw.classes!=null ? parseInt(raw.classes,10) : NaN,
+    slots: raw.slots!=null ? parseInt(raw.slots,10) : null,
+    reqlevel: raw.reqlevel!=null ? parseInt(raw.reqlevel,10) : NaN,
+  };
+}
+function rankNormToW(norm) {
+  return { damage:norm.damage, delay:norm.delay, is2H:!!norm.is2H,
+    procSpell:norm.proc||'', procSpellDamage:norm.procDamage||0, procRate:norm.procRate||0,
+    procLevel:(norm.procLevel>0?norm.procLevel:undefined),
+    elemType:norm.elemType||undefined, elemDamage:norm.elemDamage||0 };
+}
+
+function RankAll({ appState, onBack, onPickWeapon }) {
+  const [status, setStatus] = React.useState('idle'); // idle | running | done | error
+  const [progress, setProgress] = React.useState('');
+  const [results, setResults] = React.useState([]);
+  const cancelRef = React.useRef(false);
+  const rankMapRef = React.useRef({});
+
+  function startRank() {
+    const EC = window.EQCombat;
+    const WSC = window.WeaponSkillCaps;
+    if (!EC || !EC.runFight) { setStatus('error'); setProgress('combat.js not loaded.'); return; }
+    if (!WSC || !WSC.getCapForSimClass) { setStatus('error'); setProgress('weaponSkillCaps.js not loaded.'); return; }
+    const db = window.__DPS_WEAPONS_MERGED__;
+    if (!db || !Object.keys(db).length) { setStatus('error'); setProgress('weapons-data.js not loaded.'); return; }
+
+    const classId = (appState.cls || 'monk').toLowerCase();
+    const cc = RANK_MOBILE_CLASSES[classId] || { toHitBonus:0, doubleAttack:0, dualWield:0 };
+    const lv = appState.level || 60;
+    const mask = RANK_CLASS_BITMASK[classId];
+    if (!mask) { setStatus('error'); setProgress('Unknown class.'); return; }
+
+    const wornCapped = lv > 25 ? (appState.hasteVal||0) : Math.min(10, appState.hasteVal||0);
+    const hastePercent = Math.min(wornCapped + (appState.spellHaste||0), 100) + Math.min(25, appState.bardHaste||0);
+    const targetAC = appState.target ? (appState.target.ac||550) : 550;
+    const mobLevel = appState.target ? (appState.target.lvl||60) : 60;
+    const DURATION = 360;
+    const canDW = cc.dualWield > 0;
+
+    const baseOptions = {
+      hastePercent, offenseSkill:252,
+      wornAttack:0, spellAttack:0,
+      toHitBonus:cc.toHitBonus,
+      doubleAttackSkill:cc.doubleAttack,
+      level:lv, targetAC, mobLevel,
+      fightDurationSec:DURATION,
+      dex:appState.dex||255, str:appState.str||255,
+      fromBehind:false,
+      specialAttacks: !!(EC.getDefaultSpecialTypeForClass && EC.getDefaultSpecialTypeForClass(classId) !== 'none'),
+      specialAttackType: (EC.getDefaultSpecialTypeForClass && EC.getDefaultSpecialTypeForClass(classId)) || undefined,
+      classId,
+      spellCastingFury: appState.spellCastingFury||0,
+      slayUndead: appState.slayUndead||0,
+      fistweaving: false,
+      fistweavingNonEpic: false,
+      fistweavingReactionDelayMs: appState.fistweavingDelay||200,
+    };
+
+    // Build weapon pool
+    rankMapRef.current = {};
+    const rankMap = rankMapRef.current;
+    function addWeapon(id, raw) {
+      if (rankMap[id]) return;
+      if (!raw||raw.damage<1||raw.delay<1) return;
+      const dd = (raw.damage/raw.delay);
+      if (isNaN(dd)||dd<0.5) return;
+      const it = raw.itemtype!=null?parseInt(raw.itemtype,10):NaN;
+      if (!isNaN(it)&&(it===5||it===6)) return; // arrows/throwing ammo
+      const reqlv = raw.reqlevel!=null?parseInt(raw.reqlevel,10):NaN;
+      if (!isNaN(reqlv)&&reqlv>0&&lv<reqlv) return;
+      const races = raw.races!=null?parseInt(raw.races,10):NaN;
+      if (!isNaN(races)&&races===0) return;
+      const cls = raw.classes!=null?parseInt(raw.classes,10):NaN;
+      if (isNaN(cls)||(cls&mask)===0) return;
+      const name = String(raw.Name||'').trim().toLowerCase();
+      if (name==='fist of steel'||name==='dagger of the disciple') return;
+      const norm = rankNormWeapon(id, raw);
+      if (!norm) return;
+      const sk = rankSkillKey(norm.type, norm.is2H);
+      if (WSC.getCapForSimClass(classId, sk, lv) <= 0) return;
+      rankMap[id] = norm;
+    }
+    Object.keys(db).forEach(id => addWeapon(id, db[id]));
+    if (classId === 'monk') {
+      RANK_CUSTOM_MONK.forEach(item => {
+        if (!item.id||rankMap[item.id]) return;
+        const norm = rankNormWeapon(item.id, item);
+        if (!norm) return;
+        const sk = rankSkillKey(norm.type, norm.is2H);
+        if (WSC.getCapForSimClass(classId, sk, lv) <= 0) return;
+        rankMap[item.id] = norm;
+      });
+    }
+
+    const allIds = Object.keys(rankMap);
+    const primaryWeapons = [], secondaryWeapons = [];
+    allIds.forEach(id => {
+      const norm = rankMap[id];
+      const is2H = !!(norm.is2H||(norm.type&&RANK_OFFHAND_BLOCKED[norm.type]));
+      const slots = norm.slots;
+      const primOk = slots!=null ? (slots&RANK_SLOT_PRIMARY)!==0 : true;
+      const secOk  = !is2H && !(norm.type&&RANK_OFFHAND_BLOCKED[norm.type]) && (slots!=null ? (slots&RANK_SLOT_SECONDARY)!==0 : true);
+      if (primOk) primaryWeapons.push(id);
+      if (secOk)  secondaryWeapons.push(id);
+    });
+
+    if (!primaryWeapons.length && !secondaryWeapons.length) {
+      setStatus('error'); setProgress('No eligible weapons found for this class/level.'); return;
+    }
+
+    const combinations = [];
+    primaryWeapons.forEach(pid => {
+      const norm = rankMap[pid];
+      const is2H = !!(norm.is2H||(norm.type&&RANK_OFFHAND_BLOCKED[norm.type]));
+      combinations.push({ primaryId:pid, secondaryId:null });
+      if (!is2H && canDW) {
+        secondaryWeapons.forEach(sid => {
+          if (pid===sid&&norm.isLore) return;
+          combinations.push({ primaryId:pid, secondaryId:sid });
+        });
+      }
+    });
+    if (canDW) {
+      secondaryWeapons.forEach(sid => combinations.push({ primaryId:null, secondaryId:sid }));
+    }
+
+    const TOP_COMBO_SIMS = 300;
+    const mainDps = {}, mainTps = {}, offDps = {}, offTps = {};
+    const totalSims = primaryWeapons.length + (canDW ? secondaryWeapons.length : 0) + Math.min(TOP_COMBO_SIMS, combinations.length);
+    let done = 0;
+
+    cancelRef.current = false;
+    setStatus('running'); setResults([]); setProgress('Measuring primary weapons…');
+
+    function runOne(opts) {
+      try { const r = EC.runFight(opts); return r.error ? null : r; } catch(e) { return null; }
+    }
+
+    function runPhase(items, fn, label, onDone) {
+      let i = 0;
+      function chunk() {
+        if (cancelRef.current) return;
+        const end = Math.min(i + 8, items.length);
+        for (; i < end; i++) fn(items[i]);
+        done += (end - (i - (end - i > 0 ? 0 : 0)));
+        // done already incremented in fn
+        const pct = Math.round((done / totalSims) * 100);
+        setProgress(`${label} ${pct}%`);
+        if (i < items.length) requestAnimationFrame(chunk);
+        else onDone();
+      }
+      requestAnimationFrame(chunk);
+    }
+
+    let simsDone = 0;
+    function tick() { simsDone++; const pct = Math.round((simsDone/totalSims)*100); setProgress(`Running… ${pct}%`); }
+
+    // Phase 1: mainhand
+    let pi = 0;
+    function runPrimary() {
+      if (cancelRef.current) return;
+      const end = Math.min(pi + 8, primaryWeapons.length);
+      for (; pi < end; pi++) {
+        const id = primaryWeapons[pi];
+        const norm = rankMap[id];
+        const is2H = !!(norm.is2H||(norm.type&&RANK_OFFHAND_BLOCKED[norm.type]));
+        const sk = rankSkillKey(norm.type, is2H);
+        const wsk = WSC.getCapForSimClass(classId, sk, lv) || 252;
+        const opts = Object.assign({}, baseOptions, {
+          weapon1: rankNormToW(norm), weapon2:undefined,
+          weapon1Type: norm.type||undefined,
+          dualWieldSkill:0, weaponSkillForToHit:wsk,
+          fistweaving: classId==='monk'&&is2H&&!!appState.fistweaving,
+        });
+        const r = runOne(opts);
+        mainDps[id] = r ? r.totalDamage/DURATION : 0;
+        mainTps[id] = r && r.totalThreat!=null ? r.totalThreat/DURATION : 0;
+        simsDone++;
+      }
+      const pct = Math.round((simsDone/totalSims)*100);
+      setProgress(`Measuring primary weapons… ${pct}%`);
+      if (pi < primaryWeapons.length) { requestAnimationFrame(runPrimary); return; }
+      // Phase 2: offhand
+      if (!canDW) { buildCombos(); return; }
+      setProgress('Measuring offhand weapons…');
+      let si = 0;
+      function runSecondary() {
+        if (cancelRef.current) return;
+        const end2 = Math.min(si + 8, secondaryWeapons.length);
+        for (; si < end2; si++) {
+          const id = secondaryWeapons[si];
+          const norm = rankMap[id];
+          const sk = rankSkillKey(norm.type, false);
+          const wsk = WSC.getCapForSimClass(classId, sk, lv) || 252;
+          const opts = Object.assign({}, baseOptions, {
+            weapon1:undefined, weapon2:rankNormToW(norm),
+            weapon1Type:undefined, weapon2Type:norm.type||undefined,
+            dualWieldSkill:cc.dualWield, weaponSkillForToHit:wsk,
+            fistweaving:false,
+          });
+          const r = runOne(opts);
+          offDps[id] = r ? r.totalDamage/DURATION : 0;
+          offTps[id] = r && r.totalThreat!=null ? r.totalThreat/DURATION : 0;
+          simsDone++;
+        }
+        const pct2 = Math.round((simsDone/totalSims)*100);
+        setProgress(`Measuring offhand weapons… ${pct2}%`);
+        if (si < secondaryWeapons.length) { requestAnimationFrame(runSecondary); return; }
+        buildCombos();
+      }
+      requestAnimationFrame(runSecondary);
+    }
+    requestAnimationFrame(runPrimary);
+
+    function buildCombos() {
+      if (cancelRef.current) return;
+      // Coarse sort
+      const coarse = combinations.map(c => {
+        const md = c.primaryId!=null ? (mainDps[c.primaryId]||0) : 0;
+        const od = c.secondaryId!=null ? (offDps[c.secondaryId]||0) : 0;
+        return { ...c, est: md+od };
+      });
+      coarse.sort((a,b) => b.est-a.est);
+      const topCombos = coarse.slice(0, Math.min(TOP_COMBO_SIMS, coarse.length));
+      const comboFull = new Array(topCombos.length);
+      setProgress('Measuring top combinations…');
+      let ci = 0;
+      function runCombos() {
+        if (cancelRef.current) return;
+        const end = Math.min(ci + 8, topCombos.length);
+        for (; ci < end; ci++) {
+          const combo = topCombos[ci];
+          const p1 = combo.primaryId!=null ? rankMap[combo.primaryId] : null;
+          const p2 = combo.secondaryId!=null ? rankMap[combo.secondaryId] : null;
+          let opts;
+          if (!p1) {
+            const sk = rankSkillKey(p2.type, false);
+            opts = Object.assign({}, baseOptions, {
+              weapon1:undefined, weapon2:rankNormToW(p2),
+              weapon1Type:undefined, weapon2Type:p2.type||undefined,
+              dualWieldSkill:cc.dualWield,
+              weaponSkillForToHit: WSC.getCapForSimClass(classId, sk, lv)||252,
+              fistweaving:false,
+            });
+          } else {
+            const is2H = !!(p1.is2H||(p1.type&&RANK_OFFHAND_BLOCKED[p1.type]));
+            const sk = rankSkillKey(p1.type, is2H);
+            opts = Object.assign({}, baseOptions, {
+              weapon1: rankNormToW(p1), weapon2: p2 ? rankNormToW(p2) : undefined,
+              weapon1Type: p1.type||undefined, weapon2Type: p2 ? (p2.type||undefined) : undefined,
+              dualWieldSkill: p2 ? cc.dualWield : 0,
+              weaponSkillForToHit: WSC.getCapForSimClass(classId, sk, lv)||252,
+              fistweaving: classId==='monk'&&is2H&&!!appState.fistweaving,
+            });
+          }
+          const r = runOne(opts);
+          const totalD = r ? r.totalDamage/DURATION : combo.est;
+          const w1D = r ? (r.weapon1&&r.weapon1.totalDamage ? r.weapon1.totalDamage/DURATION : 0) : 0;
+          const w2D = r ? (r.weapon2&&r.weapon2.totalDamage ? r.weapon2.totalDamage/DURATION : 0) : 0;
+          comboFull[ci] = { combo, totalDps:totalD, w1Dps:w1D, w2Dps:w2D };
+          simsDone++;
+        }
+        const pct = Math.round((simsDone/totalSims)*100);
+        setProgress(`Measuring top combinations… ${pct}%`);
+        if (ci < topCombos.length) { requestAnimationFrame(runCombos); return; }
+        // Done — build final sorted list
+        const finalRows = comboFull.filter(Boolean).map(({ combo, totalDps, w1Dps, w2Dps }) => {
+          const p1 = combo.primaryId!=null ? rankMap[combo.primaryId] : null;
+          const p2 = combo.secondaryId!=null ? rankMap[combo.secondaryId] : null;
+          let label = p1 ? p1.name : '';
+          if (p2) label += (label ? ' + ' : '') + p2.name;
+          return { label, totalDps, w1Dps, w2Dps, primaryId:combo.primaryId, secondaryId:combo.secondaryId };
+        });
+        finalRows.sort((a,b) => b.totalDps - a.totalDps);
+        const best = finalRows[0] ? finalRows[0].totalDps : 1;
+        const ranked = finalRows.slice(0, 200).map((r, i) => ({
+          rank: i+1, label:r.label, dps:r.totalDps,
+          delta: i===0 ? null : r.totalDps - best,
+          pct: i===0 ? 100 : (r.totalDps/best*100),
+          primaryId:r.primaryId, secondaryId:r.secondaryId,
+        }));
+        setResults(ranked);
+        setStatus('done');
+        setProgress('');
+      }
+      requestAnimationFrame(runCombos);
+    }
+  }
+
+  React.useEffect(() => {
+    startRank();
+    return () => { cancelRef.current = true; };
+  }, []);
+
+  if (status === 'idle' || status === 'running') {
+    return (
+      <DrillSheet title="Rank All Weapons" onBack={() => { cancelRef.current = true; onBack(); }}>
+        <div style={{ padding: '40px 10px', textAlign: 'center' }}>
+          <div style={{ ...window.tCinzel(), fontSize: 32, color: DT.GOLD, marginBottom: 16 }}>⚡</div>
+          <div style={{ fontSize: 10, color: DT.MUTED, ...window.tCinzel(), letterSpacing: '0.14em', marginBottom: 8 }}>RANKING WEAPONS</div>
+          <div style={{ fontSize: 11, color: DT.TEXT_DIM, ...window.tMono() }}>{progress || 'Starting…'}</div>
+          <div style={{ maxWidth: 200, margin: '18px auto 0', height: 3, background: DT.INPUT, borderRadius: 2, overflow: 'hidden' }}>
+            <div style={{ width: '70%', height: '100%', background: `linear-gradient(90deg, ${DT.GOLD}, transparent)`, animation: 'gsSlide 1.2s ease-in-out infinite' }} />
+          </div>
+          <style>{`@keyframes gsSlide { 0% { transform:translateX(-100%) } 100% { transform:translateX(200%) } }`}</style>
+        </div>
+      </DrillSheet>
+    );
+  }
+
+  if (status === 'error') {
+    return (
+      <DrillSheet title="Rank All Weapons" onBack={onBack}>
+        <div style={{ background:'rgba(139,0,0,0.15)', border:'1px solid rgba(139,0,0,0.4)', borderRadius:4, padding:'14px 16px', marginBottom:12 }}>
+          <div style={{ ...window.tCinzel(), fontSize:10, letterSpacing:'0.18em', color:'#e06060', fontWeight:700, marginBottom:6 }}>ERROR</div>
+          <div style={{ fontSize:11, color:DT.TEXT_DIM, ...window.tMono() }}>{progress}</div>
+        </div>
+        <div onClick={() => { setStatus('idle'); startRank(); }} style={{ padding:'9px 14px', border:`1px solid ${DT.GOLD_BORDER}`, borderRadius:4, background:DT.GOLD_FAINT, color:DT.GOLD, fontSize:10, letterSpacing:'0.14em', ...window.tCinzel(), fontWeight:700, textAlign:'center', cursor:'pointer' }}>RETRY</div>
+      </DrillSheet>
+    );
+  }
+
+  // Done
+  const best = results[0] ? results[0].dps : 1;
+  return (
+    <DrillSheet title="Rank All Weapons" onBack={onBack}
+      trailing={
+        <div onClick={() => { setStatus('idle'); setResults([]); startRank(); }} style={{ ...window.tCinzel(), fontSize:9, letterSpacing:'0.16em', color:DT.GOLD, fontWeight:700, cursor:'pointer', padding:'4px 8px' }}>⚡ RE-RUN</div>
+      }
+    >
+      <div style={{ marginBottom:10, fontSize:10, color:DT.MUTED, lineHeight:1.5 }}>
+        {results.length} combinations · {(appState.cls||'').toUpperCase()} Lv{appState.level||60} · sorted by DPS
+      </div>
+      <div style={{ display:'flex', flexDirection:'column', gap:4 }}>
+        {results.map(r => (
+          <div key={r.rank} onClick={() => {
+            const rm = rankMapRef.current;
+            if (r.primaryId!=null && rm[r.primaryId]) {
+              const norm = rm[r.primaryId];
+              onPickWeapon && onPickWeapon({ name:norm.name, type:(norm.type||'').toUpperCase(), d:norm.damage, delay:norm.delay });
+            } else {
+              onBack && onBack();
+            }
+          }} style={{
+            padding:10, background:DT.PANEL, border:`1px solid ${r.rank<=3?DT.GOLD_BORDER:DT.BORDER}`, borderRadius:4,
+            display:'grid', gridTemplateColumns:'26px 1fr auto', gap:10, alignItems:'center', cursor:'pointer',
+          }}>
+            <div style={{ ...window.tCinzel(), fontSize:13, color:r.rank===1?DT.GOLD:DT.MUTED, textAlign:'center', fontWeight:700 }}>{r.rank}</div>
+            <div style={{ minWidth:0 }}>
+              <div style={{ fontSize:12, color:DT.TEXT, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis', fontFamily:'serif' }}>{r.label}</div>
+              <div style={{ fontSize:9, color:DT.MUTED, ...window.tMono(), marginTop:1 }}>{r.pct.toFixed(1)}% of best</div>
+            </div>
+            <div style={{ textAlign:'right', minWidth:52 }}>
+              <div style={{ ...window.tMono(), fontSize:14, color:r.rank===1?DT.GOLD:DT.TEXT, fontWeight:700 }}>{r.dps.toFixed(2)}</div>
+              <div style={{ ...window.tMono(), fontSize:9, color:r.delta==null?DT.GOLD:DT.MUTED }}>
+                {r.delta==null ? 'BEST' : r.delta.toFixed(2)}
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </DrillSheet>
+  );
+}
+
+Object.assign(window, { DrillSheet, SearchInput, ClassPicker, TargetPicker, WeaponSearch, BuffPicker, RankAll });
+
+
+// --- build-scroll.jsx ---
+// gSim Mobile — Build tab (Scroll variant / V1)
+// Single-scroll, dense, canonical. Mirrors the original mobile.jsx spec.
+
+const BT = window.GSIM_THEME;
+const BD = window.GSIM_DATA;
+
+function StatInput({ label, value, onChange }) {
+  return (
+    <div style={{ background: BT.INPUT, borderRadius: 4, padding: '5px 2px', textAlign: 'center', border: `1px solid ${BT.BORDER}` }}>
+      <div style={{ fontSize: 8, color: BT.MUTED, letterSpacing: '0.14em', ...window.tCinzel(), fontWeight: 600, marginBottom: 2 }}>{label}</div>
+      <input
+        type="number" value={value} min={1} max={355}
+        onChange={e => onChange(Math.max(1, Math.min(355, parseInt(e.target.value) || 0)))}
+        style={{ width: '100%', background: 'transparent', border: 0, outline: 0, color: BT.GOLD, fontSize: 14, fontWeight: 700, textAlign: 'center', fontFamily: BT.FONT_MONO, padding: 0 }}
+      />
+    </div>
+  );
+}
+
+function HasteInput({ label, hint, value, onChange, max = 100 }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '7px 0', borderBottom: `1px solid rgba(255,255,255,0.04)` }}>
+      <div style={{ minWidth: 90 }}>
+        <div style={{ ...window.tCinzel(), fontSize: 9, fontWeight: 700, letterSpacing: '0.12em', color: BT.GOLD, textTransform: 'uppercase' }}>{label}</div>
+        {hint && <div style={{ fontSize: 9, color: BT.MUTED, marginTop: 1 }}>{hint}</div>}
+      </div>
+      <window.Slider value={value} onChange={onChange} max={max} />
+      <input
+        type="number" value={value} min={0} max={max}
+        onChange={e => onChange(Math.max(0, Math.min(max, parseInt(e.target.value) || 0)))}
+        style={{ width: 46, background: BT.BG_2, border: `1px solid ${BT.GOLD_DIM}`, borderRadius: 4, padding: '4px 6px', color: BT.GOLD, fontSize: 13, fontWeight: 700, textAlign: 'right', fontFamily: BT.FONT_MONO, outline: 0 }}
+      />
+      <div style={{ ...window.tCinzel(), fontSize: 10, color: BT.MUTED, minWidth: 12 }}>%</div>
+    </div>
+  );
+}
+
+function BuildTabScroll({ state, update, openDrill }) {
+  const { cls, level, hasteVal, spellHaste, bardHaste, str, agi, dex, sta, buffs, target,
+          duelist, innerFlame, fistweaving, fistweavingNonEpic, fistweavingDelay,
+          spellCastingFury, slayUndead } = state;
+  const activeClass = BD.classes.find(c => c.name === cls) || BD.classes[6];
+  const totalBuffs = BD.buffGroups.flatMap(g => g.buffs);
+  const activeBuffCount = totalBuffs.filter(b => buffs[b.name]).length;
+  const effectiveHaste = Math.min(hasteVal + spellHaste, 100) + Math.min(25, bardHaste);
+  const clsLow = (cls || '').toLowerCase();
+  const SCF_CLASSES = ['paladin', 'shadowknight', 'ranger', 'bard', 'beastlord'];
+  const showDuelist = clsLow === 'rogue';
+  const showInnerFlame = clsLow === 'monk';
+  const showFistweaving = clsLow === 'monk';
+  const showSCF = SCF_CLASSES.includes(clsLow);
+  const showSlayUndead = clsLow === 'paladin';
+  const hasSpecials = showDuelist || showInnerFlame || showFistweaving || showSCF || showSlayUndead;
+
+  return (
+    <>
+      {/* Class strip */}
+      <window.Panel padding={10} style={{ marginBottom: 10 }}>
+        <window.SectionHead label="Class" action="CHANGE ›" />
+        <div onClick={() => openDrill('class')} style={{ display: 'flex', gap: 10, alignItems: 'center', cursor: 'pointer' }}>
+          <div style={{
+            width: 44, height: 44, border: `1px solid ${BT.GOLD_BORDER}`,
+            background: `linear-gradient(145deg, rgba(139,0,0,0.35), rgba(0,0,0,0.5))`,
+            borderRadius: 4, display: 'flex', alignItems: 'center', justifyContent: 'center',
+            color: BT.GOLD, fontSize: 18, flexShrink: 0,
+          }}>◈</div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ ...window.tCinzel(), color: BT.GOLD, fontSize: 15, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase' }}>{activeClass.name}</div>
+            <div style={{ fontSize: 10, color: BT.MUTED, marginTop: 2 }}>Lvl {level} · {activeClass.archetype}</div>
+          </div>
+          <div style={{ color: BT.MUTED, fontSize: 18 }}>›</div>
+        </div>
+      </window.Panel>
+
+      {/* Level */}
+      <window.Panel padding={10} style={{ marginBottom: 10 }}>
+        <window.SectionHead label="Character Level" />
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <window.Slider value={level} onChange={v => {
+            const newLevel = Math.max(1, Math.min(65, v));
+            const defaults = newLevel >= 60
+              ? { str: 255, agi: 255, dex: 255, sta: 255 }
+              : newLevel >= 50
+              ? { str: 200, agi: 175, dex: 175, sta: 200 }
+              : newLevel >= 40
+              ? { str: 175, agi: 150, dex: 150, sta: 175 }
+              : { str: 150, agi: 100, dex: 100, sta: 100 };
+            update({ level: newLevel, ...defaults });
+          }} max={65} />
+          <input
+            type="number" value={level} min={1} max={65}
+            onChange={e => {
+              const newLevel = Math.max(1, Math.min(65, parseInt(e.target.value) || 60));
+              const defaults = newLevel >= 60
+                ? { str: 255, agi: 255, dex: 255, sta: 255 }
+                : newLevel >= 50
+                ? { str: 200, agi: 175, dex: 175, sta: 200 }
+                : newLevel >= 40
+                ? { str: 175, agi: 150, dex: 150, sta: 175 }
+                : { str: 150, agi: 100, dex: 100, sta: 100 };
+              update({ level: newLevel, ...defaults });
+            }}
+            style={{ width: 56, background: BT.BG_2, border: `1px solid ${BT.GOLD_DIM}`, borderRadius: 4, padding: '4px 6px', color: BT.GOLD, fontSize: 14, fontWeight: 700, textAlign: 'right', fontFamily: BT.FONT_MONO, outline: 0 }}
+          />
+        </div>
+        <div style={{ marginTop: 6, fontSize: 9, color: BT.MUTED, fontStyle: 'italic' }}>Stats auto-fill by level. Edit manually after to match your character.</div>
+      </window.Panel>
+
+      {/* Stats */}
+      <window.Panel padding={10} style={{ marginBottom: 10 }}>
+        <window.SectionHead label="Character Stats" hint="tap to edit" />
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 5 }}>
+          <StatInput label="STR" value={str} onChange={v => update({ str: v })} />
+          <StatInput label="AGI" value={agi} onChange={v => update({ agi: v })} />
+          <StatInput label="DEX" value={dex} onChange={v => update({ dex: v })} />
+          <StatInput label="STA" value={sta} onChange={v => update({ sta: v })} />
+        </div>
+      </window.Panel>
+
+      {/* Haste */}
+      <window.Panel padding={10} style={{ marginBottom: 10 }}>
+        <window.SectionHead label="Haste" hint={`effective ${effectiveHaste}%`} />
+        <div style={{ paddingBottom: 2 }}>
+          <HasteInput label="Worn" hint="item haste (cap 41%)" value={hasteVal} onChange={v => update({ hasteVal: v })} max={41} />
+          <HasteInput label="Spell V1" hint="enchanter / shaman" value={spellHaste} onChange={v => update({ spellHaste: v })} max={70} />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '7px 0' }}>
+            <div style={{ minWidth: 90 }}>
+              <div style={{ ...window.tCinzel(), fontSize: 9, fontWeight: 700, letterSpacing: '0.12em', color: BT.GOLD, textTransform: 'uppercase' }}>Bard V3</div>
+              <div style={{ fontSize: 9, color: BT.MUTED, marginTop: 1 }}>songs (cap 25%)</div>
+            </div>
+            <window.Slider value={bardHaste} onChange={v => update({ bardHaste: v })} max={25} />
+            <input
+              type="number" value={bardHaste} min={0} max={25}
+              onChange={e => update({ bardHaste: Math.max(0, Math.min(25, parseInt(e.target.value) || 0)) })}
+              style={{ width: 46, background: BT.BG_2, border: `1px solid ${BT.GOLD_DIM}`, borderRadius: 4, padding: '4px 6px', color: BT.GOLD, fontSize: 13, fontWeight: 700, textAlign: 'right', fontFamily: BT.FONT_MONO, outline: 0 }}
+            />
+            <div style={{ ...window.tCinzel(), fontSize: 10, color: BT.MUTED, minWidth: 12 }}>%</div>
+          </div>
+        </div>
+      </window.Panel>
+
+      {/* Equipped Weapons / Ranged Equipment */}
+      {state.mode === 'Ranged' ? (
+        <window.Panel padding={10} style={{ marginBottom: 10 }}>
+          <window.SectionHead label="Ranged Equipment" />
+          {/* Bow */}
+          <div onClick={() => openDrill('weapon', 'Range')} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 0', borderBottom: `1px solid rgba(255,255,255,0.04)`, cursor: 'pointer' }}>
+            <div style={{ width: 36, height: 36, background: BT.INPUT, border: `1px solid ${BT.GOLD_BORDER}`, borderRadius: 4, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: BT.GOLD, ...window.tCinzel(), fontSize: 14 }}>🏹</div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 9, color: BT.MUTED, letterSpacing: '0.12em', ...window.tCinzel(), fontWeight: 600, textTransform: 'uppercase', marginBottom: 2 }}>BOW · Range slot</div>
+              {state.Range ? (
+                <>
+                  <div style={{ ...window.tZodiak(), fontSize: 13, color: BT.TEXT, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{state.Range.name}</div>
+                  <div style={{ fontSize: 10, color: BT.MUTED, ...window.tMono(), marginTop: 1 }}>{state.Range.type} · {state.Range.d}d/{state.Range.delay}</div>
+                </>
+              ) : (
+                <div style={{ fontSize: 12, color: BT.MUTED_DIM, fontStyle: 'italic' }}>— tap to search bow</div>
+              )}
+            </div>
+            <div style={{ color: BT.MUTED, fontSize: 18 }}>›</div>
+          </div>
+          {/* Arrow damage */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 0', borderBottom: `1px solid rgba(255,255,255,0.04)` }}>
+            <div style={{ width: 36, height: 36, background: BT.INPUT, border: `1px solid ${BT.GOLD_BORDER}`, borderRadius: 4, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: BT.GOLD, ...window.tCinzel(), fontSize: 11 }}>▲</div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 9, color: BT.MUTED, letterSpacing: '0.12em', ...window.tCinzel(), fontWeight: 600, textTransform: 'uppercase', marginBottom: 2 }}>ARROW · Base damage</div>
+              <div style={{ fontSize: 9, color: BT.MUTED }}>Raw arrow damage (not affected by haste)</div>
+            </div>
+            <input type="number" value={state.arrowDmg || 18} min={1} max={50}
+              onChange={e => update({ arrowDmg: Math.max(1, Math.min(50, parseInt(e.target.value) || 18)) })}
+              style={{ width: 54, background: BT.BG_2, border: `1px solid ${BT.GOLD_DIM}`, borderRadius: 4, padding: '4px 6px', color: BT.GOLD, fontSize: 14, fontWeight: 700, textAlign: 'right', fontFamily: BT.FONT_MONO, outline: 0 }}
+            />
+          </div>
+          {/* Archery Mastery */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 0', borderBottom: clsLow === 'ranger' ? `1px solid rgba(255,255,255,0.04)` : 0 }}>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 12, color: BT.TEXT_DIM }}>Archery Mastery</div>
+              <div style={{ fontSize: 9, color: BT.MUTED, marginTop: 1 }}>AA rank (1–3)</div>
+            </div>
+            <div style={{ display: 'flex', gap: 4 }}>
+              {[1,2,3].map(r => (
+                <div key={r} onClick={() => update({ archeryMastery: r })} style={{
+                  width: 28, height: 28, borderRadius: 4, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  background: (state.archeryMastery || 2) === r ? BT.GOLD_FAINT : BT.INPUT,
+                  border: `1px solid ${(state.archeryMastery || 2) === r ? BT.GOLD_BORDER : BT.BORDER}`,
+                  color: (state.archeryMastery || 2) === r ? BT.GOLD : BT.MUTED,
+                  fontSize: 11, fontWeight: 700, fontFamily: BT.FONT_MONO, cursor: 'pointer',
+                }}>{r}</div>
+              ))}
+            </div>
+          </div>
+          {/* Ranger: Trueshot */}
+          {clsLow === 'ranger' && (
+            <div onClick={() => update({ trueshot: !state.trueshot })} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '8px 0', cursor: 'pointer' }}>
+              <window.BuffCheckbox on={!!state.trueshot} />
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 12, color: state.trueshot ? BT.TEXT : BT.TEXT_DIM }}>Trueshot</div>
+                <div style={{ fontSize: 9, color: BT.MUTED, marginTop: 1 }}>2 min random window: +105% archery damage, +12% to-hit</div>
+              </div>
+              <div style={{ fontSize: 8, color: BT.MUTED, letterSpacing: '0.14em', ...window.tCinzel(), fontWeight: 600 }}>RNG</div>
+            </div>
+          )}
+        </window.Panel>
+      ) : (
+        <window.Panel padding={10} style={{ marginBottom: 10 }}>
+          <window.SectionHead label="Equipped Weapons" />
+          {[['W1', 'Main Hand'], ['W2', 'Offhand']].map(([slot, label]) => {
+            const w = state[slot] || null;
+            return (
+              <div key={slot} onClick={() => openDrill('weapon', slot)} style={{
+                display: 'flex', alignItems: 'center', gap: 10,
+                padding: '9px 0', borderBottom: slot === 'W1' ? `1px solid rgba(255,255,255,0.04)` : 0,
+                cursor: 'pointer',
+              }}>
+                <EquippedWeaponIcon icon={w && w.icon} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 9, color: BT.MUTED, letterSpacing: '0.12em', ...window.tCinzel(), fontWeight: 600, textTransform: 'uppercase', marginBottom: 2 }}>{slot} · {label}</div>
+                  {w ? (
+                    <>
+                      <div style={{ ...window.tZodiak(), fontSize: 13, color: BT.TEXT, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{w.name}</div>
+                      <div style={{ fontSize: 10, color: BT.MUTED, ...window.tMono(), marginTop: 1 }}>{w.type} · {w.d}d/{w.delay}</div>
+                    </>
+                  ) : (
+                    <div style={{ fontSize: 12, color: BT.MUTED_DIM, fontStyle: 'italic' }}>— unequipped</div>
+                  )}
+                </div>
+                <div style={{ color: BT.MUTED, fontSize: 18 }}>›</div>
+              </div>
+            );
+          })}
+        </window.Panel>
+      )}
+
+      {/* Special Abilities */}
+      {hasSpecials && (
+        <window.Panel padding={10} style={{ marginBottom: 10 }}>
+          <window.SectionHead label="Special Abilities" hint={cls} />
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+
+            {/* Monk: Inner Flame discipline */}
+            {showInnerFlame && (
+              <div onClick={() => update({ innerFlame: !innerFlame })} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '8px 0', borderBottom: (showFistweaving) ? `1px solid rgba(255,255,255,0.04)` : 0, cursor: 'pointer' }}>
+                <window.BuffCheckbox on={innerFlame} />
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 12, color: innerFlame ? BT.TEXT : BT.TEXT_DIM }}>Inner Flame</div>
+                  <div style={{ fontSize: 9, color: BT.MUTED, marginTop: 1 }}>12s random window: bonus melee damage</div>
+                </div>
+                <div style={{ fontSize: 8, color: BT.MUTED, letterSpacing: '0.14em', ...window.tCinzel(), fontWeight: 600 }}>MNK</div>
+              </div>
+            )}
+
+            {/* Monk: Fistweaving */}
+            {showFistweaving && (
+              <>
+                <div onClick={() => update({ fistweaving: !fistweaving })} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '8px 0', borderBottom: `1px solid rgba(255,255,255,0.04)`, cursor: 'pointer' }}>
+                  <window.BuffCheckbox on={fistweaving} />
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 12, color: fistweaving ? BT.TEXT : BT.TEXT_DIM }}>Force Fistweaving (2H Only)</div>
+                    <div style={{ fontSize: 9, color: BT.MUTED, marginTop: 1 }}>offhand 9-dmg rounds alongside 2H</div>
+                  </div>
+                  <div style={{ fontSize: 8, color: BT.MUTED, letterSpacing: '0.14em', ...window.tCinzel(), fontWeight: 600 }}>MNK</div>
+                </div>
+                {fistweaving && (
+                  <>
+                    <div onClick={() => update({ fistweavingNonEpic: !fistweavingNonEpic })} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '7px 0 7px 26px', borderBottom: `1px solid rgba(255,255,255,0.04)`, cursor: 'pointer' }}>
+                      <window.BuffCheckbox on={fistweavingNonEpic} />
+                      <div style={{ fontSize: 11, color: fistweavingNonEpic ? BT.TEXT : BT.MUTED }}>Non-Epic FW</div>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '7px 0 7px 26px', borderBottom: `1px solid rgba(255,255,255,0.04)` }}>
+                      <div style={{ flex: 1, fontSize: 11, color: BT.MUTED }}>Reaction delay (ms)</div>
+                      <input
+                        type="number" value={fistweavingDelay} min={0} max={1000} step={10}
+                        onChange={e => update({ fistweavingDelay: Math.max(0, Math.min(1000, parseInt(e.target.value) || 0)) })}
+                        style={{ width: 60, background: BT.BG_2, border: `1px solid ${BT.GOLD_DIM}`, borderRadius: 4, padding: '4px 6px', color: BT.GOLD, fontSize: 12, fontWeight: 700, textAlign: 'right', fontFamily: BT.FONT_MONO, outline: 0 }}
+                      />
+                    </div>
+                  </>
+                )}
+              </>
+            )}
+
+            {/* Rogue: Duelist discipline */}
+            {showDuelist && (
+              <div onClick={() => update({ duelist: !duelist })} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '8px 0', cursor: 'pointer' }}>
+                <window.BuffCheckbox on={duelist} />
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 12, color: duelist ? BT.TEXT : BT.TEXT_DIM }}>Duelist</div>
+                  <div style={{ fontSize: 9, color: BT.MUTED, marginTop: 1 }}>12s random window: double melee damage</div>
+                </div>
+                <div style={{ fontSize: 8, color: BT.MUTED, letterSpacing: '0.14em', ...window.tCinzel(), fontWeight: 600 }}>ROG</div>
+              </div>
+            )}
+
+            {/* SCF classes: Spell Casting Fury */}
+            {showSCF && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', borderTop: (showInnerFlame || showFistweaving || showDuelist) ? `1px solid rgba(255,255,255,0.04)` : 0 }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 12, color: BT.TEXT_DIM }}>Spell Casting Fury</div>
+                  <div style={{ fontSize: 9, color: BT.MUTED, marginTop: 1 }}>proc crit chance bonus (Rank 0–3)</div>
+                </div>
+                <div style={{ display: 'flex', gap: 4 }}>
+                  {[0,1,2,3].map(r => (
+                    <div key={r} onClick={() => update({ spellCastingFury: r })} style={{
+                      width: 28, height: 28, borderRadius: 4, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      background: spellCastingFury === r ? BT.GOLD_FAINT : BT.INPUT,
+                      border: `1px solid ${spellCastingFury === r ? BT.GOLD_BORDER : BT.BORDER}`,
+                      color: spellCastingFury === r ? BT.GOLD : BT.MUTED,
+                      fontSize: 11, fontWeight: 700, fontFamily: BT.FONT_MONO, cursor: 'pointer',
+                    }}>{r}</div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Paladin: Slay Undead */}
+            {showSlayUndead && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', borderTop: showSCF ? `1px solid rgba(255,255,255,0.04)` : 0 }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 12, color: BT.TEXT_DIM }}>Slay Undead</div>
+                  <div style={{ fontSize: 9, color: BT.MUTED, marginTop: 1 }}>undead-only crit AA (Rank 0–3)</div>
+                </div>
+                <div style={{ display: 'flex', gap: 4 }}>
+                  {[0,1,2,3].map(r => (
+                    <div key={r} onClick={() => update({ slayUndead: r })} style={{
+                      width: 28, height: 28, borderRadius: 4, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      background: slayUndead === r ? BT.GOLD_FAINT : BT.INPUT,
+                      border: `1px solid ${slayUndead === r ? BT.GOLD_BORDER : BT.BORDER}`,
+                      color: slayUndead === r ? BT.GOLD : BT.MUTED,
+                      fontSize: 11, fontWeight: 700, fontFamily: BT.FONT_MONO, cursor: 'pointer',
+                    }}>{r}</div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+          </div>
+        </window.Panel>
+      )}
+
+      {/* Target */}
+      <window.Panel padding={10} style={{ marginBottom: 10 }}>
+        <window.SectionHead label="Target & Fight" action="CHANGE ›" />
+        <div onClick={() => openDrill('target')} style={{ cursor: 'pointer' }}>
+          <div style={{ ...window.tZodiak(), fontSize: 14, color: BT.TEXT, marginBottom: 3 }}>{target.name}</div>
+          <div style={{ display: 'flex', gap: 8, fontSize: 10, color: BT.MUTED, ...window.tMono(), flexWrap: 'wrap' }}>
+            <span>Lvl {target.lvl}</span><span>AC {target.ac}</span>
+            <span>{target.zone}</span>
+          </div>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, marginTop: 10 }}>
+          <div style={{ padding: '8px 10px', background: BT.INPUT, border: `1px solid ${BT.BORDER}`, borderRadius: 4 }}>
+            <div style={{ fontSize: 8, color: BT.MUTED, letterSpacing: '0.16em', ...window.tCinzel(), fontWeight: 600 }}>DURATION</div>
+            <div style={{ ...window.tMono(), fontSize: 13, color: BT.TEXT, fontWeight: 700 }}>360s</div>
+          </div>
+          <div style={{ padding: '8px 10px', background: BT.INPUT, border: `1px solid ${BT.BORDER}`, borderRadius: 4 }}>
+            <div style={{ fontSize: 8, color: BT.MUTED, letterSpacing: '0.16em', ...window.tCinzel(), fontWeight: 600 }}>RUNS</div>
+            <div style={{ ...window.tMono(), fontSize: 13, color: BT.TEXT, fontWeight: 700 }}>20</div>
+          </div>
+        </div>
+      </window.Panel>
+
+      {/* Buffs — full list grouped by category */}
+      {window.Buffs && window.Buffs.BUFFS ? (
+        (() => {
+          const cats = [
+            { key: 'haste',     label: 'Haste' },
+            { key: 'offensive', label: 'Offensive' },
+            { key: 'defensive', label: 'Defensive' },
+          ];
+          return cats.map(cat => {
+            const catBuffs = window.Buffs.BUFFS.filter(b => b.category === cat.key);
+            const catActive = catBuffs.filter(b => !!buffs[b.id]).length;
+            return (
+              <window.Panel key={cat.key} padding={10} style={{ marginBottom: 10 }}>
+                <window.SectionHead label={`Buffs · ${cat.label}`} hint={`${catActive}/${catBuffs.length} active`} />
+                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                  {catBuffs.map((b, i) => {
+                    const on = !!buffs[b.id];
+                    return (
+                      <div key={b.id} onClick={() => update({ buffs: { ...buffs, [b.id]: !on } })} style={{
+                        display: 'flex', alignItems: 'center', gap: 10, padding: '7px 0',
+                        borderBottom: i < catBuffs.length - 1 ? `1px solid rgba(255,255,255,0.04)` : 0,
+                        cursor: 'pointer',
+                      }}>
+                        <window.BuffCheckbox on={on} />
+                        <span style={{ flex: 1, fontSize: 12, color: on ? BT.TEXT : BT.MUTED, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{b.name}</span>
+                        <span style={{ fontSize: 8, color: BT.MUTED, letterSpacing: '0.14em', ...window.tCinzel(), fontWeight: 600, flexShrink: 0 }}>{b.source}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </window.Panel>
+            );
+          });
+        })()
+      ) : (
+        <window.Panel padding={10} style={{ marginBottom: 10 }}>
+          <window.SectionHead label="Buffs" hint={`${activeBuffCount} of ${totalBuffs.length} active`} />
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            {totalBuffs.map((b, i) => {
+              const on = !!buffs[b.name];
+              return (
+                <div key={b.name} onClick={() => update({ buffs: { ...buffs, [b.name]: !on } })} style={{
+                  display: 'flex', alignItems: 'center', gap: 10, padding: '7px 0',
+                  borderBottom: i < totalBuffs.length - 1 ? `1px solid rgba(255,255,255,0.04)` : 0, cursor: 'pointer',
+                }}>
+                  <window.BuffCheckbox on={on} />
+                  <span style={{ flex: 1, fontSize: 12, color: on ? BT.TEXT : BT.MUTED, minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{b.name}</span>
+                  <span style={{ fontSize: 8, color: BT.MUTED, letterSpacing: '0.14em', ...window.tCinzel(), fontWeight: 600 }}>{b.tag}</span>
+                </div>
+              );
+            })}
+          </div>
+        </window.Panel>
+      )}
+    </>
+  );
+}
+
+window.BuildTabScroll = BuildTabScroll;
+
+
+// --- tabs.jsx ---
+// gSim Mobile — Sim, Report, History tabs
+
+const ST = window.GSIM_THEME;
+const SD = window.GSIM_DATA;
+
+function EquippedWeaponIcon({ icon }) {
+  const [err, setErr] = React.useState(false);
+  const base = { width: 36, height: 36, background: BT.INPUT, border: `1px solid ${BT.GOLD_BORDER}`, borderRadius: 4, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: BT.GOLD, ...window.tCinzel(), fontSize: 14 };
+  if (icon && !err) {
+    return <div style={base}><img src={`icons/${icon}.gif`} alt="" onError={() => setErr(true)} style={{ width: 32, height: 32, objectFit: 'contain', imageRendering: 'pixelated' }} /></div>;
+  }
+  return <div style={base}>⚔</div>;
+}
+
+// ═══ SIM TAB ═══
+function SimTab({ state, update, density }) {
+  const { target, lastRun, simStatus, simDone, hasteVal, spellHaste, bardHaste, buffs, simCounter } = state;
+  const effectiveHaste = Math.min((hasteVal || 0) + (spellHaste || 0), 100) + Math.min(25, bardHaste || 0);
+  const isCompact = density === 'compact';
+  const heroSize = isCompact ? 58 : 68;
+
+  const totalBuffs = SD.buffGroups.flatMap(g => g.buffs);
+  const activeBuffCount = window.Buffs && window.Buffs.BUFFS
+    ? window.Buffs.BUFFS.filter(b => !!buffs[b.id]).length
+    : totalBuffs.filter(b => buffs[b.name]).length;
+
+  const runSim = () => {
+    update({ simStatus: 'running', simStep: 'Building options…' });
+    setTimeout(() => {
+      try {
+        if (typeof EQCombat === 'undefined' || typeof EQCombat.runFight !== 'function') {
+          update({ simStatus: 'error', simStep: 'combat.js not loaded.' });
+          return;
+        }
+
+        // ── Class defaults ──────────────────────────────────────────────
+        const MOBILE_CLASSES = {
+          warrior:      { toHitBonus: 24, doubleAttack: 250, dualWield: 245 },
+          cleric:       { toHitBonus: 0,  doubleAttack: 0,   dualWield: 0   },
+          paladin:      { toHitBonus: 0,  doubleAttack: 200, dualWield: 0   },
+          ranger:       { toHitBonus: 0,  doubleAttack: 200, dualWield: 252 },
+          shadowknight: { toHitBonus: 0,  doubleAttack: 200, dualWield: 0   },
+          druid:        { toHitBonus: 0,  doubleAttack: 0,   dualWield: 0   },
+          monk:         { toHitBonus: 0,  doubleAttack: 250, dualWield: 252 },
+          bard:         { toHitBonus: 0,  doubleAttack: 0,   dualWield: 245 },
+          rogue:        { toHitBonus: 0,  doubleAttack: 252, dualWield: 252 },
+          shaman:       { toHitBonus: 0,  doubleAttack: 0,   dualWield: 0   },
+          necromancer:  { toHitBonus: 0,  doubleAttack: 0,   dualWield: 0   },
+          wizard:       { toHitBonus: 0,  doubleAttack: 0,   dualWield: 0   },
+          magician:     { toHitBonus: 0,  doubleAttack: 0,   dualWield: 0   },
+          enchanter:    { toHitBonus: 0,  doubleAttack: 0,   dualWield: 0   },
+          beastlord:    { toHitBonus: 0,  doubleAttack: 0,   dualWield: 252 },
+        };
+        const classId = (state.cls || 'monk').toLowerCase();
+        const cc = MOBILE_CLASSES[classId] || { toHitBonus: 0, doubleAttack: 0, dualWield: 0 };
+        const lv = state.level || 60;
+
+        // ── Haste ────────────────────────────────────────────────────────
+        const wornCapped = lv > 25 ? (state.hasteVal || 0) : Math.min(10, state.hasteVal || 0);
+
+        // ── Buffs → resolve stats with proper stacking ──────────────────────
+        let buffSpellAtk = 0, buffWornAtk = 0, buffStr = 0, buffDex = 0;
+        let buffHasteV1 = 0, buffHasteBard = 0;
+        if (window.Buffs && window.Buffs.resolveBuffEffects) {
+          const activeIds = Object.keys(state.buffs).filter(id => state.buffs[id]);
+          const resolved = window.Buffs.resolveBuffEffects(activeIds, lv);
+          buffSpellAtk  = resolved.atk || 0;
+          buffWornAtk   = resolved.wornAtk || 0;
+          buffStr       = resolved.str || 0;
+          buffDex       = resolved.dex || 0;
+          buffHasteV1   = resolved.hasteV1 || 0;
+          buffHasteBard = resolved.hasteBard || 0;
+        }
+        const spellHasteEff = Math.max(state.spellHaste || 0, buffHasteV1);
+        const bardHasteEff  = Math.max(state.bardHaste  || 0, buffHasteBard);
+        const hastePercent  = Math.min(wornCapped + spellHasteEff, 100) + Math.min(25, bardHasteEff);
+
+        // ── Ranged mode (early path) ──────────────────────────────────────
+        if (state.mode === 'Ranged') {
+          const RW = state.Range;
+          if (!RW || !RW.d || !RW.delay) {
+            update({ simStatus: 'error', simStep: 'Set your bow (Damage ≥ 1, Delay ≥ 10) in the Build tab.' });
+            return;
+          }
+          const RDUR = 360, RRUNS = 20;
+          const arrowDmg = state.arrowDmg || 18;
+          const WSCr = window.WeaponSkillCaps;
+          const archSkill = WSCr && WSCr.getCapForSimClass
+            ? (WSCr.getCapForSimClass(classId, 'archery', lv) || 240) : 240;
+          const rOpts = {
+            rangedWeapon: { damage: RW.d, delay: RW.delay },
+            arrow: { damage: arrowDmg },
+            hastePercent, level: lv,
+            targetAC: state.target ? (state.target.ac || 550) : 550,
+            mobLevel: state.target ? (state.target.lvl || 60) : 60,
+            fightDurationSec: RDUR, offenseSkill: archSkill,
+            wornAttack: buffWornAtk, spellAttack: buffSpellAtk,
+            dex: Math.min(255, (state.dex || 255) + buffDex),
+            classId, archeryMastery: state.archeryMastery || 2,
+            trueshot: classId === 'ranger' && !!state.trueshot,
+          };
+          update({ simStep: 'Running 20 ranged fights…' });
+          const rRaws = [];
+          for (let ri = 0; ri < RRUNS; ri++) {
+            rOpts.seed = Date.now() + ri;
+            const rr = EQCombat.runRangedFight(rOpts);
+            if (rr.error) { update({ simStatus: 'error', simStep: rr.error }); return; }
+            rRaws.push(rr);
+          }
+          const ravg = k => Math.round(rRaws.reduce((s, r) => s + ((r.ranged && r.ranged[k]) || 0), 0) / RRUNS);
+          const rtop = k => Math.round(rRaws.reduce((s, r) => s + (r[k] || 0), 0) / RRUNS);
+          const avgTot = rtop('totalDamage'), avgThr = rtop('totalThreat');
+          const rHits = ravg('hits');
+          const rProcDmg = ravg('procDamageTotal');
+          const rHitList = rRaws[0].ranged ? (rRaws[0].ranged.hitList || []) : [];
+          const rMinDmg = Math.min(...rRaws.map(r => r.ranged && r.ranged.minDamage != null ? r.ranged.minDamage : Infinity).filter(isFinite)) || 0;
+          const rMaxDmg = Math.max(...rRaws.map(r => (r.ranged && r.ranged.maxDamage) || 0));
+          const rDps = RDUR > 0 ? avgTot / RDUR : 0;
+          const rTps = RDUR > 0 ? avgThr / RDUR : rDps * 1.3;
+          const rVals = rRaws.map(r => (r.totalDamage || 0) / RDUR);
+          const rMean = rVals.reduce((s, v) => s + v, 0) / RRUNS;
+          const rStdDev = RRUNS > 1 ? Math.sqrt(rVals.reduce((s, v) => s + (v - rMean) * (v - rMean), 0) / (RRUNS - 1)) : 0;
+          const rReport = { ranged: { shots: ravg('shots'), hits: rHits, totalDamage: ravg('totalDamage'),
+            maxDamage: rMaxDmg, minDamage: rMinDmg, procDamageTotal: rProcDmg },
+            totalDamage: avgTot, totalThreat: avgThr, durationSec: RDUR, critHits: rtop('critHits') };
+          let rText = EQCombat.formatRangedReport
+            ? EQCombat.formatRangedReport(rReport, RRUNS)
+            : `Ranged DPS: ${rDps.toFixed(2)}`;
+          if (state.target && state.target.name)
+            rText = `  Target: ${state.target.name}, Level ${state.target.lvl || '?'}, AC ${state.target.ac || '?'}\n\n` + rText;
+          const rResult = {
+            dps: parseFloat(rDps.toFixed(2)), tps: parseFloat(rTps.toFixed(2)),
+            stddev: parseFloat(rStdDev.toFixed(2)), crits: rReport.critHits || 0,
+            totalDmg: avgTot, mode: 'RNG', weapon: RW.name || 'Bow', atk: 0, era: 'Luclin', time: Date.now(),
+            w1Dmg: ravg('totalDamage'), w2Dmg: 0, bonusDmg: 0, specialDmg: rProcDmg, specialLabel: 'Procs',
+            w1HitList: rHitList, w1Swings: rHits, w1Min: rMinDmg, w1Max: rMaxDmg,
+            w2HitList: [], specialHitList: [], specialSwings: 0, specialMin: null, specialMax: 0, procDmg: 0,
+          };
+          update({ simStatus: 'done', simDone: true, lastRun: rResult, reportText: rText,
+            simCounter: (simCounter || 0) + 1, history: [rResult, ...(state.history || [])].slice(0, 12) });
+          return;
+        }
+
+        // ── Weapon 1 ─────────────────────────────────────────────────────
+        const W1 = state.W1;
+        const w1TypeLow = (W1 && W1.type ? W1.type : '').toLowerCase();
+        const w1is2H = w1TypeLow === '2hb' || w1TypeLow === '2hs' || w1TypeLow === '2hp';
+        const weapon1 = W1 && W1.d >= 1 && W1.delay >= 10
+          ? { damage: W1.d, delay: W1.delay, type: W1.type || undefined, is2H: w1is2H }
+          : undefined;
+
+        // ── Weapon 2 ─────────────────────────────────────────────────────
+        const W2 = state.W2;
+        const w2TypeLow = (W2 && W2.type ? W2.type : '').toLowerCase();
+        const w2is2H = w2TypeLow === '2hb' || w2TypeLow === '2hs' || w2TypeLow === '2hp';
+        const fwNonEpic = classId === 'monk' && w1is2H && state.fistweaving && state.fistweavingNonEpic;
+        const hasOffhand = W2 && W2.d >= 1 && W2.delay >= 10 && cc.dualWield > 0;
+        const useWeapon2 = (w1is2H && weapon1)
+          ? !!(fwNonEpic && hasOffhand && !w2is2H)
+          : !!hasOffhand;
+        const weapon2 = useWeapon2 && W2
+          ? { damage: W2.d, delay: W2.delay, type: W2.type || undefined, is2H: w2is2H }
+          : undefined;
+
+        if (!weapon1 && !weapon2) {
+          update({ simStatus: 'error', simStep: 'Set Weapon 1 (Damage ≥ 1, Delay ≥ 10).' });
+          return;
+        }
+
+        // ── Special attack ────────────────────────────────────────────────
+        const specialAttackType = EQCombat.getDefaultSpecialTypeForClass
+          ? (EQCombat.getDefaultSpecialTypeForClass(classId) || 'none')
+          : 'none';
+        const specialAttacks = specialAttackType !== 'none';
+
+        // ── Weapon skill for to-hit ──────────────────────────────────────────
+        const SKILL_AL = { '2hp': '1hp' };
+        const VALID_SK = ['1hb','1hs','1hp','2hb','2hs','h2h','archery','throwing'];
+        const w1SkRaw = w1TypeLow || '1hb';
+        const w1SkA   = SKILL_AL[w1SkRaw] || w1SkRaw;
+        const w1SkKey = VALID_SK.includes(w1SkA) ? w1SkA : (w1is2H ? '2hb' : '1hb');
+        const WSC = window.WeaponSkillCaps;
+        const weaponSkillM = WSC && WSC.getCapForSimClass
+          ? (WSC.getCapForSimClass(classId, w1SkKey, lv) || 252) : 252;
+
+        const RUNS = 20;
+        const DURATION = 360;
+
+        const options = {
+          weapon1,
+          weapon2,
+          weapon1Type: W1 ? (W1.type || undefined) : undefined,
+          weapon2Type: W2 ? (W2.type || undefined) : undefined,
+          hastePercent,
+          offenseSkill: 252,
+          wornAttack: buffWornAtk,
+          spellAttack: buffSpellAtk,
+          toHitBonus: cc.toHitBonus,
+          doubleAttackSkill: cc.doubleAttack,
+          dualWieldSkill: useWeapon2 ? cc.dualWield : 0,
+          level: lv,
+          targetAC: state.target ? (state.target.ac || 550) : 550,
+          mobLevel: state.target ? (state.target.lvl || 60) : 60,
+          fightDurationSec: DURATION,
+          dex: Math.min(255, (state.dex || 255) + buffDex),
+          str: Math.min(255, (state.str || 255) + buffStr),
+          fromBehind: false,
+          specialAttacks,
+          specialAttackType: specialAttacks ? specialAttackType : undefined,
+          classId: classId || undefined,
+          weaponSkillForToHit: weaponSkillM,
+          duelist: classId === 'rogue' && !!state.duelist,
+          innerFlame: classId === 'monk' && !!state.innerFlame,
+          spellCastingFury: state.spellCastingFury || 0,
+          slayUndead: state.slayUndead || 0,
+          fistweaving: !!(classId === 'monk' && weapon1 && w1is2H && state.fistweaving),
+          fistweavingNonEpic: !!state.fistweavingNonEpic,
+          fistweavingReactionDelayMs: state.fistweavingDelay != null ? state.fistweavingDelay : 200,
+          fistweavingOffhandLabel: (fwNonEpic && useWeapon2 && W2) ? (W2.name || undefined) : undefined,
+        };
+
+        update({ simStep: 'Running 20 fights…' });
+        const raws = [];
+        for (let i = 0; i < RUNS; i++) {
+          options.seed = Date.now() + i;
+          const r = EQCombat.runFight(options);
+          if (r.error) {
+            update({ simStatus: 'error', simStep: r.error });
+            return;
+          }
+          raws.push(r);
+        }
+
+        // ── Average reports ───────────────────────────────────────────────
+        const avg = (key, sub) => Math.round(raws.reduce((s, r) => s + ((sub ? r[sub][key] : r[key]) || 0), 0) / RUNS);
+        const max = (key, sub) => Math.max(...raws.map(r => (sub ? r[sub][key] : r[key]) || 0));
+        const first = (key) => raws[0][key];
+        const w1Mins = raws.map(r => r.weapon1.minDamage).filter(m => m != null && m !== Infinity);
+        const w2Mins = raws.map(r => r.weapon2.minDamage).filter(m => m != null && m !== Infinity);
+
+        const report = {
+          weapon1: {
+            rounds: avg('rounds', 'weapon1'), single: avg('single', 'weapon1'), double: avg('double', 'weapon1'),
+            triple: avg('triple', 'weapon1'), flurry: avg('flurry', 'weapon1'),
+            swings: avg('swings', 'weapon1'), hits: avg('hits', 'weapon1'),
+            totalDamage: avg('totalDamage', 'weapon1'),
+            maxDamage: raws.some(r => r.weapon1.hits > 0) ? max('maxDamage', 'weapon1') : 0,
+            minDamage: w1Mins.length ? Math.min(...w1Mins) : null,
+            procs: avg('procs', 'weapon1'), procDamageTotal: avg('procDamageTotal', 'weapon1'),
+            swingThreat: avg('swingThreat', 'weapon1'), procThreat: avg('procThreat', 'weapon1'),
+            procResists: avg('procResists', 'weapon1'), procFullResists: avg('procFullResists', 'weapon1'),
+            procPartialResists: avg('procPartialResists', 'weapon1'), procResistDamageLost: avg('procResistDamageLost', 'weapon1'),
+            spellProcCrits: avg('spellProcCrits', 'weapon1'), maxSpellProcCritDmg: max('maxSpellProcCritDmg', 'weapon1'),
+            slayUndeadHits: avg('slayUndeadHits', 'weapon1'), slayUndeadDamageTotal: avg('slayUndeadDamageTotal', 'weapon1'),
+            maxSlayUndeadHit: max('maxSlayUndeadHit', 'weapon1'),
+            anticipatedProcChancePerRound: first('weapon1').anticipatedProcChancePerRound,
+            anticipatedProcsPerMinute: first('weapon1').anticipatedProcsPerMinute,
+          },
+          weapon2: {
+            rounds: avg('rounds', 'weapon2'), single: avg('single', 'weapon2'), double: avg('double', 'weapon2'),
+            triple: 0,
+            swings: avg('swings', 'weapon2'), hits: avg('hits', 'weapon2'),
+            totalDamage: avg('totalDamage', 'weapon2'),
+            maxDamage: raws.some(r => r.weapon2.hits > 0) ? max('maxDamage', 'weapon2') : 0,
+            minDamage: w2Mins.length ? Math.min(...w2Mins) : null,
+            procs: avg('procs', 'weapon2'), procDamageTotal: avg('procDamageTotal', 'weapon2'),
+            swingThreat: avg('swingThreat', 'weapon2'), procThreat: avg('procThreat', 'weapon2'),
+            procResists: avg('procResists', 'weapon2'), procFullResists: avg('procFullResists', 'weapon2'),
+            procPartialResists: avg('procPartialResists', 'weapon2'), procResistDamageLost: avg('procResistDamageLost', 'weapon2'),
+            spellProcCrits: avg('spellProcCrits', 'weapon2'), maxSpellProcCritDmg: max('maxSpellProcCritDmg', 'weapon2'),
+            anticipatedProcChancePerRound: first('weapon2').anticipatedProcChancePerRound,
+            anticipatedProcsPerMinute: first('weapon2').anticipatedProcsPerMinute,
+          },
+          fistweaving: raws[0].fistweaving ? {
+            rounds: avg('rounds', 'fistweaving'), single: avg('single', 'fistweaving'), double: avg('double', 'fistweaving'),
+            swings: avg('swings', 'fistweaving'), hits: avg('hits', 'fistweaving'),
+            totalDamage: avg('totalDamage', 'fistweaving'), maxDamage: max('maxDamage', 'fistweaving'),
+            minDamage: Math.min(...raws.map(r => (r.fistweaving && r.fistweaving.minDamage != null && r.fistweaving.minDamage !== Infinity) ? r.fistweaving.minDamage : Infinity).filter(x => x !== Infinity)) || null,
+            wuRolls: avg('wuRolls', 'fistweaving'), wuHits: avg('wuHits', 'fistweaving'), wuDamage: avg('wuDamage', 'fistweaving'),
+          } : null,
+          special: raws[0].special ? {
+            rounds: avg('rounds', 'special'), hits: avg('hits', 'special'), totalDamage: avg('totalDamage', 'special'),
+            maxDamage: max('maxDamage', 'special'), minDamage: Math.min(...raws.map(r => r.special && r.special.minDamage != null ? r.special.minDamage : Infinity).filter(x => x !== Infinity)) || null,
+            crits: avg('crits', 'special'), critDamage: avg('critDamage', 'special'),
+            wuRolls: avg('wuRolls', 'special'), wuHits: avg('wuHits', 'special'), wuDamage: avg('wuDamage', 'special'),
+            label: raws[0].special.label,
+          } : null,
+          durationSec: DURATION,
+          rawHastePercent: first('rawHastePercent') || 0,
+          effectiveHastePercent: first('effectiveHastePercent') || 0,
+          totalDamage: avg('totalDamage'),
+          totalThreat: avg('totalThreat'),
+          swingThreat: avg('swingThreat'),
+          procThreat: avg('procThreat'),
+          damageBonus: first('damageBonus') || 0,
+          damageBonusTotal: avg('damageBonusTotal'),
+          calculatedToHit: first('calculatedToHit'),
+          offenseSkill: first('offenseSkill'),
+          offenseRating: first('offenseRating'),
+          offenseRatingFromStr: first('offenseRatingFromStr'),
+          offenseRatingFromWornAttack: first('offenseRatingFromWornAttack'),
+          offenseRatingFromSpellAttack: first('offenseRatingFromSpellAttack'),
+          dualWieldEffective: first('dualWieldEffective'),
+          dualWieldPct: first('dualWieldPct'),
+          displayedAttack: first('displayedAttack'),
+          critHits: avg('critHits'),
+          critDamageGain: avg('critDamageGain'),
+          classId: classId,
+          dpsStdDev: (() => {
+            const vals = raws.map(r => (r.totalDamage || 0) / DURATION);
+            const mean = vals.reduce((s, v) => s + v, 0) / RUNS;
+            const sumSq = vals.reduce((s, v) => s + (v - mean) * (v - mean), 0);
+            return RUNS > 1 ? Math.sqrt(sumSq / (RUNS - 1)) : 0;
+          })(),
+        };
+
+        // ── Labels ────────────────────────────────────────────────────────
+        const w1Label = weapon1
+          ? `Weapon 1: ${W1.name || ''} (${W1.d}d / ${W1.delay} delay)`
+          : 'Main hand (unequipped)';
+        const w2Label = weapon2 && W2
+          ? `Weapon 2: ${W2.name || ''} (${W2.d}d / ${W2.delay} delay)`
+          : 'Weapon 2';
+
+        let reportText = EQCombat.formatReport(report, w1Label, w2Label, RUNS);
+        if (state.target && state.target.name) {
+          reportText = `  Target: ${state.target.name}, Level ${state.target.lvl || '?'}, AC ${state.target.ac || '?'}\n\n` + reportText;
+        }
+        reportText = `  Weapon skill cap: 252 (Quarm/TAKP)\n\n` + reportText;
+
+        const durationSec = DURATION;
+        const totalDmg = report.totalDamage;
+        const dps = durationSec > 0 ? totalDmg / durationSec : 0;
+        const tps = report.totalThreat != null && durationSec > 0 ? report.totalThreat / durationSec : dps * 1.3;
+
+        const result = {
+          dps: parseFloat(dps.toFixed(2)),
+          tps: parseFloat(tps.toFixed(2)),
+          stddev: parseFloat((report.dpsStdDev || 0).toFixed(2)),
+          crits: report.critHits || 0,
+          totalDmg,
+          mode: 'ADV',
+          weapon: W1 ? (W1.name || '') : '',
+          atk: report.displayedAttack || 0,
+          era: 'Luclin',
+          time: Date.now(),
+          // Breakdown for pie/histograms
+          w1Dmg: report.weapon1.totalDamage,
+          w2Dmg: report.weapon2.totalDamage,
+          bonusDmg: report.damageBonusTotal || 0,
+          specialDmg: report.special ? report.special.totalDamage : 0,
+          specialLabel: report.special ? report.special.label : null,
+          w1HitList: raws[0].weapon1.hitList || [],
+          w1Swings: report.weapon1.hits || 0,
+          w1Min: report.weapon1.minDamage,
+          w1Max: report.weapon1.maxDamage || 0,
+          w2HitList: raws[0].weapon2.hitList || [],
+          specialHitList: raws[0].special ? (raws[0].special.hitList || []) : [],
+          specialSwings: report.special ? (report.special.hits || 0) : 0,
+          specialMin: report.special ? report.special.minDamage : null,
+          specialMax: report.special ? (report.special.maxDamage || 0) : 0,
+          procDmg: (report.weapon1.procDamageTotal || 0) + (report.weapon2.procDamageTotal || 0),
+        };
+
+        update({
+          simStatus: 'done',
+          simDone: true,
+          lastRun: result,
+          reportText,
+          simCounter: (simCounter || 0) + 1,
+          history: [result, ...(state.history || [])].slice(0, 12),
+        });
+      } catch (err) {
+        update({ simStatus: 'error', simStep: 'Error: ' + (err && err.message ? err.message : String(err)) });
+      }
+    }, 60);
+  };
+
+  if (simStatus === 'running') {
+    return (
+      <div style={{ padding: '40px 10px', textAlign: 'center' }}>
+        <div style={{ marginBottom: 20 }}>
+          <div style={{ ...window.tCinzel(), fontSize: 10, letterSpacing: '0.25em', color: ST.MUTED, textTransform: 'uppercase', marginBottom: 6 }}>Simulating</div>
+          <div style={{ ...window.tCinzel(), fontSize: 32, color: ST.GOLD, letterSpacing: '0.04em', fontWeight: 700 }}>
+            <span style={{ animation: 'gsPulse 1.2s ease-in-out infinite' }}>⚡</span>
+          </div>
+        </div>
+        <div style={{ fontSize: 11, color: ST.TEXT_DIM, ...window.tMono() }}>{state.simStep || '…'}</div>
+        <div style={{ maxWidth: 180, margin: '22px auto 0', height: 3, background: ST.INPUT, borderRadius: 2, overflow: 'hidden' }}>
+          <div style={{ width: '80%', height: '100%', background: `linear-gradient(90deg, ${ST.GOLD}, transparent)`, animation: 'gsSlide 1.2s ease-in-out infinite' }} />
+        </div>
+        <style>{`
+          @keyframes gsPulse { 0%,100% { opacity: 1 } 50% { opacity: 0.3 } }
+          @keyframes gsSlide { 0% { transform: translateX(-100%) } 100% { transform: translateX(200%) } }
+        `}</style>
+      </div>
+    );
+  }
+
+  if (simStatus === 'error') {
+    return (
+      <div style={{ padding: '30px 10px' }}>
+        <div style={{ background: 'rgba(139,0,0,0.15)', border: '1px solid rgba(139,0,0,0.4)', borderRadius: 4, padding: '14px 16px' }}>
+          <div style={{ ...window.tCinzel(), fontSize: 10, letterSpacing: '0.18em', color: '#e06060', fontWeight: 700, marginBottom: 6 }}>SIM ERROR</div>
+          <div style={{ fontSize: 11, color: ST.TEXT_DIM, ...window.tMono(), lineHeight: 1.5 }}>{state.simStep}</div>
+        </div>
+        <div style={{ marginTop: 16 }}>
+          <window.GoldButton full size="lg" onClick={runSim} icon="⚡">Retry</window.GoldButton>
+        </div>
+      </div>
+    );
+  }
+
+  const r = lastRun;
+
+  return (
+    <>
+      {/* Hero — only after a sim has been run */}
+      {simDone && (
+        <div style={{
+          position: 'relative', padding: isCompact ? 14 : 18, borderRadius: 6,
+          background: `radial-gradient(ellipse at 50% 0%, rgba(212,175,55,0.18), ${ST.PANEL} 70%)`,
+          border: `1px solid ${ST.GOLD_BORDER}`, textAlign: 'center', marginBottom: 10,
+          boxShadow: '0 4px 20px rgba(0,0,0,0.5)',
+          overflow: 'hidden',
+        }}>
+          <window.GsimCorners size={8}>
+            <div style={{ fontSize: 9, letterSpacing: '0.28em', color: ST.MUTED, textTransform: 'uppercase', ...window.tCinzel(), fontWeight: 600, marginBottom: 2 }}>Total DPS</div>
+            <div style={{ ...window.tCinzel(), fontSize: heroSize, fontWeight: 700, color: ST.GOLD, lineHeight: 1, textShadow: '0 0 30px rgba(212,175,55,0.4)' }}>
+              <window.CountUp key={simCounter} value={r.dps} trigger={simCounter} duration={900} />
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'center', gap: 14, marginTop: 8, fontSize: 10, color: ST.MUTED, letterSpacing: '0.1em', ...window.tCinzel() }}>
+              <span>TPS <span style={{ color: ST.TPS_BLUE, fontWeight: 700, ...window.tMono() }}>
+                <window.CountUp key={'tps-' + simCounter} value={r.tps} trigger={simCounter} duration={900} />
+              </span></span>
+              <span style={{ color: ST.MUTED_DIM }}>·</span>
+              <span>σ <span style={{ color: ST.TEXT, ...window.tMono() }}>{r.stddev}</span></span>
+              <span style={{ color: ST.MUTED_DIM }}>·</span>
+              <span>CRIT <span style={{ color: ST.TEXT, ...window.tMono() }}>{r.crits}</span></span>
+            </div>
+          </window.GsimCorners>
+        </div>
+      )}
+
+      {/* Target & Config summary */}
+      <window.Panel padding={10} style={{ marginBottom: 10 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 9, letterSpacing: '0.18em', color: ST.MUTED, ...window.tCinzel(), fontWeight: 600, textTransform: 'uppercase', marginBottom: 2 }}>Target</div>
+            <div style={{ ...window.tZodiak(), fontSize: 13, color: ST.TEXT }}>{target.name}</div>
+            <div style={{ fontSize: 10, color: ST.MUTED, ...window.tMono(), marginTop: 2 }}>Lvl {target.lvl} · AC {target.ac} · 360s · 20 runs</div>
+          </div>
+          <div style={{ textAlign: 'right' }}>
+            <div style={{ fontSize: 9, letterSpacing: '0.18em', color: ST.MUTED, ...window.tCinzel(), fontWeight: 600 }}>HASTE</div>
+            <div style={{ ...window.tMono(), fontSize: 16, color: ST.GOLD, fontWeight: 700 }}>{effectiveHaste}%</div>
+          </div>
+        </div>
+      </window.Panel>
+
+      {/* Damage breakdown — only after sim */}
+      {simDone && (
+        <window.Panel padding={10} style={{ marginBottom: 10 }}>
+          <window.SectionHead label="Damage Breakdown" hint={`${r.totalDmg.toLocaleString()} total dmg`} />
+          {(() => {
+            const tot = r.totalDmg || 1;
+            const w1p  = +((r.w1Dmg  || 0) / tot * 100).toFixed(1);
+            const w2p  = +((r.w2Dmg  || 0) / tot * 100).toFixed(1);
+            const bpp  = +((r.bonusDmg || 0) / tot * 100).toFixed(1);
+            const spp  = +((r.specialDmg || 0) / tot * 100).toFixed(1);
+            const prp  = +Math.max(0, 100 - w1p - w2p - bpp - spp).toFixed(1);
+            const segs = [];
+            if (w1p > 0) segs.push({ pct: w1p, color: ST.PIE_BLUE,      label: 'Primary' });
+            if (w2p > 0) segs.push({ pct: w2p, color: ST.TPS_BLUE,       label: 'Offhand' });
+            if (bpp > 0) segs.push({ pct: bpp, color: ST.PIE_BLUE_DARK,  label: 'Dmg Bonus' });
+            if (spp > 0) segs.push({ pct: spp, color: ST.PIE_VIOLET,     label: r.specialLabel || 'Special' });
+            if (prp > 1) segs.push({ pct: prp, color: ST.MUTED_DIM,      label: 'Procs' });
+            return (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                <window.PieChart size={isCompact ? 80 : 100} segs={segs} />
+                <div style={{ flex: 1, fontSize: 11 }}>
+                  {segs.map(s => (
+                    <div key={s.label} style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+                      <div style={{ width: 9, height: 9, background: s.color, borderRadius: 1 }} />
+                      <span style={{ color: ST.TEXT, flex: 1 }}>{s.label}</span>
+                      <span style={{ color: ST.GOLD, ...window.tMono(), fontSize: 11, fontWeight: 700 }}>{s.pct}%</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })()}
+        </window.Panel>
+      )}
+
+      {/* Histograms — only after sim */}
+      {simDone && (
+        <window.Panel padding={10} style={{ marginBottom: 10 }}>
+          <window.SectionHead label="Per-Swing Damage" />
+          <div style={{ fontSize: 10, color: ST.TEXT, marginBottom: 4, display: 'flex', justifyContent: 'space-between' }}>
+            <span style={{ ...window.tZodiak() }}>{r.weapon || 'Weapon 1'}</span>
+            <span style={{ color: ST.MUTED, ...window.tMono() }}>
+              {(r.w1Swings || 0).toLocaleString()} · {r.w1Min ?? '?'}–{r.w1Max || '?'}
+            </span>
+          </div>
+          <window.Histogram color={ST.GOLD} seed={7 + (simCounter || 0)} hitList={r.w1HitList} />
+          {r.specialDmg > 0 && (<>
+            <div style={{ marginTop: 10, fontSize: 10, color: ST.TEXT, marginBottom: 4, display: 'flex', justifyContent: 'space-between' }}>
+              <span style={{ ...window.tZodiak() }}>{r.specialLabel || 'Special'}</span>
+              <span style={{ color: ST.MUTED, ...window.tMono() }}>
+                {(r.specialSwings || 0).toLocaleString()} · {r.specialMin ?? '?'}–{r.specialMax || '?'}
+              </span>
+            </div>
+            <window.Histogram color={ST.PIE_VIOLET} seed={23 + (simCounter || 0)} hitList={r.specialHitList} />
+          </>)}
+        </window.Panel>
+      )}
+
+      {/* Run button */}
+      <div style={{ marginTop: 4 }}>
+        <window.GoldButton full size="lg" onClick={runSim} icon="⚡">{simDone ? 'Re-Simulate' : 'Run Simulation'}</window.GoldButton>
+        <div style={{ marginTop: 6, textAlign: 'center', fontSize: 9, color: ST.MUTED, letterSpacing: '0.14em', ...window.tCinzel() }}>
+          {activeBuffCount} BUFFS · {effectiveHaste}% HASTE · 20 RUNS
+        </div>
+      </div>
+
+      {/* Rank All — melee only */}
+      {state.mode !== 'Ranged' && <window.Panel padding={10} style={{ marginTop: 10 }}>
+        <div onClick={() => update({ _openDrill: 'rank' })} style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
+          <div style={{ fontSize: 20 }}>🏆</div>
+          <div style={{ flex: 1 }}>
+            <div style={{ ...window.tCinzel(), fontSize: 11, color: ST.GOLD, letterSpacing: '0.18em', fontWeight: 700 }}>RANK ALL WEAPONS</div>
+            <div style={{ fontSize: 9, color: ST.MUTED, marginTop: 2 }}>Simulates every equippable weapon</div>
+          </div>
+          <div style={{ color: ST.MUTED, fontSize: 18 }}>›</div>
+        </div>
+      </window.Panel>}
+    </>
+  );
+}
+
+// ═══ REPORT TAB ═══
+function ReportTab({ state }) {
+  const text = state.reportText || null;
+
+  if (!text) {
+    return (
+      <div style={{ padding: '60px 20px', textAlign: 'center', color: ST.MUTED }}>
+        <div style={{ fontSize: 32, marginBottom: 12, opacity: 0.5 }}>≡</div>
+        <div style={{ ...window.tCinzel(), fontSize: 11, letterSpacing: '0.2em', fontWeight: 700, color: ST.TEXT_DIM }}>NO REPORT YET</div>
+        <div style={{ fontSize: 11, marginTop: 6, lineHeight: 1.5 }}>Run a simulation from the Sim tab to generate the report.</div>
+      </div>
+    );
+  }
+
+  const lines = text.split('\n');
+  return (
+    <div style={{
+      background: ST.INPUT, border: `1px solid ${ST.BORDER}`, borderRadius: 4,
+      padding: 12, ...window.tMono(), fontSize: 10, color: ST.TEXT_DIM, lineHeight: 1.6,
+      whiteSpace: 'pre', overflowX: 'auto',
+    }}>
+      {lines.map((l, i) => (
+        <div key={i} style={{
+          color: l.startsWith('═══') ? ST.GOLD : ST.TEXT_DIM,
+          fontWeight: l.startsWith('═══') ? 700 : 400,
+        }}>{l || '\u00a0'}</div>
+      ))}
+    </div>
+  );
+}
+
+// ═══ HISTORY TAB ═══
+function HistoryTab({ state, update }) {
+  const history = state.history || [];
+  const easyCount = history.filter(h => h.mode === 'EZ').length;
+  const advCount = history.filter(h => h.mode === 'ADV').length;
+  const best = history.reduce((m, h) => h.dps > (m?.dps || 0) ? h : m, null);
+
+  const fmtTime = (t) => {
+    const s = Math.floor((Date.now() - t) / 1000);
+    if (s < 60) return `${s}s ago`;
+    if (s < 3600) return `${Math.floor(s/60)}m ago`;
+    return `${Math.floor(s/3600)}h ago`;
+  };
+
+  if (history.length === 0) {
+    return (
+      <div style={{ padding: '60px 20px', textAlign: 'center', color: ST.MUTED }}>
+        <div style={{ fontSize: 32, marginBottom: 12, opacity: 0.5 }}>◷</div>
+        <div style={{ ...window.tCinzel(), fontSize: 11, letterSpacing: '0.2em', fontWeight: 700, color: ST.TEXT_DIM }}>NO RUNS YET</div>
+        <div style={{ fontSize: 11, marginTop: 6, lineHeight: 1.5 }}>Run a simulation from the Sim tab to log results here.</div>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <div style={{ display: 'flex', gap: 10, marginBottom: 10, alignItems: 'center', fontSize: 10, padding: '0 2px' }}>
+        <span style={{ color: ST.MUTED, ...window.tCinzel(), letterSpacing: '0.12em' }}>EZ <span style={{ color: ST.GREEN, ...window.tMono(), fontWeight: 700 }}>{easyCount}</span></span>
+        <span style={{ color: ST.MUTED, ...window.tCinzel(), letterSpacing: '0.12em' }}>ADV <span style={{ color: ST.GOLD, ...window.tMono(), fontWeight: 700 }}>{advCount}</span></span>
+        <span style={{ color: ST.MUTED, ...window.tCinzel(), letterSpacing: '0.12em' }}>TOTAL <span style={{ color: ST.TEXT, ...window.tMono(), fontWeight: 700 }}>{history.length}</span></span>
+        <div style={{ flex: 1 }} />
+        <span onClick={() => update({ history: [] })} style={{ color: ST.DANGER, letterSpacing: '0.14em', ...window.tCinzel(), fontSize: 9, fontWeight: 700, cursor: 'pointer' }}>CLEAR</span>
+      </div>
+
+      {best && (
+        <div style={{ padding: 10, background: `linear-gradient(90deg, ${ST.GOLD_FAINT}, transparent)`, border: `1px solid ${ST.GOLD_BORDER}`, borderRadius: 4, marginBottom: 10 }}>
+          <div style={{ fontSize: 8, ...window.tCinzel(), letterSpacing: '0.22em', color: ST.GOLD, fontWeight: 700, marginBottom: 2 }}>★ PERSONAL BEST</div>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+            <div style={{ ...window.tCinzel(), ...window.tMono(), fontSize: 24, color: ST.GOLD, fontWeight: 700, lineHeight: 1 }}>{best.dps.toFixed(2)}</div>
+            <div style={{ fontSize: 10, color: ST.TEXT_DIM, ...window.tMono() }}>{best.weapon} · {fmtTime(best.time)}</div>
+          </div>
+        </div>
+      )}
+
+      {history.map((h, i) => {
+        const color = h.mode === 'EZ' ? ST.GREEN : ST.GOLD;
+        return (
+          <div key={i} style={{ padding: 12, background: ST.PANEL, border: `1px solid ${ST.BORDER}`, borderRadius: 4, marginBottom: 6 }}>
+            <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 6 }}>
+              <div style={{ ...window.tCinzel(), ...window.tMono(), fontSize: 22, color, fontWeight: 700, lineHeight: 1 }}>{h.dps.toFixed(2)}</div>
+              <div style={{ fontSize: 9, color, letterSpacing: '0.12em', ...window.tCinzel(), padding: '2px 8px', border: `1px solid ${color}`, borderRadius: 3, fontWeight: 700 }}>{h.mode}</div>
+            </div>
+            <div style={{ fontSize: 10, color: ST.MUTED, display: 'flex', gap: 8, ...window.tMono(), flexWrap: 'wrap' }}>
+              <span>{h.weapon}</span>
+              <span>ATK {h.atk}</span>
+              <span>{h.era}</span>
+              <span style={{ marginLeft: 'auto' }}>{fmtTime(h.time)}</span>
+            </div>
+          </div>
+        );
+      })}
+    </>
+  );
+}
+
+Object.assign(window, { SimTab, ReportTab, HistoryTab });
+
+
+// --- app.jsx ---
+// gSim Mobile — Main app shell. Top bar, tab switcher, drill routing, Tweaks integration.
+
+const MST = window.GSIM_THEME;
+const MSD = window.GSIM_DATA;
+
+function buildInitialState() {
+  const buffs = {};
+  // Use real buff IDs from buffs.js if available, otherwise fall back to sample data names
+  if (window.Buffs && window.Buffs.BUFFS) {
+    window.Buffs.BUFFS.forEach(b => { buffs[b.id] = false; });
+  } else {
+    MSD.buffGroups.forEach(g => g.buffs.forEach(b => { buffs[b.name] = b.active; }));
+  }
+  return {
+    cls: 'Monk',
+    mode: 'Melee',
+    level: 60,
+    str: 255, agi: 255, dex: 255, sta: 255,
+    hasteVal: 41, spellHaste: 0, bardHaste: 0,
+    W1: { name: "Caen's Bo Staff of Fury", type: '2HB', d: 43, delay: 30 },
+    W2: null,
+    Range: null,
+    arrowDmg: 18,
+    archeryMastery: 2,
+    trueshot: false,
+    buffs,
+    rankDone: false,
+    simDone: false,
+    duelist: false,
+    innerFlame: false,
+    fistweaving: false,
+    fistweavingNonEpic: false,
+    fistweavingDelay: 200,
+    spellCastingFury: 0,
+    slayUndead: 0,
+    target: MSD.target,
+    lastRun: {
+      dps: 77.48, tps: 100.72, stddev: 0.39, crits: 390,
+      totalDmg: 464851, mode: 'ADV', weapon: "Caen's Bo", atk: 1314, era: 'Luclin',
+      time: Date.now() - 120000,
+    },
+    simStatus: 'idle',
+    simStep: '',
+    simCounter: 0,
+    history: [],
+    reportText: null,
+  };
+}
+
+function GsimMobileApp({ variant = 'scroll', density = 'comfy' }) {
+  const [state, setState] = React.useState(buildInitialState);
+  const [tab, setTab] = React.useState('Build');
+  const [drill, setDrill] = React.useState(null); // {kind, arg}
+  const [toast, setToast] = React.useState(null);
+  const update = (patch) => setState(s => ({ ...s, ...patch }));
+  const openDrill = (kind, arg) => setDrill({ kind, arg });
+  const closeDrill = () => setDrill(null);
+
+  const showToast = (msg, duration = 3500) => {
+    setToast(msg);
+    setTimeout(() => setToast(null), duration);
+  };
+
+  // jump from stepper to Sim
+  React.useEffect(() => {
+    if (state._jumpTab) {
+      setTab(state._jumpTab);
+      update({ _jumpTab: null });
+    }
+  }, [state._jumpTab]);
+
+  // open drill from SimTab (rank all)
+  React.useEffect(() => {
+    if (state._openDrill) {
+      setDrill({ kind: state._openDrill });
+      update({ _openDrill: null });
+    }
+  }, [state._openDrill]);
+
+  const tabs = [
+    { l: 'Build', ic: '⚔' },
+    { l: 'Sim', ic: '◉' },
+    { l: 'Report', ic: '≡' },
+    { l: 'History', ic: '◷' },
+  ];
+
+  const BuildComponent =
+    variant === 'stepper' ? window.BuildTabStepper :
+    variant === 'compact' ? window.BuildTabCompact :
+    window.BuildTabScroll;
+
+  return (
+    <div style={{
+      width: '100%', height: '100%',
+      background: `radial-gradient(circle at 15% 0%, rgba(212,175,55,0.05) 0%, transparent 45%), radial-gradient(circle at 85% 100%, rgba(139,0,0,0.08) 0%, transparent 55%), ${MST.BG}`,
+      color: MST.TEXT, ...window.tSatoshi(),
+      display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative',
+    }}>
+      {/* Top bar */}
+      <div style={{ padding: '54px 14px 10px', borderBottom: `1px solid ${MST.GOLD_BORDER}`, background: 'linear-gradient(180deg, rgba(0,0,0,0.65), transparent)', flexShrink: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+          <div>
+            <div style={{ ...window.tCinzel(), fontSize: 18, fontWeight: 700, color: MST.GOLD, letterSpacing: '0.04em', lineHeight: 1 }}>
+              g<span style={{ fontSize: 13 }}>SIM</span>
+            </div>
+            <div style={{ fontSize: 7, letterSpacing: '0.28em', color: MST.MUTED, textTransform: 'uppercase', marginTop: 3 }}>Project Quarm · v1.16</div>
+          </div>
+          {/* HUD — only after a sim has been run */}
+          {state.simDone && (
+            <div style={{ display: 'flex', gap: 10, alignItems: 'center', padding: '5px 10px', background: `radial-gradient(ellipse at 100% 50%, rgba(212,175,55,0.12), rgba(0,0,0,0.5))`, border: `1px solid ${MST.GOLD_BORDER}`, borderRadius: 4 }}>
+              <div style={{ textAlign: 'right' }}>
+                <div style={{ fontSize: 7, color: MST.MUTED, letterSpacing: '0.16em', ...window.tCinzel() }}>TPS</div>
+                <div style={{ ...window.tCinzel(), ...window.tMono(), fontSize: 13, color: MST.TPS_BLUE, fontWeight: 700, lineHeight: 1 }}>{state.lastRun.tps.toFixed(2)}</div>
+              </div>
+              <div style={{ width: 1, height: 24, background: MST.GOLD_DIM }} />
+              <div style={{ textAlign: 'right' }}>
+                <div style={{ fontSize: 7, color: MST.MUTED, letterSpacing: '0.16em', ...window.tCinzel() }}>DPS</div>
+                <div style={{ ...window.tCinzel(), ...window.tMono(), fontSize: 15, color: MST.GOLD, fontWeight: 700, lineHeight: 1, textShadow: `0 0 8px ${MST.GOLD_GLOW}` }}>{state.lastRun.dps.toFixed(2)}</div>
+              </div>
+            </div>
+          )}
+        </div>
+        <window.SegmentedControl options={['Melee', 'Ranged', 'Tank']} value={state.mode} onChange={(v) => update({ mode: v })} size="sm" disabled={['Tank']} />
+      </div>
+
+      {/* Content */}
+      <div style={{ flex: 1, overflowY: 'auto', padding: '12px 12px 120px', minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+        {tab === 'Build' && <BuildComponent state={state} update={update} openDrill={openDrill} />}
+        {tab === 'Sim' && <window.SimTab state={state} update={update} density={density} />}
+        {tab === 'Report' && <window.ReportTab state={state} />}
+        {tab === 'History' && <window.HistoryTab state={state} update={update} />}
+      </div>
+
+      {/* Bottom tab bar */}
+      <div className="gs-tabbar" style={{
+        position: 'absolute', bottom: 0, left: 0, right: 0,
+        background: 'rgba(10,10,12,0.94)', borderTop: `1px solid ${MST.GOLD_BORDER}`,
+        backdropFilter: 'blur(12px)', zIndex: 20,
+      }}>
+        <div style={{ display: 'flex', padding: '10px 0 6px' }}>
+          {tabs.map(t => {
+            const active = tab === t.l;
+            return (
+              <div key={t.l} onClick={() => setTab(t.l)} style={{ flex: 1, textAlign: 'center', ...window.tCinzel(), cursor: 'pointer' }}>
+                <div style={{ fontSize: 18, color: active ? MST.GOLD : MST.MUTED, lineHeight: 1, marginBottom: 3, textShadow: active ? `0 0 8px ${MST.GOLD_GLOW}` : 'none' }}>{t.ic}</div>
+                <div style={{ fontSize: 9, letterSpacing: '0.14em', textTransform: 'uppercase', color: active ? MST.GOLD : MST.MUTED, fontWeight: 700 }}>{t.l}</div>
+                {active && <div style={{ width: 20, height: 2, background: MST.GOLD, borderRadius: 2, margin: '3px auto 0', boxShadow: `0 0 6px ${MST.GOLD_GLOW}` }} />}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Toast notification */}
+      {toast && (
+        <div style={{
+          position: 'absolute', bottom: 90, left: 16, right: 16, zIndex: 50,
+          background: MST.PANEL_2, border: `1px solid ${MST.GOLD_BORDER}`,
+          borderRadius: 8, padding: '12px 16px',
+          boxShadow: `0 4px 24px rgba(0,0,0,0.6), 0 0 0 1px ${MST.GOLD_DIM}`,
+          display: 'flex', alignItems: 'center', gap: 12,
+          animation: 'gsToastIn 0.25s ease',
+        }}>
+          <style>{`@keyframes gsToastIn { from { opacity:0; transform:translateY(10px) } to { opacity:1; transform:translateY(0) } }`}</style>
+          <div style={{ fontSize: 20 }}>🏆</div>
+          <div style={{ flex: 1 }}>
+            <div style={{ ...window.tCinzel(), fontSize: 10, color: MST.GOLD, letterSpacing: '0.16em', fontWeight: 700, marginBottom: 2 }}>RANK COMPLETE</div>
+            <div style={{ fontSize: 11, color: MST.TEXT_DIM }}>{toast}</div>
+          </div>
+          <div onClick={() => setToast(null)} style={{ color: MST.MUTED, fontSize: 18, cursor: 'pointer', padding: '0 4px' }}>×</div>
+        </div>
+      )}
+
+      {/* Drill-downs */}
+      {drill?.kind === 'class' && <window.ClassPicker current={state.cls} onPick={(c) => { update({ cls: c }); closeDrill(); }} onBack={closeDrill} />}
+      {drill?.kind === 'target' && <window.TargetPicker current={state.target} onPick={(t) => { update({ target: t }); closeDrill(); }} onBack={closeDrill} />}
+      {drill?.kind === 'weapon' && <window.WeaponSearch slot={drill.arg} onPick={(w) => { update({ [drill.arg]: w }); closeDrill(); }} onBack={closeDrill} />}
+      {drill?.kind === 'buffs' && <window.BuffPicker buffs={state.buffs} onToggle={(n) => update({ buffs: { ...state.buffs, [n]: !state.buffs[n] } })} onBack={closeDrill} />}
+      {drill?.kind === 'rank' && <window.RankAll appState={state} onBack={() => { closeDrill(); }} onPickWeapon={(w) => { update({ W1: w }); closeDrill(); showToast(`${w.name} set as Weapon 1.`); }} />}
+    </div>
+  );
+}
+
+window.GsimMobileApp = GsimMobileApp;
+window.buildInitialState = buildInitialState;
+
+
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(<window.GsimMobileApp variant="scroll" density="comfy" />);
+</script>
+</body>
+</html>

@@ -415,6 +415,72 @@
     </div>
 
     <div class="card">
+      <h2>7.8) Slay Undead (Paladin AA, Luclin)</h2>
+      <p>
+        <strong>Slay Undead</strong> is a Paladin-exclusive class AA (3 ranks, available from Luclin onward).
+        On each melee swing that lands against an undead target, the engine first rolls for Slay Undead <em>before</em> checking for a regular melee crit.
+        If the slay roll succeeds the hit becomes a Slay hit and the normal crit path is skipped entirely for that swing.
+        It is <strong>not</strong> a proc — it rides the melee swing itself, requires no weapon and fires no spell.
+      </p>
+      <h3>Eligible targets</h3>
+      <p>
+        The target must have one of the undead body types: <code>3</code> (Undead), <code>8</code> (Undead Pet), or <code>12</code> (Vampire).
+        If the target does not match, the Slay roll is never attempted.
+      </p>
+      <h3>Roll chance per swing</h3>
+      <p>
+        One flat-percent roll is made independently for every individual swing that hits — each primary-hand hit, double-attack hit, triple-attack hit, and flurry hit all get their own roll.
+        Offhand swings are not checked (Slay only applies to weapon1 / primary hand).
+      </p>
+      <table>
+        <thead><tr><th>Rank</th><th>Slay chance</th><th>Damage multiplier</th></tr></thead>
+        <tbody>
+          <tr><td>Rank 1</td><td>2.25%</td><td>15× (1500%)</td></tr>
+          <tr><td>Rank 2</td><td>2.35%</td><td>16× (1600%)</td></tr>
+          <tr><td>Rank 3</td><td>2.40%</td><td>17× (1700%)</td></tr>
+        </tbody>
+      </table>
+      <h3>Damage formula</h3>
+      <p>
+        When the slay roll succeeds, the hit damage is replaced by:
+      </p>
+      <div class="formula">slayDmg = floor( (rolledDamage − damageBonus + 6) × multiplierPct / 100 ) + damageBonus</div>
+      <p>
+        A minimum floor is also enforced to prevent extremely weak rolls from deflating the slay:
+      </p>
+      <div class="formula">minSlay = floor( (minBase + 5) × multiplierPct / 100 ) + damageBonus</div>
+      <div class="formula">finalDmg = max(slayDmg, minSlay)</div>
+      <p>
+        Where <code>rolledDamage</code> is the weapon roll after all modifiers (including STR/ATK scaling) but <em>before</em> the crit multiplier,
+        <code>damageBonus</code> is the melee damage bonus from STR/ATK/offense,
+        and <code>minBase = 1</code> (the minimum weapon base roll).
+      </p>
+      <p>
+        The +6 offset in the numerator reflects the EQMac source convention for undead slay damage and keeps slay hits proportional even on minimum rolls.
+      </p>
+      <h3>Interaction with crits and other multipliers</h3>
+      <p>
+        If the slay roll fires, the swing is recorded as a Slay hit and <strong>the regular melee crit roll is not attempted</strong>.
+        SCF (Spell Casting Fury) and Combat Fury crit rolls do not apply to a slay hit.
+        A slay hit also suppresses any additional per-swing damage bonuses that would normally be gated on the crit result.
+        In practice the slay multiplier (15–17×) is large enough that missing the crit is negligible.
+      </p>
+      <h3>What the report shows</h3>
+      <p>
+        The sim report's <em>Slay Undead (AA)</em> section lists:
+      </p>
+      <ul>
+        <li><strong>Slay Undead hits</strong> — total number of swings where the slay roll fired.</li>
+        <li><strong>Slay Undead damage</strong> — cumulative damage from all slay hits.</li>
+        <li><strong>Max Slay Undead hit</strong> — single largest slay hit seen across all runs.</li>
+        <li><strong>DPS from Slay Undead</strong> — slay damage ÷ fight duration.</li>
+      </ul>
+      <p class="muted">
+        Slay Undead only appears in the report when the selected class is Paladin. The section is omitted for all other classes.
+      </p>
+    </div>
+
+    <div class="card">
       <h2>8) Elemental Damage on Weapons</h2>
       <p>
         Elemental weapon damage is treated as an extra base-damage adder before the melee damage roll.

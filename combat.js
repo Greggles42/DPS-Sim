@@ -1358,6 +1358,10 @@
       weaponSkillForToHit: WEAPON_SKILL_FOR_TOHIT,
       offenseRating: offenseRating,
       offenseRatingFromStr: strBonus,
+      offenseRatingFromWornAttack: wornAttack,
+      offenseRatingFromSpellAttack: spellAttack,
+      dualWieldEffective: dualWieldEffective,
+      dualWieldPct: dualWieldPct,
       displayedAttack: Math.floor((offenseRating + toHit) * 1000 / 744),
       baseDamageCap: (baseDamageCap != null && ((hasMainHand && w1.damage > baseDamageCap) || (offhandEquipped && w2.damage > baseDamageCap))) ? { cap: baseDamageCap } : null,
       critHits: 0,
@@ -1655,6 +1659,12 @@
         fistweavingAttemptAtMs = Infinity;
 
         if (attemptTimeMs >= fistweavingOffhandReadyAtMs) {
+          // Offhand cooldown is ready; now gate on dual-wield skill check (same as regular offhand).
+          // Cooldown advances regardless of the DW check outcome.
+          fistweavingOffhandReadyAtMs = tMs + fistweavingOffhandDelayMs;
+          if (!checkDualWield(dualWieldEffective, rng)) {
+            // DW check failed — no swing this attempt.
+          } else {
           report.fistweaving.rounds++;
           let fwAttacks = 1;
 
@@ -1699,9 +1709,7 @@
 
           if (fwAttacks === 1) report.fistweaving.single++;
           else report.fistweaving.double++;
-
-          // Start the offhand cooldown immediately when the weaved swing occurs.
-          fistweavingOffhandReadyAtMs = tMs + fistweavingOffhandDelayMs;
+          } // end checkDualWield
         } else {
           // Weaved attempt time arrived, but offhand cooldown isn't ready yet.
           fistweavingClippedDueToOffhandNotReady++;
@@ -2264,9 +2272,17 @@
     }
     if (report.offenseRating != null) lines.push(padLine('  Offense rating:', `${report.offenseRating}  (used for damage)`));
     if (report.offenseRatingFromStr != null) lines.push(padLine('    From STR:', String(report.offenseRatingFromStr)));
+    if (report.offenseRatingFromWornAttack != null && report.offenseRatingFromWornAttack > 0) {
+      lines.push(padLine('    From worn ATK:', String(report.offenseRatingFromWornAttack)));
+    }
+    if (report.offenseRatingFromSpellAttack != null && report.offenseRatingFromSpellAttack > 0) {
+      lines.push(padLine('    From spell ATK:', String(report.offenseRatingFromSpellAttack)));
+    }
     if (report.offenseRating != null && report.offenseRatingFromStr != null) {
-      const other = report.offenseRating - report.offenseRatingFromStr;
-      lines.push(padLine('    From other:', `${other}  (skill + worn + spell)`));
+      const wornAtkContrib = (report.offenseRatingFromWornAttack || 0);
+      const spellAtkContrib = (report.offenseRatingFromSpellAttack || 0);
+      const skillContrib = report.offenseRating - report.offenseRatingFromStr - wornAtkContrib - spellAtkContrib;
+      lines.push(padLine('    From skill:', `${skillContrib}  (weapon + offense skill base)`));
     }
     if (report.displayedAttack != null) lines.push(padLine('  Displayed ATK:', String(report.displayedAttack)));
     lines.push(padLine('  ATK formula:', '(offense rating + toHit) * 1000 / 744'));
@@ -2274,6 +2290,10 @@
       const raw = report.rawHastePercent != null ? Number(report.rawHastePercent).toFixed(1) : '—';
       const eff = report.effectiveHastePercent != null ? Number(report.effectiveHastePercent).toFixed(1) : '—';
       lines.push(padLine('  Haste (raw / effective):', `${raw}% / ${eff}%`));
+    }
+    if (report.dualWieldPct != null && report.dualWieldEffective != null) {
+      const dwRate = Math.min(100, report.dualWieldPct).toFixed(1);
+      lines.push(padLine('  Dual wield rate:', `${dwRate}%  (effective ${report.dualWieldEffective} / 375)`));
     }
     lines.push('');
 
