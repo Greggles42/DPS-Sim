@@ -237,11 +237,14 @@
     .char-primary-grid--hasteatk {
       grid-template-columns: repeat(3, minmax(5.5rem, max-content));
     }
+    .char-primary-grid--hasteatk-ranged {
+      grid-template-columns: repeat(4, minmax(5.5rem, max-content));
+    }
     .char-primary-grid--atk {
       grid-template-columns: repeat(2, minmax(5rem, max-content));
     }
     .char-primary-grid--ranged {
-      grid-template-columns: max-content repeat(6, minmax(3.5rem, max-content));
+      grid-template-columns: max-content repeat(7, minmax(3.5rem, max-content));
     }
     .char-haste-section .char-primary-grid > label {
       margin: 0;
@@ -286,6 +289,10 @@
     .char-haste-section .char-primary-grid > input#ranged-spell-attack {
       width: 5.75rem;
       max-width: 5.75rem;
+    }
+    .char-haste-section .char-primary-grid > input#ranged-dex {
+      width: 5rem;
+      max-width: 5rem;
     }
     .char-primary-row, .char-secondary-row {
       display: flex;
@@ -1278,12 +1285,37 @@
       gap: var(--section-gap);
       align-items: flex-start;
     }
-    .char-buff-pair > section { flex: 1 1 0; min-width: 0; }
+    .char-buff-pair > section, .char-buff-pair > div { flex: 1 1 0; min-width: 0; }
 
     /* ── Buff Panel ───────────────────────────────────────────────── */
-    .buff-panel { margin-top: 0.5rem; }
-    .buff-panel summary { cursor: pointer; font-size: 0.85rem; color: var(--accent); user-select: none; }
-    .buff-panel summary:hover { color: var(--gold, #d4af37); }
+    #buff-section { padding: 0; }
+    .buff-panel { margin-top: 0; }
+    .buff-panel summary {
+      list-style: none;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.5rem 0.75rem;
+      cursor: pointer;
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: var(--color-gold);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      user-select: none;
+    }
+    .buff-panel summary::-webkit-details-marker { display: none; }
+    .buff-panel summary::before {
+      content: '▶';
+      font-size: 0.6rem;
+      color: var(--muted);
+      transition: transform 0.15s;
+    }
+    #buff-details[open] summary::before { transform: rotate(90deg); }
+    #buff-details .buff-columns,
+    #buff-details .buff-totals {
+      padding: 0 1.25rem 1rem;
+    }
     .buff-columns {
       display: grid;
       grid-template-columns: repeat(2, 1fr);
@@ -1886,12 +1918,14 @@
       </details>
       <button type="button" id="btn-run" class="magic-btn">Run simulation</button>
       <hr class="sim-rank-divider" aria-hidden="true">
-      <span class="rank-weapons-row" id="rank-weapons-wrap">
-        <button type="button" id="btn-rank-weapons" class="magic-btn btn-rank-inline" title="Rank weapons by DPS (Shift+Click Run to show)">Rank weapons</button>
-        <label class="checkbox-label"><input type="checkbox" id="rank-weapons-ignore-nodrop" title="When checked, excludes items with nodrop = 0 from rank results"> Ignore No Drop items</label>
+      <div class="rank-weapons-row" id="rank-weapons-wrap" style="flex-direction:column;align-items:flex-start;gap:0.35rem;">
+        <div style="display:inline-flex;align-items:center;gap:0.5rem;flex-wrap:wrap;">
+          <button type="button" id="btn-rank-weapons" class="magic-btn btn-rank-inline" title="Rank weapons by DPS (Shift+Click Run to show)">Rank weapons</button>
+          <label class="checkbox-label"><input type="checkbox" id="rank-weapons-ignore-nodrop" title="When checked, excludes items with nodrop = 0 from rank results"> Ignore No Drop items</label>
+          <label class="checkbox-label"><input type="checkbox" id="rank-weapons-by-tps" title="When checked, rank and sort by threat per second instead of DPS"> Rank by threat per second (TPS)</label>
+        </div>
         <label class="checkbox-label"><input type="checkbox" id="rank-weapons-include-pop" title="When checked, include PoP-era items from weapons.json (except weapon_exclusions)"> Enable PoP items in rank</label>
-        <label class="checkbox-label"><input type="checkbox" id="rank-weapons-by-tps" title="When checked, rank and sort by threat per second instead of DPS"> Rank by threat per second (TPS)</label>
-      </span>
+      </div>
       <div id="rank-weapons-progress" class="hint" aria-live="polite" style="margin-top:0.5rem; min-height:1.25rem;"></div>
     </section>
   </div>
@@ -1899,29 +1933,53 @@
 
   <div id="ranged-tab" class="tab-panel hidden">
   <div class="grid">
-    <section class="section--core grid-full-width char-haste-section" id="ranged-character-haste-section">
+    <div class="grid-full-width char-buff-pair">
+    <section class="section--core char-haste-section" id="ranged-character-haste-section">
       <div class="char-haste-inner">
         <div class="char-haste-left">
       <h2>Character & Haste</h2>
-      <div class="char-primary-row char-primary-grid char-primary-grid--ranged">
+      <!-- Class / Level -->
+      <div class="char-primary-row char-primary-grid char-primary-grid--classlevel">
         <label for="ranged-class">Class</label>
         <label for="ranged-level">Level</label>
-        <label for="ranged-worn-haste">Worn haste % <span class="info-icon" title="Item haste; capped to 10% at level 1-25, uncapped at level 26+">&#8505;</span></label>
-        <label for="ranged-spell-haste">V1 Haste % <span class="info-icon" title="V1 spell haste. Worn + V1 combined cannot exceed 100%. V3 bard haste (capped 25%) adds on top.">&#8505;</span></label>
-        <label for="ranged-quiver-weight-reduction">Quiver WR% <span class="info-icon" title="Quiver haste = (BagWR ÷ 4) ÷ 100 (EQ GetQuiverHaste). Applied after standard haste; separate from 125% cap. bow_delay_reduction = quiver_haste × speed + 1; applied only if speed − reduction > 1000 (min delay ~1s). Example: 40% WR → 10% quiver haste.">&#8505;</span></label>
-        <label for="ranged-worn-attack">Worn ATK <span class="info-icon" title="don't include atk from weapon, it will automatically be included">&#8505;</span></label>
-        <label for="ranged-spell-attack">Spell ATK</label>
         <select id="ranged-class" disabled title="Ranged sim uses Ranger only.">
           <option value="ranger" selected>Ranger</option>
         </select>
         <input type="number" id="ranged-level" min="1" max="65" value="60" placeholder="60" size="3" inputmode="numeric" autocomplete="off">
-        <input type="number" id="ranged-worn-haste" min="0" max="999" value="41" placeholder="41" size="3" inputmode="numeric" autocomplete="off">
-        <input type="number" id="ranged-spell-haste" min="0" max="999" value="60" placeholder="60" size="3" inputmode="numeric" autocomplete="off">
-        <input type="number" id="ranged-quiver-weight-reduction" min="0" max="100" value="0" placeholder="e.g. 40" size="3" inputmode="numeric" autocomplete="off">
-        <input type="number" id="ranged-worn-attack" min="0" max="999" value="0" placeholder="0" size="5" inputmode="numeric" autocomplete="off">
-        <input type="number" id="ranged-spell-attack" min="0" max="999" value="0" placeholder="0" size="5" inputmode="numeric" autocomplete="off">
       </div>
       <p class="hint char-hint char-hint-below-primary">Ranged sim uses Ranger only. Level and haste affect offense and delay.</p>
+      <!-- Haste row -->
+      <div class="char-primary-row char-primary-grid char-primary-grid--hasteatk-ranged">
+        <label for="ranged-worn-haste">Worn haste % <span class="info-icon" title="Item haste; capped to 10% at level 1-25, uncapped at level 26+">&#8505;</span></label>
+        <label for="ranged-spell-haste">V1 Haste % <span class="info-icon" title="V1 spell haste. Worn + V1 combined cannot exceed 100%. V3 bard haste (capped 25%) adds on top.">&#8505;</span></label>
+        <label for="ranged-v3-haste">V3 Haste % <span class="info-icon" title="Bard V3 haste (SPA 119, e.g. Warsong of the Vah Shir). Hard cap: 25%. Auto-filled by bard song buffs; can be overridden manually.">&#8505;</span></label>
+        <label for="ranged-quiver-weight-reduction">Quiver WR% <span class="info-icon" title="Quiver haste = (BagWR ÷ 4) ÷ 100 (EQ GetQuiverHaste). Applied after standard haste; separate from 125% cap. bow_delay_reduction = quiver_haste × speed + 1; applied only if speed − reduction > 1000 (min delay ~1s). Example: 40% WR → 10% quiver haste.">&#8505;</span></label>
+        <input type="number" id="ranged-worn-haste" min="0" max="999" value="41" placeholder="41" size="3" inputmode="numeric" autocomplete="off">
+        <input type="number" id="ranged-spell-haste" min="0" max="999" value="60" placeholder="60" size="3" inputmode="numeric" autocomplete="off">
+        <input type="number" id="ranged-v3-haste" min="0" max="25" value="0" placeholder="0" size="3" inputmode="numeric" autocomplete="off">
+        <input type="number" id="ranged-quiver-weight-reduction" min="0" max="100" value="0" placeholder="e.g. 40" size="3" inputmode="numeric" autocomplete="off">
+      </div>
+      <!-- ATK / DEX row -->
+      <div class="char-primary-row char-primary-grid char-primary-grid--hasteatk">
+        <label for="ranged-worn-attack">Worn ATK <span class="info-icon" title="don't include atk from weapon, it will automatically be included">&#8505;</span></label>
+        <label for="ranged-spell-attack">Spell ATK</label>
+        <label for="ranged-dex">DEX <span class="info-icon" title="Dexterity — affects proc chance per swing">&#8505;</span></label>
+        <input type="number" id="ranged-worn-attack" min="0" max="999" value="0" placeholder="0" size="5" inputmode="numeric" autocomplete="off">
+        <input type="number" id="ranged-spell-attack" min="0" max="999" value="0" placeholder="0" size="5" inputmode="numeric" autocomplete="off">
+        <input type="number" id="ranged-dex" min="1" max="400" value="255" placeholder="255" size="3" inputmode="numeric" autocomplete="off">
+      </div>
+      <!-- Effective stats bar -->
+      <div class="buff-totals char-effective-stats" id="ranged-char-effective-stats">
+        <span class="bt-label">Net haste:</span>
+        <span title="Worn haste from items"><span class="bt-label">Worn </span><span class="bt-val" id="ranged-eff-worn-haste">0%</span></span>
+        <span title="V1 spell haste from buffs"><span class="bt-label">+ V1 </span><span class="bt-val" id="ranged-eff-v1-haste">0%</span></span>
+        <span title="Worn + V1 combined, capped at 100%"><span class="bt-label">= </span><span class="bt-val" id="ranged-eff-combined-haste">0%</span></span>
+        <span id="ranged-eff-v3-wrap" style="display:none" title="Bard V3 haste, capped at 25%"><span class="bt-label">+ V3 </span><span class="bt-val" id="ranged-eff-v3-haste">0%</span></span>
+        <span title="Total effective haste used in simulation"><span class="bt-label">→ </span><span class="bt-val" id="ranged-eff-haste">0%</span></span>
+        <span class="bt-separator"></span>
+        <span id="ranged-eff-quiver-wrap" style="display:none" title="Quiver haste = WR% ÷ 4"><span class="bt-label">Quiver </span><span class="bt-val" id="ranged-eff-quiver-haste">0%</span></span>
+        <span><span class="bt-label">Spell ATK </span><span class="bt-val" id="ranged-eff-spell-atk">+0</span></span>
+      </div>
       <details class="collapse-secondary">
         <summary class="collapse-summary">Archery options</summary>
         <!-- Archery Mastery moved to AA Configurator panel -->
@@ -1945,6 +2003,9 @@
       </div>
     </section>
 
+    <div id="ranged-buff-placeholder" class="section--core advanced-only" style="flex:1 1 0;min-width:0;"></div>
+    </div><!-- /.char-buff-pair -->
+
     <section class="section--core weapon-section">
       <div class="weapon-icon-wrap" id="ranged-weapon-weapon-icon-wrap" style="display:none"><img id="ranged-weapon-weapon-icon" class="weapon-icon" alt=""></div>
       <div class="weapon-section-header"><h2>Ranged weapon</h2></div>
@@ -1967,8 +2028,20 @@
         <label for="ranged-proc-damage">Proc spell damage (on proc)</label>
         <input type="number" id="ranged-proc-damage" min="0" value="0" placeholder="0">
         <input type="hidden" id="ranged-proc-level" value="">
+        <input type="hidden" id="ranged-proc-rate" value="0">
         <input type="hidden" id="ranged-proc-spell-id" value="">
         <input type="hidden" id="ranged-archery-mod" value="0">
+        <div class="row">
+          <div><label for="ranged-proc-spell-resist-type" class="small-label">Proc resist type</label><select id="ranged-proc-spell-resist-type" title="Resist type used for proc spell">
+            <option value="0">None</option>
+            <option value="1">Magic</option>
+            <option value="2">Fire</option>
+            <option value="3">Cold</option>
+            <option value="4">Disease</option>
+            <option value="5">Poison</option>
+          </select></div>
+          <div><label for="ranged-proc-spell-resist-modifier" class="small-label">Proc resist mod</label><input type="number" id="ranged-proc-spell-resist-modifier" placeholder="0 or -" title="Spell ResistDiff, negative = easier to land"></div>
+        </div>
         <div class="row">
           <div><label for="ranged-elem-type" class="small-label">Elemental type</label><select id="ranged-elem-type">
             <option value="">None</option>
@@ -2049,15 +2122,14 @@
         <p class="hint">When checked, ranged weapon bane damage is added to base damage.</p>
       </details>
       <button type="button" id="btn-run-ranged" class="magic-btn">Run simulation</button>
-      <span class="rank-weapons-row" id="rank-ranged-weapons-wrap" style="margin-left: 0.5rem;">
-        <button type="button" id="btn-rank-ranged-weapons" class="magic-btn btn-rank-inline" title="Rank bow + arrow combinations by DPS (ranger, bows and arrows only)">Rank weapons</button>
+      <hr class="sim-rank-divider" aria-hidden="true">
+      <div class="rank-weapons-row" id="rank-ranged-weapons-wrap" style="flex-direction:column;align-items:flex-start;gap:0.35rem;">
+        <div style="display:inline-flex;align-items:center;gap:0.5rem;flex-wrap:wrap;">
+          <button type="button" id="btn-rank-ranged-weapons" class="magic-btn btn-rank-inline" title="Rank bow + arrow combinations by DPS (ranger, bows and arrows only)">Rank weapons</button>
+          <label class="checkbox-label"><input type="checkbox" id="rank-ranged-by-tps" title="When checked, rank and sort by threat per second instead of DPS"> Rank by threat per second (TPS)</label>
+        </div>
         <label class="checkbox-label"><input type="checkbox" id="rank-ranged-include-pop" title="When checked, include PoP-era items from weapons.json (except weapon_exclusions)"> Enable PoP items in rank</label>
-        <label class="checkbox-label"><input type="checkbox" id="rank-ranged-by-tps" title="When checked, rank and sort by threat per second instead of DPS"> Rank by threat per second (TPS)</label>
-      </span>
-      <details id="item-search-debug-ranged" class="item-search-debug" style="margin-top: 0.75rem; padding: 0.5rem; background: var(--panel); border: 1px solid var(--border); border-radius: 4px;">
-        <summary style="cursor: pointer; font-size: 0.85rem; color: var(--muted);">Item search debug</summary>
-        <pre id="item-search-debug-ranged-content" style="margin: 0.5rem 0 0; font-size: 0.8rem; color: var(--muted); white-space: pre-wrap; word-break: break-word;">Select a ranged weapon or arrow from search above to see API itemType and mapped type.</pre>
-      </details>
+      </div>
     </section>
   </div>
   </div>
@@ -2831,6 +2903,51 @@
         if (el) el.addEventListener('input', updateEffectiveHasteDisplay);
       });
 
+      /** Always-visible net haste breakdown for the ranged tab. */
+      function updateRangedEffectiveHasteDisplay() {
+        var effEl = $('ranged-char-effective-stats');
+        if (!effEl) return;
+        var lvl     = parseInt(($('ranged-level') && $('ranged-level').value) || '60', 10) || 60;
+        var wornRaw = parsePercentInput('ranged-worn-haste');
+        var wornPct = getCappedWornHastePercent(lvl, wornRaw);
+        var v1Pct   = parsePercentInput('ranged-spell-haste');
+        var v3Raw   = parsePercentInput('ranged-v3-haste');
+        var v3Pct   = Math.min(25, v3Raw);
+        var combined = Math.min(wornPct + v1Pct, 100);
+        var quiverWr = parsePercentInput('ranged-quiver-weight-reduction');
+        var quiverPct = Math.round(Math.max(0, Math.min(100, quiverWr)) / 4);
+        var net = combined + v3Pct;
+
+        var wornEl = $('ranged-eff-worn-haste');
+        if (wornEl) wornEl.textContent = wornPct + '%' + (wornRaw > wornPct ? ' (cap ' + wornPct + '%)' : '');
+        var v1El = $('ranged-eff-v1-haste');
+        if (v1El) v1El.textContent = v1Pct + '%';
+        var combEl = $('ranged-eff-combined-haste');
+        if (combEl) {
+          combEl.textContent = combined + '%';
+          combEl.title = (wornPct + v1Pct > 100)
+            ? 'Capped at 100% — worn ' + wornPct + '% + V1 ' + v1Pct + '% = ' + (wornPct + v1Pct) + '%, capped to 100%'
+            : '';
+        }
+        var v3Wrap = $('ranged-eff-v3-wrap');
+        if (v3Wrap) v3Wrap.style.display = v3Pct ? '' : 'none';
+        var v3El = $('ranged-eff-v3-haste');
+        if (v3El) v3El.textContent = v3Pct + '%';
+        var netEl = $('ranged-eff-haste');
+        if (netEl) netEl.textContent = net + '%';
+        var quiverWrap = $('ranged-eff-quiver-wrap');
+        if (quiverWrap) quiverWrap.style.display = quiverPct ? '' : 'none';
+        var quiverEl = $('ranged-eff-quiver-haste');
+        if (quiverEl) quiverEl.textContent = quiverPct + '%';
+        var spellAtkInput = parseInt(($('ranged-spell-attack') && $('ranged-spell-attack').value) || '0', 10) || 0;
+        var effSpellAtkEl = $('ranged-eff-spell-atk');
+        if (effSpellAtkEl) effSpellAtkEl.textContent = (spellAtkInput >= 0 ? '+' : '') + spellAtkInput;
+      }
+      ['ranged-worn-haste', 'ranged-spell-haste', 'ranged-v3-haste', 'ranged-level', 'ranged-worn-attack', 'ranged-spell-attack', 'ranged-quiver-weight-reduction'].forEach(function (id) {
+        var el = document.getElementById(id);
+        if (el) el.addEventListener('input', updateRangedEffectiveHasteDisplay);
+      });
+
       // ── Buff Panel ──────────────────────────────────────────────────────
       function getActiveBuffIds() {
         var ids = [];
@@ -2850,11 +2967,13 @@
       // Expose so tanking and other tabs can share the same buff resolution
       window.getBuffEffects = getBuffEffects;
 
-      var _baseSpellHaste = null;         // manual override offset while buffs are active (normally 0)
-      var _preBuffSpellHaste = null;      // value to restore when all buffs are cleared
-      var _preBuffRangedSpellHaste = null; // ranged counterpart
-      var _preBuffV3Haste = null;          // v3-haste value to restore when all buffs are cleared
-      var _preBuffSpellAtk = null;         // spell-attack value to restore when all buffs are cleared
+      var _baseSpellHaste = null;              // manual override offset while buffs are active (normally 0)
+      var _preBuffSpellHaste = null;           // value to restore when all buffs are cleared
+      var _preBuffRangedSpellHaste = null;     // ranged counterpart
+      var _preBuffV3Haste = null;              // v3-haste value to restore when all buffs are cleared
+      var _preBuffRangedV3Haste = null;        // ranged-v3-haste value to restore when all buffs are cleared
+      var _preBuffSpellAtk = null;             // spell-attack value to restore when all buffs are cleared
+      var _preBuffRangedSpellAtk = null;       // ranged-spell-attack value to restore when all buffs are cleared
 
       function updateBuffTotals() {
         if (!window.Buffs) return;
@@ -2868,6 +2987,7 @@
         var spellHasteEl = $('spell-haste');
         var rangedSpellHasteEl = $('ranged-spell-haste');
         var v3HasteEl = $('v3-haste');
+        var rangedV3HasteEl = $('ranged-v3-haste');
 
         if (!ids.length) {
           totalsEl.style.display = 'none';
@@ -2895,6 +3015,12 @@
             v3HasteEl._buffUpdate = false;
             _preBuffV3Haste = null;
           }
+          if (_preBuffRangedV3Haste !== null && rangedV3HasteEl) {
+            rangedV3HasteEl._buffUpdate = true;
+            rangedV3HasteEl.value = String(_preBuffRangedV3Haste);
+            rangedV3HasteEl._buffUpdate = false;
+            _preBuffRangedV3Haste = null;
+          }
           var spellAtkEl = $('spell-attack');
           if (_preBuffSpellAtk !== null && spellAtkEl) {
             spellAtkEl._buffUpdate = true;
@@ -2902,7 +3028,15 @@
             spellAtkEl._buffUpdate = false;
             _preBuffSpellAtk = null;
           }
+          var rangedSpellAtkElC = $('ranged-spell-attack');
+          if (_preBuffRangedSpellAtk !== null && rangedSpellAtkElC) {
+            rangedSpellAtkElC._buffUpdate = true;
+            rangedSpellAtkElC.value = String(_preBuffRangedSpellAtk);
+            rangedSpellAtkElC._buffUpdate = false;
+            _preBuffRangedSpellAtk = null;
+          }
           _baseSpellHaste = null;
+          if (typeof updateRangedEffectiveHasteDisplay === 'function') updateRangedEffectiveHasteDisplay();
           return;
         }
 
@@ -2940,6 +3074,14 @@
           v3HasteEl.value = String(Math.min(25, buffV3));
           v3HasteEl._buffUpdate = false;
         }
+        if (rangedV3HasteEl) {
+          if (_preBuffRangedV3Haste === null) {
+            _preBuffRangedV3Haste = parseInt(rangedV3HasteEl.value, 10) || 0;
+          }
+          rangedV3HasteEl._buffUpdate = true;
+          rangedV3HasteEl.value = String(Math.min(25, buffV3));
+          rangedV3HasteEl._buffUpdate = false;
+        }
 
         // Zero out spell-attack when buffs first become active; user can add bonus ATK on top
         var spellAtkEl = $('spell-attack');
@@ -2950,6 +3092,15 @@
           spellAtkEl._buffUpdate = true;
           spellAtkEl.value = '0';
           spellAtkEl._buffUpdate = false;
+        }
+        var rangedSpellAtkEl = $('ranged-spell-attack');
+        if (rangedSpellAtkEl) {
+          if (_preBuffRangedSpellAtk === null) {
+            _preBuffRangedSpellAtk = parseInt(rangedSpellAtkEl.value, 10) || 0;
+          }
+          rangedSpellAtkEl._buffUpdate = true;
+          rangedSpellAtkEl.value = '0';
+          rangedSpellAtkEl._buffUpdate = false;
         }
 
         function setVal(id, v, isPercent) {
@@ -2994,6 +3145,7 @@
 
         // Effective stats readout — always updated via updateEffectiveHasteDisplay()
         updateEffectiveHasteDisplay();
+        if (typeof updateRangedEffectiveHasteDisplay === 'function') updateRangedEffectiveHasteDisplay();
 
         // Mark dominated buffs
         document.querySelectorAll('.buff-item[data-buff-id]').forEach(function (el) {
@@ -3049,7 +3201,7 @@
         var level = parseInt($('ranged-level').value, 10) || 60;
         var worn  = parsePercentInput('ranged-worn-haste');
         var v1    = parsePercentInput('ranged-spell-haste');
-        var v3    = Math.min(25, parsePercentInput('v3-haste'));  // v3 is shared (same buffs)
+        var v3    = Math.min(25, parsePercentInput('ranged-v3-haste'));
         return getTotalHastePercent(level, worn, v1, v3);
       }
       function getRangedQuiverHasteDecimal() {
@@ -3748,7 +3900,9 @@
       function buildAAConfiguratorUI() {
         var body = $('aa-config-body');
         if (!body || !window.AbilityRegistry) return;
-        var classId = ($('class') && $('class').value || '').toLowerCase();
+        var classId = (typeof _activeTab !== 'undefined' && _activeTab === 'ranged')
+          ? 'ranger'
+          : ($('class') && $('class').value || '').toLowerCase();
         var eraId = (function () {
           var el = $('era-select'); return el ? el.value : 'classic';
         })();
@@ -6331,7 +6485,8 @@
               || bowName === 'featherwood compound bow'
               || bowName === 'obsidianwood compound bow'
               || bowName === 'stonewood compound bow'
-              || bowName === 'nightmarewood compound bow') {
+              || bowName === 'nightmarewood compound bow'
+              || bowName === 'oakwynd') {
               return;
             }
             var baseDmg = norm.damage + (norm.baneDamage || 0);
@@ -6375,6 +6530,7 @@
         var level = parseInt($('ranged-level').value, 10) || 60;
         var durationSec = parseInt($('ranged-duration').value, 10) || 6000;
         var applyBane = $('ranged-apply-bane').checked;
+        var rangedRankBuffFx = (typeof getBuffEffects === 'function') ? getBuffEffects() : null;
         var baseOptions = {
           hastePercent: getRangedTotalHastePercent(),
           quiverHaste: getRangedQuiverHasteDecimal(),
@@ -6397,16 +6553,18 @@
           fightDurationSec: durationSec,
           offenseSkill: 252,
           archerySkill: Math.min(252, Math.max(0, parseInt($('ranged-archery-skill').value, 10) || 252)),
-          wornAttack: parseInt($('ranged-worn-attack').value, 10) || 0,
-          spellAttack: parseInt($('ranged-spell-attack').value, 10) || 0,
+          archerySkillFixed: _rangedArcherySkillUserSet,
+          wornAttack: (parseInt($('ranged-worn-attack').value, 10) || 0) + (rangedRankBuffFx ? rangedRankBuffFx.wornAtk || 0 : 0),
+          spellAttack: (parseInt($('ranged-spell-attack').value, 10) || 0) + (rangedRankBuffFx ? rangedRankBuffFx.atk || 0 : 0),
           str: 255,
-          dex: 255,
-          archeryMastery: parseInt(document.querySelector('input[name="archery-mastery"]:checked').value, 10) || 3,
+          dex: Math.min(255, (parseInt(($('ranged-dex') && $('ranged-dex').value) || '255', 10) || 255) + (rangedRankBuffFx ? rangedRankBuffFx.dex || 0 : 0)),
+          critChanceMult: (aaConfig.combatFury || 0) * 2,
+          archeryMastery: aaConfig.archeryMastery || 1,
           archeryAccuracy: (document.querySelector('input[name="archery-accuracy"]:checked') || {}).value || 'none',
           mobStationary: $('mob-stationary').checked,
           trueshot: $('trueshot').checked,
           classId: 'ranger',
-          spellCastingFury: (function () { var el = document.querySelector('input[name="spell-casting-fury"]:checked'); return el ? (parseInt(el.value, 10) || 0) : 0; })(),
+          spellCastingFury: aaConfig.spellCastingFury || 0,
         };
         var combinations = [];
         bows.forEach(function (bow) {
@@ -6543,7 +6701,7 @@
               viewToggleBtn.textContent = 'Combos/Slots';
               viewToggleBtn.title = 'Toggle rank view (current: ' + (currentMode === 'slot' ? 'Slot Ranking' : 'Combinations') + ')';
             }
-            var subText = topCombos.length > 0 ? ' Top 100 averaged over ' + runsCount + ' runs (display shows top 40).' : '';
+            var subText = topCombos.length > 0 ? 'Top 100 averaged over ' + runsCount + ' runs (display shows top 40).' : '';
             var sourceLabel = 'Bows/arrows from resources/weapons.json (era: ' + (includePop ? 'include PoP' : 'Luclin and earlier') + ').';
             if (currentMode === 'slot') {
               // Slot mode: separate bow and ammo slot rankings, using component-only DPS or TPS.
@@ -6611,7 +6769,8 @@
               var linesSlot = [
                 '=== Ranged slot rank (by ' + slotMetric + ') ===',
                 'Class: Ranger, Level: ' + level + ', Duration: ' + durationSec + 's',
-                sourceLabel + subText,
+                sourceLabel,
+                subText,
                 ''
               ];
               var bowTableRowsHtml = bowRows.map(function (row, i) {
@@ -6652,7 +6811,7 @@
                 ? (rowsForTable[0].totalTps > 0 ? rowsForTable[0].totalTps : 1)
                 : (rowsForTable[0].totalDps > 0 ? rowsForTable[0].totalDps : 1);
             }
-            var lines = [heading, 'Class: Ranger, Level: ' + level + ', Duration: ' + durationSec + 's', sourceLabel + subText, ''];
+            var lines = [heading, 'Class: Ranger, Level: ' + level + ', Duration: ' + durationSec + 's', sourceLabel, subText, ''];
             var tableRows = rowsForTable.slice(0, 400).map(function (row, i) {
               var rank = i + 1;
               var label = (row.label || '').replace(/</g, '&lt;').replace(/"/g, '&quot;');
@@ -7014,7 +7173,22 @@
         });
       }
 
+      var _activeTab = 'melee';
+      function moveBuff(tabId) {
+        var buffSection = $('buff-section');
+        if (!buffSection) return;
+        var dest = tabId === 'ranged' ? $('ranged-buff-placeholder') : $('buff-section').parentElement.id === 'ranged-buff-placeholder' ? null : null;
+        if (tabId === 'ranged') {
+          var placeholder = $('ranged-buff-placeholder');
+          if (placeholder && buffSection.parentElement !== placeholder) placeholder.appendChild(buffSection);
+        } else {
+          // Return buff section to its home inside the melee char-buff-pair
+          var meleePair = document.querySelector('#melee-tab .char-buff-pair');
+          if (meleePair && buffSection.parentElement !== meleePair) meleePair.appendChild(buffSection);
+        }
+      }
       function showTab(tabId) {
+        _activeTab = tabId;
         var tabs = ['melee', 'ranged', 'tanking'];
         tabs.forEach(function (t) {
           var panelEl = $(t + '-tab');
@@ -7025,6 +7199,8 @@
             btnEl.setAttribute('aria-selected', t === tabId ? 'true' : 'false');
           }
         });
+        moveBuff(tabId);
+        if (typeof buildAAConfiguratorUI === 'function') buildAAConfiguratorUI();
       }
       $('tab-melee').addEventListener('click', function () { showTab('melee'); });
       $('tab-ranged').addEventListener('click', function () { showTab('ranged'); });
@@ -7509,6 +7685,7 @@
           procSpell: ($('ranged-proc').value || '').trim() || undefined,
           procSpellDamage: parseInt($('ranged-proc-damage').value, 10) || 0,
           procLevel: parseInt($('ranged-proc-level').value, 10) || undefined,
+          procRate: parseInt(($('ranged-proc-rate') && $('ranged-proc-rate').value) || '0', 10) || 0,
           archeryModPercent: parseInt($('ranged-archery-mod').value, 10) || 0,
           noDamageVsTarget: rangedNoDamageVsTarget,
         };
@@ -7522,6 +7699,10 @@
             if (rSpellData && rSpellData.ccAddsMobHpThreat) rangedWeapon.procSpellCcAddsMobHpThreat = true;
           }
         }
+        const rProcResistTypeRaw = $('ranged-proc-spell-resist-type') ? parseInt($('ranged-proc-spell-resist-type').value, 10) : null;
+        const rProcResistModRaw = ($('ranged-proc-spell-resist-modifier') && $('ranged-proc-spell-resist-modifier').value !== '') ? parseInt($('ranged-proc-spell-resist-modifier').value, 10) : null;
+        if (rProcResistTypeRaw != null && !isNaN(rProcResistTypeRaw) && rProcResistTypeRaw > 0) rangedWeapon.procSpellResistType = rProcResistTypeRaw;
+        if (rProcResistModRaw != null && !isNaN(rProcResistModRaw)) rangedWeapon.procSpellResistModifier = rProcResistModRaw;
         const rangedElemType = ($('ranged-elem-type').value || '').trim();
         const rangedElemDamage = parseInt($('ranged-elem-damage').value, 10) || 0;
         if (rangedElemType && rangedElemDamage > 0) { rangedWeapon.elemType = rangedElemType; rangedWeapon.elemDamage = rangedElemDamage; }
@@ -7529,6 +7710,7 @@
         const arrowElemType = ($('arrow-elem-type').value || '').trim();
         const arrowElemDamage = parseInt($('arrow-elem-damage').value, 10) || 0;
         if (arrowElemType && arrowElemDamage > 0) { arrow.elemType = arrowElemType; arrow.elemDamage = arrowElemDamage; }
+        const rangedRunBuffFx = (typeof getBuffEffects === 'function') ? getBuffEffects() : null;
         const options = {
           rangedWeapon,
           arrow,
@@ -7554,16 +7736,17 @@
           fightDurationSec: parseInt($('ranged-duration').value, 10) || 6000,
           offenseSkill: 252,
           archerySkill: Math.min(252, Math.max(0, parseInt($('ranged-archery-skill').value, 10) || 252)),
-          wornAttack: parseInt($('ranged-worn-attack').value, 10) || 0,
-          spellAttack: parseInt($('ranged-spell-attack').value, 10) || 0,
-          dex: parseInt($('dex').value, 10) || 255,
+          archerySkillFixed: _rangedArcherySkillUserSet,
+          wornAttack: (parseInt($('ranged-worn-attack').value, 10) || 0) + (rangedRunBuffFx ? rangedRunBuffFx.wornAtk || 0 : 0),
+          spellAttack: (parseInt($('ranged-spell-attack').value, 10) || 0) + (rangedRunBuffFx ? rangedRunBuffFx.atk || 0 : 0),
+          dex: Math.min(255, (parseInt(($('ranged-dex') && $('ranged-dex').value) || '255', 10) || 255) + (rangedRunBuffFx ? rangedRunBuffFx.dex || 0 : 0)),
           classId: 'ranger',
-          critChanceMult: (function () { var rao = buildAASimOptions('ranger', ($('era-select') && $('era-select').value) || 'classic'); return rao.critChanceMult || 0; })(),
-          archeryMastery: (function () { var rao = buildAASimOptions('ranger', ($('era-select') && $('era-select').value) || 'classic'); return rao.archeryMastery || 1; })(),
+          critChanceMult: (aaConfig.combatFury || 0) * 2,
+          archeryMastery: aaConfig.archeryMastery || 1,
           archeryAccuracy: (document.querySelector('input[name="archery-accuracy"]:checked') || {}).value || 'none',
           mobStationary: $('mob-stationary').checked,
           trueshot: !!($('trueshot') && $('trueshot').checked),
-          spellCastingFury: (function () { var rao = buildAASimOptions('ranger', ($('era-select') && $('era-select').value) || 'classic'); return rao.spellCastingFury; })(),
+          spellCastingFury: aaConfig.spellCastingFury || 0,
         };
         const reports = [];
         try {
@@ -7895,6 +8078,7 @@
       wirePermanentDisciplineShiftClick('duelist', refreshDuelistDisciplineLabel);
       wirePermanentDisciplineShiftClick('innerflame', refreshInnerflameDisciplineLabel);
       function getRangerArcheryCap(lvl) { return Math.min(240, Math.floor((lvl || 60) * 4)); }
+      var _rangedArcherySkillUserSet = false;
       function syncRangedArcheryCap() {
         var levelEl = $('ranged-level');
         var archeryEl = $('ranged-archery-skill');
@@ -7904,6 +8088,7 @@
         archeryEl.max = cap;
         archeryEl.placeholder = String(cap);
         archeryEl.value = String(cap);
+        _rangedArcherySkillUserSet = false;
       }
       var rangedLevelEl = $('ranged-level');
       if (rangedLevelEl) {
@@ -7911,6 +8096,12 @@
         rangedLevelEl.addEventListener('input', function () { syncRangedArcheryCap(); applyGenericTargetIfNoneSelected(); updateItemSearchDebug(); });
         syncRangedArcheryCap();
       }
+      var rangedArcherySkillEl = $('ranged-archery-skill');
+      if (rangedArcherySkillEl) {
+        rangedArcherySkillEl.addEventListener('input', function () { _rangedArcherySkillUserSet = true; });
+        rangedArcherySkillEl.addEventListener('change', function () { _rangedArcherySkillUserSet = true; });
+      }
+      updateRangedEffectiveHasteDisplay();
       updateClassIcon();
       ['worn-haste', 'spell-haste', 'v3-haste'].forEach(function (id) {
         var el = $(id);
@@ -8231,10 +8422,7 @@
         const parts = [];
         const hasAny = !!(itemSearchDebugSlots.W1 || itemSearchDebugSlots.W2 || itemSearchDebugSlots['Ranged weapon'] || itemSearchDebugSlots.Arrow);
         if (!hasAny) {
-          const placeholder = 'Select an item from search to see API itemType and mapped type.';
-          el.textContent = placeholder;
-          var rangedDebugEl = $('item-search-debug-ranged-content');
-          if (rangedDebugEl) rangedDebugEl.textContent = 'Select a ranged weapon or arrow from search above to see API itemType and mapped type.';
+          el.textContent = 'Select an item from search to see API itemType and mapped type.';
           return;
         }
         parts.push(formatSlotDebug('W1', weaponWithFormBane('w1', itemSearchDebugSlots.W1)));
@@ -8263,10 +8451,7 @@
           parts.push('');
           parts.push(formatSlotDebug('Arrow', itemSearchDebugSlots.Arrow));
         }
-        const text = parts.join('\n');
-        el.textContent = text;
-        var rangedDebugEl = $('item-search-debug-ranged-content');
-        if (rangedDebugEl) rangedDebugEl.textContent = text;
+        el.textContent = parts.join('\n');
       }
 
       /** Populate weapon form fields from selected item (JSON/normalized weapon: damage, delay, proc, procDamage, elemType, elemDamage, baneDamage). */

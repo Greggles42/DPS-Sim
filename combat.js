@@ -693,13 +693,13 @@
     }
     const rangerArcheryCap = Math.min(240, Math.floor(level * 4));
     const rawArchery = options.archerySkill != null ? Math.max(0, Math.floor(options.archerySkill)) : rangerArcheryCap;
-    const ARCHERY_SKILL_BASE = Math.min(rangerArcheryCap, Math.min(252, rawArchery));
+    const ARCHERY_SKILL_BASE = options.archerySkillFixed ? Math.min(252, rawArchery) : Math.min(rangerArcheryCap, Math.min(252, rawArchery));
     const archeryAccuracy = options.archeryAccuracy || 'none';
     // Hawk/Falcon/Eagle Eye: server HitChanceEffect-style toHit percent (+10% / +20% / +40%), single roll (default behavior).
     const ARCHERY_ABSOLUTE_CAP = 252;
     const accuracySkillBonus = 0;
     const archeryBaseWithAccuracy = Math.min(ARCHERY_ABSOLUTE_CAP, ARCHERY_SKILL_BASE + accuracySkillBonus);
-    const archeryModPercent = (bow.archeryModPercent != null && !Number.isNaN(Number(bow.archeryModPercent))) ? Number(bow.archeryModPercent) : 0;
+    const archeryModPercent = (!options.archerySkillFixed && bow.archeryModPercent != null && !Number.isNaN(Number(bow.archeryModPercent))) ? Number(bow.archeryModPercent) : 0;
     const ARCHERY_SKILL_MODIFIED = Math.floor(archeryBaseWithAccuracy * (100 + archeryModPercent) / 100);
     const ARCHERY_SKILL_EFFECTIVE = Math.min(252, ARCHERY_SKILL_MODIFIED);
     const baseToHit = 7 + OFFENSE_SKILL + ARCHERY_SKILL_EFFECTIVE;

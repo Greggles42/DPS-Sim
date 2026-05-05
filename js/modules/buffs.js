@@ -313,6 +313,53 @@
       ],
     },
     {
+      id: 'warders_protection',
+      name: "Warder's Protection",
+      category: 'offensive',
+      source: 'RNG',
+      spellId: 2600,
+      sai: 16,
+      effects: [
+        { spa: SPA.ATK,      value: 70 },
+        { spa: SPA.AC,       value: 45 },   // base 35 + level(60) = 95, capped at limit 45
+        { spa: SPA.TOTAL_HP, value: 75 },
+      ],
+    },
+    {
+      id: 'strength_of_nature',
+      name: 'Strength of Nature',
+      category: 'offensive',
+      source: 'RNG',
+      spellId: 1397,
+      sai: 2,
+      effects: [
+        { spa: SPA.ATK,      value: 25 },
+        { spa: SPA.TOTAL_HP, value: 75 },
+      ],
+    },
+    {
+      id: 'natures_precision',
+      name: "Nature's Precision",
+      category: 'offensive',
+      source: 'RNG',
+      spellId: 2594,
+      sai: 16,
+      effects: [
+        { spa: SPA.ATK, value: 15 },
+      ],
+    },
+    {
+      id: 'force_of_nature',
+      name: 'Force of Nature',
+      category: 'offensive',
+      source: 'RNG',
+      spellId: 2595,
+      sai: 1,
+      effects: [
+        { spa: SPA.ATK, value: 15 },
+      ],
+    },
+    {
       id: 'warsong_vah_shir',
       name: 'Warsong of the Vah Shir',
       category: 'haste',
