@@ -39,6 +39,7 @@
 <div id="root"></div>
 <script src="js/modules/buffs.js"></script>
 <script src="resources/weapons-data.js"></script>
+<script src="resources/npc_types-data.js"></script>
 <script src="itemSearch.js"></script>
 <script src="weaponSkillCaps.js"></script>
 <script src="combat.js"></script>
@@ -574,26 +575,68 @@ function ClassPicker({ current, onPick, onBack }) {
 // ─── NPC / Target Search ───
 function TargetPicker({ current, onPick, onBack }) {
   const [q, setQ] = React.useState('');
-  const filtered = GD.npcs.filter(n => n.name.toLowerCase().includes(q.toLowerCase()) || n.zone.toLowerCase().includes(q.toLowerCase()));
+  const useFullDb = Array.isArray(window.__DPS_NPC_TYPES__) && window.__DPS_NPC_TYPES__.length > 0;
+  const minChars = useFullDb ? 2 : 0;
+
+  function normName(name) { return (name || '').replace(/_/g, ' '); }
+
+  const filtered = React.useMemo(() => {
+    if (useFullDb) {
+      if (q.trim().length < minChars) return [];
+      const qLow = q.trim().replace(/_/g, ' ').toLowerCase();
+      // Deduplicate by normalized name, keeping highest-level entry per name.
+      const best = {};
+      for (const n of window.__DPS_NPC_TYPES__) {
+        if (normName(n.name).toLowerCase().indexOf(qLow) < 0) continue;
+        const key = normName(n.name).toLowerCase();
+        if (!best[key] || (n.level != null && (best[key].level == null || n.level > best[key].level))) {
+          best[key] = n;
+        }
+      }
+      return Object.values(best).sort((a, b) => (b.level || 0) - (a.level || 0)).slice(0, 80);
+    }
+    return GD.npcs.filter(n => n.name.toLowerCase().includes(q.toLowerCase()) || (n.zone || '').toLowerCase().includes(q.toLowerCase()));
+  }, [q]);
+
+  function handlePick(n) {
+    if (useFullDb) {
+      onPick({ name: normName(n.name), lvl: n.level, ac: n.AC, hp: n.hp, zone: '' });
+    } else {
+      onPick(n);
+    }
+  }
+
+  const currentName = current && current.name;
   return (
     <DrillSheet title="Target NPC" onBack={onBack}>
-      <SearchInput value={q} onChange={setQ} placeholder="Search NPCs by name or zone…" />
+      <SearchInput value={q} onChange={setQ} placeholder={useFullDb ? 'Type 2+ chars to search NPCs…' : 'Search NPCs by name or zone…'} />
+      {useFullDb && q.trim().length > 0 && q.trim().length < minChars && (
+        <div style={{ fontSize: 10, color: DT.MUTED, textAlign: 'center', padding: '12px 0' }}>Type at least {minChars} characters</div>
+      )}
+      {useFullDb && q.trim().length >= minChars && filtered.length === 0 && (
+        <div style={{ fontSize: 10, color: DT.MUTED, textAlign: 'center', padding: '12px 0' }}>No matching NPCs</div>
+      )}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
         {filtered.map(n => {
-          const active = n.name === current.name;
+          const displayName = useFullDb ? normName(n.name) : n.name;
+          const lvl  = useFullDb ? n.level : n.lvl;
+          const ac   = useFullDb ? n.AC    : n.ac;
+          const hp   = n.hp;
+          const zone = useFullDb ? null    : n.zone;
+          const active = displayName === currentName;
           return (
-            <div key={n.name} onClick={() => onPick(n)} style={{
+            <div key={n.id != null ? n.id : n.name} onClick={() => handlePick(n)} style={{
               padding: '10px 12px', borderRadius: 4,
               background: active ? DT.GOLD_FAINT : DT.PANEL,
               border: `1px solid ${active ? DT.GOLD_BORDER : DT.BORDER}`,
               cursor: 'pointer',
             }}>
-              <div style={{ ...window.tZodiak(), fontSize: 14, color: active ? DT.GOLD : DT.TEXT, marginBottom: 3 }}>{n.name}</div>
+              <div style={{ ...window.tZodiak(), fontSize: 14, color: active ? DT.GOLD : DT.TEXT, marginBottom: 3 }}>{displayName}</div>
               <div style={{ display: 'flex', gap: 10, fontSize: 10, color: DT.MUTED, ...window.tMono(), letterSpacing: '0.04em' }}>
-                <span>Lvl {n.lvl}</span>
-                <span>AC {n.ac}</span>
-                <span>HP {(n.hp/1000).toFixed(0)}k</span>
-                <span style={{ marginLeft: 'auto', color: DT.TEXT_DIM }}>{n.zone}</span>
+                <span>Lvl {lvl}</span>
+                <span>AC {ac}</span>
+                {hp ? <span>HP {(hp / 1000).toFixed(0)}k</span> : null}
+                {zone && <span style={{ marginLeft: 'auto', color: DT.TEXT_DIM }}>{zone}</span>}
               </div>
             </div>
           );
@@ -778,8 +821,24 @@ function RankAll({ appState, onBack, onPickWeapon }) {
     const mask = RANK_CLASS_BITMASK[classId];
     if (!mask) { setStatus('error'); setProgress('Unknown class.'); return; }
 
+    // Resolve buffs the same way the Sim tab does
+    let buffSpellAtk = 0, buffWornAtk = 0, buffStr = 0, buffDex = 0;
+    let buffHasteV1 = 0, buffHasteBard = 0;
+    if (window.Buffs && window.Buffs.resolveBuffEffects) {
+      const activeIds = Object.keys(appState.buffs || {}).filter(id => appState.buffs[id]);
+      const resolved = window.Buffs.resolveBuffEffects(activeIds, lv);
+      buffSpellAtk  = resolved.atk || 0;
+      buffWornAtk   = resolved.wornAtk || 0;
+      buffStr       = resolved.str || 0;
+      buffDex       = resolved.dex || 0;
+      buffHasteV1   = resolved.hasteV1 || 0;
+      buffHasteBard = resolved.hasteBard || 0;
+    }
+
     const wornCapped = lv > 25 ? (appState.hasteVal||0) : Math.min(10, appState.hasteVal||0);
-    const hastePercent = Math.min(wornCapped + (appState.spellHaste||0), 100) + Math.min(25, appState.bardHaste||0);
+    const spellHasteEff = Math.max(appState.spellHaste || 0, buffHasteV1);
+    const bardHasteEff  = Math.max(appState.bardHaste  || 0, buffHasteBard);
+    const hastePercent  = Math.min(wornCapped + spellHasteEff, 100) + Math.min(25, bardHasteEff);
     const targetAC = appState.target ? (appState.target.ac||550) : 550;
     const mobLevel = appState.target ? (appState.target.lvl||60) : 60;
     const DURATION = 360;
@@ -787,16 +846,20 @@ function RankAll({ appState, onBack, onPickWeapon }) {
 
     const baseOptions = {
       hastePercent, offenseSkill:252,
-      wornAttack:0, spellAttack:0,
+      wornAttack: buffWornAtk,
+      spellAttack: buffSpellAtk,
       toHitBonus:cc.toHitBonus,
       doubleAttackSkill:cc.doubleAttack,
       level:lv, targetAC, mobLevel,
       fightDurationSec:DURATION,
-      dex:appState.dex||255, str:appState.str||255,
+      dex: Math.min(255, (appState.dex || 255) + buffDex),
+      str: Math.min(255, (appState.str || 255) + buffStr),
       fromBehind:false,
       specialAttacks: !!(EC.getDefaultSpecialTypeForClass && EC.getDefaultSpecialTypeForClass(classId) !== 'none'),
       specialAttackType: (EC.getDefaultSpecialTypeForClass && EC.getDefaultSpecialTypeForClass(classId)) || undefined,
       classId,
+      duelist: classId === 'rogue' && !!appState.duelist,
+      innerFlame: classId === 'monk' && !!appState.innerFlame,
       spellCastingFury: appState.spellCastingFury||0,
       slayUndead: appState.slayUndead||0,
       fistweaving: false,
@@ -919,6 +982,7 @@ function RankAll({ appState, onBack, onPickWeapon }) {
           weapon1Type: norm.type||undefined,
           dualWieldSkill:0, weaponSkillForToHit:wsk,
           fistweaving: classId==='monk'&&is2H&&!!appState.fistweaving,
+          fistweavingNonEpic: classId==='monk'&&is2H&&!!appState.fistweaving&&!!appState.fistweavingNonEpic,
         });
         const r = runOne(opts);
         mainDps[id] = r ? r.totalDamage/DURATION : 0;
@@ -999,6 +1063,7 @@ function RankAll({ appState, onBack, onPickWeapon }) {
               dualWieldSkill: p2 ? cc.dualWield : 0,
               weaponSkillForToHit: WSC.getCapForSimClass(classId, sk, lv)||252,
               fistweaving: classId==='monk'&&is2H&&!!appState.fistweaving,
+              fistweavingNonEpic: classId==='monk'&&is2H&&!!appState.fistweaving&&!!appState.fistweavingNonEpic,
             });
           }
           const r = runOne(opts);
@@ -1458,11 +1523,15 @@ function BuildTabScroll({ state, update, openDrill }) {
       <window.Panel padding={10} style={{ marginBottom: 10 }}>
         <window.SectionHead label="Target & Fight" action="CHANGE ›" />
         <div onClick={() => openDrill('target')} style={{ cursor: 'pointer' }}>
-          <div style={{ ...window.tZodiak(), fontSize: 14, color: BT.TEXT, marginBottom: 3 }}>{target.name}</div>
-          <div style={{ display: 'flex', gap: 8, fontSize: 10, color: BT.MUTED, ...window.tMono(), flexWrap: 'wrap' }}>
-            <span>Lvl {target.lvl}</span><span>AC {target.ac}</span>
-            <span>{target.zone}</span>
+          <div style={{ ...window.tZodiak(), fontSize: 14, color: target ? BT.TEXT : BT.MUTED_DIM, marginBottom: 3 }}>
+            {target ? target.name : '— tap to set target'}
           </div>
+          {target && (
+            <div style={{ display: 'flex', gap: 8, fontSize: 10, color: BT.MUTED, ...window.tMono(), flexWrap: 'wrap' }}>
+              <span>Lvl {target.lvl}</span><span>AC {target.ac}</span>
+              <span>{target.zone}</span>
+            </div>
+          )}
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, marginTop: 10 }}>
           <div style={{ padding: '8px 10px', background: BT.INPUT, border: `1px solid ${BT.BORDER}`, borderRadius: 4 }}>
@@ -1887,6 +1956,7 @@ function SimTab({ state, update, density }) {
           // Breakdown for pie/histograms
           w1Dmg: report.weapon1.totalDamage,
           w2Dmg: report.weapon2.totalDamage,
+          fwDmg: report.fistweaving ? (report.fistweaving.totalDamage || 0) : 0,
           bonusDmg: report.damageBonusTotal || 0,
           specialDmg: report.special ? report.special.totalDamage : 0,
           specialLabel: report.special ? report.special.label : null,
@@ -1951,12 +2021,12 @@ function SimTab({ state, update, density }) {
     );
   }
 
-  const r = lastRun;
+  const r = lastRun || {};
 
   return (
     <>
       {/* Hero — only after a sim has been run */}
-      {simDone && (
+      {simDone && lastRun && (
         <div style={{
           position: 'relative', padding: isCompact ? 14 : 18, borderRadius: 6,
           background: `radial-gradient(ellipse at 50% 0%, rgba(212,175,55,0.18), ${ST.PANEL} 70%)`,
@@ -1987,8 +2057,12 @@ function SimTab({ state, update, density }) {
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <div style={{ flex: 1 }}>
             <div style={{ fontSize: 9, letterSpacing: '0.18em', color: ST.MUTED, ...window.tCinzel(), fontWeight: 600, textTransform: 'uppercase', marginBottom: 2 }}>Target</div>
-            <div style={{ ...window.tZodiak(), fontSize: 13, color: ST.TEXT }}>{target.name}</div>
-            <div style={{ fontSize: 10, color: ST.MUTED, ...window.tMono(), marginTop: 2 }}>Lvl {target.lvl} · AC {target.ac} · 360s · 20 runs</div>
+            <div style={{ ...window.tZodiak(), fontSize: 13, color: target ? ST.TEXT : ST.MUTED_DIM }}>
+              {target ? target.name : '— no target set'}
+            </div>
+            <div style={{ fontSize: 10, color: ST.MUTED, ...window.tMono(), marginTop: 2 }}>
+              {target ? `Lvl ${target.lvl} · AC ${target.ac} · ` : ''}360s · 20 runs
+            </div>
           </div>
           <div style={{ textAlign: 'right' }}>
             <div style={{ fontSize: 9, letterSpacing: '0.18em', color: ST.MUTED, ...window.tCinzel(), fontWeight: 600 }}>HASTE</div>
@@ -2003,17 +2077,20 @@ function SimTab({ state, update, density }) {
           <window.SectionHead label="Damage Breakdown" hint={`${r.totalDmg.toLocaleString()} total dmg`} />
           {(() => {
             const tot = r.totalDmg || 1;
-            const w1p  = +((r.w1Dmg  || 0) / tot * 100).toFixed(1);
-            const w2p  = +((r.w2Dmg  || 0) / tot * 100).toFixed(1);
-            const bpp  = +((r.bonusDmg || 0) / tot * 100).toFixed(1);
-            const spp  = +((r.specialDmg || 0) / tot * 100).toFixed(1);
-            const prp  = +Math.max(0, 100 - w1p - w2p - bpp - spp).toFixed(1);
+            // Non-overlapping segments: weapon1.totalDamage already contains bonusDmg and specialDmg,
+            // so subtract them out to avoid double-counting. Percentages sum to exactly 100%.
+            const spVal  = r.specialDmg || 0;
+            const bpVal  = r.bonusDmg || 0;
+            const w1Base = Math.max(0, (r.w1Dmg || 0) - bpVal - spVal);
+            const w2Val  = (r.w2Dmg || 0) + (r.fwDmg || 0);
+            const prVal  = r.procDmg || 0;
+            const pct = v => +(v / tot * 100).toFixed(1);
             const segs = [];
-            if (w1p > 0) segs.push({ pct: w1p, color: ST.PIE_BLUE,      label: 'Primary' });
-            if (w2p > 0) segs.push({ pct: w2p, color: ST.TPS_BLUE,       label: 'Offhand' });
-            if (bpp > 0) segs.push({ pct: bpp, color: ST.PIE_BLUE_DARK,  label: 'Dmg Bonus' });
-            if (spp > 0) segs.push({ pct: spp, color: ST.PIE_VIOLET,     label: r.specialLabel || 'Special' });
-            if (prp > 1) segs.push({ pct: prp, color: ST.MUTED_DIM,      label: 'Procs' });
+            if (w1Base > 0) segs.push({ pct: pct(w1Base), color: ST.PIE_BLUE,      label: 'Primary' });
+            if (bpVal  > 0) segs.push({ pct: pct(bpVal),  color: ST.PIE_BLUE_DARK, label: 'Dmg Bonus' });
+            if (spVal  > 0) segs.push({ pct: pct(spVal),  color: ST.PIE_VIOLET,    label: r.specialLabel || 'Special' });
+            if (w2Val  > 0) segs.push({ pct: pct(w2Val),  color: ST.TPS_BLUE,      label: 'Offhand' });
+            if (prVal  > 0) segs.push({ pct: pct(prVal),  color: ST.MUTED_DIM,     label: 'Procs' });
             return (
               <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
                 <window.PieChart size={isCompact ? 80 : 100} segs={segs} />
@@ -2197,7 +2274,7 @@ function buildInitialState() {
     level: 60,
     str: 255, agi: 255, dex: 255, sta: 255,
     hasteVal: 41, spellHaste: 0, bardHaste: 0,
-    W1: { name: "Caen's Bo Staff of Fury", type: '2HB', d: 43, delay: 30 },
+    W1: null,
     W2: null,
     Range: null,
     arrowDmg: 18,
@@ -2213,12 +2290,8 @@ function buildInitialState() {
     fistweavingDelay: 200,
     spellCastingFury: 0,
     slayUndead: 0,
-    target: MSD.target,
-    lastRun: {
-      dps: 77.48, tps: 100.72, stddev: 0.39, crits: 390,
-      totalDmg: 464851, mode: 'ADV', weapon: "Caen's Bo", atk: 1314, era: 'Luclin',
-      time: Date.now() - 120000,
-    },
+    target: null,
+    lastRun: null,
     simStatus: 'idle',
     simStep: '',
     simCounter: 0,
@@ -2232,6 +2305,7 @@ function GsimMobileApp({ variant = 'scroll', density = 'comfy' }) {
   const [tab, setTab] = React.useState('Build');
   const [drill, setDrill] = React.useState(null); // {kind, arg}
   const [toast, setToast] = React.useState(null);
+  const scrollRef = React.useRef(null);
   const update = (patch) => setState(s => ({ ...s, ...patch }));
   const openDrill = (kind, arg) => setDrill({ kind, arg });
   const closeDrill = () => setDrill(null);
@@ -2256,6 +2330,13 @@ function GsimMobileApp({ variant = 'scroll', density = 'comfy' }) {
       update({ _openDrill: null });
     }
   }, [state._openDrill]);
+
+  // scroll to top when a sim completes so the DPS hero is visible
+  React.useEffect(() => {
+    if (state.simCounter > 0 && scrollRef.current) {
+      scrollRef.current.scrollTop = 0;
+    }
+  }, [state.simCounter]);
 
   const tabs = [
     { l: 'Build', ic: '⚔' },
@@ -2286,7 +2367,7 @@ function GsimMobileApp({ variant = 'scroll', density = 'comfy' }) {
             <div style={{ fontSize: 7, letterSpacing: '0.28em', color: MST.MUTED, textTransform: 'uppercase', marginTop: 3 }}>Project Quarm · v1.16</div>
           </div>
           {/* HUD — only after a sim has been run */}
-          {state.simDone && (
+          {state.simDone && state.lastRun && (
             <div style={{ display: 'flex', gap: 10, alignItems: 'center', padding: '5px 10px', background: `radial-gradient(ellipse at 100% 50%, rgba(212,175,55,0.12), rgba(0,0,0,0.5))`, border: `1px solid ${MST.GOLD_BORDER}`, borderRadius: 4 }}>
               <div style={{ textAlign: 'right' }}>
                 <div style={{ fontSize: 7, color: MST.MUTED, letterSpacing: '0.16em', ...window.tCinzel() }}>TPS</div>
@@ -2304,7 +2385,7 @@ function GsimMobileApp({ variant = 'scroll', density = 'comfy' }) {
       </div>
 
       {/* Content */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: '12px 12px 120px', minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+      <div ref={scrollRef} style={{ flex: 1, overflowY: 'auto', padding: '12px 12px 120px', minHeight: 0, display: 'flex', flexDirection: 'column' }}>
         {tab === 'Build' && <BuildComponent state={state} update={update} openDrill={openDrill} />}
         {tab === 'Sim' && <window.SimTab state={state} update={update} density={density} />}
         {tab === 'Report' && <window.ReportTab state={state} />}
