@@ -665,8 +665,8 @@
    * @param {string} [options.classId] - if 'ranger' and level>54, offense += level*4-216
    * @param {number} [options.critChanceMult=0] - Combat Fury flat crit % (0, 2, 4, 6)
    * @param {number} [options.archeryMastery=2] - 1, 2, or 3 (AA)
-   * @param {boolean} [options.mobStationary=false]
-   * @param {boolean} [options.useWalledMobPenalty=false] - track damage lost to wall penalty
+   * @param {boolean} [options.mobStationary=false] - target NPC is not moving and not temporarily rooted; enables Ranger 51+ 2× damage bonus (beacon.cpp ArcheryBonusRequiresStationary)
+   * @param {boolean} [options.useWalledMobPenalty=false] - if true, apply wall/corner penalty as a damage reduction (not default; Quarm rules default to 1.0)
    * @param {boolean} [options.trueshot=false] - ranger: 2 min random window: +105% archery damage, +12% archery skill (accuracy)
    * @param {number} [options.seed]
    */
@@ -720,13 +720,16 @@
     if (offenseRating < 1) offenseRating = 1;
     const rangerOffenseBonus = (options.classId === 'ranger' && level > 54) ? (level * 4 - 216) : 0;
     if (rangerOffenseBonus > 0) offenseRating += rangerOffenseBonus;
-    const mastery = options.archeryMastery != null ? Math.max(1, Math.min(3, Math.floor(options.archeryMastery))) : 2;
-    const masteryMult = mastery === 1 ? 1.30 : mastery === 2 ? 1.60 : 2.00;
-    let baseDamagePerShot = ((bow.damage || 0) + (arrow.damage || 0)) * masteryMult;
-    if (baseDamagePerShot < 1) {
+    const mastery = options.archeryMastery != null ? Math.max(0, Math.min(3, Math.floor(options.archeryMastery))) : 2;
+    // Archery Mastery AA: aabonuses.ArcheryDamageModifier — % bonus to base damage
+    // (special_attacks.cpp DoArcheryAttackDmg line 947: applied before CalcMeleeDamage).
+    // The server applies mastery to the full (pre-halve) base; here we apply it to the
+    // already-halved base — mathematically equivalent since both sides are linear.
+    // Rank 0=none, 1=+30%, 2=+60%, 3=+100%.
+    const masteryPct = mastery === 1 ? 30 : mastery === 2 ? 60 : mastery === 3 ? 100 : 0;
+    if ((bow.damage || 0) + (arrow.damage || 0) < 1) {
       return { error: 'Ranged weapon + arrow damage must be at least 1' };
     }
-    const mobStationary = !!options.mobStationary;
 
     let delayDecisec = effectiveDelayDecisec(bow.delay, effectiveHastePercent);
     const quiverHaste = (options.quiverHaste != null && !Number.isNaN(Number(options.quiverHaste)) && Number(options.quiverHaste) > 0) ? Number(options.quiverHaste) : 0;
@@ -744,6 +747,12 @@
       : 0;
     const rangedProcRate = (bow.procRate != null && !Number.isNaN(Number(bow.procRate))) ? Number(bow.procRate) : 0;
     const procChance = Math.min(1, Math.max(0, baseRangedProcChance * (100 + rangedProcRate) / 100));
+    // Ranger 51+ stationary bonus: beacon.cpp lines 381–405.
+    // Condition (with ArcheryBonusRequiresStationary=true, UseArcheryBonusRoll=false):
+    //   Ranger, level > 50, target is NPC, not moving, and not temporarily rooted.
+    //   weapon_dmg *= 2 BEFORE TryCriticalHit (RollDamageMultiplier + crit).
+    const mobStationary = !!(options.mobStationary);
+    const rangerStationaryBonus = (options.classId === 'ranger') && level > 50 && mobStationary;
     const useWalledMobPenalty = !!options.useWalledMobPenalty;
     const WALL_PENALTY_CHANCE = 0.35;
     const WALL_PENALTY_FACTOR = 0.5;
@@ -790,6 +799,11 @@
       archeryModPercent: archeryModPercent,
       displayedAttack: Math.floor((offenseRating + toHit) * 1000 / 744),
       attackTimerMs: Math.round(delayMs),
+      // Base damage breakdown for the Weapon Overview section
+      bowBaseDamage: bow.damage || 0,
+      arrowBaseDamage: arrow.damage || 0,
+      masteryPct: masteryPct,
+      rangerStationaryBonus: rangerStationaryBonus,
     };
     const rangedProcLevelReq = getProcLevelRequirement(bow);
     if (bow.procSpell != null && bow.procSpell !== '' && rangedProcLevelReq != null && level < rangedProcLevelReq) {
@@ -910,10 +924,21 @@
       report.ranged.hits++;
       const rangedElemAdder = getElementalBaseAdder(bow, options, rng) + getElementalBaseAdder(arrow, options, rng);
       report.elementalDamageTotal += rangedElemAdder;
-      const rangedBaseWithElem = baseDamagePerShot + rangedElemAdder;
-      let baseDmg = calcMeleeDamage(rangedBaseWithElem, offenseRating, mitigation, rng, 0);
+      // special_attacks.cpp DoArcheryAttackDmg: server applies ArcheryBaseDamageBonus (rule, default 1.0),
+      // then aabonuses.ArcheryDamageModifier (Archery Mastery), then spellbonuses.ArcheryDamageModifier
+      // (Trueshot = 105%), all to the full base BEFORE CalcMeleeDamage halves it (line 952).
+      // Halving and mastery applied here in opposite order but result is identical (linear operations).
+      // Build base damage matching DoArcheryAttackDmg order:
+      //   1. bow + arrow  2. ArcheryBaseDamageBonus (1.0 default)  3. Archery Mastery  4. Trueshot
+      //   5. CalcMeleeDamage (halves for SkillArchery internally)
+      let physicalBase = (bow.damage || 0) + (arrow.damage || 0);
+      if (masteryPct > 0) physicalBase += Math.floor(physicalBase * masteryPct / 100);
+      if (trueshotActive) physicalBase += Math.floor(physicalBase * 105 / 100); // spellbonuses.ArcheryDamageModifier=105
+      if (physicalBase > 1) physicalBase = Math.floor(physicalBase / 2); // CalcMeleeDamage archery halving
+      let baseDmg = calcMeleeDamage(physicalBase + rangedElemAdder, offenseRating, mitigation, rng, 0);
       baseDmg = Math.max(1, baseDmg);
-      if (trueshotActive) baseDmg = Math.floor(baseDmg * 2.05);
+      // Stationary bonus doubles weapon_dmg before TryCriticalHit (beacon.cpp line 401-413).
+      if (rangerStationaryBonus) baseDmg *= 2;
       const mult = rollDamageMultiplier(offenseRating, baseDmg, level, 'ranger', true, rng);
       let dmg = mult.damage;
       const beforeCrit = dmg;
@@ -923,7 +948,6 @@
         report.critHits++;
         report.critDamageGain += (dmg - beforeCrit);
       }
-      if (mobStationary) dmg = Math.floor(dmg * 2);
       if (useWalledMobPenalty && rng() < WALL_PENALTY_CHANCE) {
         const actualDamage = Math.max(1, Math.floor(dmg * WALL_PENALTY_FACTOR));
         report.wallPenaltyDamageLost += (dmg - actualDamage);
@@ -1050,6 +1074,24 @@
     // 3. Weapon Overview (Ranged)
     lines.push('=== Weapon Overview ===', '');
     lines.push('  Ranged');
+    {
+      const bowBase   = report.bowBaseDamage != null ? report.bowBaseDamage : 0;
+      const arrowBase = report.arrowBaseDamage != null ? report.arrowBaseDamage : 0;
+      const rawSum    = bowBase + arrowBase;
+      const mPct      = report.masteryPct != null ? report.masteryPct : 0;
+      const afterMastery = mPct > 0 ? rawSum + Math.floor(rawSum * mPct / 100) : rawSum;
+      const afterHalve   = afterMastery > 1 ? Math.floor(afterMastery / 2) : afterMastery;
+      lines.push(padLine('    Bow base damage:', String(bowBase)));
+      lines.push(padLine('    Arrow base damage:', String(arrowBase)));
+      lines.push(padLine('    Bow + arrow (raw):', String(rawSum)));
+      if (mPct > 0) {
+        lines.push(padLine('    After Archery Mastery (+' + mPct + '%):', String(afterMastery)));
+      }
+      lines.push(padLine('    Effective shot base:', String(afterHalve) + '  (after server archery ÷2; used for damage roll)'));
+      if (report.rangerStationaryBonus) {
+        lines.push(padLine('    Ranger stationary bonus:', '×2 applied after D20 roll'));
+      }
+    }
     lines.push(padLine('    Total damage:', String(r.totalDamage)));
     lines.push(padLine('    Weapon DPS:', (r.totalDamage / dur).toFixed(2)));
     {

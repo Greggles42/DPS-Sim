@@ -536,38 +536,116 @@
     </div>
 
     <div class="card">
-      <h2>10) Ranged (Bow + Arrow) DPS Attribution and Ranking</h2>
+      <h2>10) Ranged (Bow + Arrow) — Damage Model</h2>
       <p>
-        The ranged tab simulates <strong>bow + arrow</strong> combinations for a level 60 ranger and needs to answer two questions:
+        The ranged tab simulates <strong>bow + arrow</strong> archery for a level 60 Ranger.
+        The damage pipeline follows <code>special_attacks.cpp Mob::DoArcheryAttackDmg</code> and <code>attack.cpp CalcMeleeDamage</code>.
       </p>
+
+      <h3>10.0) Archery damage pipeline</h3>
+      <p>In order, for each shot that hits:</p>
       <ol>
-        <li>What is the total DPS of a given bow+arrow pair?</li>
-        <li>How much of that DPS should be credited to the bow vs the arrow so they can be ranked independently?</li>
+        <li>
+          <strong>Physical base:</strong> <code>bow.damage + arrow.damage</code>. This is multiplied by
+          <code>RuleR(Combat, ArcheryBaseDamageBonus)</code> (default <code>1.0</code> on Project Quarm — no change).
+        </li>
+        <li>
+          <strong>Archery Mastery AA</strong> (<code>aabonuses.ArcheryDamageModifier</code>):
+          <div class="formula">physicalBase += floor(physicalBase × masteryPct / 100)</div>
+          Rank 0 = +0%, Rank 1 = +30%, Rank 2 = +60%, Rank 3 = +100%.
+        </li>
+        <li>
+          <strong>Trueshot discipline</strong> (<code>spellbonuses.ArcheryDamageModifier = 105</code>):
+          <div class="formula">physicalBase += floor(physicalBase × 105 / 100)</div>
+          Effectively doubles the base (2.05×). Only active during the Trueshot window.
+        </li>
+        <li>
+          <strong>Archery halving</strong> — <code>CalcMeleeDamage</code> (attack.cpp) explicitly halves the base for <code>SkillArchery</code> before the D20 roll:
+          <div class="formula">if (baseDamage > 1) baseDamage /= 2</div>
+          This is the server's balancing rule for archery. At Archery Mastery rank 3 (+100%), the halving is exactly offset, so a maxed ranger shoots for the same base as the raw bow+arrow value.
+        </li>
+        <li>
+          <strong>D20 damage roll</strong> — same <code>RollD20(offenseRating, mitigation)</code> contest as melee (see Section 5).
+          <div class="formula">damage = floor((roll × shotBase + 5) / 10)</div>
+        </li>
+        <li>
+          <strong>Ranger 51+ stationary bonus</strong> (see below) — applied after the D20 roll.
+        </li>
+        <li>
+          <strong>RollDamageMultiplier</strong> — same level/class offense-based extra-hit chance as melee (see Section 7). The Warrior <code>damage++</code> at level 55+ is explicitly excluded for archery.
+        </li>
+        <li>
+          <strong>Critical hit</strong> — Ranger archery crit: <code>1.35 + DEX/34</code>% (at DEX 255 ≈ 8.8%). Requires level > 16.
+        </li>
       </ol>
-      <h3>9.1) Separating base vs proc damage</h3>
+
+      <h3>10.0.1) Max shot damage formula</h3>
       <p>
-        For each bow+arrow combination, the simulator runs <code>runRangedFight(options)</code> and inspects the returned report:
+        The D20 roll produces a value from 1–20; roll = 20 gives the maximum non-crit hit. There is no melee damage bonus for archery (<code>damageBonus = 0</code>), so:
+      </p>
+      <div class="formula">shotBase = floor((bow + arrow) × (1 + masteryPct/100) / 2)</div>
+      <div class="formula">maxNonCritShot = floor((20 × shotBase + 5) / 10)</div>
+      <p>
+        At <strong>Archery Mastery rank 3</strong> (+100%), the mastery exactly offsets the server ÷2, so <code>shotBase = bow + arrow</code> and max non-crit = <code>floor((20 × (bow+arrow) + 5) / 10) ≈ 2 × (bow+arrow)</code>.
+      </p>
+      <p>
+        With the <strong>Ranger stationary bonus</strong> the post-D20 result is doubled before the crit roll, so:
+      </p>
+      <div class="formula">maxNonCritShot (stationary) = 2 × floor((20 × shotBase + 5) / 10)</div>
+
+      <h3>10.1) Ranger 51+ Stationary Bonus (beacon.cpp)</h3>
+      <p>
+        When a Ranger above level 50 shoots a target that is an NPC, not currently moving, and not temporarily rooted, the arrow deals double damage. This is implemented in <code>beacon.cpp Beacon::Update</code> and fires before <code>TryCriticalHit</code>, so the doubled value feeds into the multiplier and crit rolls.
+      </p>
+      <div class="formula">if (Ranger &amp;&amp; level > 50 &amp;&amp; target.isNPC &amp;&amp; !target.IsMoving() &amp;&amp; (!target.IsRooted() || target.PermaRooted()))</div>
+      <div class="formula">weapon_dmg *= 2</div>
+      <p>
+        Server rules on Project Quarm:
+      </p>
+      <ul>
+        <li><code>ArcheryBonusRequiresStationary = true</code> — stationary check is enforced.</li>
+        <li><code>UseArcheryBonusRoll = false</code> — no random roll; the bonus fires unconditionally when the stationary check passes.</li>
+        <li><code>ArcheryBonusChance = 50</code> — only relevant when <code>UseArcheryBonusRoll = true</code> (not active here).</li>
+      </ul>
+      <p>
+        The <strong>Mob stationary</strong> checkbox in the ranged tab controls whether this bonus applies in the simulation. It is checked by default because most raid and camp targets are stationary. Uncheck it when simulating a kiting or moving target.
+      </p>
+
+      <h3>10.2) Archery offense rating (GetOffense for SkillArchery)</h3>
+      <p>Archery uses <strong>DEX</strong>, not STR, for the stat bonus:</p>
+      <div class="formula">offenseRating = archerySkill + floor((2×DEX − 150) / 3) + wornATK + spellATK  (when DEX ≥ 75)</div>
+      <p>Rangers above level 54 also receive a linear bonus:</p>
+      <div class="formula">rangerBonus = level × 4 − 216  (e.g. +24 at level 60, +44 at level 65)</div>
+
+      <h3>10.3) Quiver haste</h3>
+      <p>
+        Applied separately from standard haste (not subject to the 125% cap). If a quiver provides weight reduction (WR%), quiver haste = WR% ÷ 4 ÷ 100.
+      </p>
+      <div class="formula">bowDelayReduction = floor(quiverHaste × speedMs) + 1</div>
+      <div class="formula">if (speedMs − reduction > 1000ms): effectiveDelay = speedMs − reduction</div>
+      <p class="muted">The Sony rule prevents the quiver from pushing delay below 1000ms (1 second).</p>
+
+      <h3>10.4) Separating base vs proc damage (for ranking)</h3>
+      <p>
+        The ranged tab also answers: how much DPS should be credited to the bow vs the arrow so they can be ranked independently?
       </p>
       <div class="formula">
         rangedTotal = report.ranged.totalDamage<br>
         procTotal   = report.ranged.procDamageTotal<br>
-        baseTotal   = max(0, rangedTotal - procTotal)
+        baseTotal   = max(0, rangedTotal − procTotal)
       </div>
-      <p>
-        Here:
-      </p>
       <ul>
-        <li><strong>baseTotal</strong> is all hit damage that comes from the bow's base damage + arrow damage + any bane or elemental terms.</li>
+        <li><strong>baseTotal</strong> is all hit damage from bow base damage + arrow damage + any bane or elemental terms.</li>
         <li><strong>procTotal</strong> is all damage from bow procs (spell procs tied to the bow).</li>
       </ul>
       <div class="formula">
         baseDps = baseTotal / durationSec<br>
         procDps = procTotal / durationSec
       </div>
-      <h3>9.2) Splitting base DPS between bow and arrow</h3>
+
+      <h3>10.5) Splitting base DPS between bow and arrow</h3>
       <p>
-        The simulator assumes that, before procs, the bow and arrow contribute proportionally to base DPS according to their relative base damages.
-        For each bow (with optional bane) and arrow, it computes:
+        The simulator assumes that, before procs, the bow and arrow contribute proportionally to base DPS according to their relative base damages:
       </p>
       <div class="formula">
         bowBase   = bowDamage (+ bane if "Apply Bane" is checked)<br>
@@ -585,10 +663,11 @@
         totalDps = bowDps + arrowDps
       </div>
       <p>
-        This preserves the total ranged DPS from the full simulation while giving a per-combo breakdown of how much the bow and arrow contribute.
+        This preserves the total ranged DPS from the full simulation while giving a per-combo breakdown of how much the bow and arrow each contribute.
         The ranged ranking UI shows these values as <strong>Bow DPS</strong>, <strong>Arrow DPS</strong>, and <strong>Total DPS</strong>.
       </p>
-      <h3>9.3) Ranking bows and arrows separately (slot mode)</h3>
+
+      <h3>10.6) Ranking bows and arrows separately (slot mode)</h3>
       <p>
         To rank bows and arrows independently, the simulator first computes DPS for a grid of bow+arrow combinations, then derives
         <em>slot values</em> from those combos:
@@ -598,7 +677,7 @@
         <li><strong>Arrow slot DPS:</strong> for each arrow ID, find the bow+arrow combo with the highest <code>totalDps</code> using that arrow.</li>
       </ul>
       <p>
-        In <strong>slot mode</strong>, the ranged ranking table then shows:
+        In <strong>slot mode</strong>, the ranged ranking table shows:
       </p>
       <ul>
         <li>Rows labeled <code>Bow: &lt;name&gt;</code> with the best total DPS that bow can achieve in any tested combo (and its bow/arrow DPS split).</li>
@@ -607,7 +686,8 @@
       <p>
         This mirrors the melee slot-ranking behavior but is tailored for bows/arrows.
       </p>
-      <h3>9.4) Reducing permutations: top-K bow selection</h3>
+
+      <h3>10.7) Reducing permutations: top-K bow selection</h3>
       <p>
         The full grid of combinations is <code>#bows × #arrows</code>. To keep the simulation responsive while still ranking
         arrows meaningfully, the simulator prunes bows using a simple damage/delay heuristic:
@@ -671,6 +751,47 @@
     </div>
 
     <div class="card">
+      <h2>12.5) Tanking Simulation — NPC Attack Mechanics</h2>
+      <p>
+        The tanking tab models the number of times a mob swings per attack round, matching EQMacEmu's <code>DoMainHandRound</code>.
+      </p>
+
+      <h3>Base attack count</h3>
+      <p>
+        Mobs can have more than one base attack per round. This is set from the NPC database and entered in the <strong>Mob attacks/round</strong> field.
+        Each attack rolls through the full hit/avoidance/mitigation chain independently.
+      </p>
+
+      <h3>NPC double attack</h3>
+      <p>
+        After the base attack loop, the mob makes one double-attack check:
+      </p>
+      <div class="formula">chance = (doubleAttackSkill + level) / 500  [when level > 35, else skill / 500]</div>
+      <p>
+        If the check succeeds, one additional swing is made. Double-attack skill scales with class and level, capped per class:
+      </p>
+      <table>
+        <thead><tr><th>NPC class</th><th>Skill cap</th></tr></thead>
+        <tbody>
+          <tr><td>Warrior, Ranger, Rogue</td><td>245</td></tr>
+          <tr><td>Paladin, Shadow Knight</td><td>235</td></tr>
+          <tr><td>Monk</td><td>250</td></tr>
+        </tbody>
+      </table>
+      <p>
+        When you pick an NPC from the search, the double-attack skill and triple-attack checkbox are filled in automatically based on the NPC's class and level
+        (<code>skill = min(cap, level × 5)</code>).
+      </p>
+
+      <h3>NPC triple attack</h3>
+      <p>
+        Only Warrior (class 1) and Monk (class 7) NPCs at level 60+ have triple attack. It is only checked on rounds where double attack already succeeded:
+      </p>
+      <div class="formula">P(triple | double succeeds) = 13.5%</div>
+      <div class="formula">P(triple on round) ≈ P(double) × 0.135</div>
+    </div>
+
+    <div class="card">
       <h2>13) Tanking Simulation — Avoidance Chain</h2>
       <p>
         The tanking sim models each mob swing as a sequential set of independent checks mirroring EQMacEmu's <code>Mob::AvoidDamage</code>. Checks fire in this order; the first one that succeeds negates the swing:
@@ -682,7 +803,10 @@
         <li><strong>Riposte</strong> — <code>rate(riposteSkill, divisor=55)</code>. Requires a weapon equipped; only in-front.</li>
         <li><strong>Dodge</strong> — <code>rate(dodgeSkill, divisor=45)</code>.</li>
       </ol>
-      <div class="formula">rate(skill, divisor) = skill / (skill + divisor)</div>
+      <p>
+        The per-skill rate formula (source: <code>attack.cpp Mob::AvoidDamage</code>):
+      </p>
+      <div class="formula">rate(skill, divisor) = min(1, floor((skill + 100) / divisor) / 100)</div>
       <p>
         Each check is independent (not exclusive with others except that the loop stops at the first success). The combined avoidance probability across all four skills for swings that pass the hit check is:
       </p>
@@ -697,10 +821,49 @@
     </div>
 
     <div class="card">
-      <h2>14) Tanking Simulation — Mitigation</h2>
+      <h2>14) Tanking Simulation — Mitigation and AC Breakdown</h2>
       <p>
-        When a swing lands (passes hit check and all avoidance checks), the damage roll uses the same <strong>RollD20</strong> contest from Section 5 — mob offense rating vs player mitigation. Player mitigation is computed from player level and AC then boosted by mitigation AAs:
+        When a swing lands (passes hit check and all avoidance checks), the damage roll uses the same <strong>RollD20</strong> contest from Section 5 — mob offense rating vs player mitigation. Player mitigation is built from several components derived from your worn AC, skills, spells, and AGI.
       </p>
+
+      <h3>Player AC breakdown (how mitigation is computed)</h3>
+      <p>
+        The tanking report shows a full per-component breakdown:
+      </p>
+      <table>
+        <thead><tr><th>Component</th><th>Formula</th><th>Notes</th></tr></thead>
+        <tbody>
+          <tr>
+            <td>Item AC (scaled)</td>
+            <td><code>floor(wornAC × 4/3)</code></td>
+            <td>Non-casters. Casters use a smaller multiplier. Capped at the anti-twink limit for low-level items.</td>
+          </tr>
+          <tr>
+            <td>Defense skill</td>
+            <td><code>floor(defenseSkill / 3)</code></td>
+            <td>Divided by 2 for casters. Defense skill scales with level and class.</td>
+          </tr>
+          <tr>
+            <td>Spell / buff AC</td>
+            <td><code>floor(spellAC / 4)</code></td>
+            <td>Divided by 3 for casters. Buffs like Skin spells and Aegolism contribute here.</td>
+          </tr>
+          <tr>
+            <td>AGI bonus</td>
+            <td><code>floor((AGI − 70) / 20)</code></td>
+            <td>Only AGI above 70 contributes. Maximum contribution capped by era/class softcap.</td>
+          </tr>
+          <tr>
+            <td>Softcap</td>
+            <td>Era- and class-dependent</td>
+            <td>Pre-cap total is clamped to the softcap before AA mitigation modifiers are applied.</td>
+          </tr>
+        </tbody>
+      </table>
+      <p>
+        The sim report's <em>Player AC</em> section shows each of these intermediate values so you can see exactly how your inputs produce the final mitigation number fed into the RollD20 contest.
+      </p>
+
       <h3>AA modifiers to mitigation</h3>
       <ul>
         <li><strong>Combat Stability</strong> (Luclin archetype, ranks 1–3): multiplies base player mitigation by 1.02 / 1.05 / 1.10.</li>

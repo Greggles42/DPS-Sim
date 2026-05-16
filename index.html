@@ -270,11 +270,6 @@
       max-width: min(100%, 20ch);
       padding-right: 1.85rem;
     }
-    .char-haste-section .char-primary-grid > select#ranged-class {
-      width: 8.5ch;
-      min-width: 8.5ch;
-      padding-right: 1.75rem;
-    }
     /* ~3-digit stats; beats global input { width: 100% } */
     .char-haste-section .char-primary-grid > input[type="number"] {
       width: 4rem;
@@ -284,15 +279,9 @@
       padding-right: 0.45rem;
     }
     .char-haste-section .char-primary-grid > input#worn-attack,
-    .char-haste-section .char-primary-grid > input#spell-attack,
-    .char-haste-section .char-primary-grid > input#ranged-worn-attack,
-    .char-haste-section .char-primary-grid > input#ranged-spell-attack {
+    .char-haste-section .char-primary-grid > input#spell-attack {
       width: 5.75rem;
       max-width: 5.75rem;
-    }
-    .char-haste-section .char-primary-grid > input#ranged-dex {
-      width: 5rem;
-      max-width: 5rem;
     }
     .char-primary-row, .char-secondary-row {
       display: flex;
@@ -1121,7 +1110,7 @@
 
     /* ── AA Configurator ─────────────────────────────────────── */
     #aa-configurator {
-      margin: 0.4rem 0 0;
+      margin: 0.4rem 0 var(--section-gap);
       border: 1px solid rgba(212, 175, 55, 0.18);
       border-radius: 6px;
       background: var(--panel);
@@ -1250,9 +1239,17 @@
     .stat-dist-table td:first-child { color: var(--text); font-weight: 600; }
     .stat-dist-table td:not(:first-child) { color: var(--muted); text-align: right; }
     .stat-dist-table td.stat-final { color: var(--color-gold); font-weight: 700; padding: 0.1rem 0.2rem; }
+    .stat-final-cell { display: flex; align-items: center; gap: 3px; }
     .stat-dist-table td.stat-gear { color: var(--color-gold); font-weight: 600; }
-    .stat-final-input { width: 4rem; text-align: right; background: transparent; border: 1px solid var(--border); color: var(--color-gold); font-weight: 700; font-size: 0.72rem; padding: 0.1rem 0.15rem; }
+    .stat-final-input { width: 3.5rem; text-align: right; background: transparent; border: 1px solid var(--border); color: var(--color-gold); font-weight: 700; font-size: 0.72rem; padding: 0.1rem 0.15rem; }
     .stat-final-input:focus { outline: 1px solid var(--color-gold); border-color: var(--color-gold); }
+    .stat-max-btn {
+      font-size: 0.62rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em;
+      padding: 0.1rem 0.3rem; border-radius: 2px; cursor: pointer;
+      border: 1px solid rgba(212,175,55,0.35); background: rgba(212,175,55,0.08);
+      color: var(--muted); white-space: nowrap; line-height: 1.4;
+    }
+    .stat-max-btn:hover { border-color: var(--color-gold); color: var(--color-gold); background: rgba(212,175,55,0.15); }
     .stat-th-buffed { display: none; color: var(--accent); }
     .stat-dist-table.has-stat-buffs .stat-th-buffed { display: table-cell; }
     .stat-buffed-cell { display: none; color: var(--accent); font-weight: 700; padding: 0.1rem 0.4rem; text-align: right; }
@@ -1278,6 +1275,12 @@
       margin-top: 0.25rem;
     }
     #stat-pts-remaining.pts-warn { color: #e07; }
+
+    /* ── Shared character module ─────────────────────────────────── */
+    #character-module {
+      max-width: 900px;
+      margin-bottom: var(--section-gap);
+    }
 
     /* ── Char + Buff side-by-side row ────────────────────────────── */
     .char-buff-pair {
@@ -1312,9 +1315,11 @@
       transition: transform 0.15s;
     }
     #buff-details[open] summary::before { transform: rotate(90deg); }
-    #buff-details .buff-columns,
-    #buff-details .buff-totals {
+    #buff-details .buff-columns {
       padding: 0 1.25rem 1rem;
+    }
+    #buff-details .buff-totals {
+      margin: 0 1.25rem 1rem;
     }
     .buff-columns {
       display: grid;
@@ -1361,6 +1366,9 @@
     .buff-totals .bt-val  { color: var(--accent); font-weight: 600; }
     .buff-totals .bt-zero { color: var(--muted); opacity: 0.5; }
     .buff-totals .bt-separator { width: 1px; height: 0.9em; background: var(--border); display: inline-block; margin: 0 0.15rem; vertical-align: middle; }
+    /* In the char-effective-stats box, the separator acts as a full-width flex break
+       so haste values stay on one line and ATK values start on the next line. */
+    #char-effective-stats .bt-separator { width: 100%; height: 0; background: none; margin: 0; padding: 0; }
 
   </style>
 </head>
@@ -1370,7 +1378,7 @@
       <iconify-icon icon="ra:crossed-swords" class="text-2xl md:text-3xl text-[#d4af37] flex-shrink-0"></iconify-icon>
       <div class="flex flex-col min-w-0">
         <span class="font-fantasy text-base md:text-xl tracking-widest text-[#d4af37] truncate"><span class="app-title-g-small">g</span>Sim for Project Quarm</span>
-        <span class="text-[10px] text-gray-500 uppercase tracking-tighter">Everquest DPS Simulator · <span id="app-version">v1.16</span></span>
+        <span class="text-[10px] text-gray-500 uppercase tracking-tighter">Everquest DPS Simulator · <span id="app-version">v1.18</span></span>
       </div>
     </div>
     <div class="flex items-center gap-3 md:gap-8 flex-shrink-0">
@@ -1554,16 +1562,15 @@
     </div>
   </details>
 
-  <div class="main-layout advanced-only">
-  <div class="main-left">
-  <div class="tab-content-wrapper">
-  <div id="melee-tab" class="tab-panel">
-  <div class="grid">
-    <div class="grid-full-width char-buff-pair">
-    <section class="section--core char-haste-section" id="character-haste-section">
+  <!-- ═══════════════════════════════════════════════════════════════════
+       SHARED CHARACTER MODULE — persistent across Melee, Ranged, Tanking
+       ═══════════════════════════════════════════════════════════════════ -->
+  <div id="character-module" class="advanced-only">
+  <div class="char-buff-pair">
+  <section class="section--core char-haste-section" id="character-haste-section">
       <div class="char-haste-inner">
         <div class="char-haste-left">
-      <h2>Character & Haste</h2>
+      <h2>Character</h2>
 
       <!-- Class / Level — top -->
       <div class="char-primary-row char-primary-grid char-primary-grid--classlevel">
@@ -1628,6 +1635,7 @@
       <input type="hidden" id="str" value="255">
       <input type="hidden" id="dex" value="255">
       <input type="hidden" id="agi" value="255">
+      <input type="hidden" id="sta" value="200">
       <input type="hidden" id="cha" value="0">
 
       <!-- Haste / ATK — below stats -->
@@ -1666,7 +1674,7 @@
           <div class="char-field char-field-num"><label for="dual-wield" class="small-label">Dual wield</label><input type="number" id="dual-wield" min="0" value="252" placeholder="0"></div>
         </div>
         <details class="collapse-secondary collapse-tertiary">
-          <summary class="collapse-summary">Defensive skills (for future tanking mode)</summary>
+          <summary class="collapse-summary">Defensive skills</summary>
           <div class="char-secondary-row">
             <div class="char-field char-field-num"><label for="defense-skill" class="small-label">Defense</label><input type="number" id="defense-skill" min="0" max="255" placeholder="0"></div>
             <div class="char-field char-field-num"><label for="dodge-skill" class="small-label">Dodge</label><input type="number" id="dodge-skill" min="0" max="255" placeholder="0"></div>
@@ -1725,9 +1733,9 @@
         </div>
         <div class="char-haste-icon-wrap"><img id="class-icon" alt="" class="class-icon" aria-hidden="true"></div>
       </div>
-    </section>
+  </section>
 
-    <section class="section--core advanced-only" id="buff-section">
+  <section class="section--core advanced-only" id="buff-section">
       <details class="buff-panel" id="buff-details">
         <summary>Buffs <span id="buff-active-count" style="color:var(--muted);font-size:0.75rem;"></span></summary>
         <div class="buff-columns">
@@ -1754,11 +1762,18 @@
           <span><span class="bt-label">AGI: </span><span class="bt-val" id="bt-agi">+0</span></span>
           <span><span class="bt-label">STA: </span><span class="bt-val" id="bt-sta">+0</span></span>
           <span><span class="bt-label">AC (raw): </span><span class="bt-val" id="bt-ac">+0</span></span>
+          <span><span class="bt-label">HP: </span><span class="bt-val" id="bt-hp">+0</span></span>
         </div>
       </details>
-    </section>
-    </div><!-- /.char-buff-pair -->
+  </section>
+  </div><!-- /.char-buff-pair -->
+  </div><!-- /#character-module -->
 
+  <div class="main-layout advanced-only">
+  <div class="main-left">
+  <div class="tab-content-wrapper">
+  <div id="melee-tab" class="tab-panel">
+  <div class="grid">
     <section class="section--core weapon-section">
       <div class="weapon-icon-wrap" id="w1-weapon-icon-wrap" style="display:none"><img id="w1-weapon-icon" class="weapon-icon" alt=""></div>
       <div class="weapon-section-header"><h2>Weapon 1 (Main Hand)</h2></div>
@@ -1932,57 +1947,16 @@
   </div>
 
   <div id="ranged-tab" class="tab-panel hidden">
-  <div class="grid">
-    <div class="grid-full-width char-buff-pair">
-    <section class="section--core char-haste-section" id="ranged-character-haste-section">
-      <div class="char-haste-inner">
-        <div class="char-haste-left">
-      <h2>Character & Haste</h2>
-      <!-- Class / Level -->
-      <div class="char-primary-row char-primary-grid char-primary-grid--classlevel">
-        <label for="ranged-class">Class</label>
-        <label for="ranged-level">Level</label>
-        <select id="ranged-class" disabled title="Ranged sim uses Ranger only.">
-          <option value="ranger" selected>Ranger</option>
-        </select>
-        <input type="number" id="ranged-level" min="1" max="65" value="60" placeholder="60" size="3" inputmode="numeric" autocomplete="off">
-      </div>
-      <p class="hint char-hint char-hint-below-primary">Ranged sim uses Ranger only. Level and haste affect offense and delay.</p>
-      <!-- Haste row -->
-      <div class="char-primary-row char-primary-grid char-primary-grid--hasteatk-ranged">
-        <label for="ranged-worn-haste">Worn haste % <span class="info-icon" title="Item haste; capped to 10% at level 1-25, uncapped at level 26+">&#8505;</span></label>
-        <label for="ranged-spell-haste">V1 Haste % <span class="info-icon" title="V1 spell haste. Worn + V1 combined cannot exceed 100%. V3 bard haste (capped 25%) adds on top.">&#8505;</span></label>
-        <label for="ranged-v3-haste">V3 Haste % <span class="info-icon" title="Bard V3 haste (SPA 119, e.g. Warsong of the Vah Shir). Hard cap: 25%. Auto-filled by bard song buffs; can be overridden manually.">&#8505;</span></label>
-        <label for="ranged-quiver-weight-reduction">Quiver WR% <span class="info-icon" title="Quiver haste = (BagWR ÷ 4) ÷ 100 (EQ GetQuiverHaste). Applied after standard haste; separate from 125% cap. bow_delay_reduction = quiver_haste × speed + 1; applied only if speed − reduction > 1000 (min delay ~1s). Example: 40% WR → 10% quiver haste.">&#8505;</span></label>
-        <input type="number" id="ranged-worn-haste" min="0" max="999" value="41" placeholder="41" size="3" inputmode="numeric" autocomplete="off">
-        <input type="number" id="ranged-spell-haste" min="0" max="999" value="60" placeholder="60" size="3" inputmode="numeric" autocomplete="off">
-        <input type="number" id="ranged-v3-haste" min="0" max="25" value="0" placeholder="0" size="3" inputmode="numeric" autocomplete="off">
-        <input type="number" id="ranged-quiver-weight-reduction" min="0" max="100" value="0" placeholder="e.g. 40" size="3" inputmode="numeric" autocomplete="off">
-      </div>
-      <!-- ATK / DEX row -->
-      <div class="char-primary-row char-primary-grid char-primary-grid--hasteatk">
-        <label for="ranged-worn-attack">Worn ATK <span class="info-icon" title="don't include atk from weapon, it will automatically be included">&#8505;</span></label>
-        <label for="ranged-spell-attack">Spell ATK</label>
-        <label for="ranged-dex">DEX <span class="info-icon" title="Dexterity — affects proc chance per swing">&#8505;</span></label>
-        <input type="number" id="ranged-worn-attack" min="0" max="999" value="0" placeholder="0" size="5" inputmode="numeric" autocomplete="off">
-        <input type="number" id="ranged-spell-attack" min="0" max="999" value="0" placeholder="0" size="5" inputmode="numeric" autocomplete="off">
-        <input type="number" id="ranged-dex" min="1" max="400" value="255" placeholder="255" size="3" inputmode="numeric" autocomplete="off">
-      </div>
-      <!-- Effective stats bar -->
-      <div class="buff-totals char-effective-stats" id="ranged-char-effective-stats">
-        <span class="bt-label">Net haste:</span>
-        <span title="Worn haste from items"><span class="bt-label">Worn </span><span class="bt-val" id="ranged-eff-worn-haste">0%</span></span>
-        <span title="V1 spell haste from buffs"><span class="bt-label">+ V1 </span><span class="bt-val" id="ranged-eff-v1-haste">0%</span></span>
-        <span title="Worn + V1 combined, capped at 100%"><span class="bt-label">= </span><span class="bt-val" id="ranged-eff-combined-haste">0%</span></span>
-        <span id="ranged-eff-v3-wrap" style="display:none" title="Bard V3 haste, capped at 25%"><span class="bt-label">+ V3 </span><span class="bt-val" id="ranged-eff-v3-haste">0%</span></span>
-        <span title="Total effective haste used in simulation"><span class="bt-label">→ </span><span class="bt-val" id="ranged-eff-haste">0%</span></span>
-        <span class="bt-separator"></span>
-        <span id="ranged-eff-quiver-wrap" style="display:none" title="Quiver haste = WR% ÷ 4"><span class="bt-label">Quiver </span><span class="bt-val" id="ranged-eff-quiver-haste">0%</span></span>
-        <span><span class="bt-label">Spell ATK </span><span class="bt-val" id="ranged-eff-spell-atk">+0</span></span>
-      </div>
-      <details class="collapse-secondary">
-        <summary class="collapse-summary">Archery options</summary>
-        <!-- Archery Mastery moved to AA Configurator panel -->
+  <!-- Ranger-only warning — shown when a non-Ranger class is active -->
+  <div id="ranged-nonranger-warning" style="display:none;margin:0.5rem 0 0.75rem;padding:0.6rem 1rem;background:rgba(251,191,36,0.10);border:1px solid rgba(251,191,36,0.4);border-radius:5px;font-size:0.82rem;color:#fbbf24;display:none;align-items:center;gap:0.5rem;">
+    <span style="font-size:1.1rem;">&#9888;</span>
+    <span>The <strong>Ranged</strong> tab is designed for <strong>Ranger</strong> only. Archery damage formulas, skill caps, and AA options assume a Ranger. Results for other classes will be inaccurate.</span>
+  </div>
+  <!-- Archery options — ranged-specific -->
+  <section class="section--core" id="ranged-archery-section">
+    <h2>Archery Options</h2>
+    <div style="display:flex;gap:1.5rem;flex-wrap:wrap;align-items:flex-start;">
+      <div>
         <label>Archery accuracy spell</label>
         <div class="radio-group" style="display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 1rem;">
           <label><input type="radio" name="archery-accuracy" value="none" checked> None</label>
@@ -1991,21 +1965,26 @@
           <label><input type="radio" name="archery-accuracy" value="eagle"> Eagle Eye</label>
         </div>
         <p class="hint">Hawk / Falcon / Eagle Eye use the server’s HitChanceEffect-style toHit percent (Hawk +10%, Falcon +20%, Eagle +40%) before a single hit roll.</p>
-        <div class="char-field char-field-num"><label for="ranged-archery-skill" class="small-label">Archery level</label><input type="number" id="ranged-archery-skill" min="0" max="240" value="240" placeholder="240"></div>
-        <p class="hint" style="margin-top: 0.5rem;">Archery skill (0–cap). Ranger cap = min(240, level×4); autoscales with level.</p>
-        <div id="ranged-archery-mod-note" class="hint" style="display: none;"></div>
-        <label class="checkbox-label"><input type="checkbox" id="mob-stationary" checked> Mob stationary</label>
-        <p class="hint">When checked, target is not moving (affects hit/damage if sim uses it).</p>
-        <label class="checkbox-label"><input type="checkbox" id="trueshot"> Trueshot (2 min random window: +105% archery damage, +12% archery skill)</label>
-      </details>
-        </div>
-        <div class="char-haste-icon-wrap"><img id="ranged-class-icon" src="resources/class icons/C_ranger.gif" alt="" class="class-icon" aria-hidden="true"></div>
       </div>
-    </section>
-
-    <div id="ranged-buff-placeholder" class="section--core advanced-only" style="flex:1 1 0;min-width:0;"></div>
-    </div><!-- /.char-buff-pair -->
-
+      <div style="display:flex;gap:1rem;flex-wrap:wrap;align-items:flex-end;">
+        <div class="char-field char-field-num">
+          <label for="ranged-archery-skill" class="small-label">Archery skill</label>
+          <input type="number" id="ranged-archery-skill" min="0" max="240" value="240" placeholder="240">
+          <p class="hint" style="margin-top:0.25rem;">Ranger cap = min(240, level×4); autoscales with level.</p>
+          <div id="ranged-archery-mod-note" class="hint" style="display: none;"></div>
+        </div>
+        <div class="char-field char-field-num">
+          <label for="ranged-quiver-weight-reduction" class="small-label">Quiver WR% <span class="info-icon" title="Quiver haste = (BagWR ÷ 4) ÷ 100 (EQ GetQuiverHaste). Applied after standard haste; separate from 125% cap. bow_delay_reduction = quiver_haste × speed + 1; applied only if speed − reduction > 1000 (min delay ~1s). Example: 40% WR → 10% quiver haste.">&#8505;</span></label>
+          <input type="number" id="ranged-quiver-weight-reduction" min="0" max="100" value="0" placeholder="e.g. 40" size="3" inputmode="numeric" autocomplete="off">
+        </div>
+      </div>
+    </div>
+    <div style="display:flex;gap:1rem;flex-wrap:wrap;margin-top:0.5rem;">
+      <label class="checkbox-label"><input type="checkbox" id="mob-stationary" checked> Mob stationary (Ranger 51+: 2× damage vs unrooted, unmoving NPCs)</label>
+      <label class="checkbox-label"><input type="checkbox" id="trueshot"> Trueshot (2 min random window: +105% archery damage, +12% archery skill)</label>
+    </div>
+  </section>
+  <div class="grid" style="margin-top:1rem;">
     <section class="section--core weapon-section">
       <div class="weapon-icon-wrap" id="ranged-weapon-weapon-icon-wrap" style="display:none"><img id="ranged-weapon-weapon-icon" class="weapon-icon" alt=""></div>
       <div class="weapon-section-header"><h2>Ranged weapon</h2></div>
@@ -2144,136 +2123,39 @@
   <div class="grid" style="grid-template-columns:1fr;">
 
     <!-- ═══════════════════════════════════════════════════════
-         CARD 1 — CHARACTER STATS
-         ═══════════════════════════════════════════════════════ -->
-    <section class="section--core">
-      <h2>Character Stats</h2>
-
-      <!-- Identity row -->
-      <div class="char-primary-row char-primary-grid" style="grid-template-columns:repeat(auto-fill,minmax(7rem,1fr));gap:0.5rem 1rem;align-items:end;">
-        <div style="display:flex;flex-direction:column;">
-          <label for="tank-class" class="small-label">Class</label>
-          <select id="tank-class" style="width:100%;margin-bottom:0;margin-top:auto;">
-            <option value="warrior" selected>Warrior</option>
-            <option value="paladin">Paladin</option>
-            <option value="shadowknight">Shadow Knight</option>
-            <option value="monk">Monk</option>
-            <option value="ranger">Ranger</option>
-            <option value="rogue">Rogue</option>
-            <option value="bard">Bard</option>
-            <option value="beastlord">Beastlord</option>
-            <option value="cleric">Cleric</option>
-            <option value="druid">Druid</option>
-            <option value="shaman">Shaman</option>
-            <option value="enchanter">Enchanter</option>
-            <option value="magician">Magician</option>
-            <option value="necromancer">Necromancer</option>
-            <option value="wizard">Wizard</option>
-          </select>
-        </div>
-        <div style="display:flex;flex-direction:column;">
-          <label for="tank-level" class="small-label">Level</label>
-          <input type="number" id="tank-level" value="60" min="1" max="65" style="width:100%;margin-top:auto;margin-bottom:0;">
-        </div>
-        <div style="display:flex;flex-direction:column;">
-          <label for="tank-player-hp" class="small-label">Total HP</label>
-          <input type="number" id="tank-player-hp" value="5000" min="1" style="width:100%;margin-top:auto;margin-bottom:0;">
-        </div>
-        <div style="display:flex;flex-direction:column;">
-          <label for="tank-player-hp-regen" class="small-label">HP Regen/sec</label>
-          <input type="number" id="tank-player-hp-regen" value="0" min="0" style="width:100%;margin-top:auto;margin-bottom:0;">
-        </div>
-        <div style="display:flex;flex-direction:column;">
-          <label for="tank-healer-hps" class="small-label">Healer HPS</label>
-          <input type="number" id="tank-healer-hps" value="0" min="0" style="width:100%;margin-top:auto;margin-bottom:0;">
-        </div>
-      </div>
-
-      <!-- Stat columns: offensive left, defensive right -->
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem 2rem;margin-top:0.75rem;">
-        <div>
-          <p class="hint" style="margin:0 0 0.4rem;font-weight:600;color:var(--text);">Offensive</p>
-          <div class="char-secondary-row">
-            <div class="char-field char-field-num">
-              <label for="tank-str" class="small-label">STR</label>
-              <input type="number" id="tank-str" value="200" min="1" max="400">
-            </div>
-            <div class="char-field char-field-num">
-              <label for="tank-dex" class="small-label">DEX</label>
-              <input type="number" id="tank-dex" value="150" min="1" max="400">
-            </div>
-            <div class="char-field char-field-num">
-              <label for="tank-sta" class="small-label" title="Stamina — used to auto-calculate Total HP">STA</label>
-              <input type="number" id="tank-sta" value="200" min="1" max="400" title="Stamina — affects Total HP calculation">
-            </div>
-            <div class="char-field char-field-num">
-              <label for="tank-offense-skill" class="small-label">Offense</label>
-              <input type="number" id="tank-offense-skill" value="252" min="0" max="300">
-            </div>
-            <div class="char-field char-field-num">
-              <label for="tank-worn-attack" class="small-label">Worn ATK</label>
-              <input type="number" id="tank-worn-attack" value="0" min="0" max="999">
-            </div>
-          </div>
-        </div>
-        <div>
-          <p class="hint" style="margin:0 0 0.4rem;font-weight:600;color:var(--text);">Defensive</p>
-          <div class="char-secondary-row">
-            <div class="char-field char-field-num">
-              <label for="tank-player-agi" class="small-label">AGI</label>
-              <input type="number" id="tank-player-agi" value="100" min="1" max="400">
-            </div>
-            <div class="char-field char-field-num">
-              <label for="tank-defense-skill" class="small-label">Defense</label>
-              <input type="number" id="tank-defense-skill" value="230" min="0" max="300">
-            </div>
-            <div class="char-field char-field-num">
-              <label for="tank-dodge-skill" class="small-label">Dodge</label>
-              <input type="number" id="tank-dodge-skill" value="195" min="0" max="300">
-            </div>
-            <div class="char-field char-field-num">
-              <label for="tank-parry-skill" class="small-label">Parry</label>
-              <input type="number" id="tank-parry-skill" value="200" min="0" max="300">
-            </div>
-            <div class="char-field char-field-num">
-              <label for="tank-riposte-skill" class="small-label">Riposte</label>
-              <input type="number" id="tank-riposte-skill" value="185" min="0" max="300">
-            </div>
-            <div class="char-field char-field-num">
-              <label for="tank-block-skill" class="small-label">Block</label>
-              <input type="number" id="tank-block-skill" value="160" min="0" max="300">
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Tanking AA controls moved to the shared AA Configurator panel -->
-    </section>
-
-    <!-- ═══════════════════════════════════════════════════════
-         CARD 2 — PLAYER EQUIPMENT
+         CARD 1 — PLAYER EQUIPMENT
          ═══════════════════════════════════════════════════════ -->
     <section class="section--core">
       <h2>Player Equipment</h2>
-      <p class="hint" style="margin:0 0 0.6rem;">Use <strong>Import Inventory</strong> in the tab bar to import your EQ inventory export. Equipped items are shown above the tab panels. AC, STR, DEX, AGI, STA, +HP Gear, haste, and worn ATK are auto-filled. Total HP is calculated from class, level, STA, and worn HP.</p>
+      <p class="hint" style="margin:0 0 0.6rem;">Use <strong>Import Inventory</strong> in the tab bar to import your EQ inventory export. Equipped items are shown above the tab panels. Stats from the <strong>Character</strong> module above are used for tanking calculations — all skills, haste, ATK, and stats are read from there.</p>
 
-      <!-- Mainhand weapon — mirrors Weapon 1 card layout -->
-      <div class="weapon-icon-wrap" id="tank-w1-weapon-icon-wrap" style="display:none"><img id="tank-w1-weapon-icon" class="weapon-icon" src="" alt=""></div>
+      <!-- Survival stats — HP/regen/healer -->
+      <p class="hint" style="margin:0 0 0.3rem;font-weight:600;color:var(--text);">Survival</p>
+      <div class="target-fight-row" style="margin-bottom:0.75rem;">
+        <div style="display:flex;flex-direction:column;">
+          <label for="tank-player-hp" class="small-label">Total HP <span class="hint" style="margin:0;">(auto-calc)</span></label>
+          <input type="number" id="tank-player-hp" value="5000" min="1" style="width:6rem;">
+        </div>
+        <div style="display:flex;flex-direction:column;">
+          <label for="tank-worn-hp" class="small-label" title="+HP from gear (auto-filled by Import Inventory)">+HP Gear</label>
+          <input type="number" id="tank-worn-hp" value="0" min="0" style="width:5rem;" title="+HP from worn items — contributes to Total HP">
+        </div>
+        <div style="display:flex;flex-direction:column;">
+          <label for="tank-player-hp-regen" class="small-label">HP Regen/sec</label>
+          <input type="number" id="tank-player-hp-regen" value="0" min="0" style="width:5.5rem;">
+        </div>
+        <div style="display:flex;flex-direction:column;">
+          <label for="tank-healer-hps" class="small-label">Healer HPS</label>
+          <input type="number" id="tank-healer-hps" value="0" min="0" style="width:5.5rem;">
+        </div>
+      </div>
+
+      <!-- Mainhand weapon — automatically uses Weapon 1 from the Melee tab -->
       <div class="weapon-section-header"><h3 style="margin:0 0 0.25rem;font-size:1rem;font-weight:600;">Mainhand (Riposte damage)</h3></div>
-      <div id="tank-w1-weapon-name" class="weapon-name" aria-live="polite">Unequipped</div>
-      <div class="item-search-wrap">
-        <label for="tank-w1-item-search">Item Search</label>
-        <input type="text" id="tank-w1-item-search" placeholder="Type 4+ characters to search..." autocomplete="off">
-        <div id="tank-w1-item-search-list" class="item-search-list" role="listbox"></div>
-      </div>
-      <div class="weapon-damage-row">
-        <div><label for="tank-w1-damage" class="small-label">Damage</label><input type="number" id="tank-w1-damage" min="0" value="0" placeholder="0 = skip"></div>
-        <div><label for="tank-w1-delay" class="small-label">Delay (decisec)</label><input type="number" id="tank-w1-delay" min="1" value="30" placeholder="30"></div>
-        <div style="align-self:flex-end;padding-bottom:0.25rem;"><label class="checkbox-label"><input type="checkbox" id="tank-w1-is2h" style="width:auto;margin:0 0.25rem 0 0;"> 2H</label></div>
-      </div>
+      <p class="hint" style="margin:0 0 0.5rem;">Uses <strong>Weapon 1</strong> from the Melee tab (set via item search or inventory import).</p>
 
-      <!-- Worn AC / spell AC / haste -->
-      <p class="hint" style="margin:0 0 0.3rem;font-weight:600;color:var(--text);">Worn Stats</p>
+      <!-- Worn AC / spell AC -->
+      <p class="hint" style="margin:0 0 0.3rem;font-weight:600;color:var(--text);">Armor</p>
       <div class="target-fight-row">
         <div>
           <label for="tank-player-ac" class="small-label">Worn AC</label>
@@ -2282,14 +2164,6 @@
         <div>
           <label for="tank-player-spell-ac" class="small-label">Spell AC</label>
           <input type="number" id="tank-player-spell-ac" value="0" min="0" style="width:5rem;">
-        </div>
-        <div>
-          <label for="tank-worn-haste" class="small-label">Worn Haste %</label>
-          <input type="number" id="tank-worn-haste" value="0" min="0" max="100" style="width:5rem;">
-        </div>
-        <div>
-          <label for="tank-worn-hp" class="small-label" title="+HP from gear (auto-filled by Import Inventory)">+HP Gear</label>
-          <input type="number" id="tank-worn-hp" value="0" min="0" style="width:5rem;" title="+HP from worn items — contributes to Total HP">
         </div>
       </div>
     </section>
@@ -2332,7 +2206,16 @@
         </div>
         <div>
           <label for="tank-mob-attacks" class="small-label">Attacks/Round</label>
-          <input type="number" id="tank-mob-attacks" value="1" min="1" max="4" style="width:4rem;">
+          <input type="number" id="tank-mob-attacks" value="1" min="1" max="20" style="width:4rem;">
+        </div>
+        <div>
+          <label for="tank-mob-double-atk-skill" class="small-label">Dbl Atk Skill <span class="hint" style="margin:0;">(0=off)</span></label>
+          <input type="number" id="tank-mob-double-atk-skill" value="0" min="0" max="250" style="width:5rem;">
+        </div>
+        <div style="display:flex;flex-direction:column;justify-content:center;gap:0.2rem;">
+          <label for="tank-mob-triple-atk" class="small-label" style="cursor:pointer;">
+            <input type="checkbox" id="tank-mob-triple-atk" style="margin-right:0.3rem;">Triple Atk <span class="hint" style="margin:0;">(War/Mnk L60+)</span>
+          </label>
         </div>
         <div>
           <label for="tank-mob-accuracy" class="small-label">Accuracy <span class="hint" style="margin:0;">(0=auto)</span></label>
@@ -2903,50 +2786,7 @@
         if (el) el.addEventListener('input', updateEffectiveHasteDisplay);
       });
 
-      /** Always-visible net haste breakdown for the ranged tab. */
-      function updateRangedEffectiveHasteDisplay() {
-        var effEl = $('ranged-char-effective-stats');
-        if (!effEl) return;
-        var lvl     = parseInt(($('ranged-level') && $('ranged-level').value) || '60', 10) || 60;
-        var wornRaw = parsePercentInput('ranged-worn-haste');
-        var wornPct = getCappedWornHastePercent(lvl, wornRaw);
-        var v1Pct   = parsePercentInput('ranged-spell-haste');
-        var v3Raw   = parsePercentInput('ranged-v3-haste');
-        var v3Pct   = Math.min(25, v3Raw);
-        var combined = Math.min(wornPct + v1Pct, 100);
-        var quiverWr = parsePercentInput('ranged-quiver-weight-reduction');
-        var quiverPct = Math.round(Math.max(0, Math.min(100, quiverWr)) / 4);
-        var net = combined + v3Pct;
-
-        var wornEl = $('ranged-eff-worn-haste');
-        if (wornEl) wornEl.textContent = wornPct + '%' + (wornRaw > wornPct ? ' (cap ' + wornPct + '%)' : '');
-        var v1El = $('ranged-eff-v1-haste');
-        if (v1El) v1El.textContent = v1Pct + '%';
-        var combEl = $('ranged-eff-combined-haste');
-        if (combEl) {
-          combEl.textContent = combined + '%';
-          combEl.title = (wornPct + v1Pct > 100)
-            ? 'Capped at 100% — worn ' + wornPct + '% + V1 ' + v1Pct + '% = ' + (wornPct + v1Pct) + '%, capped to 100%'
-            : '';
-        }
-        var v3Wrap = $('ranged-eff-v3-wrap');
-        if (v3Wrap) v3Wrap.style.display = v3Pct ? '' : 'none';
-        var v3El = $('ranged-eff-v3-haste');
-        if (v3El) v3El.textContent = v3Pct + '%';
-        var netEl = $('ranged-eff-haste');
-        if (netEl) netEl.textContent = net + '%';
-        var quiverWrap = $('ranged-eff-quiver-wrap');
-        if (quiverWrap) quiverWrap.style.display = quiverPct ? '' : 'none';
-        var quiverEl = $('ranged-eff-quiver-haste');
-        if (quiverEl) quiverEl.textContent = quiverPct + '%';
-        var spellAtkInput = parseInt(($('ranged-spell-attack') && $('ranged-spell-attack').value) || '0', 10) || 0;
-        var effSpellAtkEl = $('ranged-eff-spell-atk');
-        if (effSpellAtkEl) effSpellAtkEl.textContent = (spellAtkInput >= 0 ? '+' : '') + spellAtkInput;
-      }
-      ['ranged-worn-haste', 'ranged-spell-haste', 'ranged-v3-haste', 'ranged-level', 'ranged-worn-attack', 'ranged-spell-attack', 'ranged-quiver-weight-reduction'].forEach(function (id) {
-        var el = document.getElementById(id);
-        if (el) el.addEventListener('input', updateRangedEffectiveHasteDisplay);
-      });
+      // Ranged tab uses the shared character module — no separate haste display needed.
 
       // ── Buff Panel ──────────────────────────────────────────────────────
       function getActiveBuffIds() {
@@ -2969,11 +2809,8 @@
 
       var _baseSpellHaste = null;              // manual override offset while buffs are active (normally 0)
       var _preBuffSpellHaste = null;           // value to restore when all buffs are cleared
-      var _preBuffRangedSpellHaste = null;     // ranged counterpart
       var _preBuffV3Haste = null;              // v3-haste value to restore when all buffs are cleared
-      var _preBuffRangedV3Haste = null;        // ranged-v3-haste value to restore when all buffs are cleared
       var _preBuffSpellAtk = null;             // spell-attack value to restore when all buffs are cleared
-      var _preBuffRangedSpellAtk = null;       // ranged-spell-attack value to restore when all buffs are cleared
 
       function updateBuffTotals() {
         if (!window.Buffs) return;
@@ -2985,9 +2822,7 @@
         if (!totalsEl) return;
 
         var spellHasteEl = $('spell-haste');
-        var rangedSpellHasteEl = $('ranged-spell-haste');
         var v3HasteEl = $('v3-haste');
-        var rangedV3HasteEl = $('ranged-v3-haste');
 
         if (!ids.length) {
           totalsEl.style.display = 'none';
@@ -3003,23 +2838,11 @@
             spellHasteEl._buffUpdate = false;
             _preBuffSpellHaste = null;
           }
-          if (_preBuffRangedSpellHaste !== null && rangedSpellHasteEl) {
-            rangedSpellHasteEl._buffUpdate = true;
-            rangedSpellHasteEl.value = String(_preBuffRangedSpellHaste);
-            rangedSpellHasteEl._buffUpdate = false;
-            _preBuffRangedSpellHaste = null;
-          }
           if (_preBuffV3Haste !== null && v3HasteEl) {
             v3HasteEl._buffUpdate = true;
             v3HasteEl.value = String(_preBuffV3Haste);
             v3HasteEl._buffUpdate = false;
             _preBuffV3Haste = null;
-          }
-          if (_preBuffRangedV3Haste !== null && rangedV3HasteEl) {
-            rangedV3HasteEl._buffUpdate = true;
-            rangedV3HasteEl.value = String(_preBuffRangedV3Haste);
-            rangedV3HasteEl._buffUpdate = false;
-            _preBuffRangedV3Haste = null;
           }
           var spellAtkEl = $('spell-attack');
           if (_preBuffSpellAtk !== null && spellAtkEl) {
@@ -3028,15 +2851,9 @@
             spellAtkEl._buffUpdate = false;
             _preBuffSpellAtk = null;
           }
-          var rangedSpellAtkElC = $('ranged-spell-attack');
-          if (_preBuffRangedSpellAtk !== null && rangedSpellAtkElC) {
-            rangedSpellAtkElC._buffUpdate = true;
-            rangedSpellAtkElC.value = String(_preBuffRangedSpellAtk);
-            rangedSpellAtkElC._buffUpdate = false;
-            _preBuffRangedSpellAtk = null;
-          }
           _baseSpellHaste = null;
-          if (typeof updateRangedEffectiveHasteDisplay === 'function') updateRangedEffectiveHasteDisplay();
+          updateEffectiveHasteDisplay();
+          if (typeof window.updateTankHP === 'function') window.updateTankHP();
           return;
         }
 
@@ -3058,14 +2875,6 @@
           spellHasteEl.value = String(_baseSpellHaste + buffV1);
           spellHasteEl._buffUpdate = false;
         }
-        if (rangedSpellHasteEl) {
-          if (_preBuffRangedSpellHaste === null) {
-            _preBuffRangedSpellHaste = parseInt(rangedSpellHasteEl.value, 10) || 0;
-          }
-          rangedSpellHasteEl._buffUpdate = true;
-          rangedSpellHasteEl.value = String(_baseSpellHaste + buffV1);
-          rangedSpellHasteEl._buffUpdate = false;
-        }
         if (v3HasteEl) {
           if (_preBuffV3Haste === null) {
             _preBuffV3Haste = parseInt(v3HasteEl.value, 10) || 0;
@@ -3074,15 +2883,6 @@
           v3HasteEl.value = String(Math.min(25, buffV3));
           v3HasteEl._buffUpdate = false;
         }
-        if (rangedV3HasteEl) {
-          if (_preBuffRangedV3Haste === null) {
-            _preBuffRangedV3Haste = parseInt(rangedV3HasteEl.value, 10) || 0;
-          }
-          rangedV3HasteEl._buffUpdate = true;
-          rangedV3HasteEl.value = String(Math.min(25, buffV3));
-          rangedV3HasteEl._buffUpdate = false;
-        }
-
         // Zero out spell-attack when buffs first become active; user can add bonus ATK on top
         var spellAtkEl = $('spell-attack');
         if (spellAtkEl) {
@@ -3093,16 +2893,6 @@
           spellAtkEl.value = '0';
           spellAtkEl._buffUpdate = false;
         }
-        var rangedSpellAtkEl = $('ranged-spell-attack');
-        if (rangedSpellAtkEl) {
-          if (_preBuffRangedSpellAtk === null) {
-            _preBuffRangedSpellAtk = parseInt(rangedSpellAtkEl.value, 10) || 0;
-          }
-          rangedSpellAtkEl._buffUpdate = true;
-          rangedSpellAtkEl.value = '0';
-          rangedSpellAtkEl._buffUpdate = false;
-        }
-
         function setVal(id, v, isPercent) {
           var el = $(id);
           if (!el) return;
@@ -3124,6 +2914,8 @@
         setVal('bt-agi', t.agi);
         setVal('bt-sta', t.sta);
         setVal('bt-ac',  t.ac);
+        setVal('bt-hp',  t.hp || 0);
+        if (typeof window.updateTankHP === 'function') window.updateTankHP();
 
         // Net spell ATK and worn ATK (show totals, not incremental contributions)
         var spellAtkInput = parseInt(($('spell-attack') && $('spell-attack').value) || '0', 10) || 0;
@@ -3145,7 +2937,6 @@
 
         // Effective stats readout — always updated via updateEffectiveHasteDisplay()
         updateEffectiveHasteDisplay();
-        if (typeof updateRangedEffectiveHasteDisplay === 'function') updateRangedEffectiveHasteDisplay();
 
         // Mark dominated buffs
         document.querySelectorAll('.buff-item[data-buff-id]').forEach(function (el) {
@@ -3198,11 +2989,7 @@
         return getTotalHastePercent(level, worn, v1, v3);
       }
       function getRangedTotalHastePercent() {
-        var level = parseInt($('ranged-level').value, 10) || 60;
-        var worn  = parsePercentInput('ranged-worn-haste');
-        var v1    = parsePercentInput('ranged-spell-haste');
-        var v3    = Math.min(25, parsePercentInput('ranged-v3-haste'));
-        return getTotalHastePercent(level, worn, v1, v3);
+        return getMeleeTotalHastePercent();
       }
       function getRangedQuiverHasteDecimal() {
         var quiverWr = parsePercentInput('ranged-quiver-weight-reduction');
@@ -4060,6 +3847,7 @@
           var finalVal = getFinalStat(raceId, sk, ptsVal, gearVal, ppRank);
           var buffBonus = buffFxForStat ? (buffFxForStat[sk] || 0) : 0;
           var buffedVal = Math.min(255, finalVal + buffBonus);
+          var finalCap = ppRank > 0 ? 255 + ppRank * 5 : 255;
           html += '<tr>'
             + '<td>' + STAT_LABELS[sk] + '</td>'
             + '<td>' + baseVal + '</td>'
@@ -4069,7 +3857,7 @@
             + '<button class="stat-pts-btn" data-stat="' + sk + '" data-delta="1" title="Add point">+</button>'
             + '</div></td>'
             + '<td class="stat-gear">' + (gearVal || 0) + '</td>'
-            + '<td class="stat-final"><input type="number" class="stat-final-input" data-stat="' + sk + '" value="' + finalVal + '" min="0" max="999" title="Final stat — type to override"></td>'
+            + '<td class="stat-final"><div class="stat-final-cell"><input type="number" class="stat-final-input" data-stat="' + sk + '" value="' + finalVal + '" min="0" max="999" title="Final stat — type to override"><button class="stat-max-btn" data-stat="' + sk + '" data-cap="' + finalCap + '" title="Set to max (' + finalCap + ')">max</button></div></td>'
             + '<td class="stat-buffed-cell">' + buffedVal + '</td>'
             + '</tr>';
         });
@@ -4094,8 +3882,21 @@
           if (remEl) remEl.classList.toggle('pts-warn', remaining < 0);
         }
 
-        // Attach click handlers for +/- point buttons
+        // Attach click handlers for +/- point buttons and max button
         body2.onclick = function (e) {
+          var maxBtn = e.target.closest('.stat-max-btn');
+          if (maxBtn) {
+            var sk = maxBtn.dataset.stat;
+            var cap = parseInt(maxBtn.dataset.cap, 10);
+            if (!sk || isNaN(cap)) return;
+            var rd2 = RACE_DATA[charCreation.race] || RACE_DATA.human;
+            var base2 = rd2[sk] || 75;
+            var pts2 = charCreation.pts[sk] || 0;
+            charCreation.gear[sk] = Math.max(0, cap - base2 - pts2);
+            renderStatDistributor();
+            syncHiddenStats();
+            return;
+          }
           var btn = e.target.closest('.stat-pts-btn');
           if (!btn) return;
           var sk = btn.dataset.stat;
@@ -4155,9 +3956,8 @@
         var strEl = $('str'); if (strEl) strEl.value = finalStr;
         var dexEl = $('dex'); if (dexEl) dexEl.value = finalDex;
         var agiEl = $('agi'); if (agiEl) agiEl.value = finalAgi;
+        var staEl = $('sta'); if (staEl) staEl.value = finalSta;
         var chaEl = $('cha'); if (chaEl) chaEl.value = charCreation.gear.cha || 0;
-        // Push final STA to tanking tab so Total HP auto-recalculates
-        var tankStaEl = $('tank-sta'); if (tankStaEl) tankStaEl.value = finalSta;
         if (typeof window.updateTankHP === 'function') window.updateTankHP();
       }
 
@@ -6527,7 +6327,7 @@
         var MAX_RANGED_RANK_BOWS = 40;
         bows = bows.slice(0, MAX_RANGED_RANK_BOWS);
 
-        var level = parseInt($('ranged-level').value, 10) || 60;
+        var level = parseInt($('level').value, 10) || 60;
         var durationSec = parseInt($('ranged-duration').value, 10) || 6000;
         var applyBane = $('ranged-apply-bane').checked;
         var rangedRankBuffFx = (typeof getBuffEffects === 'function') ? getBuffEffects() : null;
@@ -6554,14 +6354,14 @@
           offenseSkill: 252,
           archerySkill: Math.min(252, Math.max(0, parseInt($('ranged-archery-skill').value, 10) || 252)),
           archerySkillFixed: _rangedArcherySkillUserSet,
-          wornAttack: (parseInt($('ranged-worn-attack').value, 10) || 0) + (rangedRankBuffFx ? rangedRankBuffFx.wornAtk || 0 : 0),
-          spellAttack: (parseInt($('ranged-spell-attack').value, 10) || 0) + (rangedRankBuffFx ? rangedRankBuffFx.atk || 0 : 0),
+          wornAttack: (parseInt($('worn-attack').value, 10) || 0) + (rangedRankBuffFx ? rangedRankBuffFx.wornAtk || 0 : 0),
+          spellAttack: (parseInt($('spell-attack').value, 10) || 0) + (rangedRankBuffFx ? rangedRankBuffFx.atk || 0 : 0),
           str: 255,
-          dex: Math.min(255, (parseInt(($('ranged-dex') && $('ranged-dex').value) || '255', 10) || 255) + (rangedRankBuffFx ? rangedRankBuffFx.dex || 0 : 0)),
+          dex: Math.min(255, (parseInt(($('dex') && $('dex').value) || '255', 10) || 255) + (rangedRankBuffFx ? rangedRankBuffFx.dex || 0 : 0)),
           critChanceMult: (aaConfig.combatFury || 0) * 2,
           archeryMastery: aaConfig.archeryMastery || 1,
           archeryAccuracy: (document.querySelector('input[name="archery-accuracy"]:checked') || {}).value || 'none',
-          mobStationary: $('mob-stationary').checked,
+          mobStationary: !!($('mob-stationary') && $('mob-stationary').checked),
           trueshot: $('trueshot').checked,
           classId: 'ranger',
           spellCastingFury: aaConfig.spellCastingFury || 0,
@@ -7174,18 +6974,12 @@
       }
 
       var _activeTab = 'melee';
-      function moveBuff(tabId) {
-        var buffSection = $('buff-section');
-        if (!buffSection) return;
-        var dest = tabId === 'ranged' ? $('ranged-buff-placeholder') : $('buff-section').parentElement.id === 'ranged-buff-placeholder' ? null : null;
-        if (tabId === 'ranged') {
-          var placeholder = $('ranged-buff-placeholder');
-          if (placeholder && buffSection.parentElement !== placeholder) placeholder.appendChild(buffSection);
-        } else {
-          // Return buff section to its home inside the melee char-buff-pair
-          var meleePair = document.querySelector('#melee-tab .char-buff-pair');
-          if (meleePair && buffSection.parentElement !== meleePair) meleePair.appendChild(buffSection);
-        }
+      function updateRangedNonRangerWarning() {
+        var warn = $('ranged-nonranger-warning');
+        if (!warn) return;
+        var classId = (($('class') && $('class').value) || '').toLowerCase();
+        var isRanger = classId === 'ranger' || classId === '';
+        warn.style.display = isRanger ? 'none' : 'flex';
       }
       function showTab(tabId) {
         _activeTab = tabId;
@@ -7199,7 +6993,7 @@
             btnEl.setAttribute('aria-selected', t === tabId ? 'true' : 'false');
           }
         });
-        moveBuff(tabId);
+        if (tabId === 'ranged') updateRangedNonRangerWarning();
         if (typeof buildAAConfiguratorUI === 'function') buildAAConfiguratorUI();
       }
       $('tab-melee').addEventListener('click', function () { showTab('melee'); });
@@ -7716,7 +7510,7 @@
           arrow,
           hastePercent: getRangedTotalHastePercent(),
           quiverHaste: getRangedQuiverHasteDecimal(),
-          level: parseInt($('ranged-level').value, 10) || 60,
+          level: parseInt($('level').value, 10) || 60,
           targetAC: parseInt($('ranged-target-ac').value, 10) || 300,
           mobLevel: parseInt($('ranged-mob-level').value, 10) || 60,
           targetMaxHp: (function () {
@@ -7737,14 +7531,14 @@
           offenseSkill: 252,
           archerySkill: Math.min(252, Math.max(0, parseInt($('ranged-archery-skill').value, 10) || 252)),
           archerySkillFixed: _rangedArcherySkillUserSet,
-          wornAttack: (parseInt($('ranged-worn-attack').value, 10) || 0) + (rangedRunBuffFx ? rangedRunBuffFx.wornAtk || 0 : 0),
-          spellAttack: (parseInt($('ranged-spell-attack').value, 10) || 0) + (rangedRunBuffFx ? rangedRunBuffFx.atk || 0 : 0),
-          dex: Math.min(255, (parseInt(($('ranged-dex') && $('ranged-dex').value) || '255', 10) || 255) + (rangedRunBuffFx ? rangedRunBuffFx.dex || 0 : 0)),
+          wornAttack: (parseInt($('worn-attack').value, 10) || 0) + (rangedRunBuffFx ? rangedRunBuffFx.wornAtk || 0 : 0),
+          spellAttack: (parseInt($('spell-attack').value, 10) || 0) + (rangedRunBuffFx ? rangedRunBuffFx.atk || 0 : 0),
+          dex: Math.min(255, (parseInt(($('dex') && $('dex').value) || '255', 10) || 255) + (rangedRunBuffFx ? rangedRunBuffFx.dex || 0 : 0)),
           classId: 'ranger',
           critChanceMult: (aaConfig.combatFury || 0) * 2,
           archeryMastery: aaConfig.archeryMastery || 1,
           archeryAccuracy: (document.querySelector('input[name="archery-accuracy"]:checked') || {}).value || 'none',
-          mobStationary: $('mob-stationary').checked,
+          mobStationary: !!($('mob-stationary') && $('mob-stationary').checked),
           trueshot: !!($('trueshot') && $('trueshot').checked),
           spellCastingFury: aaConfig.spellCastingFury || 0,
         };
@@ -7822,6 +7616,10 @@
             archerySkillEffective: r0.archerySkillEffective,
             archeryModPercent: r0.archeryModPercent,
             displayedAttack: r0.displayedAttack,
+            bowBaseDamage: r0.bowBaseDamage,
+            arrowBaseDamage: r0.arrowBaseDamage,
+            masteryPct: r0.masteryPct,
+            rangerStationaryBonus: r0.rangerStationaryBonus,
           };
         }
         window._lastSimRunExport = {
@@ -7861,7 +7659,7 @@
           weapon2: arrowName,
           targetName: window.selectedTargetNpc && window.selectedTargetNpc.name ? String(window.selectedTargetNpc.name).replace(/_/g, ' ') : undefined,
           level: options.level,
-          wornHaste: parseInt(($('ranged-worn-haste') && $('ranged-worn-haste').value) || '0', 10) || 0,
+          wornHaste: parseInt(($('worn-haste') && $('worn-haste').value) || '0', 10) || 0,
           effectiveHaste: report.effectiveHastePercent != null ? Number(report.effectiveHastePercent) : 0,
           netAttackRating: rangedTotalAttack,
           mainhandDps: rangedDps,
@@ -7931,12 +7729,20 @@
               setCap('double-attack', combat.doubleAttack[idx]);
               setCap('dual-wield', combat.dualWield[idx]);
             }
-            const def = WeaponSkillCaps.DefensiveSkillCaps;
-            setCap('defense-skill', def.defense[idx]);
-            setCap('dodge-skill', def.dodge[idx]);
-            setCap('riposte-skill', def.riposte[idx]);
-            setCap('block-skill', def.block[idx]);
-            setCap('parry-skill', def.parry[idx]);
+            if (typeof WeaponSkillCaps.getDefensiveSkillCap === 'function') {
+              setCap('defense-skill', WeaponSkillCaps.getDefensiveSkillCap('defense', classId, level));
+              setCap('dodge-skill',   WeaponSkillCaps.getDefensiveSkillCap('dodge',   classId, level));
+              setCap('riposte-skill', WeaponSkillCaps.getDefensiveSkillCap('riposte', classId, level));
+              setCap('block-skill',   WeaponSkillCaps.getDefensiveSkillCap('block',   classId, level));
+              setCap('parry-skill',   WeaponSkillCaps.getDefensiveSkillCap('parry',   classId, level));
+            } else {
+              const def = WeaponSkillCaps.DefensiveSkillCaps;
+              setCap('defense-skill', def.defense[idx]);
+              setCap('dodge-skill', def.dodge[idx]);
+              setCap('riposte-skill', def.riposte[idx]);
+              setCap('block-skill', def.block[idx]);
+              setCap('parry-skill', def.parry[idx]);
+            }
           }
           $('class-hint').textContent = 'Class and level auto-fill skills and weapon caps. Edit below to override.';
         } else if (classId && CLASSES[classId]) {
@@ -8015,6 +7821,7 @@
         onClassOrLevelChange({ clampOnly: false });
         lastMeleeLevel = parseInt(($('level') && $('level').value) || '60', 10) || 60;
         if (typeof buildAAConfiguratorUI === 'function') buildAAConfiguratorUI();
+        updateRangedNonRangerWarning();
       });
       function applyDefaultStatsByLevel(level) {
         if (window.inventoryLoaded) return;
@@ -8025,7 +7832,7 @@
         var strEl = $('str'); if (strEl) strEl.value = String(str);
         var dexEl = $('dex'); if (dexEl) dexEl.value = String(dex);
         var agiEl = $('agi'); if (agiEl) agiEl.value = String(agi);
-        var tankStaEl = $('tank-sta'); if (tankStaEl) tankStaEl.value = String(sta);
+        var staEl = $('sta'); if (staEl) staEl.value = String(sta);
         if (typeof window.updateTankHP === 'function') window.updateTankHP();
       }
 
@@ -8041,6 +7848,9 @@
       // Re-compute bard song effects when level changes
       $('level').addEventListener('change', updateBuffTotals);
       $('level').addEventListener('input', updateBuffTotals);
+      // Sync archery skill cap when level changes
+      $('level').addEventListener('change', syncRangedArcheryCap);
+      $('level').addEventListener('input', syncRangedArcheryCap);
 
       var DUELIST_DISC_LABEL_BASE = 'Duelist (12s random window: double melee damage)';
       var INNERFLAME_DISC_LABEL_BASE = 'Inner Flame (12s random window: bonus melee damage)';
@@ -8080,28 +7890,23 @@
       function getRangerArcheryCap(lvl) { return Math.min(240, Math.floor((lvl || 60) * 4)); }
       var _rangedArcherySkillUserSet = false;
       function syncRangedArcheryCap() {
-        var levelEl = $('ranged-level');
+        var levelEl = $('level');
         var archeryEl = $('ranged-archery-skill');
         if (!levelEl || !archeryEl) return;
         var level = parseInt(levelEl.value, 10) || 60;
         var cap = getRangerArcheryCap(level);
         archeryEl.max = cap;
         archeryEl.placeholder = String(cap);
-        archeryEl.value = String(cap);
-        _rangedArcherySkillUserSet = false;
+        if (!_rangedArcherySkillUserSet) archeryEl.value = String(cap);
       }
-      var rangedLevelEl = $('ranged-level');
-      if (rangedLevelEl) {
-        rangedLevelEl.addEventListener('change', function () { syncRangedArcheryCap(); applyGenericTargetIfNoneSelected(); updateItemSearchDebug(); });
-        rangedLevelEl.addEventListener('input', function () { syncRangedArcheryCap(); applyGenericTargetIfNoneSelected(); updateItemSearchDebug(); });
-        syncRangedArcheryCap();
-      }
+      // syncRangedArcheryCap is already triggered when #level changes (see level event listeners below)
+      syncRangedArcheryCap();
       var rangedArcherySkillEl = $('ranged-archery-skill');
       if (rangedArcherySkillEl) {
         rangedArcherySkillEl.addEventListener('input', function () { _rangedArcherySkillUserSet = true; });
         rangedArcherySkillEl.addEventListener('change', function () { _rangedArcherySkillUserSet = true; });
       }
-      updateRangedEffectiveHasteDisplay();
+      updateEffectiveHasteDisplay();
       updateClassIcon();
       ['worn-haste', 'spell-haste', 'v3-haste'].forEach(function (id) {
         var el = $(id);
@@ -8320,7 +8125,7 @@
       }
 
       function getRecent(prefix) {
-        if (prefix === 'w1' || prefix === 'w2' || prefix === 'tank-w1') return getRecentWeapons();
+        if (prefix === 'w1' || prefix === 'w2') return getRecentWeapons();
         if (prefix === 'ranged-weapon') return getRecentRangedWeapons();
         if (prefix === 'arrow') return getRecentArrows();
         return [];
@@ -8382,7 +8187,7 @@
           const procRate = w.procRate != null && !isNaN(Number(w.procRate)) ? Number(w.procRate) : 0;
           const procLevel = w.procLevel != null && !isNaN(Number(w.procLevel)) && Number(w.procLevel) > 0 ? Number(w.procLevel) : null;
           const isOffhand = label === 'W2';
-          const levelEl = (label === 'Ranged weapon') ? $('ranged-level') : $('level');
+          const levelEl = $('level');
           const currentLevel = levelEl ? (parseInt(levelEl.value, 10) || 60) : 60;
           const levelAllowsProc = procLevel == null || currentLevel >= procLevel;
           let procChanceLine = 'Proc rate: ' + procRate + '%';
@@ -8392,7 +8197,7 @@
             const haste = (typeof EQCombat.getEffectiveHastePercent === 'function')
               ? EQCombat.getEffectiveHastePercent(rawHaste, currentLevel)
               : rawHaste;
-            const dexInput = (label === 'Ranged weapon') ? $('ranged-dex') : $('dex');
+            const dexInput = $('dex');
             const dex = dexInput ? (parseInt(dexInput.value, 10) || 255) : 255;
             const dualWieldPct = isOffhand ? (parseInt($('dual-wield').value, 10) || 100) : 100;
             const effDelay = EQCombat.effectiveDelayDecisec(w.delay, haste);
@@ -8606,24 +8411,6 @@
       }
       window.applyWeaponFromSearch = applyWeaponFromSearch;
 
-      function applyTankWeaponFromSearch(weapon) {
-        if (!weapon) return;
-        var dmg = Number(weapon.damage);
-        var dly = Number(weapon.delay);
-        var dmgEl = $('tank-w1-damage');
-        var dlyEl = $('tank-w1-delay');
-        if (dmgEl) dmgEl.value = isNaN(dmg) ? '' : dmg;
-        if (dlyEl) dlyEl.value = isNaN(dly) ? '' : dly;
-        var typeLower = (weapon.type || '').toLowerCase();
-        var is2H = !!weapon.is2H || typeLower === '2hb' || typeLower === '2hs' || typeLower === '2hp' || typeLower === 'bow';
-        var is2HEl = $('tank-w1-is2h');
-        if (is2HEl) is2HEl.checked = is2H;
-        updateWeaponIcon('tank-w1', weapon.icon);
-        tankW1DisplayName = (weapon.name || '').trim() || 'Custom';
-        var nameEl = $('tank-w1-weapon-name');
-        if (nameEl) nameEl.textContent = (dmg <= 0 || dly <= 0) ? 'Unequipped' : tankW1DisplayName;
-      }
-
       function applyRangedWeaponFromSearch(weapon) {
         if (!weapon) return;
         updateItemSearchDebug('Ranged weapon', weapon);
@@ -8687,6 +8474,8 @@
         updateWeaponIcon('arrow', weapon.icon != null ? Number(weapon.icon) : null);
         updateArrowDisplay();
       }
+      window.applyRangedWeaponFromSearch = applyRangedWeaponFromSearch;
+      window.applyArrowFromSearch = applyArrowFromSearch;
 
       function debounce(fn, ms) {
         let t = null;
@@ -8720,7 +8509,7 @@
       }
       function slotOkForPrefix(prefix, w) {
         if (!w || typeof ItemSearch === 'undefined' || !ItemSearch.itemMatchesSlot) return true;
-        if (prefix === 'w1' || prefix === 'tank-w1') return ItemSearch.itemMatchesSlot(w, ItemSearch.SLOT_PRIMARY);
+        if (prefix === 'w1') return ItemSearch.itemMatchesSlot(w, ItemSearch.SLOT_PRIMARY);
         if (prefix === 'w2') return ItemSearch.itemMatchesSlot(w, ItemSearch.SLOT_SECONDARY);
         if (prefix === 'ranged-weapon') return ItemSearch.itemMatchesSlot(w, ItemSearch.SLOT_RANGED);
         if (prefix === 'arrow') return ItemSearch.itemMatchesSlot(w, ItemSearch.SLOT_AMMO);
@@ -8732,9 +8521,7 @@
         // Ranged tab always filters by ranger usability, regardless of melee class selection.
         const selectedClassId = (prefix === 'ranged-weapon' || prefix === 'arrow')
           ? 'ranger'
-          : prefix === 'tank-w1'
-          ? (($('tank-class') && $('tank-class').value || '').trim().toLowerCase())
-          : (($('class').value || '').trim().toLowerCase());
+          : (($('class') && $('class').value || '').trim().toLowerCase());
         return !selectedClassId || ItemSearch.itemMatchesClass(w, selectedClassId);
       }
 
@@ -8844,9 +8631,6 @@
             } else if (prefix === 'arrow') {
               saveRecentArrow(w);
               applyArrowFromSearch(w);
-            } else if (prefix === 'tank-w1') {
-              saveRecentWeapon(w);
-              applyTankWeaponFromSearch(w);
             } else {
               saveRecentWeapon(w);
               applyWeaponFromSearch(prefix, w);
@@ -8972,9 +8756,7 @@
         openItemSearchDropdown(prefix);
         const selectedClassId = (prefix === 'ranged-weapon' || prefix === 'arrow')
           ? 'ranger'
-          : prefix === 'tank-w1'
-          ? (($('tank-class') && $('tank-class').value || '').trim().toLowerCase())
-          : (($('class').value || '').trim().toLowerCase());
+          : (($('class') && $('class').value || '').trim().toLowerCase());
         tryItemSearchThenWeaponListFallback(query, selectedClassId).then(function (results) {
           const recentNow = getRecent(prefix);
           renderDropdown(prefix, recentNow, results || [], false, query);
@@ -9041,16 +8823,15 @@
       }
       function applyGenericTargetIfNoneSelected() {
         if (window.selectedTargetNpc && typeof window.selectedTargetNpc === 'object') return;
-        var meleeLevel = parseInt($('level').value, 10) || 60;
-        var rangedLevel = parseInt($('ranged-level').value, 10) || meleeLevel || 60;
+        var level = parseInt($('level').value, 10) || 60;
         var set = function (id, val) {
           var el = $(id);
           if (el && val !== undefined && val !== null) el.value = val;
         };
-        set('mob-level', meleeLevel);
-        set('target-ac', getGenericTargetAcFromLevel(meleeLevel));
-        set('ranged-mob-level', rangedLevel);
-        set('ranged-target-ac', getGenericTargetAcFromLevel(rangedLevel));
+        set('mob-level', level);
+        set('target-ac', getGenericTargetAcFromLevel(level));
+        set('ranged-mob-level', level);
+        set('ranged-target-ac', getGenericTargetAcFromLevel(level));
       }
       function attachTargetNpcButtons(listEl, npcTypesList, npcNameForDisplay, inputEl, closeDropdown) {
         if (!listEl) return;
@@ -9156,6 +8937,18 @@
         set('tank-mob-delay',   npc.attack_delay);
         if (npc.attack_count > 0) set('tank-mob-attacks', npc.attack_count);
         if (npc.Accuracy > 0)     set('tank-mob-accuracy', npc.Accuracy);
+        // Auto-fill double attack skill from NPC class (uses same caps as CombatSkillCaps.doubleAttack).
+        // Classes with double attack: WAR=1(245), PAL=3(235), RNG=4(245), SHD=5(235), MNK=7(250), ROG=9(245).
+        (function () {
+          var cls = npc['class'] || 0;
+          var lvl = npc.level || 1;
+          var daCap = { 1: 245, 3: 235, 4: 245, 5: 235, 7: 250, 9: 245 }[cls];
+          var daSkill = daCap != null ? Math.min(daCap, lvl * 5) : 0;
+          set('tank-mob-double-atk-skill', daSkill);
+          var tripleAtk = (cls === 1 || cls === 7) && lvl >= 60;
+          var chk = document.getElementById('tank-mob-triple-atk');
+          if (chk) chk.checked = tripleAtk;
+        })();
         updateTargetNpcNameDisplay();
       }
       (function initTargetNpcSearch() {
@@ -9354,53 +9147,8 @@
       setupItemSearch('w2');
       setupItemSearch('ranged-weapon');
       setupItemSearch('arrow');
-      setupItemSearch('tank-w1');
 
-      // ---- Bidirectional character stat sync: melee tab ↔ tanking tab ----
-      (function initCharStatSync() {
-        var SYNC_PAIRS = [
-          ['class',          'tank-class'],
-          ['level',          'tank-level'],
-          ['str',            'tank-str'],
-          ['dex',            'tank-dex'],
-          ['worn-haste',     'tank-worn-haste'],
-          ['worn-attack',    'tank-worn-attack'],
-          ['offense-skill',  'tank-offense-skill'],
-          ['defense-skill',  'tank-defense-skill'],
-          ['dodge-skill',    'tank-dodge-skill'],
-          ['parry-skill',    'tank-parry-skill'],
-          ['riposte-skill',  'tank-riposte-skill'],
-          ['block-skill',    'tank-block-skill'],
-        ];
-        var syncing = false;
-        SYNC_PAIRS.forEach(function(pair) {
-          var meleeEl  = $(pair[0]);
-          var tankEl   = $(pair[1]);
-          if (!meleeEl || !tankEl) return;
-          meleeEl.addEventListener('change', function() {
-            if (syncing) return; syncing = true;
-            tankEl.value = meleeEl.value;
-            tankEl.dispatchEvent(new Event('change'));
-            syncing = false;
-          });
-          meleeEl.addEventListener('input', function() {
-            if (syncing) return; syncing = true;
-            tankEl.value = meleeEl.value;
-            syncing = false;
-          });
-          tankEl.addEventListener('change', function() {
-            if (syncing) return; syncing = true;
-            meleeEl.value = tankEl.value;
-            meleeEl.dispatchEvent(new Event('change'));
-            syncing = false;
-          });
-          tankEl.addEventListener('input', function() {
-            if (syncing) return; syncing = true;
-            meleeEl.value = tankEl.value;
-            syncing = false;
-          });
-        });
-      })();
+      // Stat sync removed — tanking sim reads directly from the shared character module inputs.
 
       initEasyModeUi();
 
@@ -9879,12 +9627,8 @@
     if (primary) {
       var pItem = lookupItem(primary.id);
       // Tanking tab
-      setEl('tank-w1-name',   primary.name);
       if (pItem && parseInt(pItem.damage) > 0) {
         var is2h = [1, 4, 35].indexOf(parseInt(pItem.itemtype)) !== -1;
-        setEl('tank-w1-damage', parseInt(pItem.damage));
-        setEl('tank-w1-delay',  parseInt(pItem.delay));
-        setChk('tank-w1-is2h',  is2h);
         // Melee tab weapon 1
         setEl('w1-damage', parseInt(pItem.damage));
         setEl('w1-delay',  parseInt(pItem.delay));
@@ -9926,6 +9670,40 @@
       }
     }
 
+    // --- Ranged weapon (Range slot) ---
+    var rangeSlot = equippedSlots['Range'];
+    if (rangeSlot) {
+      var rItem = lookupItem(rangeSlot.id);
+      if (rItem && parseInt(rItem.damage) > 0) {
+        if (typeof ItemSearch !== 'undefined' && ItemSearch.normalizeItemForWeapon && typeof window.applyRangedWeaponFromSearch === 'function') {
+          var rNormalized = ItemSearch.normalizeItemForWeapon(rItem);
+          if (rNormalized) window.applyRangedWeaponFromSearch(rNormalized);
+        } else {
+          setEl('ranged-damage', parseInt(rItem.damage));
+          setEl('ranged-delay',  parseInt(rItem.delay));
+          var rangedNameEl = document.getElementById('ranged-weapon-name');
+          if (rangedNameEl) rangedNameEl.textContent = rangeSlot.name;
+          applyItemProcFields('ranged', rItem);
+        }
+      }
+    }
+
+    // --- Arrow (Ammo slot) ---
+    var ammoSlot = equippedSlots['Ammo'];
+    if (ammoSlot) {
+      var aItem = lookupItem(ammoSlot.id);
+      if (aItem && parseInt(aItem.damage) > 0) {
+        if (typeof ItemSearch !== 'undefined' && ItemSearch.normalizeItemForWeapon && typeof window.applyArrowFromSearch === 'function') {
+          var aNormalized = ItemSearch.normalizeItemForWeapon(aItem);
+          if (aNormalized) window.applyArrowFromSearch(aNormalized);
+        } else {
+          setEl('arrow-damage', parseInt(aItem.damage));
+          var arrowNameEl = document.getElementById('arrow-weapon-name');
+          if (arrowNameEl) arrowNameEl.textContent = ammoSlot.name;
+        }
+      }
+    }
+
     // --- Weapon display names for sim history ---
     if (typeof window.setInventoryWeaponNames === 'function') {
       var invW1Name = (primary && primary.name) ? primary.name : null;
@@ -9933,18 +9711,11 @@
       window.setInventoryWeaponNames(invW1Name, invW2Name);
     }
 
-    // --- Worn stats: tanking tab ---
+    // --- Worn stats: shared character module + tanking-specific ---
     if (totals.ac)  setEl('tank-player-ac',    totals.ac);
-    if (totals.str) setEl('tank-str',           totals.str);
-    if (totals.dex) setEl('tank-dex',           totals.dex);
-    if (totals.agi) setEl('tank-player-agi',    totals.agi);
-    if (totals.sta) setEl('tank-sta',           totals.sta);
     if (totals.hp != null) setEl('tank-worn-hp', totals.hp);
-    if (totalHaste) setEl('tank-worn-haste',    totalHaste);
-    if (totals.atk) setEl('tank-worn-attack',   totals.atk);
-    updateTankHP();
 
-    // --- Worn stats: melee tab (via stat distributor if available) ---
+    // Shared stats via stat distributor (updates str/dex/agi/sta hidden inputs)
     if (typeof window.applyGearStats === 'function') {
       window.applyGearStats(totals.str || 0, totals.dex || 0, totals.agi || 0, totals.sta || 0, totals.cha || 0);
     } else {
@@ -9953,14 +9724,14 @@
     }
     if (totalHaste) {
       setEl('worn-haste', totalHaste);
-      setEl('ranged-worn-haste', totalHaste);
       // Also update easy-mode haste slider + readout
       var _easyHasteEl = document.getElementById('easy-worn-haste');
       if (_easyHasteEl) _easyHasteEl.value = totalHaste;
       var _easyHasteReadout = document.getElementById('easy-worn-haste-value');
       if (_easyHasteReadout) _easyHasteReadout.textContent = totalHaste + '%';
     }
-    if (totals.atk) setEl('worn-attack',  totals.atk);
+    if (totals.atk) setEl('worn-attack', totals.atk);
+    updateTankHP();
 
     // ---- Class detection via class bitmask intersection ----
     var CLASS_MAP = {
@@ -9978,12 +9749,9 @@
       }
     }
     if (detectedClass) {
-      var tankClassEl  = document.getElementById('tank-class');
       var meleeClassEl = document.getElementById('class');
-      if (tankClassEl)  tankClassEl.value  = detectedClass;
       if (meleeClassEl) meleeClassEl.value = detectedClass;
       // Trigger change events so dependent UI updates (skill caps, AAs, etc.)
-      if (tankClassEl)  tankClassEl.dispatchEvent(new Event('change'));
       if (meleeClassEl) meleeClassEl.dispatchEvent(new Event('change'));
       // syncEasyFromAdvancedBasics (called by the class change handler) resets worn-haste
       // to the level-based default — re-apply the inventory value after it fires.
@@ -9994,8 +9762,6 @@
         if (easyHasteEl) easyHasteEl.value = totalHaste;
         var easyHasteReadout = document.getElementById('easy-worn-haste-value');
         if (easyHasteReadout) easyHasteReadout.textContent = totalHaste + '%';
-        var tankHasteEl = document.getElementById('tank-worn-haste');
-        if (tankHasteEl) tankHasteEl.value = totalHaste;
       }
     }
 
@@ -10118,17 +9884,21 @@
 
   function updateTankHP() {
     var gel = function(id) { return document.getElementById(id); };
-    var classId = (gel('tank-class') && gel('tank-class').value) || 'warrior';
-    var level   = parseInt((gel('tank-level')   && gel('tank-level').value)   || '60', 10) || 60;
-    var sta     = parseInt((gel('tank-sta')     && gel('tank-sta').value)     || '200', 10) || 0;
+    // Read from shared character module inputs
+    var classId = (gel('class') && gel('class').value) || 'warrior';
+    var level   = parseInt((gel('level') && gel('level').value) || '60', 10) || 60;
+    var sta     = parseInt((gel('sta')   && gel('sta').value)   || '200', 10) || 0;
     var wornHP  = parseInt((gel('tank-worn-hp') && gel('tank-worn-hp').value) || '0', 10) || 0;
     var hp = calcTankHP(classId, level, sta, wornHP);
+    // Add HP from active buffs (SPA.TOTAL_HP — e.g. Aegolism, Symbol, Brell's)
+    var bfx = (typeof window.getBuffEffects === 'function') ? window.getBuffEffects() : null;
+    if (bfx && bfx.hp) hp += bfx.hp;
     var hpEl = gel('tank-player-hp');
     if (hpEl) hpEl.value = hp;
   }
 
   // Wire HP-affecting inputs so Total HP auto-updates
-  ['tank-class', 'tank-level', 'tank-sta', 'tank-worn-hp'].forEach(function (id) {
+  ['class', 'level', 'sta', 'tank-worn-hp'].forEach(function (id) {
     var el = document.getElementById(id);
     if (!el) return;
     el.addEventListener('change', updateTankHP);
@@ -10171,42 +9941,42 @@
       return cap != null ? Math.min(cap, base + bonus) : (base + bonus);
     }
 
-    var weaponDamage = v('tank-w1-damage', 0);
+    var weaponDamage = v('w1-damage', 0);
     var options = {
       // Mob
       mobLevel:        v('tank-mob-level', 60),
       mobMinDamage:    v('tank-mob-min-dmg', 50),
       mobMaxDamage:    v('tank-mob-max-dmg', 250),
       mobAttackDelay:  v('tank-mob-delay', 20),
-      mobAttackCount:  v('tank-mob-attacks', 1),
-      mobAccuracy:     v('tank-mob-accuracy', 0) || undefined,
+      mobAttackCount:         v('tank-mob-attacks', 1),
+      mobDoubleAttackSkill:   v('tank-mob-double-atk-skill', 0),
+      mobTripleAttack:        (document.getElementById('tank-mob-triple-atk') || {}).checked || false,
+      mobAccuracy:            v('tank-mob-accuracy', 0) || undefined,
       mobAC:           v('tank-mob-ac', 0),
 
-      // Player defense — stats from the shared character model (#str/#dex/#agi, set by
-      // syncHiddenStats which incorporates race base + point allocation + gear), plus
-      // any active buff bonuses resolved via the same getBuffEffects() used by melee.
-      playerLevel:          v('tank-level', 60),
-      playerClassId:        sel('tank-class', 'warrior'),
+      // Player defense — all stats read from the shared character module inputs.
+      playerLevel:          v('level', 60),
+      playerClassId:        sel('class', 'warrior'),
       playerAC:             v('tank-player-ac', 1200) + (buffFx ? buffFx.ac || 0 : 0),
       playerSpellAC:        v('tank-player-spell-ac', 0),
       playerAGI:            statWithBuff('agi', 'agi', 100, 255),
-      playerDefenseSkill:   v('tank-defense-skill', 230),
-      playerDodgeSkill:     v('tank-dodge-skill', 195),
-      playerParrySkill:     v('tank-parry-skill', 200),
-      playerRiposteSkill:   v('tank-riposte-skill', 185),
-      playerBlockSkill:     v('tank-block-skill', 160),
-      playerHPTotal:        v('tank-player-hp', 5000) + (buffFx ? buffFx.hp || 0 : 0),
+      playerDefenseSkill:   v('defense-skill', 0),
+      playerDodgeSkill:     v('dodge-skill', 0),
+      playerParrySkill:     v('parry-skill', 0),
+      playerRiposteSkill:   v('riposte-skill', 0),
+      playerBlockSkill:     v('block-skill', 0),
+      playerHPTotal:        v('tank-player-hp', 5000),  // buff HP already baked in by updateTankHP
       playerHPRegen:        v('tank-player-hp-regen', 0),
       healerHPS:            v('tank-healer-hps', 0),
 
       // Player offense (riposte)
       playerWeaponDamage:   weaponDamage > 0 ? weaponDamage : undefined,
-      playerWeaponDelay:    v('tank-w1-delay', 30),
-      playerWeaponIs2H:     chk('tank-w1-is2h'),
-      playerOffenseSkill:   v('tank-offense-skill', 252),
+      playerWeaponDelay:    v('w1-delay', 30),
+      playerWeaponIs2H:     v('w1-is2h-override', 0) > 0,
+      playerOffenseSkill:   v('offense-skill', 252),
       playerStr:            statWithBuff('str', 'str', 200, 255),
       playerDex:            statWithBuff('dex', 'dex', 150, 255),
-      playerWornAttack:     v('tank-worn-attack', 0) + (buffFx ? (buffFx.wornAtk || 0) + (buffFx.atk || 0) : 0),
+      playerWornAttack:     v('worn-attack', 0) + (buffFx ? (buffFx.wornAtk || 0) + (buffFx.atk || 0) : 0),
 
       // Simulation
       fightDurationSec: v('tank-duration', 300),
@@ -10244,7 +10014,8 @@
         'maxHitTaken', 'riposteMaxHit',
         'landedSwings', 'missedSwings', 'dodgedSwings',
         'parriedSwings', 'ripostedSwings', 'blockedSwings',
-        'swingAttempts', 'rounds'
+        'swingAttempts', 'rounds',
+        'mobDoubleAttackHits', 'mobTripleAttackHits'
       ];
       keys.forEach(function (k) {
         var sum = allReports.reduce(function (a, r) { return a + (r[k] || 0); }, 0);

@@ -343,7 +343,7 @@
       category: 'offensive',
       source: 'RNG',
       spellId: 2594,
-      sai: 16,
+      sai: 94,  // different stacking group from Warder's Protection (sai 16); these spells stack
       effects: [
         { spa: SPA.ATK, value: 15 },
       ],

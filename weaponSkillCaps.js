@@ -53,15 +53,31 @@
   };
 
   /**
-   * Defensive skill caps (Defense, Dodge, Riposte, Block, Parry) per class.
+   * Defensive skill caps (Defense, Dodge, Riposte, Block, Parry) per class at level 60.
    * Same class order as SkillCapsSpec.classes. 0 = class does not have the skill.
+   * Source: skill_caps table in EQMacEmu (2022_08_03_skill_caps.sql).
    */
   const DefensiveSkillCaps = {
+    //         WAR  CLR  PAL  RNG  SHD  DRU  MNK  BRD  ROG  SHM  NEC  WIZ  MAG  ENC  BST
     defense:  [252, 200, 252, 240, 252, 200, 252, 252, 252, 200, 145, 145, 145, 145, 240],
     dodge:    [190,  75, 170, 170, 170,  75, 230, 170, 210,  75,  75,  75,  75,  75, 170],
     riposte:  [225,   0, 200, 185, 200,   0, 225,  75, 225,   0,   0,   0,   0,   0, 185],
-    block:    [  0,   0,   0, 225,   0,   0,   0,   0,   0,   0, 200,   0,   0,   0,   0],
+    block:    [  0,   0,   0,   0,   0,   0, 225,   0,   0,   0,   0,   0,   0,   0, 200],
     parry:    [230,   0, 205, 220, 205,   0,   0, 185, 230,   0,   0,   0,   0,   0,   0]
+  };
+
+  /**
+   * Minimum player level required to obtain each defensive skill per class.
+   * 0 = class cannot learn the skill at any level.
+   * Source: first entry per class in skill_caps table (train level).
+   */
+  const DefensiveSkillTrainLevels = {
+    //         WAR CLR PAL RNG SHD DRU MNK BRD ROG SHM NEC WIZ MAG ENC BST
+    defense:  [  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1],
+    dodge:    [  6, 15, 10,  8, 10, 15,  1, 10,  4, 15, 22, 22, 22, 22, 10],
+    riposte:  [ 25,  0, 30, 35, 30,  0, 35, 58, 30,  0,  0,  0,  0,  0, 40],
+    block:    [  0,  0,  0,  0,  0,  0, 12,  0,  0,  0,  0,  0,  0,  0, 25],
+    parry:    [ 10,  0, 17, 18, 17,  0,  0, 53, 12,  0,  0,  0,  0,  0,  0]
   };
 
   /** Sim classId (e.g. "warrior", "monk") -> spec class index 0..14 */
@@ -175,14 +191,52 @@
     return Math.min(max, perLevel);
   }
 
+  /**
+   * Get defensive skill cap (Defense, Dodge, Parry, Riposte, Block) for class/level.
+   * Returns 0 if the class cannot learn the skill or level is below the train level.
+   * Uses 5*level+5 progression from train level, clamped by the class max cap.
+   * Note: BST/RNG riposte and BST block have non-standard mid-level progressions in the
+   * server DB (they plateau early then resume growth at level 51). This formula is accurate
+   * at level 60; it overestimates slightly for those classes in the 30-50 range.
+   * @param {string} defSkillKey - "defense"|"dodge"|"parry"|"riposte"|"block"
+   * @param {number|string} classId - class index 0..14, "WAR", or "warrior"
+   * @param {number} level - 1..60
+   * @param {Object} [spec] - defaults to SkillCapsSpec
+   * @returns {number}
+   */
+  function getDefensiveSkillCap(defSkillKey, classId, level, spec) {
+    spec = spec || SkillCapsSpec;
+    const clsIndex = resolveClassIndex(spec, classId);
+    if (clsIndex < 0) return 0;
+
+    const maxArr = DefensiveSkillCaps[defSkillKey];
+    if (!maxArr) return 0;
+    const max = maxArr[clsIndex] != null ? maxArr[clsIndex] : 0;
+    if (max <= 0) return 0;
+
+    // Enforce train level
+    const trainArr = DefensiveSkillTrainLevels[defSkillKey];
+    if (trainArr) {
+      const trainLevel = trainArr[clsIndex] || 0;
+      if (trainLevel <= 0) return 0;          // class cannot learn this skill
+      if (level < trainLevel) return 0;       // below train level
+    }
+
+    const lvl = Math.max(spec.meta.levelMin, Math.min(spec.meta.levelMax, level));
+    const perLevel = lvl * spec.meta.perLevel.mul + spec.meta.perLevel.add;
+    return Math.min(max, perLevel);
+  }
+
   global.WeaponSkillCaps = {
     SkillCapsSpec: SkillCapsSpec,
     CombatSkillCaps: CombatSkillCaps,
     DefensiveSkillCaps: DefensiveSkillCaps,
+    DefensiveSkillTrainLevels: DefensiveSkillTrainLevels,
     getWeaponSkillCap: getWeaponSkillCap,
     buildWeaponSkillCapTable: buildWeaponSkillCapTable,
     getCapForSimClass: getCapForSimClass,
     getCombatSkillCap: getCombatSkillCap,
+    getDefensiveSkillCap: getDefensiveSkillCap,
     resolveClassIndex: resolveClassIndex,
     SIM_CLASS_TO_INDEX: SIM_CLASS_TO_INDEX
   };

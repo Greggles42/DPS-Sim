@@ -23,7 +23,7 @@ function escapeHtml(s) {
 function formatTs(ts) {
   if (ts == null) return '—';
   const d = new Date(ts);
-  return d.toISOString().replace('T', ' ').slice(0, 19);
+  return d.toLocaleString('sv', { timeZone: 'America/Los_Angeles' }).slice(0, 16) + ' PT';
 }
 
 export default async function handler(req, res) {
@@ -172,36 +172,51 @@ export default async function handler(req, res) {
   <table>
     <thead>
       <tr>
-        <th>Time (UTC)</th>
-        <th>Mode</th>
+        <th>Time (PT)</th>
+        <th>UI Mode</th>
+        <th>Sim Mode</th>
         <th>Era</th>
         <th>Class</th>
         <th>W1</th>
         <th>W2</th>
         <th>Duration</th>
         <th>Runs</th>
+        <th>Target AC</th>
         <th>Total dmg</th>
-        <th>Special / Fistweaving</th>
+        <th>Special / Notes</th>
       </tr>
     </thead>
     <tbody>
       ${recent.length === 0
-        ? '<tr><td colspan="10" class="muted">No runs logged yet.</td></tr>'
+        ? '<tr><td colspan="12" class="muted">No runs logged yet.</td></tr>'
         : recent
             .map(
               (e) => {
-                const mode = e.simMode || (e.ranged ? 'ranged' : 'dps');
+                const simMode = e.simMode || (e.ranged ? 'ranged' : 'dps');
+                const isRankWeapons = e.event === 'rank_weapons';
+                const uiMode = e.mode ? (e.mode === 'advanced' ? 'Advanced' : 'Easy') : '—';
+                const uiModeStyle = e.mode === 'advanced' ? 'color:#d4af37' : (e.mode === 'easy' ? 'color:#7eb8da' : '');
+                let specialCell;
+                if (isRankWeapons) {
+                  specialCell = '<em class="muted">Rank Weapons</em>';
+                } else if (simMode === 'ranged') {
+                  specialCell = '—';
+                } else {
+                  specialCell = escapeHtml((e.specialAttacks ? 'Special ' : '') + (e.fistweaving ? 'FW' : '') || '—');
+                }
                 return `<tr>
         <td class="mono">${escapeHtml(formatTs(e.ts))}</td>
-        <td>${escapeHtml(mode)}</td>
+        <td style="${uiModeStyle}">${uiMode}</td>
+        <td>${escapeHtml(simMode)}</td>
         <td>${escapeHtml(e.era || '—')}</td>
-        <td>${escapeHtml(mode === 'ranged' ? 'Ranged' : (e.classId || '—'))}</td>
+        <td>${escapeHtml(simMode === 'ranged' ? 'Ranged' : (e.classId || '—'))}</td>
         <td class="mono">${e.w1 ? escapeHtml(e.w1.name || [e.w1.preset || e.w1.damage, e.w1.delay].filter(Boolean).join(' / ')) : '—'}</td>
         <td class="mono">${e.w2 ? escapeHtml(e.w2.name || [e.w2.preset || e.w2.damage, e.w2.delay].filter(Boolean).join(' / ')) : '—'}</td>
         <td>${escapeHtml(e.durationSec ?? '—')}</td>
         <td>${escapeHtml(e.runs ?? '—')}</td>
+        <td>${escapeHtml(e.targetAC ?? '—')}</td>
         <td>${escapeHtml(e.totalDamage ?? '—')}</td>
-        <td>${mode === 'ranged' ? '—' : ((e.specialAttacks ? 'Special ' : '') + (e.fistweaving ? 'FW' : '') || '—')}</td>
+        <td>${specialCell}</td>
       </tr>`;
               }
             )
