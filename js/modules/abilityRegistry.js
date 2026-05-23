@@ -217,8 +217,8 @@
       classes: ['monk'],
       simOption: 'masterWuRank',
       category: 'combat',
-      description: 'Rank 1–5: +10% per rank chance of a 2nd Flying Kick strike; if that lands, same chance for a 3rd.',
-      rankLabels: ['Off', '1 (10%)', '2 (20%)', '3 (30%)', '4 (40%)', '5 (50%)']
+      description: 'Rank 1–5: After flying kick, roll rank×10% — if pass, fire 1 extra random monk strike (Flying Kick/Eagle Strike/Tiger Claw/Round Kick); also roll rank×2.5% for a 2nd extra.',
+      rankLabels: ['Off', '1 (10%/2.5%)', '2 (20%/5%)', '3 (30%/7.5%)', '4 (40%/10%)', '5 (50%/12.5%)']
     },
     {
       id: 'furyOfTheAges',

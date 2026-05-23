@@ -641,6 +641,17 @@
     monk: SPECIAL_ATTACKS_BY_TYPE.flying_kick,
     rogue: SPECIAL_ATTACKS_BY_TYPE.backstab,
   };
+  // Monk skills randomly selected by Technique of Master Wu (EQMacEmu special_attacks.cpp MonkSPA[4])
+  // Assumption: monk is always at max skill (225) for Eagle Strike, Tiger Claw, and Round Kick.
+  // Base damage from EQ::skills::GetSkillBaseDamage() at skill 225 (base + 4 threshold bonuses at 25/75/125/175):
+  //   FlyingKick: 25+4=29  EagleStrike: 7+4=11  TigerClaw: 4+4=8  RoundKick: 5+4=9
+  // Only Flying Kick has the level*4/5 min damage formula; others default to min 1.
+  const WU_MONK_SKILLS = [
+    { name: 'Flying Kick',  skillBaseDamage: 29, minDamageFormula: 'level*4/5' },
+    { name: 'Eagle Strike', skillBaseDamage: 11 },
+    { name: 'Tiger Claw',   skillBaseDamage:  8 },
+    { name: 'Round Kick',   skillBaseDamage:  9 },
+  ];
 
   // ----- Ranged (archery) combat -----
   // Simulates Client::RangedAttack flow: one shot per ranged_timer (weapon delay + haste).
@@ -1449,9 +1460,19 @@
       } : null,
       masterWu: (specialType === 'flying_kick' && masterWuRank > 0) ? {
         rank: masterWuRank,
-        rollAttempts: 0,
-        extraHits: 0,
+        mainRolls: 0,     // total flying kicks with Wu active
+        triggered: 0,     // main wuChance roll successes
+        extraAttempts: 0, // total extra strikes attempted (hit or miss)
+        extraHits: 0,     // extra strikes that landed
         totalDamage: 0,
+        fkHits: 0,        // base flying kick hits (for avg comparison)
+        fkDamage: 0,      // base flying kick damage (for avg comparison)
+        bySkill: {
+          'Flying Kick':  { attempts: 0, hits: 0, damage: 0 },
+          'Eagle Strike': { attempts: 0, hits: 0, damage: 0 },
+          'Tiger Claw':   { attempts: 0, hits: 0, damage: 0 },
+          'Round Kick':   { attempts: 0, hits: 0, damage: 0 },
+        },
       } : null,
       fistweaving: (options.classId === 'monk' && hasMainHand && w1.is2H && options.fistweaving) ? {
         baseDamage: fistweaveNonEpicOhMode ? cappedFistweaveOhDamage : (options.fistweavingNonEpic ? 14 : 9),
@@ -1698,21 +1719,67 @@
           pushCombatLog(tMs, 'special', 'special', specialVerb, true, dmg, { bsDA: isDoubleBackstabRound && backstabAttemptNumber === 2 });
         }
 
-        for (let r = 0; r < numBackstabRolls; r++) processOneBackstabHit(r + 1);
+        if (report.masterWu) {
+          // Snapshot special totals before the base FK fires so we can isolate FK-only damage
+          const _fkHitsBefore = report.special.hits;
+          const _fkDmgBefore  = report.special.totalDamage;
+          for (let r = 0; r < numBackstabRolls; r++) processOneBackstabHit(r + 1);
+          report.masterWu.fkHits   += report.special.hits         - _fkHitsBefore;
+          report.masterWu.fkDamage += report.special.totalDamage  - _fkDmgBefore;
+        } else {
+          for (let r = 0; r < numBackstabRolls; r++) processOneBackstabHit(r + 1);
+        }
 
-        // Technique of Master Wu: monk PoP AA — after flying kick, roll for up to 2 extra strikes.
-        // Each rank = +10% chance. Roll is sequential: pass → 2nd hit, pass again → 3rd hit.
+        // Technique of Master Wu (EQMacEmu special_attacks.cpp):
+        //   Roll wuChance% → if pass, fire 1 extra random monk strike (Flying Kick / Eagle Strike / Tiger Claw / Round Kick).
+        //   Also roll wuChance/4% (independent) → if pass, fire 1 additional extra strike.
+        //   fromWus=true on extra strikes prevents recursion.
         if (specialType === 'flying_kick' && masterWuRank > 0) {
-          const wuChance = masterWuRank * 0.10;
-          for (let w = 0; w < 2; w++) {
-            report.masterWu.rollAttempts++;
-            if (rng() >= wuChance) break;
-            const hitsBefore = report.special.hits;
-            const dmgBefore = report.special.totalDamage;
-            processOneBackstabHit(2 + w);
-            if (report.special.hits > hitsBefore) {
-              report.masterWu.extraHits += (report.special.hits - hitsBefore);
-              report.masterWu.totalDamage += (report.special.totalDamage - dmgBefore);
+          const wuChance = masterWuRank * 10; // integer percent: 10/20/30/40/50 at ranks 1-5
+
+          function doMonkWuStrike(wuSkillCfg) {
+            const skillEntry = report.masterWu.bySkill[wuSkillCfg.name];
+            if (skillEntry) skillEntry.attempts++;
+            report.masterWu.extraAttempts++;
+            addSwingThreatMH();
+            if (!rollHit(toHit, avoidance, rng, fromBehind)) {
+              pushCombatLog(tMs, 'special', 'special', wuSkillCfg.name, false, undefined, { wu: true });
+              return;
+            }
+            let baseDmg = calcMeleeDamage(wuSkillCfg.skillBaseDamage, offenseRating, mitigation, rng, 0);
+            if (wuSkillCfg.minDamageFormula === 'level*4/5') {
+              baseDmg = Math.max(1, Math.max(baseDmg, Math.floor(level * 4 / 5)));
+            } else {
+              baseDmg = Math.max(1, baseDmg);
+            }
+            const mult = rollDamageMultiplier(offenseRating, baseDmg, level, options.classId, false, rng);
+            let dmg = mult.damage;
+            const beforeCrit = dmg;
+            const critResult = rollMeleeCrit(dmg, 0, level, options.classId, options.dex, options.critChanceMult, false, false, 0, options.critDmgDebugDmgBonus, rng, furyDmgBonusPct);
+            dmg = critResult.damage;
+            if (critResult.isCrit) { report.critHits++; report.critDamageGain += (dmg - beforeCrit); }
+            if (w1.noDamageVsTarget) { dmg = 0; }
+            if (skillEntry) { skillEntry.hits++; skillEntry.damage += dmg; }
+            report.masterWu.extraHits++;
+            report.masterWu.totalDamage += dmg;
+            report.special.hits++;
+            report.special.count++;
+            report.special.totalDamage += dmg;
+            report.special.maxDamage = Math.max(report.special.maxDamage, dmg);
+            report.special.hitList.push(dmg);
+            report.weapon1.totalDamage += dmg;
+            report.totalDamage += dmg;
+            pushCombatLog(tMs, 'special', 'special', wuSkillCfg.name, true, dmg, { wu: true });
+          }
+
+          report.masterWu.mainRolls++;
+          if (wuChance >= 100 || rng() * 100 < wuChance) {
+            report.masterWu.triggered++;
+            let extra = 1;
+            if (rng() * 100 < wuChance / 4) extra++;
+            while (extra > 0) {
+              doMonkWuStrike(WU_MONK_SKILLS[Math.floor(rng() * 4)]);
+              extra--;
             }
           }
         }
@@ -2682,14 +2749,28 @@
     }
     if (report.masterWu) {
       const wu = report.masterWu;
-      const wuAcc = wu.rollAttempts > 0 ? (wu.extraHits / wu.rollAttempts * 100).toFixed(1) : '0';
+      const triggerRate = wu.mainRolls > 0 ? (wu.triggered / wu.mainRolls * 100).toFixed(1) : '0';
+      const wuAcc = wu.extraAttempts > 0 ? (wu.extraHits / wu.extraAttempts * 100).toFixed(1) : '0';
+      const avgFKHit = wu.fkHits > 0 ? (wu.fkDamage / wu.fkHits).toFixed(1) : '—';
+      const avgWuPerFK = wu.mainRolls > 0 ? (wu.totalDamage / wu.mainRolls).toFixed(1) : '—';
       lines.push('');
       lines.push('  Technique of Master Wu (rank ' + wu.rank + ')');
-      lines.push(padLine('    Extra strike rolls:', String(wu.rollAttempts)));
-      lines.push(padLine('    Extra strikes landed:', String(wu.extraHits)));
-      lines.push(padLine('    Hit rate:', wuAcc + '%'));
+      lines.push(padLine('    Flying kicks with Wu active:', String(wu.mainRolls)));
+      lines.push(padLine('    Wu triggered (main roll):', String(wu.triggered) + '  (' + triggerRate + '%)'));
+      lines.push(padLine('    Extra strikes (att / hit):', wu.extraAttempts + ' / ' + wu.extraHits + '  (' + wuAcc + '% acc)'));
+      lines.push('');
+      lines.push('    Extra strike breakdown:');
+      var skillOrder = ['Flying Kick', 'Eagle Strike', 'Tiger Claw', 'Round Kick'];
+      skillOrder.forEach(function (sName) {
+        var s = wu.bySkill[sName];
+        if (!s) return;
+        var sAvg = s.hits > 0 ? (s.damage / s.hits).toFixed(1) : '—';
+        lines.push(padLine('      ' + sName + ':', s.attempts + ' att / ' + s.hits + ' hit   ' + s.damage + ' dmg  (avg ' + sAvg + ')'));
+      });
+      lines.push('');
       lines.push(padLine('    Total Wu damage:', String(wu.totalDamage)));
       lines.push(padLine('    Wu DPS:', (wu.totalDamage / dur).toFixed(2)));
+      lines.push(padLine('    Avg Wu dmg per FK use:', avgWuPerFK + '  (vs avg FK hit: ' + avgFKHit + ')'));
     }
     if (report.fistweaving && report.fistweaving.usesEquippedOffhandWeapon) {
       const fw = report.fistweaving;

@@ -1190,20 +1190,62 @@
       border-bottom: 1px solid rgba(212,175,55,0.08);
       margin-bottom: 0.1rem;
     }
-    .aa-rows { display: flex; flex-wrap: wrap; gap: 0.25rem 1.5rem; }
+    .aa-rows { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.25rem 1rem; }
     .aa-row {
       display: flex;
       align-items: center;
-      gap: 0.4rem;
-      min-width: 14rem;
+      gap: 0.35rem;
     }
     .aa-row.aa-unavail { opacity: 0.35; pointer-events: none; }
     .aa-label {
       font-size: 0.72rem;
       color: var(--text);
-      min-width: 9rem;
       white-space: nowrap;
+      flex: 1 1 0;
+      min-width: 0;
+      line-height: 1;
+      align-self: center;
     }
+    .aa-info {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 1em;
+      height: 1em;
+      font-size: 0.85em;
+      font-weight: 700;
+      color: var(--accent);
+      border: 1px solid var(--border);
+      border-radius: 50%;
+      cursor: help;
+      flex-shrink: 0;
+      position: relative;
+      line-height: 1;
+      user-select: none;
+    }
+    .aa-info::after {
+      content: attr(data-tooltip);
+      position: absolute;
+      bottom: calc(100% + 5px);
+      left: 50%;
+      transform: translateX(-50%);
+      background: #1a1d23;
+      border: 1px solid rgba(212,175,55,0.35);
+      color: var(--text);
+      font-size: 0.7rem;
+      font-weight: 400;
+      line-height: 1.45;
+      white-space: normal;
+      width: 220px;
+      padding: 0.45rem 0.55rem;
+      border-radius: 5px;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.12s;
+      z-index: 999;
+      text-align: left;
+    }
+    .aa-info:hover::after { opacity: 1; }
     .aa-seg { display: flex; gap: 1px; }
     .aa-seg-btn {
       padding: 0.15rem 0.35rem;
@@ -2302,6 +2344,7 @@
   <section class="advanced-only" style="margin-top: 1rem;">
     <h2>Version log</h2>
     <ul style="font-size: 0.9rem; color: var(--muted); margin: 0; padding-left: 1.25rem;">
+      <li><strong>1.20</strong> — AA configurator layout overhauled: rows now snap into a 3-column grid so labels and rank boxes align cleanly. Each AA has an inline <em>i</em> info icon (sourced from TAKP wiki) that shows a tooltip with the ability description on hover. Fixed multi-run sim crash when Technique of Master Wu was active — the averaged report object was missing <code>mainRolls</code>, <code>triggered</code>, <code>extraAttempts</code>, <code>fkHits</code>, <code>fkDamage</code>, and <code>bySkill</code>, causing <code>formatReport</code> to throw and produce no output. Technique of Master Wu logic corrected to match EQMacEmu <code>special_attacks.cpp</code>: two independent rolls (rank×10% main, rank×2.5% secondary) each selecting randomly from Flying Kick, Eagle Strike, Tiger Claw, or Round Kick — not a sequential chain of FK-only strikes. Wu report now shows per-skill breakdown and average Wu damage vs average base FK hit. Mechanics guide updated: corrected Master Wu section, new sections for Two Hand Bash, Soul Abrasion, Knight's Advantage, Speed of the Knight, Raging Flurry, Tactical Mastery, Flash of Steel, Planar Durability; Planar Power stat cap note added to offense section; AA era table updated with all v1.19/v1.20 additions.</li>
       <li><strong>1.19</strong> — PoP-era buff options: Haste (Rizlona's Call of Flame, Warsong of Zek, Speed of Vallon), Offensive (Spirit of the Predator, Protection of the Wild, Ferine Avatar), Defensive (Hand of Virtue, Symbol of Kazad, Brell's Stalwart Shield, Protection of the Nine, Focus of the Seventh, Voice of Quellious) — all gated behind PoP era selection. Eight new AAs: Two Hand Bash (PAL/SHD Luclin — enables bash with 2H), Soul Abrasion (SHD Luclin — +10/20/30% proc damage), Planar Durability (WAR/PAL/SHD PoP — +1.5/3/4.5% max HP in tanking sim), Flash of Steel (multi-class PoP — +10/20/30% double riposte), Knight's Advantage (PAL/SHD PoP — +2/4/6% DA), Speed of the Knight (PAL/SHD PoP — 2/4/8% extra 2H attack after double), Raging Flurry (WAR PoP — 10/20/30% extra flurry on triple attack), Tactical Mastery (WAR PoP — -10/20/30 NPC avoidance). Planar Power stat cap now correctly applied at simulation time (was computed but not enforced).</li>
       <li><strong>1.18</strong> — Ranged simulation engine corrections: archery mastery applies as a percent modifier before server halving (matching EQMacEmu <code>DoArcheryAttackDmg</code>); Trueshot applies +105% to the pre-halved base; Ranger 51+ stationary double-damage implemented from <code>beacon.cpp</code> (doubles post-D20 result before crit). Ranged report now shows base damage breakdown (bow, arrow, mastery, effective shot base). Inventory import now auto-fills bow (Range slot) and arrow (Ammo slot) in the ranged tab. NPC attack mechanics added to tanking sim: double attack using EQMacEmu formula <code>(skill + level) / 500</code>, triple attack for Warrior/Monk level 60+ at 13.5%; auto-filled from NPC search. Tanking report shows full player AC breakdown (worn, defense skill, spell/buff AC, AGI bonus, softcap). Buff HP (+HP from Aegolism, etc.) now included in tank HP. Warder's Protection and Nature's Precision now stack correctly. Buff summary panel overlap fixed. Archery Options card spacing, haste summary single-line layout. Mechanics guide: corrected archery pipeline, avoidance formula, new NPC attack and AC breakdown sections.</li>
       <li><strong>1.17</strong> — Mobile NPC search uses full npc_types database. Ranged tab improvements, new Ranger buff options (Warder's Protection, Nature's Precision, Strength of Nature, Force of Nature), layout polish.</li>
@@ -2707,7 +2750,7 @@
       }
 
       // When releasing: 1) Bump VERSION below. 2) Add a new <li> at the top of the Version log section above.
-      const VERSION = '1.19';
+      const VERSION = '1.20';
       const versionEl = $('app-version');
       if (versionEl) versionEl.textContent = 'v' + VERSION;
 
@@ -3731,6 +3774,37 @@
         var isPop = EC ? EC.isAvailableInEra('pop', eraId) : false;
         var isLuclin = EC ? EC.isAvailableInEra('luclin', eraId) : false;
 
+        var AA_TOOLTIPS = {
+          combatFury:       'Increases your chance to land a critical hit. Non-Warriors will nearly match the original critical hit abilities of Warriors, while Warriors will remain significantly ahead.',
+          combatStability:  'Increases melee damage mitigation by 2, 5, and 10 percent.',
+          combatAgility:    'Increases your melee damage avoidance by 2, 5 and 10 percent.',
+          naturalDurability:'Increases your maximum hitpoints by 2, 5, and 10 percent (based on base HP including stamina effects).',
+          spellCastingFury: 'Gives you a chance to land critical hits with direct damage spells. Ranks increase crit chance by 2, 4, and 7 percent.',
+          ambidexterity:    'Increases your chance to use dual wield successfully.',
+          flurry:           'Allows you to perform up to 2 additional attacks from your primary hand per round.',
+          slayUndead:       'Causes your criticals to inflict greatly improved damage versus the undead.',
+          archeryMastery:   'Increases your archery damage by 30, 60, and 100 percent.',
+          doubleRiposte:    'Gives you an increased chance to execute a double riposte 15, 35, and 50 percent of the time.',
+          returnKick:       'Gives you the chance to automatically perform a bonus flying kick on ripostes 25, 35, and 50 percent of the time.',
+          twoHandBash:      'Allows you to use your Bash skill while wielding any 2-handed weapon.',
+          soulAbrasion:     'Gives you increased damage off of the lifetap procs that result from your self buffs (+10/+20/+30%).',
+          planarPower:      'Raises the maximum that your statistics can be raised to, with items or spells, by 5 points per rank (up to +25 at rank 5).',
+          planarDurability: 'Each rank adds an additional 1.5% to your maximum hit points (stacks with Natural Durability).',
+          masterWu:         'After a Flying Kick, roll rank×10% for 1 extra random monk strike (Flying Kick/Eagle Strike/Tiger Claw/Round Kick); also roll rank×2.5% for a 2nd extra strike.',
+          furyOfTheAges:    'Further increases your chance to score a critical blow against your opponent.',
+          ferocity:         'Grants an increased chance of performing a double attack in any given combat round.',
+          bestialFrenzy:    'Grants a chance of performing a double attack in any given combat round.',
+          harmoniousAttack: 'Grants a chance of performing a double attack in any given combat round.',
+          punishingBlade:   'Increases the chance of scoring an extra hit with all two-handed weapons that you wield (2/4/8%).',
+          flashOfSteel:     'Further increases your chance of double riposting by 10 percent per rank.',
+          knightsAdvantage: 'Grants an increased chance of performing a double attack in any given combat round (+2/+4/+6%).',
+          speedOfTheKnight: 'Grants a chance to score an additional attack with two-handed weapons after a double attack (2/4/8%).',
+          ragingFlurry:     'Further increases the chance of performing a flurry attack upon successfully scoring a triple attack (10/20/30%).',
+          tacticalMastery:  'Studying your opponent for weaknesses allows you to pierce through advanced defenses. Each rank grants an increasing chance of bypassing dodge, block, parry, and riposte.',
+          innateDefense:    'Further increases your mitigation of incoming melee damage (stacks with Combat Stability).',
+          lightningReflexes:'Further increases your chance of completely avoiding incoming melee damage (stacks with Combat Agility).',
+        };
+
         function rowHtml(aa, classId2) {
           // Hide AAs the selected class cannot take
           var classOk = aa.classes.length === 0 || aa.classes.indexOf(classId2) >= 0;
@@ -3747,8 +3821,12 @@
           if (aa.id === 'ambidexterity') {
             if (curRank > 0) lbl += ' <span style="color:var(--muted);font-size:0.65rem;">(+32 DW)</span>';
           }
+          var tipText = AA_TOOLTIPS[aa.id] || '';
+          var tipHtml = tipText
+            ? '<span class="aa-info" data-tooltip="' + tipText.replace(/"/g, '&quot;') + '">i</span>'
+            : '';
           return '<div class="aa-row" data-aa-row="' + aa.id + '">'
-            + '<span class="aa-label">' + lbl + '</span>'
+            + '<span class="aa-label">' + lbl + tipHtml + '</span>'
             + '<div class="aa-seg">' + btns + '</div>'
             + '</div>';
         }
@@ -4549,12 +4627,28 @@
                 }
               : null,
             masterWu: reports[0].masterWu
-              ? {
-                  rank: reports[0].masterWu.rank,
-                  rollAttempts: Math.round(reports.reduce((s, r) => s + (r.masterWu ? r.masterWu.rollAttempts : 0), 0) / runs),
-                  extraHits: Math.round(reports.reduce((s, r) => s + (r.masterWu ? r.masterWu.extraHits : 0), 0) / runs),
-                  totalDamage: Math.round(reports.reduce((s, r) => s + (r.masterWu ? r.masterWu.totalDamage : 0), 0) / runs),
-                }
+              ? (() => {
+                  var _wuSkills = ['Flying Kick', 'Eagle Strike', 'Tiger Claw', 'Round Kick'];
+                  var _bySkillAvg = {};
+                  _wuSkills.forEach(function(sk) {
+                    _bySkillAvg[sk] = {
+                      attempts: Math.round(reports.reduce((s, r) => s + (r.masterWu && r.masterWu.bySkill && r.masterWu.bySkill[sk] ? r.masterWu.bySkill[sk].attempts : 0), 0) / runs),
+                      hits:     Math.round(reports.reduce((s, r) => s + (r.masterWu && r.masterWu.bySkill && r.masterWu.bySkill[sk] ? r.masterWu.bySkill[sk].hits     : 0), 0) / runs),
+                      damage:   Math.round(reports.reduce((s, r) => s + (r.masterWu && r.masterWu.bySkill && r.masterWu.bySkill[sk] ? r.masterWu.bySkill[sk].damage   : 0), 0) / runs),
+                    };
+                  });
+                  return {
+                    rank:         reports[0].masterWu.rank,
+                    mainRolls:    Math.round(reports.reduce((s, r) => s + (r.masterWu ? r.masterWu.mainRolls    : 0), 0) / runs),
+                    triggered:    Math.round(reports.reduce((s, r) => s + (r.masterWu ? r.masterWu.triggered    : 0), 0) / runs),
+                    extraAttempts:Math.round(reports.reduce((s, r) => s + (r.masterWu ? r.masterWu.extraAttempts: 0), 0) / runs),
+                    extraHits:    Math.round(reports.reduce((s, r) => s + (r.masterWu ? r.masterWu.extraHits    : 0), 0) / runs),
+                    totalDamage:  Math.round(reports.reduce((s, r) => s + (r.masterWu ? r.masterWu.totalDamage  : 0), 0) / runs),
+                    fkHits:       Math.round(reports.reduce((s, r) => s + (r.masterWu ? r.masterWu.fkHits       : 0), 0) / runs),
+                    fkDamage:     Math.round(reports.reduce((s, r) => s + (r.masterWu ? r.masterWu.fkDamage     : 0), 0) / runs),
+                    bySkill:      _bySkillAvg,
+                  };
+                })()
               : null,
             fistweaving: reports[0].fistweaving
               ? {

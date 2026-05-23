@@ -234,6 +234,9 @@
         STR contributes through:
       </p>
       <div class="formula">STR_bonus = floor((2 * STR - 150) / 3), when STR >= 75</div>
+      <p>
+        <strong>Stat cap:</strong> STR and DEX are capped at 255 before contributing to offense rating. The <strong>Planar Power AA</strong> (PoP, ranks 1–5) raises this cap by +5 per rank (up to 280 at rank 5). The cap is enforced at simulation time for both melee (STR → offense rating) and ranged (DEX → archery offense rating).
+      </p>
     </div>
 
     <div class="card">
@@ -249,6 +252,10 @@
       <div class="formula">effectiveToHit = min(toHit, 550)</div>
       <div class="formula">a = effectiveToHit + 10; b = avoidance + 10</div>
       <div class="formula">if a*1.21 &gt; b: hitChance = 1 - b / (a*1.21*2); else hitChance = (a*1.21) / (b*2)</div>
+      <p>
+        <strong>Tactical Mastery AA</strong> (Warrior, PoP): reduces the NPC's effective avoidance by 10/20/30 at rank 1/2/3 before the hit-chance formula runs.
+        A lower avoidance value shifts the hit-chance formula in the attacker's favour, increasing landed-hit rate.
+      </p>
       <h3>Mitigation (damage size)</h3>
       <p>
         Mitigation is the defender value used only for the <strong>damage roll</strong> (how hard a landed hit hits).
@@ -343,6 +350,12 @@
         <strong>Ferocity AA</strong> (War/Rng/Monk/Rog, PoP): adds +10 to <code>doubleAttackEffective</code> per rank (+2% DA chance per rank, up to rank 3 = +6%).
       </p>
       <p>
+        <strong>Knight's Advantage AA</strong> (Pal/SHD, PoP): adds +10/+20/+30 to <code>doubleAttackEffective</code> per rank (+2%/+4%/+6% DA chance). Stacks with Ferocity.
+      </p>
+      <p>
+        <strong>Speed of the Knight AA</strong> (Pal/SHD, PoP): after a double attack, there is a 2%/4%/8% chance at rank 1/2/3 to perform an extra primary-hand 2H attack. Requires a 2H weapon equipped.
+      </p>
+      <p>
         <strong>Bard and Beastlord</strong> are excluded from the normal double-attack skill check. Instead they use a flat AA-driven chance:
       </p>
       <ul>
@@ -360,6 +373,9 @@
       </ul>
       <div class="formula">P(triple | double) = 13.5%</div>
       <div class="formula">P(triple on round) ~= P(doubleAttack) * 0.135</div>
+      <p>
+        <strong>Raging Flurry AA</strong> (Warrior, PoP): on rounds where triple attack succeeds, there is a 10%/20%/30% chance (rank 1/2/3) of an additional primary-hand flurry swing. Requires level 60+.
+      </p>
 
       <h3>Dual wield (offhand round chance)</h3>
       <p>
@@ -389,18 +405,34 @@
     <div class="card">
       <h2>7.6) Technique of Master Wu (Monk, PoP)</h2>
       <p>
-        When a Monk's Flying Kick lands and <strong>Technique of Master Wu</strong> is trained, up to two extra Flying Kick strikes are rolled per special attack event.
+        After each Flying Kick attempt (hit or miss), if <strong>Technique of Master Wu</strong> is trained, two independent rolls determine whether bonus strikes fire.
+        Source: <code>EQMacEmu special_attacks.cpp</code>.
       </p>
-      <div class="formula">wuChance = masterWuRank × 0.10  (10% per rank, max rank 5 = 50%)</div>
+      <div class="formula">wuChance = masterWuRank × 10  (integer percent: 10/20/30/40/50 at ranks 1–5)</div>
       <p>
-        The loop runs at most twice:
+        The two rolls are <strong>independent</strong> (not a chain):
       </p>
       <ol>
-        <li>Roll against <code>wuChance</code>. If it passes, process one extra FK strike.</li>
-        <li>Roll against <code>wuChance</code> again. If it passes, process another extra FK strike. If it fails at step 1 or 2, stop.</li>
+        <li><strong>Main roll</strong> — <code>rng() × 100 &lt; wuChance</code>. If it passes, fire 1 extra monk strike.</li>
+        <li><strong>Secondary roll</strong> — <code>rng() × 100 &lt; wuChance / 4</code> (independent of the main roll). If it passes, fire 1 additional extra strike.</li>
       </ol>
       <p>
-        Each extra strike uses the same flying kick damage formula as the base hit (skillBase=29, min=level×4/5, with crit chance). The report's <em>Technique of Master Wu</em> section shows extra strike rolls, extra strikes landed, hit rate, total Wu damage, and Wu DPS — tracked separately from the base Flying Kick totals.
+        Each extra strike is randomly selected from four monk combat skills:
+      </p>
+      <table>
+        <thead><tr><th>Skill</th><th>Skill base damage (max skill 225)</th><th>Min damage formula</th></tr></thead>
+        <tbody>
+          <tr><td>Flying Kick</td><td>29</td><td>max(1, level × 4 / 5)</td></tr>
+          <tr><td>Eagle Strike</td><td>11</td><td>1</td></tr>
+          <tr><td>Tiger Claw</td><td>8</td><td>1</td></tr>
+          <tr><td>Round Kick</td><td>9</td><td>1</td></tr>
+        </tbody>
+      </table>
+      <p>
+        Eagle Strike, Tiger Claw, and Round Kick are assumed at max skill (225). Each extra strike rolls its own hit/miss check, damage roll, and crit roll independently.
+      </p>
+      <p>
+        The report's <em>Technique of Master Wu</em> section shows: Flying Kicks with Wu active, main-roll trigger count, extra strikes attempted/landed per skill, total Wu damage, Wu DPS, and average Wu damage per FK use compared to the average base FK hit.
       </p>
     </div>
 
@@ -481,6 +513,17 @@
     </div>
 
     <div class="card">
+      <h2>7.9) Two Hand Bash (Paladin / Shadow Knight, Luclin)</h2>
+      <p>
+        By default, Paladin and Shadow Knight characters cannot bash while wielding a two-handed weapon in the primary slot — the bash special attack is suppressed.
+        The <strong>Two Hand Bash</strong> Luclin class AA removes this restriction, enabling bash on cooldown regardless of weapon type.
+      </p>
+      <p class="muted">
+        If the AA is not trained and a 2H weapon is equipped, the sim sets <code>canFireSpecial = false</code> for the bash attack type, so no bash attempts fire during the simulation.
+      </p>
+    </div>
+
+    <div class="card">
       <h2>8) Elemental Damage on Weapons</h2>
       <p>
         Elemental weapon damage is treated as an extra base-damage adder before the melee damage roll.
@@ -532,6 +575,9 @@
       </ul>
       <p class="muted">
         This is why two weapons with similar listed proc damage can perform differently against different target resist profiles.
+      </p>
+      <p>
+        <strong>Soul Abrasion AA</strong> (Shadow Knight, Luclin, ranks 1–3): multiplies the base proc spell damage by 1.10 / 1.20 / 1.30 before the resist roll and damage calculation. Applied to both primary and offhand proc weapons.
       </p>
     </div>
 
@@ -877,6 +923,13 @@
         Increases player max HP by 2%/5%/10% of the entered HP value before the fight begins.
       </p>
       <div class="formula">playerHPTotal = floor(playerHPTotal × (1 + naturalDurabilityFactor))</div>
+
+      <h3>Planar Durability AA (War/Pal/SHD, PoP, ranks 1–3)</h3>
+      <p>
+        Increases player max HP by an additional 1.5%/3%/4.5% on top of Natural Durability (applied multiplicatively, after Natural Durability).
+      </p>
+      <div class="formula">playerHPTotal = floor(playerHPTotal × (1 + planarDurabilityFactor))</div>
+      <p class="muted">Only applies in the tanking simulation. Only available to Warrior, Paladin, and Shadow Knight.</p>
     </div>
 
     <div class="card">
@@ -890,6 +943,10 @@
         After a successful riposte counter-attack is rolled, there is an additional chance to perform a <em>second</em> counter-attack on the same swing:
       </p>
       <div class="formula">P(double riposte extra hit) = 15% / 35% / 50% at rank 1/2/3</div>
+      <p>
+        <strong>Flash of Steel AA</strong> (War/Pal/Rng/SHD/Monk/Rog/Bst, PoP, ranks 1–3): adds +10%/+20%/+30% to the double-riposte chance, stacking additively with Double Riposte.
+      </p>
+      <div class="formula">totalDoubleRiposteChance = doubleRiposteBaseChance + flashOfSteelBonus</div>
       <p class="muted">The second hit is a full independent riposte damage roll — it does not affect whether the swing was negated (riposte always negates). Both hits are credited to <code>riposteDamageTotal</code>.</p>
 
       <h3>Return Kick AA (Luclin class — Monk only)</h3>
@@ -939,8 +996,8 @@
         <thead><tr><th>Era</th><th>AAs unlocked</th></tr></thead>
         <tbody>
           <tr><td>Classic / Kunark / Velious</td><td>None — AA system not yet available.</td></tr>
-          <tr><td>Luclin</td><td>Archetype AAs (Combat Fury, Combat Stability, Combat Agility, Natural Durability, Spell Casting Fury) and Class AAs (Ambidexterity, Flurry, Slay Undead, Archery Mastery, Double Riposte, Return Kick).</td></tr>
-          <tr><td>Planes of Power</td><td>All Luclin AAs plus: Planar Power, Technique of Master Wu, Fury of the Ages, Ferocity, Bestial Frenzy, Harmonious Attack, Innate Defense, Lightning Reflexes.</td></tr>
+          <tr><td>Luclin</td><td>Archetype AAs (Combat Fury, Combat Stability, Combat Agility, Natural Durability, Spell Casting Fury) and Class AAs (Ambidexterity, Flurry, Slay Undead, Archery Mastery, Double Riposte, Return Kick, Two Hand Bash [Pal/SHD], Soul Abrasion [SHD]).</td></tr>
+          <tr><td>Planes of Power</td><td>All Luclin AAs plus: Planar Power, Planar Durability [War/Pal/SHD], Technique of Master Wu, Fury of the Ages, Ferocity, Knight's Advantage [Pal/SHD], Speed of the Knight [Pal/SHD], Raging Flurry [War], Tactical Mastery [War], Bestial Frenzy, Harmonious Attack, Flash of Steel, Innate Defense, Lightning Reflexes, Punishing Blade.</td></tr>
         </tbody>
       </table>
       <p>
