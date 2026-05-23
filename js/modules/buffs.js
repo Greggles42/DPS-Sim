@@ -108,7 +108,10 @@
     var result = [];
     for (var i = 0; i < rawSlots.length; i++) {
       var s = rawSlots[i];
-      var val = calcBardSlot(s.spa, s.base, s.limit, s.formula, level, instrumentMod);
+      // Per-slot instrMod override: some effects (e.g. ATK on brass songs) use a
+      // higher instrument modifier than the global singing-skill mod.
+      var slotMod = (s.instrMod != null) ? s.instrMod : instrumentMod;
+      var val = calcBardSlot(s.spa, s.base, s.limit, s.formula, level, slotMod);
       if (val !== 0) result.push({ spa: s.spa, value: val });
     }
     return result;
@@ -462,8 +465,12 @@
         { spa: SPA.HASTE_V1, base: 160, limit: 0, formula: 100 },
         // eid=4  base=5  limit=0  formula=101 — STR
         { spa: SPA.STR,      base: 5,   limit: 0, formula: 101 },
-        // eid=2  base=2  limit=0  formula=109 — ATK
-        { spa: SPA.ATK,      base: 2,   limit: 0, formula: 109 },
+        // eid=2  base=18 limit=0  formula=100 — ATK
+        // Raw spell base=2 formula=109, but formula=109 is a brass-instrument type indicator,
+        // not a level-scaling formula; the correct pre-instrument ATK is 18.
+        // instrMod=2.56 represents epic (Singing Sword) + max Instrument Mastery,
+        // giving floor(18 * 2.56) = 46 — confirmed against TAKP.
+        { spa: SPA.ATK,      base: 18,  limit: 0, formula: 100, instrMod: 2.56 },
       ],
     },
     {
