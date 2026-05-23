@@ -1230,7 +1230,9 @@
     const mobLevel = options.mobLevel != null ? options.mobLevel : 60;
     // ---- Avoidance and mitigation: applied on EVERY swing ----
     // Hit chance uses AVOIDANCE (GetAvoidance), not AC. Default = NPC formula (level*9+5, cap 400/460).
-    const avoidance = options.avoidance != null ? options.avoidance : getAvoidanceNPC(mobLevel);
+    // Tactical Mastery (warrior PoP AA): rank 1/2/3 reduces NPC effective avoidance by 10/20/30
+    const tacticalMasteryRank = (options.tacticalMasteryRank | 0) || 0;
+    const avoidance = Math.max(1, (options.avoidance != null ? options.avoidance : getAvoidanceNPC(mobLevel)) - ([0, 10, 20, 30][tacticalMasteryRank] || 0));
     // Damage roll uses MITIGATION (GetMitigation). Computed once and used every time we calc damage.
     const mitigation = getMitigation(mobLevel, targetAC, options.itemAcBonus ?? 0, options.spellAcBonus ?? 0);
     const str = options.str != null ? options.str : 255;
@@ -1263,14 +1265,33 @@
     const masterWuRank = (options.masterWuRank | 0) || 0;
     // Ferocity (warrior/ranger/monk/rogue): +2% per rank flat double-attack bonus
     const ferocityRank = (options.ferocityRank | 0) || 0;
+    // Punishing Blade (warrior/ranger/monk): PoP AA — extra 2H primary attack after a double attack
+    // Rank 1/2/3 = 2%/4%/8% chance (SE_ExtraAttackChance, peq_aa_tables aaid 599/600/601, base1 2/4/8)
+    const PUNISHING_BLADE_CHANCE = [0, 2, 4, 8];
+    const punishingBladeChance = PUNISHING_BLADE_CHANCE[(options.punishingBladeRank | 0) || 0] || 0;
     // Harmonious Attack (bard) / Bestial Frenzy (beastlord): flat DA chance for classes normally excluded from DA
     const harmoniousAttackRank = (options.harmoniousAttackRank | 0) || 0;
     const bestialFrenzyRank = (options.bestialFrenzyRank | 0) || 0;
     const aaFlatDaChance = options.classId === 'bard' ? harmoniousAttackRank * 0.02
       : options.classId === 'beastlord' ? bestialFrenzyRank * 0.02 : 0;
 
+    // Knight's Advantage (paladin/shadowknight PoP AA): +2%/+4%/+6% DA (+10/+20/+30 to effective DA)
+    const knightsAdvantageRank = (options.knightsAdvantageRank | 0) || 0;
+    const knightsAdvantageDaBonus = knightsAdvantageRank * 10;
+    // Speed of the Knight (paladin/shadowknight PoP AA): extra 2H primary attack after double attack
+    const SPEED_OF_KNIGHT_CHANCE = [0, 2, 4, 8];
+    const speedOfTheKnightChance = SPEED_OF_KNIGHT_CHANCE[(options.speedOfTheKnightRank | 0) || 0] || 0;
+    // Raging Flurry (warrior PoP AA): extra flurry chance on successful triple attack
+    const ragingFlurryRank = (options.ragingFlurryRank | 0) || 0;
+    const RAGING_FLURRY_CHANCE = [0, 0.10, 0.20, 0.30];
+    const ragingFlurryChance = ragingFlurryRank > 0 ? RAGING_FLURRY_CHANCE[Math.min(ragingFlurryRank, 3)] : 0;
+    // Soul Abrasion (shadowknight Luclin AA): +10%/+20%/+30% bonus to proc spell damage
+    const soulAbrasionRank = (options.soulAbrasionRank | 0) || 0;
+    const soulAbrasionProcMult = (options.classId === 'shadowknight' && soulAbrasionRank > 0)
+      ? (1 + soulAbrasionRank * 0.10) : 1.0;
+
     // Ferocity adds +10 to doubleAttackEffective per rank (= +2% chance in the 500-pt scale)
-    const ferocityDaBonus = ferocityRank * 10;
+    const ferocityDaBonus = ferocityRank * 10 + knightsAdvantageDaBonus;
     const doubleAttackEffective = (options.doubleAttackSkill > 0 ? getDoubleAttackEffective(level, options.doubleAttackSkill) : 0) + ferocityDaBonus;
 
     const w1 = options.weapon1;
@@ -1292,6 +1313,11 @@
       const hasBackstabMod = (options.backstabModPercent != null && !isNaN(Number(options.backstabModPercent)) && Number(options.backstabModPercent) > 0);
       const assumedPiercing = mainHandTypeUnknown || hasBackstabMod;
       if (mainHandType !== '1hp' && mainHandType !== '2hp' && !assumedPiercing) canFireSpecial = false;
+    }
+    // Two Hand Bash (PAL/SHD Luclin AA): bash requires this AA when wielding a 2H primary weapon
+    const classId = (options.classId || '').toLowerCase();
+    if (specialType === 'bash' && w1 && w1.is2H && (classId === 'paladin' || classId === 'shadowknight') && !options.twoHandBash) {
+      canFireSpecial = false;
     }
     const baseDamageCap = getBaseDamageCap(level, options.classId);
     const cappedW1Damage = hasMainHand ? (baseDamageCap != null ? Math.min(w1.damage, baseDamageCap) : w1.damage) : 0;
@@ -1385,7 +1411,7 @@
     const roundsPerMinW1 = (delay1Ms > 0 && hasMainHand) ? (60 * 1000 / delay1Ms) : 0;
     const roundsPerMinW2 = (delay2Ms > 0 && offhandEquipped) ? (60 * 1000 / delay2Ms) : 0;
     const report = {
-      weapon1: { swings: 0, hits: 0, totalDamage: 0, maxDamage: 0, minDamage: Infinity, hitList: [], swingThreat: 0, procThreat: 0, procs: 0, procDamageTotal: 0, procResists: 0, procFullResists: 0, procPartialResists: 0, procResistDamageLost: 0, spellProcCrits: 0, maxSpellProcCritDmg: 0, slayUndeadHits: 0, slayUndeadDamageTotal: 0, maxSlayUndeadHit: 0, rounds: 0, single: 0, double: 0, triple: 0, flurry: 0 },
+      weapon1: { swings: 0, hits: 0, totalDamage: 0, maxDamage: 0, minDamage: Infinity, hitList: [], swingThreat: 0, procThreat: 0, procs: 0, procDamageTotal: 0, procResists: 0, procFullResists: 0, procPartialResists: 0, procResistDamageLost: 0, spellProcCrits: 0, maxSpellProcCritDmg: 0, slayUndeadHits: 0, slayUndeadDamageTotal: 0, maxSlayUndeadHit: 0, rounds: 0, single: 0, double: 0, triple: 0, flurry: 0, punishingBlade: 0, ragingFlurry: 0, speedOfTheKnight: 0 },
       weapon2: { swings: 0, hits: 0, totalDamage: 0, maxDamage: 0, minDamage: Infinity, hitList: [], swingThreat: 0, procThreat: 0, procs: 0, procDamageTotal: 0, procResists: 0, procFullResists: 0, procPartialResists: 0, procResistDamageLost: 0, spellProcCrits: 0, maxSpellProcCritDmg: 0, rounds: 0, single: 0, double: 0, triple: 0 },
       durationSec: options.fightDurationSec,
       rawHastePercent: !Number.isNaN(Number(options.hastePercent)) ? Number(options.hastePercent) : 0,
@@ -1938,13 +1964,144 @@
                 pushCombatLog(tMs, 'melee', 1, w1Verb, false, undefined, { roundLetter: mhRoundLetter, attemptNumber: 4, swingKind: 'FL' });
               }
             }
+            // Raging Flurry (warrior PoP AA): additional flurry chance on successful triple attack
+            if (ragingFlurryChance > 0 && (options.classId || '').toLowerCase() === 'warrior' && level >= 60 && rng() < ragingFlurryChance) {
+              report.weapon1.ragingFlurry++;
+              if (rollHit(toHit, avoidance, rng, fromBehind)) {
+                const mhElemAdderRF = getElementalBaseAdder(w1, options, rng);
+                report.elementalDamageTotal += mhElemAdderRF;
+                let mhBaseRF = cappedW1Damage + mhElemAdderRF;
+                mhBaseRF = applyDisciplineDamageMod(mhBaseRF, disciplineActiveMh);
+                let dmg = calcMeleeDamage(mhBaseRF, offenseRating, mitigation, rng, 0);
+                const mult = rollDamageMultiplier(offenseRating, dmg, level, options.classId, false, rng);
+                dmg = mult.damage;
+                dmg += mainHandDamageBonus;
+                dmg = Math.max(dmg, 1 + mainHandDamageBonus);
+                const slayResultRF = trySlayUndead(dmg, mainHandDamageBonus, 1, options, rng);
+                if (slayResultRF) {
+                  dmg = slayResultRF.damage;
+                  report.weapon1.slayUndeadHits++;
+                  report.weapon1.slayUndeadDamageTotal += dmg;
+                  report.weapon1.maxSlayUndeadHit = Math.max(report.weapon1.maxSlayUndeadHit || 0, dmg);
+                } else {
+                  const beforeCrit = dmg;
+                  const critResult = rollMeleeCrit(dmg, mainHandDamageBonus, level, options.classId, options.dex, options.critChanceMult, false, false, 0, options.critDmgDebugDmgBonus, rng, furyDmgBonusPct);
+                  dmg = critResult.damage;
+                  dmg = Math.max(dmg, 1 + mainHandDamageBonus);
+                  if (critResult.isCrit) { report.critHits++; report.critDamageGain += (dmg - beforeCrit); }
+                }
+                const mhDisciplineMinRF = getDisciplineMinHit(cappedW1Damage, mainHandDamageBonus, disciplineActiveMh);
+                if (mhDisciplineMinRF != null && dmg < mhDisciplineMinRF) dmg = mhDisciplineMinRF;
+                if (w1.noDamageVsTarget) { report.elementalDamageTotal -= mhElemAdderRF; dmg = 0; }
+                report.weapon1.swings++; addSwingThreatMH();
+                report.weapon1.hits++;
+                report.weapon1.totalDamage += dmg;
+                report.weapon1.maxDamage = Math.max(report.weapon1.maxDamage, dmg);
+                report.weapon1.minDamage = Math.min(report.weapon1.minDamage, dmg);
+                report.weapon1.hitList.push(dmg);
+                report.totalDamage += dmg;
+                report.damageBonusTotal += mainHandDamageBonus;
+                pushCombatLog(tMs, 'melee', 1, w1Verb, true, dmg, { roundLetter: mhRoundLetter, attemptNumber: 5, swingKind: 'RF' });
+              } else {
+                report.weapon1.swings++; addSwingThreatMH();
+                pushCombatLog(tMs, 'melee', 1, w1Verb, false, undefined, { roundLetter: mhRoundLetter, attemptNumber: 5, swingKind: 'RF' });
+              }
+            }
+          }
+
+          // Punishing Blade AA (warrior/ranger/monk PoP): extra primary attack after double attack, 2H only
+          // Mirrors EQMacEmu client_process.cpp: fires after triple/flurry, inside CheckDoubleAttack block
+          if (punishingBladeChance > 0 && w1.is2H && rng() * 100 < punishingBladeChance) {
+            if (report.weapon1.punishingBlade != null) report.weapon1.punishingBlade++;
+            if (rollHit(toHit, avoidance, rng, fromBehind)) {
+              const mhElemAdderPB = getElementalBaseAdder(w1, options, rng);
+              report.elementalDamageTotal += mhElemAdderPB;
+              let mhBasePB = cappedW1Damage + mhElemAdderPB;
+              mhBasePB = applyDisciplineDamageMod(mhBasePB, disciplineActiveMh);
+              let dmg = calcMeleeDamage(mhBasePB, offenseRating, mitigation, rng, 0);
+              const mult = rollDamageMultiplier(offenseRating, dmg, level, options.classId, false, rng);
+              dmg = mult.damage;
+              dmg += mainHandDamageBonus;
+              dmg = Math.max(dmg, 1 + mainHandDamageBonus);
+              const slayResultPB = trySlayUndead(dmg, mainHandDamageBonus, 1, options, rng);
+              if (slayResultPB) {
+                dmg = slayResultPB.damage;
+                report.weapon1.slayUndeadHits++;
+                report.weapon1.slayUndeadDamageTotal += dmg;
+                report.weapon1.maxSlayUndeadHit = Math.max(report.weapon1.maxSlayUndeadHit || 0, dmg);
+              } else {
+                const beforeCrit = dmg;
+                const critResult = rollMeleeCrit(dmg, mainHandDamageBonus, level, options.classId, options.dex, options.critChanceMult, false, false, 0, options.critDmgDebugDmgBonus, rng, furyDmgBonusPct);
+                dmg = critResult.damage;
+                dmg = Math.max(dmg, 1 + mainHandDamageBonus);
+                if (critResult.isCrit) { report.critHits++; report.critDamageGain += (dmg - beforeCrit); }
+              }
+              const mhDisciplineMinPB = getDisciplineMinHit(cappedW1Damage, mainHandDamageBonus, disciplineActiveMh);
+              if (mhDisciplineMinPB != null && dmg < mhDisciplineMinPB) dmg = mhDisciplineMinPB;
+              if (w1.noDamageVsTarget) { report.elementalDamageTotal -= mhElemAdderPB; dmg = 0; }
+              report.weapon1.swings++; addSwingThreatMH();
+              report.weapon1.hits++;
+              report.weapon1.totalDamage += dmg;
+              report.weapon1.maxDamage = Math.max(report.weapon1.maxDamage, dmg);
+              report.weapon1.minDamage = Math.min(report.weapon1.minDamage, dmg);
+              report.weapon1.hitList.push(dmg);
+              report.totalDamage += dmg;
+              report.damageBonusTotal += mainHandDamageBonus;
+              pushCombatLog(tMs, 'melee', 1, w1Verb, true, dmg, { roundLetter: mhRoundLetter, attemptNumber: 5, swingKind: 'PB' });
+            } else {
+              report.weapon1.swings++; addSwingThreatMH();
+              pushCombatLog(tMs, 'melee', 1, w1Verb, false, undefined, { roundLetter: mhRoundLetter, attemptNumber: 5, swingKind: 'PB' });
+            }
+          }
+          // Speed of the Knight (paladin/shadowknight PoP AA): extra 2H primary attack after double attack
+          if (speedOfTheKnightChance > 0 && w1.is2H && rng() * 100 < speedOfTheKnightChance) {
+            report.weapon1.speedOfTheKnight++;
+            if (rollHit(toHit, avoidance, rng, fromBehind)) {
+              const mhElemAdderSK = getElementalBaseAdder(w1, options, rng);
+              report.elementalDamageTotal += mhElemAdderSK;
+              let mhBaseSK = cappedW1Damage + mhElemAdderSK;
+              mhBaseSK = applyDisciplineDamageMod(mhBaseSK, disciplineActiveMh);
+              let dmg = calcMeleeDamage(mhBaseSK, offenseRating, mitigation, rng, 0);
+              const mult = rollDamageMultiplier(offenseRating, dmg, level, options.classId, false, rng);
+              dmg = mult.damage;
+              dmg += mainHandDamageBonus;
+              dmg = Math.max(dmg, 1 + mainHandDamageBonus);
+              const slayResultSK = trySlayUndead(dmg, mainHandDamageBonus, 1, options, rng);
+              if (slayResultSK) {
+                dmg = slayResultSK.damage;
+                report.weapon1.slayUndeadHits++;
+                report.weapon1.slayUndeadDamageTotal += dmg;
+                report.weapon1.maxSlayUndeadHit = Math.max(report.weapon1.maxSlayUndeadHit || 0, dmg);
+              } else {
+                const beforeCrit = dmg;
+                const critResult = rollMeleeCrit(dmg, mainHandDamageBonus, level, options.classId, options.dex, options.critChanceMult, false, false, 0, options.critDmgDebugDmgBonus, rng, furyDmgBonusPct);
+                dmg = critResult.damage;
+                dmg = Math.max(dmg, 1 + mainHandDamageBonus);
+                if (critResult.isCrit) { report.critHits++; report.critDamageGain += (dmg - beforeCrit); }
+              }
+              const mhDisciplineMinSK = getDisciplineMinHit(cappedW1Damage, mainHandDamageBonus, disciplineActiveMh);
+              if (mhDisciplineMinSK != null && dmg < mhDisciplineMinSK) dmg = mhDisciplineMinSK;
+              if (w1.noDamageVsTarget) { report.elementalDamageTotal -= mhElemAdderSK; dmg = 0; }
+              report.weapon1.swings++; addSwingThreatMH();
+              report.weapon1.hits++;
+              report.weapon1.totalDamage += dmg;
+              report.weapon1.maxDamage = Math.max(report.weapon1.maxDamage, dmg);
+              report.weapon1.minDamage = Math.min(report.weapon1.minDamage, dmg);
+              report.weapon1.hitList.push(dmg);
+              report.totalDamage += dmg;
+              report.damageBonusTotal += mainHandDamageBonus;
+              pushCombatLog(tMs, 'melee', 1, w1Verb, true, dmg, { roundLetter: mhRoundLetter, attemptNumber: 6, swingKind: 'SK' });
+            } else {
+              report.weapon1.swings++; addSwingThreatMH();
+              pushCombatLog(tMs, 'melee', 1, w1Verb, false, undefined, { roundLetter: mhRoundLetter, attemptNumber: 6, swingKind: 'SK' });
+            }
           }
         }
 
         // Proc once per round (only if at least one hit landed)
         if (procChance1 > 0 && checkProc(procChance1, procRng) && canProcLandOnTarget(w1, options)) {
           report.weapon1.procs++;
-          const procDmg = w1.noDamageVsTarget ? 0 : ((w1.procSpellDamage != null ? w1.procSpellDamage : 0) | 0);
+          const procDmg = w1.noDamageVsTarget ? 0 : Math.floor(((w1.procSpellDamage != null ? w1.procSpellDamage : 0) | 0) * soulAbrasionProcMult);
           const effectiveness = getProcSpellEffectiveness(w1, options, level, procRng);
           if (procBuffTicks1 > 0 && procDmg > 0) {
             perTick1 = (procDmg / procBuffTicks1) * effectiveness / 100;
@@ -2103,7 +2260,7 @@
           // Proc once per round (only if at least one hit landed)
           if ( procChance2 > 0 && checkProc(procChance2, procRng) && canProcLandOnTarget(w2, options)) {
             report.weapon2.procs++;
-            const procDmg = w2.noDamageVsTarget ? 0 : ((w2.procSpellDamage != null ? w2.procSpellDamage : 0) | 0);
+            const procDmg = w2.noDamageVsTarget ? 0 : Math.floor(((w2.procSpellDamage != null ? w2.procSpellDamage : 0) | 0) * soulAbrasionProcMult);
             const effectiveness = getProcSpellEffectiveness(w2, options, level, procRng);
             if (procBuffTicks2 > 0 && procDmg > 0) {
               perTick2 = (procDmg / procBuffTicks2) * effectiveness / 100;
@@ -2391,6 +2548,9 @@
     lines.push(padLine('    Single attacks:', String(w1.single != null ? w1.single : '—')));
     lines.push(padLine('    Double attacks:', String(w1.double != null ? w1.double : '—')));
     lines.push(padLine('    Triple attacks:', String(w1.triple != null ? w1.triple : '—')));
+    if (w1.punishingBlade) lines.push(padLine('    Punishing Blade procs:', String(w1.punishingBlade)));
+    if (w1.ragingFlurry) lines.push(padLine('    Raging Flurry procs:', String(w1.ragingFlurry)));
+    if (w1.speedOfTheKnight) lines.push(padLine('    Speed of the Knight procs:', String(w1.speedOfTheKnight)));
     lines.push(padLine('    Swings:', String(w1.swings)));
     lines.push(padLine('    Hits:', String(w1.hits)));
     if (w1.swings > 0) lines.push(padLine('    Accuracy:', (w1.hits / w1.swings * 100).toFixed(1) + '%'));

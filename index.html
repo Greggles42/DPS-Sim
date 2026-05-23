@@ -2302,6 +2302,7 @@
   <section class="advanced-only" style="margin-top: 1rem;">
     <h2>Version log</h2>
     <ul style="font-size: 0.9rem; color: var(--muted); margin: 0; padding-left: 1.25rem;">
+      <li><strong>1.19</strong> — PoP-era buff options: Haste (Rizlona's Call of Flame, Warsong of Zek, Speed of Vallon), Offensive (Spirit of the Predator, Protection of the Wild, Ferine Avatar), Defensive (Hand of Virtue, Symbol of Kazad, Brell's Stalwart Shield, Protection of the Nine, Focus of the Seventh, Voice of Quellious) — all gated behind PoP era selection. Eight new AAs: Two Hand Bash (PAL/SHD Luclin — enables bash with 2H), Soul Abrasion (SHD Luclin — +10/20/30% proc damage), Planar Durability (WAR/PAL/SHD PoP — +1.5/3/4.5% max HP in tanking sim), Flash of Steel (multi-class PoP — +10/20/30% double riposte), Knight's Advantage (PAL/SHD PoP — +2/4/6% DA), Speed of the Knight (PAL/SHD PoP — 2/4/8% extra 2H attack after double), Raging Flurry (WAR PoP — 10/20/30% extra flurry on triple attack), Tactical Mastery (WAR PoP — -10/20/30 NPC avoidance). Planar Power stat cap now correctly applied at simulation time (was computed but not enforced).</li>
       <li><strong>1.18</strong> — Ranged simulation engine corrections: archery mastery applies as a percent modifier before server halving (matching EQMacEmu <code>DoArcheryAttackDmg</code>); Trueshot applies +105% to the pre-halved base; Ranger 51+ stationary double-damage implemented from <code>beacon.cpp</code> (doubles post-D20 result before crit). Ranged report now shows base damage breakdown (bow, arrow, mastery, effective shot base). Inventory import now auto-fills bow (Range slot) and arrow (Ammo slot) in the ranged tab. NPC attack mechanics added to tanking sim: double attack using EQMacEmu formula <code>(skill + level) / 500</code>, triple attack for Warrior/Monk level 60+ at 13.5%; auto-filled from NPC search. Tanking report shows full player AC breakdown (worn, defense skill, spell/buff AC, AGI bonus, softcap). Buff HP (+HP from Aegolism, etc.) now included in tank HP. Warder's Protection and Nature's Precision now stack correctly. Buff summary panel overlap fixed. Archery Options card spacing, haste summary single-line layout. Mechanics guide: corrected archery pipeline, avoidance formula, new NPC attack and AC breakdown sections.</li>
       <li><strong>1.17</strong> — Mobile NPC search uses full npc_types database. Ranged tab improvements, new Ranger buff options (Warder's Protection, Nature's Precision, Strength of Nature, Force of Nature), layout polish.</li>
       <li><strong>1.16</strong> — Advanced mode: simulation history, charts, and damage breakdown cards now extend vertically without internal scrolling — full-page scroll provides visibility. Easy mode: simulation assumptions box auto-sizes to content (no scroll window); Calculate DPS button, result output, and damage breakdown are centered under the Character &amp; Fight and Weapons cards; session history columns reordered with improved spacing, centered numeric values, and a DPS group visual indicator (gold bracket + tint) over MH / OH / Proc / Total columns; Era and Mode columns removed, Worn H% removed, Eff H% renamed to Haste %; Session History and Simulation Assumptions cards match in width. Mobile layout moved from automatic redirect to a link at the bottom of Easy mode. Mobile weapon search fixed: raw weapon data uses <code>Name</code> (capital N) but search was checking <code>name</code> — all results were silently dropped. Mobile weapon icons now load from <code>icons/{id}.gif</code> in both the search list and the equipped weapons card, with a fallback glyph on missing icon.</li>
@@ -2706,7 +2707,7 @@
       }
 
       // When releasing: 1) Bump VERSION below. 2) Add a new <li> at the top of the Version log section above.
-      const VERSION = '1.18';
+      const VERSION = '1.19';
       const versionEl = $('app-version');
       if (versionEl) versionEl.textContent = 'v' + VERSION;
 
@@ -2948,6 +2949,15 @@
 
       function renderBuffPanel() {
         if (!window.Buffs) return;
+        var eraId = ($('era-select') && $('era-select').value) || 'classic';
+        var EC = typeof EraConfig !== 'undefined' ? EraConfig : null;
+
+        // Save current checkbox states before clearing
+        var checkedIds = {};
+        document.querySelectorAll('.buff-checkbox').forEach(function (cb) {
+          checkedIds[cb.value] = cb.checked;
+        });
+
         var colMap = { haste: 'buff-col-haste', offensive: 'buff-col-offensive', defensive: 'buff-col-defensive' };
         var cols = {};
         Object.keys(colMap).forEach(function (cat) {
@@ -2962,6 +2972,7 @@
         });
 
         window.Buffs.BUFFS.forEach(function (buff) {
+          if (buff.minEra && EC && !EC.isAvailableInEra(buff.minEra, eraId)) return;
           var col = cols[buff.category];
           if (!col) return;
           var item = document.createElement('div');
@@ -2972,6 +2983,7 @@
           cb.className = 'buff-checkbox';
           cb.id = 'buff-' + buff.id;
           cb.value = buff.id;
+          cb.checked = !!checkedIds[buff.id];
           cb.addEventListener('change', updateBuffTotals);
           var lbl = document.createElement('label');
           lbl.htmlFor = 'buff-' + buff.id;
@@ -3639,6 +3651,15 @@
         harmoniousAttack: 0,
         innateDefense: 0,
         lightningReflexes: 0,
+        punishingBlade: 0,
+        twoHandBash: 0,
+        soulAbrasion: 0,
+        planarDurability: 0,
+        flashOfSteel: 0,
+        knightsAdvantage: 0,
+        speedOfTheKnight: 0,
+        ragingFlurry: 0,
+        tacticalMastery: 0,
       };
 
       /**
@@ -3681,6 +3702,15 @@
           lightningReflexesRank: aaVal('lightningReflexes'),
           doubleRiposteRank: aaVal('doubleRiposte'),
           returnKickRank: aaVal('returnKick'),
+          punishingBladeRank: aaVal('punishingBlade'),
+          twoHandBash: aaVal('twoHandBash') > 0,
+          soulAbrasionRank: aaVal('soulAbrasion'),
+          planarDurabilityRank: aaVal('planarDurability'),
+          flashOfSteelRank: aaVal('flashOfSteel'),
+          knightsAdvantageRank: aaVal('knightsAdvantage'),
+          speedOfTheKnightRank: aaVal('speedOfTheKnight'),
+          ragingFlurryRank: aaVal('ragingFlurry'),
+          tacticalMasteryRank: aaVal('tacticalMastery'),
           planarPowerRank: ppRank,
           _planarPowerStatCap: 255 + ppRank * 5,
         };
@@ -3821,7 +3851,7 @@
         var base = rd[statKey] || 75;
         var cap = getStatCap(raceId, statKey, ppRank);
         var total = base + (pts || 0) + (gearVal || 0);
-        return Math.min(total, ppRank > 0 ? 999 : 255); // after creation cap, gear can push past 255
+        return Math.min(total, 255 + ppRank * 5);
       }
 
       function ptsUsed() {
@@ -3848,7 +3878,7 @@
           var maxPts = Math.max(0, cap - baseVal - ptsVal); // can't exceed cap with points
           var finalVal = getFinalStat(raceId, sk, ptsVal, gearVal, ppRank);
           var buffBonus = buffFxForStat ? (buffFxForStat[sk] || 0) : 0;
-          var buffedVal = Math.min(255, finalVal + buffBonus);
+          var buffedVal = Math.min(255 + ppRank * 5, finalVal + buffBonus);
           var finalCap = ppRank > 0 ? 255 + ppRank * 5 : 255;
           html += '<tr>'
             + '<td>' + STAT_LABELS[sk] + '</td>'
@@ -4229,9 +4259,10 @@
         const targetPR = parseResist('target-pr');
         const targetDR = parseResist('target-dr');
         const durationSec = parseInt($('duration').value, 10) || 6000;
-        const str = Math.min(255, (parseInt($('str').value, 10) || 255) + (buffFx ? buffFx.str : 0));
+        const _ppStatCap = 255 + (aaConfig.planarPower || 0) * 5;
+        const str = Math.min(_ppStatCap, (parseInt($('str').value, 10) || 255) + (buffFx ? buffFx.str : 0));
         const runs = Math.max(1, Math.min(1000, parseInt($('runs').value, 10) || 20));
-        const dex = Math.min(255, (parseInt($('dex').value, 10) || 255) + (buffFx ? buffFx.dex : 0));
+        const dex = Math.min(_ppStatCap, (parseInt($('dex').value, 10) || 255) + (buffFx ? buffFx.dex : 0));
         const fromBehind = document.querySelector('input[name="from-behind"]:checked').value === '1';
         const classId = ($('class').value || '').toLowerCase();
         const eraId = ($('era-select') && $('era-select').value) || 'classic';
@@ -5203,8 +5234,9 @@
         const targetPR = parseResist('target-pr');
         const targetDR = parseResist('target-dr');
         const rankBuffFx = getBuffEffects();
-        const str = Math.min(255, (parseInt($('str').value, 10) || 255) + (rankBuffFx ? rankBuffFx.str : 0));
-        const dex = Math.min(255, (parseInt($('dex').value, 10) || 255) + (rankBuffFx ? rankBuffFx.dex : 0));
+        const _rankPpStatCap = 255 + (aaConfig.planarPower || 0) * 5;
+        const str = Math.min(_rankPpStatCap, (parseInt($('str').value, 10) || 255) + (rankBuffFx ? rankBuffFx.str : 0));
+        const dex = Math.min(_rankPpStatCap, (parseInt($('dex').value, 10) || 255) + (rankBuffFx ? rankBuffFx.dex : 0));
         const fromBehind = document.querySelector('input[name="from-behind"]:checked').value === '1';
         const rankEraId = ($('era-select') && $('era-select').value) || 'classic';
         const rankAaOpts = buildAASimOptions(classId, rankEraId);
@@ -6359,7 +6391,7 @@
           wornAttack: (parseInt($('worn-attack').value, 10) || 0) + (rangedRankBuffFx ? rangedRankBuffFx.wornAtk || 0 : 0),
           spellAttack: (parseInt($('spell-attack').value, 10) || 0) + (rangedRankBuffFx ? rangedRankBuffFx.atk || 0 : 0),
           str: 255,
-          dex: Math.min(255, (parseInt(($('dex') && $('dex').value) || '255', 10) || 255) + (rangedRankBuffFx ? rangedRankBuffFx.dex || 0 : 0)),
+          dex: Math.min(255 + (aaConfig.planarPower || 0) * 5, (parseInt(($('dex') && $('dex').value) || '255', 10) || 255) + (rangedRankBuffFx ? rangedRankBuffFx.dex || 0 : 0)),
           critChanceMult: (aaConfig.combatFury || 0) * 2,
           archeryMastery: aaConfig.archeryMastery || 1,
           archeryAccuracy: (document.querySelector('input[name="archery-accuracy"]:checked') || {}).value || 'none',
@@ -7535,7 +7567,7 @@
           archerySkillFixed: _rangedArcherySkillUserSet,
           wornAttack: (parseInt($('worn-attack').value, 10) || 0) + (rangedRunBuffFx ? rangedRunBuffFx.wornAtk || 0 : 0),
           spellAttack: (parseInt($('spell-attack').value, 10) || 0) + (rangedRunBuffFx ? rangedRunBuffFx.atk || 0 : 0),
-          dex: Math.min(255, (parseInt(($('dex') && $('dex').value) || '255', 10) || 255) + (rangedRunBuffFx ? rangedRunBuffFx.dex || 0 : 0)),
+          dex: Math.min(255 + (aaConfig.planarPower || 0) * 5, (parseInt(($('dex') && $('dex').value) || '255', 10) || 255) + (rangedRunBuffFx ? rangedRunBuffFx.dex || 0 : 0)),
           classId: 'ranger',
           critChanceMult: (aaConfig.combatFury || 0) * 2,
           archeryMastery: aaConfig.archeryMastery || 1,
@@ -8031,6 +8063,12 @@
       // Init buff panel
       renderBuffPanel();
       updateEffectiveHasteDisplay();
+
+      // Re-render buff panel when era changes (shows/hides era-gated buffs)
+      document.addEventListener('gsim:erachange', function () {
+        renderBuffPanel();
+        updateBuffTotals();
+      });
 
       // Init stat distributor and race selector
       initRaceSelector();
@@ -9997,6 +10035,8 @@
     options.lightningReflexesRank   = tankAaOpts.lightningReflexesRank;
     options.doubleRiposteRank       = tankAaOpts.doubleRiposteRank;
     options.returnKickRank          = tankAaOpts.returnKickRank;
+    options.flashOfSteelRank        = tankAaOpts.flashOfSteelRank;
+    options.planarDurabilityRank    = tankAaOpts.planarDurabilityRank;
 
     var runs = v('tank-runs', 5);
     var allReports = [];

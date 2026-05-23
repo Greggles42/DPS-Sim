@@ -360,6 +360,47 @@
       ],
     },
     {
+      id: 'spirit_of_predator',
+      name: 'Spirit of the Predator',
+      category: 'offensive',
+      source: 'RNG',
+      spellId: 3417,
+      sai: 19,
+      minEra: 'pop',
+      effects: [
+        { spa: SPA.ATK, value: 70 },
+      ],
+    },
+    {
+      id: 'protection_of_wild',
+      name: 'Protection of the Wild',
+      category: 'offensive',
+      source: 'RNG',
+      spellId: 3039,
+      sai: 16,
+      minEra: 'pop',
+      effects: [
+        { spa: SPA.ATK,      value: 130 },
+        { spa: SPA.AC,       value: 115 },
+        { spa: SPA.TOTAL_HP, value: 125 },
+      ],
+    },
+    {
+      id: 'ferine_avatar',
+      name: 'Ferine Avatar',
+      category: 'offensive',
+      source: 'SHM',
+      spellId: 3399,
+      sai: 7,
+      minEra: 'pop',
+      effects: [
+        { spa: SPA.ATK, value: 140 },
+        { spa: SPA.STR, value: 140 },
+        { spa: SPA.DEX, value: 140 },
+        { spa: SPA.AGI, value: 140 },
+      ],
+    },
+    {
       id: 'warsong_vah_shir',
       name: 'Warsong of the Vah Shir',
       category: 'haste',
@@ -389,6 +430,55 @@
         { spa: SPA.STR,      base: 1,   limit: 0,   formula: 100 },
         // eid=2  base=2   limit=0   formula=110 — ATK (trivial)
         { spa: SPA.ATK,      base: 2,   limit: 0,   formula: 100 },
+      ],
+    },
+    {
+      id: 'rizlona_call_flame',
+      name: "Rizlona's Call of Flame",
+      category: 'haste',
+      source: 'BRD',
+      spellId: 3362,
+      sai: 42,
+      minEra: 'pop',
+      bardSong: true,
+      effects: [],  // computed dynamically via rawSlots + buildBardEffects()
+      rawSlots: [
+        // eid=119 base=30 limit=30 formula=100 — v3 haste; limit 30% hard-capped at 25% by engine
+        { spa: SPA.HASTE_V3, base: 30, limit: 30, formula: 100 },
+      ],
+    },
+    {
+      id: 'warsong_of_zek',
+      name: 'Warsong of Zek',
+      category: 'haste',
+      source: 'BRD',
+      spellId: 3374,
+      sai: 42,
+      minEra: 'pop',
+      bardSong: true,
+      effects: [],  // computed dynamically via rawSlots + buildBardEffects()
+      rawSlots: [
+        // eid=11 base=160 limit=0 formula=100 — 60% v1 haste base; engine caps at 100%
+        { spa: SPA.HASTE_V1, base: 160, limit: 0, formula: 100 },
+        // eid=4  base=5  limit=0  formula=101 — STR
+        { spa: SPA.STR,      base: 5,   limit: 0, formula: 101 },
+        // eid=2  base=2  limit=0  formula=109 — ATK
+        { spa: SPA.ATK,      base: 2,   limit: 0, formula: 109 },
+      ],
+    },
+    {
+      id: 'speed_of_vallon',
+      name: 'Speed of Vallon',
+      category: 'haste',
+      source: 'ENC',
+      spellId: 3240,
+      sai: 16,
+      minEra: 'pop',
+      effects: [
+        { spa: SPA.HASTE_V1, value: 68 },
+        { spa: SPA.AGI,      value: 52 },
+        { spa: SPA.DEX,      value: 33 },
+        { spa: SPA.ATK,      value: 41 },
       ],
     },
 
@@ -472,6 +562,80 @@
         { spa: SPA.AC,       value: 25 },
         { spa: SPA.TOTAL_HP, value: 290 },
       ],
+    },
+    {
+      id: 'hand_of_virtue',
+      name: 'Hand of Virtue',
+      category: 'defensive',
+      source: 'CLR',
+      spellId: 3479,
+      sai: 2,
+      minEra: 'pop',
+      effects: [
+        { spa: SPA.AC,       value: 240 },
+        { spa: SPA.TOTAL_HP, value: 1405 },
+      ],
+    },
+    {
+      id: 'symbol_of_kazad',
+      name: 'Symbol of Kazad',
+      category: 'defensive',
+      source: 'CLR',
+      spellId: 3466,
+      sai: 2,
+      minEra: 'pop',
+      effects: [
+        { spa: SPA.TOTAL_HP, value: 910 },
+      ],
+    },
+    {
+      id: 'brells_stalwart_shield',
+      name: "Brell's Stalwart Shield",
+      category: 'defensive',
+      source: 'PAL',
+      spellId: 3432,
+      sai: 2,
+      minEra: 'pop',
+      effects: [
+        { spa: SPA.TOTAL_HP, value: 330 },
+      ],
+    },
+    {
+      id: 'protection_of_nine',
+      name: 'Protection of the Nine',
+      category: 'defensive',
+      source: 'DRU',
+      spellId: 3234,
+      sai: 2,
+      minEra: 'pop',
+      effects: [
+        { spa: SPA.AC,       value: 109 },
+        { spa: SPA.TOTAL_HP, value: 618 },
+      ],
+    },
+    {
+      id: 'focus_of_seventh',
+      name: 'Focus of the Seventh',
+      category: 'defensive',
+      source: 'SHM',
+      spellId: 3397,
+      sai: 2,
+      minEra: 'pop',
+      effects: [
+        { spa: SPA.TOTAL_HP, value: 544 },
+        { spa: SPA.STR,      value: 75 },
+        { spa: SPA.DEX,      value: 70 },
+      ],
+    },
+    {
+      id: 'voice_of_quellious',
+      name: 'Voice of Quellious',
+      category: 'defensive',
+      source: 'ENC',
+      spellId: 3360,
+      sai: 6,
+      minEra: 'pop',
+      effects: [],  // INT/WIS only — no DPS-relevant stats
     },
   ];
 

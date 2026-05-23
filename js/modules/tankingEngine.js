@@ -616,8 +616,12 @@
     var naturalDurabilityRank = (options.naturalDurabilityRank | 0) || 0;
     var NATURAL_DURABILITY_BONUS = [0, 0.02, 0.05, 0.10];
     var naturalDurabilityFactor = NATURAL_DURABILITY_BONUS[Math.min(naturalDurabilityRank, 3)];
+    var planarDurabilityRank = (options.planarDurabilityRank | 0) || 0;
+    var PLANAR_DURABILITY_BONUS = [0, 0.015, 0.030, 0.045];
+    var planarDurabilityFactor = PLANAR_DURABILITY_BONUS[Math.min(planarDurabilityRank, 3)];
     var playerHPTotal     = options.playerHPTotal   != null ? options.playerHPTotal   : 4000;
     if (naturalDurabilityFactor > 0) playerHPTotal = Math.floor(playerHPTotal * (1 + naturalDurabilityFactor));
+    if (planarDurabilityFactor > 0)  playerHPTotal = Math.floor(playerHPTotal * (1 + planarDurabilityFactor));
     var playerHPRegen     = options.playerHPRegen   != null ? options.playerHPRegen   : 0;
     var healerHPS         = options.healerHPS       != null ? options.healerHPS       : 0;
     var netRegenPerSec    = playerHPRegen + healerHPS;
@@ -668,7 +672,10 @@
     // Double Riposte: chance for a second riposte counter-attack per riposte
     var doubleRiposteRank = (options.doubleRiposteRank | 0) || 0;
     var DOUBLE_RIPOSTE_CHANCE = [0, 0.15, 0.35, 0.50];
-    var doubleRiposteChance = DOUBLE_RIPOSTE_CHANCE[Math.min(doubleRiposteRank, 3)];
+    // Flash of Steel (PoP): +10%/+20%/+30% additional double riposte chance (additive)
+    var flashOfSteelRank = (options.flashOfSteelRank | 0) || 0;
+    var FLASH_OF_STEEL_BONUS = [0, 0.10, 0.20, 0.30];
+    var doubleRiposteChance = DOUBLE_RIPOSTE_CHANCE[Math.min(doubleRiposteRank, 3)] + FLASH_OF_STEEL_BONUS[Math.min(flashOfSteelRank, 3)];
 
     // Return Kick (monk): bonus flying kick on riposte
     var returnKickRank = (options.returnKickRank | 0) || 0;

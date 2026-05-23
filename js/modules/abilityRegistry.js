@@ -154,6 +154,30 @@
       description: 'Rank 1/2/3: 25%/35%/50% chance to perform a bonus flying kick on each riposte.',
       rankLabels: ['Off', '1 (25%)', '2 (35%)', '3 (50%)']
     },
+    {
+      id: 'twoHandBash',
+      label: 'Two Hand Bash',
+      era: 'luclin',
+      section: 'luclin_class',
+      ranks: 1,
+      classes: ['paladin', 'shadowknight'],
+      simOption: 'twoHandBash',
+      category: 'combat',
+      description: '1 rank: Enables Bash while wielding a 2-handed weapon.',
+      rankLabels: ['Off', '1 (enabled)']
+    },
+    {
+      id: 'soulAbrasion',
+      label: 'Soul Abrasion',
+      era: 'luclin',
+      section: 'luclin_class',
+      ranks: 3,
+      classes: ['shadowknight'],
+      simOption: 'soulAbrasionRank',
+      category: 'combat',
+      description: 'Rank 1/2/3: +10%/+20%/+30% bonus to lifetap proc spell damage.',
+      rankLabels: ['Off', '1 (+10%)', '2 (+20%)', '3 (+30%)']
+    },
     // ============================================================
     // PoP Advance — Available to All
     // ============================================================
@@ -168,6 +192,18 @@
       category: 'stat',
       description: 'Rank 1–5: +5 to stat cap per rank.',
       rankLabels: ['Off', '1 (+5 cap)', '2 (+10 cap)', '3 (+15 cap)', '4 (+20 cap)', '5 (+25 cap)']
+    },
+    {
+      id: 'planarDurability',
+      label: 'Planar Durability',
+      era: 'pop',
+      section: 'pop_advance',
+      ranks: 3,
+      classes: ['warrior', 'paladin', 'shadowknight'],
+      simOption: 'planarDurabilityRank',
+      category: 'tanking',
+      description: 'Rank 1–3: +1.5% max HP per rank (tanking sim; WAR/PAL/SHD only).',
+      rankLabels: ['Off', '1 (+1.5% HP)', '2 (+3% HP)', '3 (+4.5% HP)']
     },
     // ============================================================
     // PoP Ability — Class/Archetype AAs
@@ -231,6 +267,78 @@
       category: 'combat',
       description: 'Rank 1–5: +2% per rank chance to double attack per round.',
       rankLabels: ['Off', '1 (+2%)', '2 (+4%)', '3 (+6%)', '4 (+8%)', '5 (+10%)']
+    },
+    {
+      id: 'punishingBlade',
+      label: 'Punishing Blade',
+      era: 'pop',
+      section: 'pop_ability',
+      ranks: 3,
+      classes: ['warrior', 'ranger', 'monk'],
+      simOption: 'punishingBladeRank',
+      category: 'combat',
+      description: 'Rank 1/2/3: 2%/4%/8% chance to score an extra attack with a 2H primary weapon after a double attack.',
+      rankLabels: ['Off', '1 (2%)', '2 (4%)', '3 (8%)']
+    },
+    {
+      id: 'flashOfSteel',
+      label: 'Flash of Steel',
+      era: 'pop',
+      section: 'pop_ability',
+      ranks: 3,
+      classes: ['warrior', 'paladin', 'ranger', 'shadowknight', 'monk', 'rogue', 'beastlord'],
+      simOption: 'flashOfSteelRank',
+      category: 'tanking',
+      description: 'Rank 1/2/3: +10%/+20%/+30% additional double riposte chance (stacks with Double Riposte).',
+      rankLabels: ['Off', '1 (+10%)', '2 (+20%)', '3 (+30%)']
+    },
+    {
+      id: 'knightsAdvantage',
+      label: "Knight's Advantage",
+      era: 'pop',
+      section: 'pop_ability',
+      ranks: 3,
+      classes: ['paladin', 'shadowknight'],
+      simOption: 'knightsAdvantageRank',
+      category: 'combat',
+      description: 'Rank 1/2/3: +2%/+4%/+6% additional double attack chance.',
+      rankLabels: ['Off', '1 (+2% DA)', '2 (+4% DA)', '3 (+6% DA)']
+    },
+    {
+      id: 'speedOfTheKnight',
+      label: 'Speed of the Knight',
+      era: 'pop',
+      section: 'pop_ability',
+      ranks: 3,
+      classes: ['paladin', 'shadowknight'],
+      simOption: 'speedOfTheKnightRank',
+      category: 'combat',
+      description: 'Rank 1/2/3: 2%/4%/8% chance for an extra 2H primary attack after a double attack.',
+      rankLabels: ['Off', '1 (2%)', '2 (4%)', '3 (8%)']
+    },
+    {
+      id: 'ragingFlurry',
+      label: 'Raging Flurry',
+      era: 'pop',
+      section: 'pop_ability',
+      ranks: 3,
+      classes: ['warrior'],
+      simOption: 'ragingFlurryRank',
+      category: 'combat',
+      description: 'Rank 1/2/3: 10%/20%/30% extra flurry chance that fires on successful triple attack.',
+      rankLabels: ['Off', '1 (10%)', '2 (20%)', '3 (30%)']
+    },
+    {
+      id: 'tacticalMastery',
+      label: 'Tactical Mastery',
+      era: 'pop',
+      section: 'pop_ability',
+      ranks: 3,
+      classes: ['warrior'],
+      simOption: 'tacticalMasteryRank',
+      category: 'combat',
+      description: 'Rank 1/2/3: Bypasses NPC avoidance defenses (-10/-20/-30 to NPC effective avoidance).',
+      rankLabels: ['Off', '1 (-10 avoidance)', '2 (-20 avoidance)', '3 (-30 avoidance)']
     },
     {
       id: 'innateDefense',
