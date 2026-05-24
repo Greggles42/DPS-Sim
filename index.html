@@ -2349,6 +2349,7 @@
   <section class="advanced-only" style="margin-top: 1rem;">
     <h2>Version log</h2>
     <ul style="font-size: 0.9rem; color: var(--muted); margin: 0; padding-left: 1.25rem;">
+      <li><strong>1.23</strong> — Apply Bane Damage checkbox now forces bane onto base damage regardless of target type, allowing direct comparison of bane vs non-bane DPS. Auto-detection still applies when checkbox is unchecked (bane added when target race/body matches; bane-only targets remain immune without matching bane). Rank/comparison sim gains the same checkbox override with target-aware auto-detection.
       <li><strong>1.22</strong> — Ranged sim: archery skill 0 no longer treated as "use default" (falsy-zero fix); worn +archery% mod auto-populates from inventory import (supports manual override); gear summary shows archery mod items by name; Eye of the Frenzied Owlbear and other skillmod items now detected (items-data.js now includes skillmodtype/skillmodvalue). Bow of Flames proc resist type correctly applied in async spell-fetch path. Ranged archery options inputs aligned on one row. Trueshot now always engages at the start of each sim run (was previously random within the fight window). Ranged report now shows crit percentage and crit count per run.
       <li><strong>1.21</strong> — Fix Warsong of Zek spell ATK value: was incorrectly computing ~489 ATK due to formula=109 being misinterpreted as a level-scaling multiplier; correct values are 18 base / 46 with epic + Instrument Mastery. Per-slot instrument modifier support added to bard effect builder.</li>
       <li><strong>1.20</strong> — AA configurator layout overhauled: rows now snap into a 3-column grid so labels and rank boxes align cleanly. Each AA has an inline <em>i</em> info icon (sourced from TAKP wiki) that shows a tooltip with the ability description on hover. Fixed multi-run sim crash when Technique of Master Wu was active — the averaged report object was missing <code>mainRolls</code>, <code>triggered</code>, <code>extraAttempts</code>, <code>fkHits</code>, <code>fkDamage</code>, and <code>bySkill</code>, causing <code>formatReport</code> to throw and produce no output. Technique of Master Wu logic corrected to match EQMacEmu <code>special_attacks.cpp</code>: two independent rolls (rank×10% main, rank×2.5% secondary) each selecting randomly from Flying Kick, Eagle Strike, Tiger Claw, or Round Kick — not a sequential chain of FK-only strikes. Wu report now shows per-skill breakdown and average Wu damage vs average base FK hit. Mechanics guide updated: corrected Master Wu section, new sections for Two Hand Bash, Soul Abrasion, Knight's Advantage, Speed of the Knight, Raging Flurry, Tactical Mastery, Flash of Steel, Planar Durability; Planar Power stat cap note added to offense section; AA era table updated with all v1.19/v1.20 additions.</li>
@@ -2757,7 +2758,7 @@
       }
 
       // When releasing: 1) Bump VERSION below. 2) Add a new <li> at the top of the Version log section above.
-      const VERSION = '1.22';
+      const VERSION = '1.23';
       const versionEl = $('app-version');
       if (versionEl) versionEl.textContent = 'v' + VERSION;
 
@@ -6465,6 +6466,21 @@
         var level = parseInt($('level').value, 10) || 60;
         var durationSec = parseInt($('ranged-duration').value, 10) || 6000;
         var applyBane = $('ranged-apply-bane').checked;
+        var rankTargetRace = (function () {
+          var npc = window.selectedTargetNpc;
+          if (!npc || typeof npc !== 'object') return null;
+          var rr = npc.race != null ? npc.race : (npc.Race != null ? npc.Race : null);
+          if (rr == null || rr === '') return null;
+          var rn = parseInt(rr, 10); return isNaN(rn) ? null : rn;
+        })();
+        var rankTargetBodyType = (function () {
+          if ($('target-undead-mob') && $('target-undead-mob').checked) return 3;
+          var npc = window.selectedTargetNpc;
+          if (!npc || typeof npc !== 'object') return null;
+          var bt = npc.bodytype != null ? npc.bodytype : (npc.BodyType != null ? npc.BodyType : null);
+          if (bt == null && bt !== 0) return null;
+          var bn = parseInt(bt, 10); return isNaN(bn) ? null : bn;
+        })();
         var rangedRankBuffFx = (typeof getBuffEffects === 'function') ? getBuffEffects() : null;
         var baseOptions = {
           hastePercent: getRangedTotalHastePercent(),
@@ -6519,7 +6535,14 @@
             var bow = comb.bow;
             var arrow = comb.arrow;
             var bowDamage = bow.damage;
-            if (applyBane && bow.baneDamage) bowDamage += bow.baneDamage;
+            if ((bow.baneDamage || 0) > 0) {
+              if (applyBane) { bowDamage += bow.baneDamage; }
+              else if (rankTargetRace != null || rankTargetBodyType != null) {
+                var _bRaceMatch = rankTargetRace != null && bow.baneDamageRace != null && bow.baneDamageRace === rankTargetRace;
+                var _bBodyMatch = rankTargetBodyType != null && bow.baneDamageBody != null && bow.baneDamageBody === rankTargetBodyType;
+                if (_bRaceMatch || _bBodyMatch) bowDamage += bow.baneDamage;
+              }
+            }
             var rangedWeapon = {
               damage: bowDamage,
               delay: bow.delay,
@@ -6798,7 +6821,14 @@
             var arrow = arrows.filter(function (a) { return a.id === row.arrowId; })[0];
             if (!bow || !arrow) { avgIndex++; requestAnimationFrame(runNextTop40); return; }
             var bowDamage = bow.damage;
-            if (applyBane && bow.baneDamage) bowDamage += bow.baneDamage;
+            if ((bow.baneDamage || 0) > 0) {
+              if (applyBane) { bowDamage += bow.baneDamage; }
+              else if (rankTargetRace != null || rankTargetBodyType != null) {
+                var _bRaceMatch = rankTargetRace != null && bow.baneDamageRace != null && bow.baneDamageRace === rankTargetRace;
+                var _bBodyMatch = rankTargetBodyType != null && bow.baneDamageBody != null && bow.baneDamageBody === rankTargetBodyType;
+                if (_bRaceMatch || _bBodyMatch) bowDamage += bow.baneDamage;
+              }
+            }
             var rangedWeapon = {
               damage: bowDamage,
               delay: bow.delay,
@@ -7591,7 +7621,11 @@
         var RANGED_BANE_ONLY_TARGETS = { 162065: { type: 'race', value: 217 }, 162491: { type: 'race', value: 217 }, 159000: [{ type: 'body', value: 16 }, { type: 'race', value: 236 }] };
         var rangedTargetSelected = rangedTargetNpcId != null || rangedTargetRace != null || rangedTargetBodyType != null;
         var rangedNoDamageVsTarget = false;
-        if (rangedTargetSelected) {
+        var applyBaneSingle = $('ranged-apply-bane').checked;
+        if (applyBaneSingle && rangedBane > 0) {
+          // Checkbox override: always add bane regardless of target type
+          damage += rangedBane;
+        } else if (rangedTargetSelected) {
           var req = rangedTargetNpcId != null ? RANGED_BANE_ONLY_TARGETS[rangedTargetNpcId] : null;
           if (req) {
             var reqs = Array.isArray(req) ? req : [req];
