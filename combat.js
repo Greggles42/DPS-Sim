@@ -719,10 +719,8 @@
     const trueshot = !!options.trueshot;
     const TRUESHOT_DURATION_MS = 120000;
     const durationMs = Math.floor(options.fightDurationSec * 1000);
-    const trueshotStartMs = trueshot
-      ? (durationMs <= TRUESHOT_DURATION_MS ? 0 : Math.floor(rng() * (durationMs - TRUESHOT_DURATION_MS)))
-      : 0;
-    const trueshotEndMs = trueshot ? (trueshotStartMs + Math.min(TRUESHOT_DURATION_MS, durationMs)) : 0;
+    const trueshotStartMs = 0;
+    const trueshotEndMs = trueshot ? Math.min(TRUESHOT_DURATION_MS, durationMs) : 0;
     const archerySkillTrueshot = Math.min(252, Math.floor(ARCHERY_SKILL_EFFECTIVE * 1.12));
     const baseToHitTrueshot = 7 + OFFENSE_SKILL + archerySkillTrueshot;
     const toHitTrueshot = accuracyToHitPct > 0 ? Math.floor(baseToHitTrueshot * (100 + accuracyToHitPct) / 100) : baseToHitTrueshot;
@@ -1040,7 +1038,12 @@
       lines.push(padLine('  Swing threat (approx):', String(Math.round(swT))));
       lines.push(padLine('  Proc threat (approx):', String(Math.round(prT))));
     }
-    if (report.critHits != null && report.critHits >= 0) lines.push(padLine('  Critical hits:', String(report.critHits)));
+    if (report.critHits != null && report.critHits >= 0) {
+      const hits = report.ranged && report.ranged.hits > 0 ? report.ranged.hits : 0;
+      const critPct = hits > 0 ? ((report.critHits / hits) * 100).toFixed(1) : '0.0';
+      lines.push(padLine('  Ranged crit %:', `${critPct}%`));
+      lines.push(padLine('  Ranged crit count:', String(report.critHits)));
+    }
     if (report.critDamageGain != null && report.critDamageGain >= 0) {
       lines.push(padLine('  Crit DPS gain:', `${(report.critDamageGain / dur).toFixed(2)} (vs non-crit baseline)`));
     }
@@ -1055,11 +1058,11 @@
     if (report.offenseSkill != null) lines.push(padLine('  Offense skill:', `${report.offenseSkill}  (0–255, used for to-hit only)`));
     if (report.archerySkill != null) lines.push(padLine('  Archery skill level:', `${report.archerySkill}  (base, 0–252)`));
     if (report.archerySkillModified != null) {
-      const modNote = report.archeryModPercent > 0 ? `  (bow +${report.archeryModPercent}%)` : '';
+      const modNote = report.archeryModPercent > 0 ? `  (+${report.archeryModPercent}% skill mod)` : '';
       lines.push(padLine('  Modified archery skill:', `${report.archerySkillModified}${modNote}`));
     }
     if (report.archerySkillEffective != null) {
-      const effNote = report.archeryModPercent > 0 ? '  (with bow mod, capped at 252, used in to-hit)' : '  (capped at 252, used in to-hit)';
+      const effNote = report.archeryModPercent > 0 ? '  (with skill mod, capped at 252, used in to-hit)' : '  (capped at 252, used in to-hit)';
       lines.push(padLine('  Effective archery skill:', `${report.archerySkillEffective}${effNote}`));
     }
     if (report.offenseRating != null) lines.push(padLine('  Offense rating:', `${report.offenseRating}  (used for damage)`));

@@ -26,7 +26,7 @@ if (!fs.existsSync(jsonPath)) {
 const KEEP_FIELDS = new Set([
   'id', 'Name', 'ac', 'astr', 'adex', 'aagi', 'awis', 'asta', 'aint', 'acha',
   'hp', 'mana', 'damage', 'delay', 'itemtype', 'worneffect', 'wornlevel',
-  'classes', 'slots', 'icon'
+  'classes', 'slots', 'icon', 'skillmodtype', 'skillmodvalue'
 ]);
 
 console.log('Reading', jsonPath);

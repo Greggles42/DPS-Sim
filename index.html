@@ -2012,14 +2012,18 @@
         <div class="char-field char-field-num">
           <label for="ranged-archery-skill" class="small-label">Archery skill</label>
           <input type="number" id="ranged-archery-skill" min="0" max="240" value="240" placeholder="240">
-          <p class="hint" style="margin-top:0.25rem;">Ranger cap = min(240, level×4); autoscales with level.</p>
-          <div id="ranged-archery-mod-note" class="hint" style="display: none;"></div>
+        </div>
+        <div class="char-field char-field-num">
+          <label for="ranged-worn-archery-mod" class="small-label">Worn +archery %</label>
+          <input type="number" id="ranged-worn-archery-mod" min="0" max="100" value="0" placeholder="0">
         </div>
         <div class="char-field char-field-num">
           <label for="ranged-quiver-weight-reduction" class="small-label">Quiver WR% <span class="info-icon" title="Quiver haste = (BagWR ÷ 4) ÷ 100 (EQ GetQuiverHaste). Applied after standard haste; separate from 125% cap. bow_delay_reduction = quiver_haste × speed + 1; applied only if speed − reduction > 1000 (min delay ~1s). Example: 40% WR → 10% quiver haste.">&#8505;</span></label>
           <input type="number" id="ranged-quiver-weight-reduction" min="0" max="100" value="0" placeholder="e.g. 40" size="3" inputmode="numeric" autocomplete="off">
         </div>
       </div>
+      <p class="hint" style="margin-top:0.25rem;">Archery skill: Ranger cap = min(240, level×4); autoscales with level. Worn +archery %: auto-filled from inventory import.</p>
+      <div id="ranged-archery-mod-note" class="hint" style="display: none;"></div>
     </div>
     <div style="display:flex;gap:1rem;flex-wrap:wrap;margin-top:0.5rem;">
       <label class="checkbox-label"><input type="checkbox" id="mob-stationary" checked> Mob stationary (Ranger 51+: 2× damage vs unrooted, unmoving NPCs)</label>
@@ -2052,6 +2056,7 @@
         <input type="hidden" id="ranged-proc-rate" value="0">
         <input type="hidden" id="ranged-proc-spell-id" value="">
         <input type="hidden" id="ranged-archery-mod" value="0">
+        <input type="hidden" id="ranged-worn-archery-mod-gear-only" value="0">
         <div class="row">
           <div><label for="ranged-proc-spell-resist-type" class="small-label">Proc resist type</label><select id="ranged-proc-spell-resist-type" title="Resist type used for proc spell">
             <option value="0">None</option>
@@ -2344,6 +2349,7 @@
   <section class="advanced-only" style="margin-top: 1rem;">
     <h2>Version log</h2>
     <ul style="font-size: 0.9rem; color: var(--muted); margin: 0; padding-left: 1.25rem;">
+      <li><strong>1.22</strong> — Ranged sim: archery skill 0 no longer treated as "use default" (falsy-zero fix); worn +archery% mod auto-populates from inventory import (supports manual override); gear summary shows archery mod items by name; Eye of the Frenzied Owlbear and other skillmod items now detected (items-data.js now includes skillmodtype/skillmodvalue). Bow of Flames proc resist type correctly applied in async spell-fetch path. Ranged archery options inputs aligned on one row. Trueshot now always engages at the start of each sim run (was previously random within the fight window). Ranged report now shows crit percentage and crit count per run.
       <li><strong>1.21</strong> — Fix Warsong of Zek spell ATK value: was incorrectly computing ~489 ATK due to formula=109 being misinterpreted as a level-scaling multiplier; correct values are 18 base / 46 with epic + Instrument Mastery. Per-slot instrument modifier support added to bard effect builder.</li>
       <li><strong>1.20</strong> — AA configurator layout overhauled: rows now snap into a 3-column grid so labels and rank boxes align cleanly. Each AA has an inline <em>i</em> info icon (sourced from TAKP wiki) that shows a tooltip with the ability description on hover. Fixed multi-run sim crash when Technique of Master Wu was active — the averaged report object was missing <code>mainRolls</code>, <code>triggered</code>, <code>extraAttempts</code>, <code>fkHits</code>, <code>fkDamage</code>, and <code>bySkill</code>, causing <code>formatReport</code> to throw and produce no output. Technique of Master Wu logic corrected to match EQMacEmu <code>special_attacks.cpp</code>: two independent rolls (rank×10% main, rank×2.5% secondary) each selecting randomly from Flying Kick, Eagle Strike, Tiger Claw, or Round Kick — not a sequential chain of FK-only strikes. Wu report now shows per-skill breakdown and average Wu damage vs average base FK hit. Mechanics guide updated: corrected Master Wu section, new sections for Two Hand Bash, Soul Abrasion, Knight's Advantage, Speed of the Knight, Raging Flurry, Tactical Mastery, Flash of Steel, Planar Durability; Planar Power stat cap note added to offense section; AA era table updated with all v1.19/v1.20 additions.</li>
       <li><strong>1.19</strong> — PoP-era buff options: Haste (Rizlona's Call of Flame, Warsong of Zek, Speed of Vallon), Offensive (Spirit of the Predator, Protection of the Wild, Ferine Avatar), Defensive (Hand of Virtue, Symbol of Kazad, Brell's Stalwart Shield, Protection of the Nine, Focus of the Seventh, Voice of Quellious) — all gated behind PoP era selection. Eight new AAs: Two Hand Bash (PAL/SHD Luclin — enables bash with 2H), Soul Abrasion (SHD Luclin — +10/20/30% proc damage), Planar Durability (WAR/PAL/SHD PoP — +1.5/3/4.5% max HP in tanking sim), Flash of Steel (multi-class PoP — +10/20/30% double riposte), Knight's Advantage (PAL/SHD PoP — +2/4/6% DA), Speed of the Knight (PAL/SHD PoP — 2/4/8% extra 2H attack after double), Raging Flurry (WAR PoP — 10/20/30% extra flurry on triple attack), Tactical Mastery (WAR PoP — -10/20/30 NPC avoidance). Planar Power stat cap now correctly applied at simulation time (was computed but not enforced).</li>
@@ -2751,7 +2757,7 @@
       }
 
       // When releasing: 1) Bump VERSION below. 2) Add a new <li> at the top of the Version log section above.
-      const VERSION = '1.21';
+      const VERSION = '1.22';
       const versionEl = $('app-version');
       if (versionEl) versionEl.textContent = 'v' + VERSION;
 
@@ -6481,7 +6487,7 @@
           targetDR: parseResist('ranged-target-dr'),
           fightDurationSec: durationSec,
           offenseSkill: 252,
-          archerySkill: Math.min(252, Math.max(0, parseInt($('ranged-archery-skill').value, 10) || 252)),
+          archerySkill: Math.min(252, Math.max(0, (function(){ var _sv = parseInt($('ranged-archery-skill').value, 10); return isNaN(_sv) ? 252 : _sv; })())),
           archerySkillFixed: _rangedArcherySkillUserSet,
           wornAttack: (parseInt($('worn-attack').value, 10) || 0) + (rangedRankBuffFx ? rangedRankBuffFx.wornAtk || 0 : 0),
           spellAttack: (parseInt($('spell-attack').value, 10) || 0) + (rangedRankBuffFx ? rangedRankBuffFx.atk || 0 : 0),
@@ -6523,7 +6529,7 @@
               procLevel: (bow.procLevel != null && !Number.isNaN(Number(bow.procLevel)) && Number(bow.procLevel) > 0) ? Number(bow.procLevel) : undefined,
               elemType: bow.elemType || undefined,
               elemDamage: (bow.elemDamage != null ? bow.elemDamage : 0) || 0,
-              archeryModPercent: (bow.archeryModPercent != null && !Number.isNaN(Number(bow.archeryModPercent))) ? Number(bow.archeryModPercent) : 0
+              archeryModPercent: ((bow.archeryModPercent != null && !Number.isNaN(Number(bow.archeryModPercent))) ? Number(bow.archeryModPercent) : 0) + (parseInt(($('ranged-worn-archery-mod-gear-only') && $('ranged-worn-archery-mod-gear-only').value) || '0', 10) || 0)
             };
             if (bow.procBuffDurationTicks != null && bow.procBuffDurationTicks > 0)
               rangedWeapon.procBuffDurationTicks = bow.procBuffDurationTicks;
@@ -6802,7 +6808,7 @@
               procLevel: (bow.procLevel != null && !Number.isNaN(Number(bow.procLevel)) && Number(bow.procLevel) > 0) ? Number(bow.procLevel) : undefined,
               elemType: bow.elemType || undefined,
               elemDamage: (bow.elemDamage != null ? bow.elemDamage : 0) || 0,
-              archeryModPercent: (bow.archeryModPercent != null && !Number.isNaN(Number(bow.archeryModPercent))) ? Number(bow.archeryModPercent) : 0
+              archeryModPercent: ((bow.archeryModPercent != null && !Number.isNaN(Number(bow.archeryModPercent))) ? Number(bow.archeryModPercent) : 0) + (parseInt(($('ranged-worn-archery-mod-gear-only') && $('ranged-worn-archery-mod-gear-only').value) || '0', 10) || 0)
             };
             if (bow.procBuffDurationTicks != null && bow.procBuffDurationTicks > 0)
               rangedWeapon.procBuffDurationTicks = bow.procBuffDurationTicks;
@@ -7609,7 +7615,7 @@
           procSpellDamage: parseInt($('ranged-proc-damage').value, 10) || 0,
           procLevel: parseInt($('ranged-proc-level').value, 10) || undefined,
           procRate: parseInt(($('ranged-proc-rate') && $('ranged-proc-rate').value) || '0', 10) || 0,
-          archeryModPercent: parseInt($('ranged-archery-mod').value, 10) || 0,
+          archeryModPercent: parseInt(($('ranged-worn-archery-mod') && $('ranged-worn-archery-mod').value) || '0', 10) || 0,
           noDamageVsTarget: rangedNoDamageVsTarget,
         };
         var rpsiEl = $('ranged-proc-spell-id');
@@ -7658,7 +7664,7 @@
           targetDR: parseResist('ranged-target-dr'),
           fightDurationSec: parseInt($('ranged-duration').value, 10) || 6000,
           offenseSkill: 252,
-          archerySkill: Math.min(252, Math.max(0, parseInt($('ranged-archery-skill').value, 10) || 252)),
+          archerySkill: Math.min(252, Math.max(0, (function(){ var _sv = parseInt($('ranged-archery-skill').value, 10); return isNaN(_sv) ? 252 : _sv; })())),
           archerySkillFixed: _rangedArcherySkillUserSet,
           wornAttack: (parseInt($('worn-attack').value, 10) || 0) + (rangedRunBuffFx ? rangedRunBuffFx.wornAtk || 0 : 0),
           spellAttack: (parseInt($('spell-attack').value, 10) || 0) + (rangedRunBuffFx ? rangedRunBuffFx.atk || 0 : 0),
@@ -8035,6 +8041,11 @@
         rangedArcherySkillEl.addEventListener('input', function () { _rangedArcherySkillUserSet = true; });
         rangedArcherySkillEl.addEventListener('change', function () { _rangedArcherySkillUserSet = true; });
       }
+      var rangedWornArcheryModEl = $('ranged-worn-archery-mod');
+      if (rangedWornArcheryModEl) {
+        rangedWornArcheryModEl.addEventListener('input', function () { _rangedWornArcheryModUserSet = true; });
+        rangedWornArcheryModEl.addEventListener('change', function () { _rangedWornArcheryModUserSet = true; });
+      }
       updateEffectiveHasteDisplay();
       updateClassIcon();
       ['worn-haste', 'spell-haste', 'v3-haste'].forEach(function (id) {
@@ -8198,7 +8209,13 @@
         $('ranged-delay').value = '0';
         $('ranged-proc').value = '';
         $('ranged-proc-damage').value = '0';
-        var ram = $('ranged-archery-mod'); if (ram) ram.value = '0';
+        var ram = $('ranged-archery-mod');
+        if (ram) {
+          var _oldBowMod = parseInt(ram.value, 10) || 0;
+          ram.value = '0';
+          var wamEl2 = $('ranged-worn-archery-mod');
+          if (wamEl2) wamEl2.value = String(Math.max(0, (parseInt(wamEl2.value, 10) || 0) - _oldBowMod));
+        }
         var modNote = $('ranged-archery-mod-note'); if (modNote) { modNote.textContent = ''; modNote.style.display = 'none'; }
         $('ranged-elem-type').value = '';
         $('ranged-elem-damage').value = '0';
@@ -8581,7 +8598,15 @@
             var v = (typeof sv === 'number') ? sv : parseInt(sv, 10);
             if (!isNaN(v)) archeryModVal = v;
           }
-          rangedArcheryModEl.value = (archeryModVal != null && !isNaN(archeryModVal)) ? String(Math.floor(archeryModVal)) : '0';
+          var newBowMod = (archeryModVal != null && !isNaN(archeryModVal)) ? Math.floor(archeryModVal) : 0;
+          var oldBowMod = parseInt(rangedArcheryModEl.value, 10) || 0;
+          rangedArcheryModEl.value = String(newBowMod);
+          // Keep the visible worn archery mod box in sync: swap old bow contribution for new one
+          var wamEl = $('ranged-worn-archery-mod');
+          if (wamEl) {
+            var wamCurrent = parseInt(wamEl.value, 10) || 0;
+            wamEl.value = String(Math.max(0, wamCurrent - oldBowMod + newBowMod));
+          }
         }
         rangedWeaponDisplayName = (weapon.name || '').trim() || 'Custom';
         rangedFromItemSearch = true;
@@ -8592,6 +8617,8 @@
             if (spell && spell.name) {
               $('ranged-proc').value = spell.name;
               $('ranged-proc-damage').value = spell.damage != null ? spell.damage : (weapon.procDamage != null && !isNaN(Number(weapon.procDamage)) ? Number(weapon.procDamage) : 0);
+              var rtEl = $('ranged-proc-spell-resist-type');
+              if (rtEl && spell.resisttype != null) rtEl.value = String(spell.resisttype);
             }
           });
         }
@@ -9549,6 +9576,8 @@
     return item || null;
   }
 
+  var _rangedWornArcheryModUserSet = false;
+
   function parseInventoryTsv(text) {
     var lines = text.split(/\r?\n/);
     var slots = {};
@@ -9574,9 +9603,11 @@
     var equippedSlots = parseInventoryTsv(text);
 
     // ---- Aggregate stats across all equipped items ----
-    var totals = { ac: 0, str: 0, dex: 0, agi: 0, sta: 0, wis: 0, int: 0, cha: 0, hp: 0, mana: 0, atk: 0, mr: 0, fr: 0, cr: 0, dr: 0, pr: 0, regen: 0, ft: 0 };
+    var totals = { ac: 0, str: 0, dex: 0, agi: 0, sta: 0, wis: 0, int: 0, cha: 0, hp: 0, mana: 0, atk: 0, mr: 0, fr: 0, cr: 0, dr: 0, pr: 0, regen: 0, ft: 0, archeryMod: 0 };
     var hasteItems  = [];   // { name, haste, spellName }
     var atkItems    = [];   // { name, atk, spellName }
+    var archeryModItems = []; // { name, mod }
+    var rangeSlotArcheryMod = 0; // tracked separately so it isn't double-counted with ranged-archery-mod
     var classMask   = 0x7FFF; // intersection starts at ALL_CLASSES, narrow down
     var hasClassConstraint = false;
 
@@ -9649,6 +9680,16 @@
           if (fx.ft    > 0) totals.ft    += fx.ft;
         }
 
+        // Worn archery skill modifier — include all slots for display, but track Range separately
+        if (parseInt(item.skillmodtype) === 7) {
+          var _wornArchMod = parseInt(item.skillmodvalue) || 0;
+          if (_wornArchMod > 0) {
+            totals.archeryMod += _wornArchMod;
+            archeryModItems.push({ name: entry.name, mod: _wornArchMod });
+            if (slot === 'Range') rangeSlotArcheryMod = _wornArchMod;
+          }
+        }
+
         // Class detection — narrow intersection
         var itemClasses = parseInt(item.classes) || 0;
         if (itemClasses > 0 && itemClasses !== 0x7FFF) {
@@ -9677,6 +9718,21 @@
 
     if (slotsDiv)   slotsDiv.innerHTML = html;
     if (displayDiv) { displayDiv.style.display = ''; displayDiv.open = true; }
+
+    // Auto-fill worn archery mod field with full total (bow + gear).
+    // Also track the gear-only portion separately for the rank/comparison sim.
+    var _gearOnlyArchMod = Math.max(0, (totals.archeryMod || 0) - rangeSlotArcheryMod);
+    var _gearOnlyEl = document.getElementById('ranged-worn-archery-mod-gear-only');
+    if (_gearOnlyEl) _gearOnlyEl.value = String(_gearOnlyArchMod);
+    if (!_rangedWornArcheryModUserSet) {
+      var _wamEl = document.getElementById('ranged-worn-archery-mod');
+      if (_wamEl) _wamEl.value = String(totals.archeryMod || 0);
+    }
+    // Prime ranged-archery-mod with the bow's mod now, so that when applyRangedWeaponFromSearch
+    // fires below (for the Range slot), its swap logic sees oldBowMod=rangeSlotArcheryMod
+    // and newBowMod=rangeSlotArcheryMod, resulting in a net-zero change to ranged-worn-archery-mod.
+    var _ramEl = document.getElementById('ranged-archery-mod');
+    if (_ramEl) _ramEl.value = String(rangeSlotArcheryMod);
 
     // ---- Haste analysis ----
     hasteItems.sort(function (a, b) { return b.haste - a.haste; });
@@ -9959,6 +10015,17 @@
         summLines.push('<span style="color:#7eb8c9;">' + totals.atk + ' total</span> &mdash; ');
         summLines.push(atkItems.map(function(it) {
           return '<span>' + it.name + ' <em style="color:#7eb8c9;">(+' + it.atk + ' via ' + it.spellName + ')</em></span>';
+        }).join(', '));
+        summLines.push('</div>');
+      }
+
+      // Worn archery mod
+      if (archeryModItems.length > 0) {
+        summLines.push('<div style="margin-top:0.4rem;font-size:0.8rem;color:var(--muted);">');
+        summLines.push('<strong style="color:#d4af37;">Worn +Archery %:</strong> ');
+        summLines.push('<span style="color:#7eb8c9;">+' + totals.archeryMod + '%</span> &mdash; ');
+        summLines.push(archeryModItems.map(function(it) {
+          return '<span><em>' + it.name + '</em> <em style="color:#7eb8c9;">(+' + it.mod + '%)</em></span>';
         }).join(', '));
         summLines.push('</div>');
       }
