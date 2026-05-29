@@ -1736,6 +1736,7 @@
           <div class="char-field char-field-num"><label for="skill-throwing" class="small-label">Throwing</label><input type="number" id="skill-throwing" min="0" max="255" placeholder="0" title="Throwing"></div>
         </div>
         <input type="hidden" id="crit-dmg-debug-dmg-bonus" value="0">
+        <input type="hidden" id="round-mult-up" value="0">
         <input type="hidden" name="combat-fury" id="combat-fury-hidden" value="3">
         <div id="special-attack-row" style="display: none;">
           <div class="char-secondary-row">
@@ -4429,6 +4430,7 @@
           toHitBonus,
           ambidexterity: aaOpts.ambidexterity,
           critDmgDebugDmgBonus: (function () { var el = $('crit-dmg-debug-dmg-bonus'); return !!(el && ((typeof el.checked === 'boolean' && el.checked) || String(el.value) === '1' || String(el.value).toLowerCase() === 'true')); })(),
+          roundMultUp: (function () { var el = $('round-mult-up'); return !!(el && ((typeof el.checked === 'boolean' && el.checked) || String(el.value) === '1' || String(el.value).toLowerCase() === 'true')); })(),
           doubleAttackSkill,
           dualWieldSkill: (useWeapon2 || !hasMainHand) ? dualWieldSkill : 0,
           level,
@@ -4543,6 +4545,10 @@
               procLevelBlocked: !!reports[0].weapon1.procLevelBlocked,
               procLevelRequired: reports[0].weapon1.procLevelRequired != null ? reports[0].weapon1.procLevelRequired : null,
               procLevelCurrent: reports[0].weapon1.procLevelCurrent != null ? reports[0].weapon1.procLevelCurrent : null,
+              theoreticMaxHitStd:      reports[0].weapon1.theoreticMaxHitStd      != null ? reports[0].weapon1.theoreticMaxHitStd      : null,
+              theoreticMaxHitCrit:     reports[0].weapon1.theoreticMaxHitCrit     != null ? reports[0].weapon1.theoreticMaxHitCrit     : null,
+              theoreticMaxHitDisc:     reports[0].weapon1.theoreticMaxHitDisc     != null ? reports[0].weapon1.theoreticMaxHitDisc     : null,
+              theoreticMaxHitDiscCrit: reports[0].weapon1.theoreticMaxHitDiscCrit != null ? reports[0].weapon1.theoreticMaxHitDiscCrit : null,
               hitStats: w1HitStats.length ? {
                 min: w1Mins.length ? Math.min(...w1Mins) : null,
                 max: Math.max(...reports.map(r => r.weapon1.maxDamage)),
@@ -4576,6 +4582,10 @@
               procLevelBlocked: !!reports[0].weapon2.procLevelBlocked,
               procLevelRequired: reports[0].weapon2.procLevelRequired != null ? reports[0].weapon2.procLevelRequired : null,
               procLevelCurrent: reports[0].weapon2.procLevelCurrent != null ? reports[0].weapon2.procLevelCurrent : null,
+              theoreticMaxHitStd:      reports[0].weapon2.theoreticMaxHitStd      != null ? reports[0].weapon2.theoreticMaxHitStd      : null,
+              theoreticMaxHitCrit:     reports[0].weapon2.theoreticMaxHitCrit     != null ? reports[0].weapon2.theoreticMaxHitCrit     : null,
+              theoreticMaxHitDisc:     reports[0].weapon2.theoreticMaxHitDisc     != null ? reports[0].weapon2.theoreticMaxHitDisc     : null,
+              theoreticMaxHitDiscCrit: reports[0].weapon2.theoreticMaxHitDiscCrit != null ? reports[0].weapon2.theoreticMaxHitDiscCrit : null,
               hitStats: w2HitStats.length ? {
                 min: w2Mins.length ? Math.min(...w2Mins) : null,
                 max: reports.some(r => r.weapon2.hits > 0) ? Math.max(...reports.map(r => r.weapon2.maxDamage)) : null,
@@ -4616,6 +4626,10 @@
             duelistPermanentMode: !!reports[0].duelistPermanentMode,
             innerFlamePermanentMode: !!reports[0].innerFlamePermanentMode,
             permanentDisciplineMode: !!reports[0].permanentDisciplineMode,
+            discLabel: reports[0].discLabel || null,
+            discEnabled: !!reports[0].discEnabled,
+            hasCrit: !!reports[0].hasCrit,
+            furyDmgBonusPct: reports[0].furyDmgBonusPct || 0,
             special: reports[0].special
               ? {
                   name: reports[0].special.name,
@@ -4723,7 +4737,7 @@
             }
             var lines = [];
             combatLog.forEach(function (ev) {
-              var prefix = '[' + timestamp(ev) + '] You ';
+              var prefix = '[' + timestamp(ev) + '] Simmy ';
               var verb = (ev.attackName || 'hit');
               var swingSuffix = '';
               var bsdaSuffix = '';
@@ -4741,11 +4755,14 @@
                 }
               }
               if (ev.hit && ev.damage != null) {
-                lines.push(prefix + verb + ' ' + target + ' for ' + ev.damage + ' points of damage.' + (detailed && swingSuffix ? (' ' + swingSuffix) : '') + bsdaSuffix);
+                if (ev.isCrit) lines.push(prefix + 'Scores a critical hit!(' + ev.damage + ')');
+                lines.push(prefix + verb + 's ' + target + ' for ' + ev.damage + ' points of damage.' + (detailed && swingSuffix ? (' ' + swingSuffix) : '') + bsdaSuffix);
               } else {
-                lines.push(prefix + 'try to ' + verb + ' ' + target + ', but miss!' + (detailed && swingSuffix ? (' ' + swingSuffix) : '') + bsdaSuffix);
+                lines.push(prefix + 'tries to ' + verb + ' ' + target + ', but misses!' + (detailed && swingSuffix ? (' ' + swingSuffix) : '') + bsdaSuffix);
               }
             });
+            var slainTMs = combatLog.length > 0 ? (combatLog[combatLog.length - 1].tMs + 1000) : 1000;
+            lines.push('[' + timestamp({tMs: slainTMs}) + '] ' + target + ' has been slain by Simmy!');
             return lines.join('\n');
           }
           window._lastCombatLogTxt = '';
@@ -5365,6 +5382,7 @@
           toHitBonus,
           ambidexterity: rankAaOpts.ambidexterity,
           critDmgDebugDmgBonus: (function () { var el = $('crit-dmg-debug-dmg-bonus'); return !!(el && ((typeof el.checked === 'boolean' && el.checked) || String(el.value) === '1' || String(el.value).toLowerCase() === 'true')); })(),
+          roundMultUp: (function () { var el = $('round-mult-up'); return !!(el && ((typeof el.checked === 'boolean' && el.checked) || String(el.value) === '1' || String(el.value).toLowerCase() === 'true')); })(),
           doubleAttackSkill: parseInt($('double-attack').value, 10) || 0,
           level,
           targetAC,
@@ -6516,6 +6534,7 @@
           trueshot: $('trueshot').checked,
           classId: 'ranger',
           spellCastingFury: aaConfig.spellCastingFury || 0,
+          roundMultUp: (function () { var el = $('round-mult-up'); return !!(el && ((typeof el.checked === 'boolean' && el.checked) || String(el.value) === '1' || String(el.value).toLowerCase() === 'true')); })(),
         };
         var combinations = [];
         bows.forEach(function (bow) {
@@ -7120,7 +7139,7 @@
         btnCombatLog.addEventListener('click', function () {
           var text = window._lastCombatLogTxt || '';
           if (!text || !String(text).trim()) {
-            if (typeof alert !== 'undefined') alert('No combat log available. Run a single (runs = 1) melee simulation first.');
+            if (typeof alert !== 'undefined') alert('No combat log available. Run a single (runs = 1) melee or ranged simulation first.');
             return;
           }
           downloadTextFile('dps-sim-combat-log.txt', text);
@@ -7131,7 +7150,7 @@
         btnCombatLogMs.addEventListener('click', function () {
           var text = window._lastCombatLogTxtMs || '';
           if (!text || !String(text).trim()) {
-            if (typeof alert !== 'undefined') alert('No combat log available. Run a single (runs = 1) melee simulation first.');
+            if (typeof alert !== 'undefined') alert('No combat log available. Run a single (runs = 1) melee or ranged simulation first.');
             return;
           }
           downloadTextFile('dps-sim-combat-log-ms.txt', text);
@@ -7710,6 +7729,9 @@
           mobStationary: !!($('mob-stationary') && $('mob-stationary').checked),
           trueshot: !!($('trueshot') && $('trueshot').checked),
           spellCastingFury: aaConfig.spellCastingFury || 0,
+          roundMultUp: (function () { var el = $('round-mult-up'); return !!(el && ((typeof el.checked === 'boolean' && el.checked) || String(el.value) === '1' || String(el.value).toLowerCase() === 'true')); })(),
+          captureCombatLog: runs === 1,
+          targetName: runs === 1 ? ((window.selectedTargetNpc && window.selectedTargetNpc.name) ? String(window.selectedTargetNpc.name).replace(/_/g, ' ') : 'the mob') : undefined,
         };
         const reports = [];
         try {
@@ -7755,6 +7777,10 @@
               procLevelBlocked: !!r0.ranged.procLevelBlocked,
               procLevelRequired: r0.ranged.procLevelRequired != null ? r0.ranged.procLevelRequired : null,
               procLevelCurrent: r0.ranged.procLevelCurrent != null ? r0.ranged.procLevelCurrent : null,
+              theoreticMaxHitStd:      r0.ranged.theoreticMaxHitStd      != null ? r0.ranged.theoreticMaxHitStd      : null,
+              theoreticMaxHitCrit:     r0.ranged.theoreticMaxHitCrit     != null ? r0.ranged.theoreticMaxHitCrit     : null,
+              theoreticMaxHitDisc:     r0.ranged.theoreticMaxHitDisc     != null ? r0.ranged.theoreticMaxHitDisc     : null,
+              theoreticMaxHitDiscCrit: r0.ranged.theoreticMaxHitDiscCrit != null ? r0.ranged.theoreticMaxHitDiscCrit : null,
             },
             durationSec: r0.durationSec,
             rawHastePercent: r0.rawHastePercent != null ? r0.rawHastePercent : 0,
@@ -7789,6 +7815,8 @@
             arrowBaseDamage: r0.arrowBaseDamage,
             masteryPct: r0.masteryPct,
             rangerStationaryBonus: r0.rangerStationaryBonus,
+            trueshotEnabled: !!r0.trueshotEnabled,
+            hasCritRanged: !!r0.hasCritRanged,
           };
         }
         window._lastSimRunExport = {
@@ -7798,6 +7826,45 @@
           averaged: report,
           createdAt: Date.now(),
         };
+        window._lastCombatLogTxt = '';
+        window._lastCombatLogTxtMs = '';
+        if (runs === 1 && report && report.combatLog && report.combatLog.length > 0) {
+          (function () {
+            function formatCombatLogAsEQ(combatLog, targetName, baseTimeMs, resolution, detailed) {
+              if (!combatLog || combatLog.length === 0) return '';
+              var target = (targetName && String(targetName).trim()) ? String(targetName).trim() : 'the mob';
+              var days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+              var months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+              function timestamp(ev) {
+                var d = new Date(baseTimeMs + ev.tMs);
+                var ms = detailed ? ('.' + String(d.getMilliseconds()).padStart(3, '0')) : '';
+                return days[d.getDay()] + ' ' + months[d.getMonth()] + ' ' + String(d.getDate()).padStart(2, ' ') +
+                  ' ' + String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0') +
+                  ':' + String(d.getSeconds()).padStart(2, '0') + ms + ' ' + d.getFullYear();
+              }
+              var lines = [];
+              combatLog.forEach(function (ev) {
+                var ts = '[' + timestamp(ev) + '] ';
+                if (ev.attackName === 'shoot') {
+                  if (ev.hit) {
+                    if (ev.isCrit) lines.push(ts + 'Simmy Scores a critical hit!(' + ev.damage + ')');
+                    lines.push(ts + 'Simmy hits ' + target + ' for ' + ev.damage + ' points of damage.');
+                  } else {
+                    lines.push(ts + 'Simmy tries to hit ' + target + ', but misses!');
+                  }
+                } else if (ev.attackName === 'proc' && ev.hit) {
+                  lines.push(ts + target + ' has taken ' + ev.damage + ' damage from Simmy\'s spell.');
+                }
+              });
+              var slainTMs = combatLog.length > 0 ? (combatLog[combatLog.length - 1].tMs + 1000) : 1000;
+              lines.push('[' + timestamp({tMs: slainTMs}) + '] ' + target + ' has been slain by Simmy!');
+              return lines.join('\n');
+            }
+            var baseTime = Date.now() - (report.durationSec != null ? report.durationSec * 1000 : 0);
+            window._lastCombatLogTxt = formatCombatLogAsEQ(report.combatLog, report.targetName, baseTime, 'second', false);
+            window._lastCombatLogTxtMs = formatCombatLogAsEQ(report.combatLog, report.targetName, baseTime, 'millisecond', true);
+          })();
+        }
         let rangedReportText = EQCombat.formatRangedReport(report, runs);
         if (window.selectedTargetNpc && window.selectedTargetNpc.name) {
           var npc = window.selectedTargetNpc;

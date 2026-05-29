@@ -13,6 +13,9 @@
   /** When true and duelist is active, add +1 to backstab final damage (hidden debug, no UI). */
   var FENCEPOSTBACKSTABDEBUG = true;
 
+  /** When true, rollDamageMultiplier uses Math.ceil instead of Math.floor for the multiplier step. */
+  var _roundMultUp = false;
+
   // ============================================================
   // Named constants — replaces magic numbers throughout the file.
   // Source: EQMacEmu attack.cpp, special_attacks.cpp, spells.cpp
@@ -204,7 +207,7 @@
     if (rng() * 100 < params.rollChance) {
       let roll = Math.floor(rng() * (baseBonus + 1)) + 100;
       if (roll > params.maxExtra) roll = params.maxExtra;
-      damage = Math.floor(damage * roll / 100);
+      damage = _roundMultUp ? Math.ceil(damage * roll / 100) : Math.floor(damage * roll / 100);
       if (level >= 55 && damage > 1 && !isArchery && isWarriorClass(classId)) damage++;
       return { damage: damage < 1 ? 1 : damage, isCrit: roll > 100 };
     }
@@ -299,11 +302,12 @@
   // Applied after all other damage calculations. All classes, level >= 28.
   function isWarriorClass(classId) {
     return classId === 'warrior' || classId === 'ranger' || classId === 'paladin' ||
-      classId === 'shadowknight' || classId === 'bard';
+      classId === 'shadowknight' || classId === 'bard' ||
+      classId === 'monk' || classId === 'rogue' || classId === 'beastlord';
   }
 
   function getDamageBonusClient(level, classId, delay, is2H) {
-    if (level < 28) return 0;
+    if (level < 28 || !isWarriorClass(classId)) return 0;
     const delayVal = delay != null ? delay : 1;
     let bonus = 1 + Math.floor((level - 28) / 3);
 
@@ -682,6 +686,7 @@
    * @param {number} [options.seed]
    */
   function runRangedFight(options) {
+    _roundMultUp = !!options.roundMultUp;
     const rng = createRng(options.seed);
     const procRng = createRng(options.seed != null ? options.seed + 9999 : undefined);
     const level = options.level != null ? options.level : 60;
@@ -814,6 +819,55 @@
       masteryPct: masteryPct,
       rangerStationaryBonus: rangerStationaryBonus,
     };
+    // Theoretical max hit for ranged — mirrors exact sim pipeline:
+    //   physBase = bow+arrow → mastery → [trueshot] → halve   (matches DoArcheryAttackDmg)
+    //   rangedElemAdder added AFTER halving, passed to calcMeleeDamage as extra base
+    //   D20=20 on (physBase + maxElem)
+    //   stationary ×2 on D20 result
+    //   rollDamageMultiplier max
+    //   optional crit
+    {
+      const _rMultParams = getRollDamageMultiplierParams(level, 'ranger');
+      const _hasCritRanged = getCritChance(level, 'ranger', options.dex || 150, 0, options.critChanceMult || 0, true) > 0;
+      // Max elemental from bow + arrow (each through applyElementalResist separately, take max possible)
+      function _maxElemAdderR(weapon) {
+        if (!weapon || !(weapon.elemDamage > 0)) return 0;
+        const resist = getResistForElemType(options, weapon.elemType);
+        if (resist > 200) return 0;
+        const maxRoll = 201 - resist;
+        if (maxRoll > 99) return weapon.elemDamage;
+        return Math.floor(weapon.elemDamage * maxRoll / 100);
+      }
+      const _maxElemRanged = _maxElemAdderR(bow) + _maxElemAdderR(arrow);
+      function _calcRangedTheoMax(halvedBase, withCrit) {
+        // elem is added to already-halved base before D20 (matches line: calcMeleeDamage(physicalBase + rangedElemAdder, ...))
+        const d20 = Math.floor((20 * (halvedBase + _maxElemRanged) + 5) / 10);
+        const afterStat = rangerStationaryBonus ? d20 * 2 : d20;
+        const afterMult = _roundMultUp ? Math.ceil(afterStat * _rMultParams.maxExtra / 100) : Math.floor(afterStat * _rMultParams.maxExtra / 100);
+        return withCrit ? applyCritDamage(afterMult, 0, 17, false, 0) : afterMult;
+      }
+      let physBaseNoTS = (bow.damage || 0) + (arrow.damage || 0);
+      if (masteryPct > 0) physBaseNoTS += Math.floor(physBaseNoTS * masteryPct / 100);
+      if (physBaseNoTS > 1) physBaseNoTS = Math.floor(physBaseNoTS / 2);
+      let physBaseTS = (bow.damage || 0) + (arrow.damage || 0);
+      if (masteryPct > 0) physBaseTS += Math.floor(physBaseTS * masteryPct / 100);
+      physBaseTS += Math.floor(physBaseTS * 105 / 100);
+      if (physBaseTS > 1) physBaseTS = Math.floor(physBaseTS / 2);
+      report.ranged.theoreticMaxHitStd      = _calcRangedTheoMax(physBaseNoTS, false);
+      report.ranged.theoreticMaxHitCrit     = _hasCritRanged ? _calcRangedTheoMax(physBaseNoTS, true) : null;
+      report.ranged.theoreticMaxHitDisc     = _calcRangedTheoMax(physBaseTS, false);
+      report.ranged.theoreticMaxHitDiscCrit = _hasCritRanged ? _calcRangedTheoMax(physBaseTS, true) : null;
+      report.trueshotEnabled = trueshot;
+      report.hasCritRanged = _hasCritRanged;
+    }
+    if (options.captureCombatLog) report.combatLog = [];
+    report.targetName = options.targetName || 'the mob';
+    function pushRangedLog(tMs, attackName, hit, damage, logTags) {
+      if (!report.combatLog) return;
+      var entry = { tMs: tMs, type: 'ranged', weapon: 'ranged', attackName: attackName, hit: hit, damage: damage };
+      if (logTags && typeof logTags === 'object') Object.keys(logTags).forEach(function (k) { entry[k] = logTags[k]; });
+      report.combatLog.push(entry);
+    }
     const rangedProcLevelReq = getProcLevelRequirement(bow);
     if (bow.procSpell != null && bow.procSpell !== '' && rangedProcLevelReq != null && level < rangedProcLevelReq) {
       report.ranged.procLevelBlocked = true;
@@ -921,12 +975,14 @@
       let hit = rollHit(currentToHit, avoidance, rng, true);
       if (!hit) {
         nextRangedAtMs += delayMs;
+        pushRangedLog(nextRangedAtMs - delayMs, 'shoot', false, undefined, { miss: true });
         if (procDamageThisShot > 0) {
           report.ranged.totalDamage += procDamageThisShot;
           report.totalDamage += procDamageThisShot;
           report.ranged.maxDamage = Math.max(report.ranged.maxDamage, procDamageThisShot);
           if (procDamageThisShot < report.ranged.minDamage) report.ranged.minDamage = procDamageThisShot;
           report.ranged.hitList.push(procDamageThisShot);
+          pushRangedLog(nextRangedAtMs - delayMs, 'proc', true, procDamageThisShot, { proc: true });
         }
         continue;
       }
@@ -963,12 +1019,15 @@
         dmg = actualDamage;
       }
       if (bow.noDamageVsTarget) { report.elementalDamageTotal -= rangedElemAdder; dmg = 0; procDamageThisShot = 0; }
+      const physDmg = dmg;
       dmg += procDamageThisShot;
       report.ranged.totalDamage += dmg;
       report.totalDamage += dmg;
       report.ranged.maxDamage = Math.max(report.ranged.maxDamage, dmg);
       if (dmg < report.ranged.minDamage) report.ranged.minDamage = dmg;
       report.ranged.hitList.push(dmg);
+      pushRangedLog(nextRangedAtMs, 'shoot', true, physDmg, { isCrit: critResult.isCrit, trueshotActive: trueshotActive });
+      if (procDamageThisShot > 0) pushRangedLog(nextRangedAtMs, 'proc', true, procDamageThisShot, { proc: true });
       nextRangedAtMs += delayMs;
     }
 
@@ -1105,6 +1164,14 @@
       if (report.rangerStationaryBonus) {
         lines.push(padLine('    Ranger stationary bonus:', '×2 applied after D20 roll'));
       }
+      {
+        const _tsNote = report.trueshotEnabled ? '' : '  (Disc not enabled)';
+        const _rr = report.ranged;
+        if (_rr.theoreticMaxHitStd      != null) lines.push(padLine('    Max possible hit:',                   String(_rr.theoreticMaxHitStd)));
+        if (_rr.theoreticMaxHitCrit     != null) lines.push(padLine('    Max possible hit (crit):',            String(_rr.theoreticMaxHitCrit)));
+        if (_rr.theoreticMaxHitDisc     != null) lines.push(padLine('    Max possible hit (Trueshot):',        String(_rr.theoreticMaxHitDisc) + _tsNote));
+        if (_rr.theoreticMaxHitDiscCrit != null) lines.push(padLine('    Max possible hit (Trueshot + crit):', String(_rr.theoreticMaxHitDiscCrit) + _tsNote));
+      }
     }
     lines.push(padLine('    Total damage:', String(r.totalDamage)));
     lines.push(padLine('    Weapon DPS:', (r.totalDamage / dur).toFixed(2)));
@@ -1228,6 +1295,7 @@
    * @param {string} [options.fistweavingOffhandLabel] - when non-epic fistweaving uses equipped 1H offhand with 2H primary: display name for report
    */
   function runFight(options) {
+    _roundMultUp = !!options.roundMultUp;
     const fromBehind = !!options.fromBehind;
     const rng = createRng(options.seed);
     const procRng = createRng(options.seed != null ? options.seed + 12345 : undefined);
@@ -1578,6 +1646,51 @@
       if (!disciplineActive || baseDamage <= 0) return null;
       return Math.floor(baseDamage * SE_MELEE_MIN_DAMAGE_MOD_DUELIST_INNERFLAME / 100) + (damageBonus || 0);
     }
+    // Theoretical max hit per weapon — mirrors the exact sim pipeline:
+    //   mhBase = cappedDmg + maxElemAdder  (elem adds to base BEFORE D20)
+    //   D20=20 → floor((20 * mhBase + 5) / 10)
+    //   rollDamageMultiplier max roll (maxExtra at this level)
+    //   warrior +1 bonus if level >= 55
+    //   + damageBonus
+    //   optional crit via applyCritDamage
+    const _multParams = getRollDamageMultiplierParams(level, options.classId);
+    const _hasCrit = getCritChance(level, options.classId, options.dex || 150, 0, options.critChanceMult || 0, false) > 0;
+    // Max possible elemental adder: full elemDamage when target resist ≤ 101 (roll 201-resist can exceed 99).
+    function _maxElemAdder(weapon) {
+      if (!weapon || !(weapon.elemDamage > 0)) return 0;
+      const resist = getResistForElemType(options, weapon.elemType);
+      if (resist > 200) return 0;
+      const maxRoll = 201 - resist; // highest possible roll value from applyElementalResist
+      if (maxRoll > 99) return weapon.elemDamage; // full damage possible
+      return Math.floor(weapon.elemDamage * maxRoll / 100);
+    }
+    function _calcTheoMax(cappedDmg, maxElem, dmgBonus, withDisc, withCrit) {
+      let base = cappedDmg + maxElem;
+      if (withDisc) base = base + Math.floor(base * SE_MELEE_DAMAGE_MOD_DUELIST_INNERFLAME / 100);
+      const d20 = Math.floor((20 * base + 5) / 10);
+      let afterMult = _roundMultUp ? Math.ceil(d20 * _multParams.maxExtra / 100) : Math.floor(d20 * _multParams.maxExtra / 100);
+      if (level >= 55 && afterMult > 1 && isWarriorClass(options.classId)) afterMult++;
+      const dmg = afterMult + dmgBonus;
+      return withCrit ? applyCritDamage(dmg, dmgBonus, 17, false, furyDmgBonusPct) : dmg;
+    }
+    if (hasMainHand) {
+      const _e1 = _maxElemAdder(w1);
+      report.weapon1.theoreticMaxHitStd      = _calcTheoMax(cappedW1Damage, _e1, mainHandDamageBonus, false, false);
+      report.weapon1.theoreticMaxHitCrit     = _hasCrit ? _calcTheoMax(cappedW1Damage, _e1, mainHandDamageBonus, false, true) : null;
+      report.weapon1.theoreticMaxHitDisc     = _calcTheoMax(cappedW1Damage, _e1, mainHandDamageBonus, true, false);
+      report.weapon1.theoreticMaxHitDiscCrit = _hasCrit ? _calcTheoMax(cappedW1Damage, _e1, mainHandDamageBonus, true, true) : null;
+    }
+    if (offhandEquipped) {
+      const _e2 = _maxElemAdder(w2);
+      report.weapon2.theoreticMaxHitStd      = _calcTheoMax(cappedW2Damage, _e2, 0, false, false);
+      report.weapon2.theoreticMaxHitCrit     = _hasCrit ? _calcTheoMax(cappedW2Damage, _e2, 0, false, true) : null;
+      report.weapon2.theoreticMaxHitDisc     = _calcTheoMax(cappedW2Damage, _e2, 0, true, false);
+      report.weapon2.theoreticMaxHitDiscCrit = _hasCrit ? _calcTheoMax(cappedW2Damage, _e2, 0, true, true) : null;
+    }
+    report.discLabel = duelist ? 'Duelist' : innerFlame ? 'Innerflame' : null;
+    report.discEnabled = duelist || innerFlame;
+    report.hasCrit = _hasCrit;
+    report.furyDmgBonusPct = furyDmgBonusPct;
     // Special attack reuse: base reuse (or user base override) reduced by haste; or user effective override used as-is
     const hasteMod = 1 + (effectiveHastePercent || 0) / 100;
     let effectiveSpecialReuseSec = 0;
@@ -1719,7 +1832,7 @@
           report.special.hitList.push(dmg);
           report.weapon1.totalDamage += dmg;
           report.totalDamage += dmg;
-          pushCombatLog(tMs, 'special', 'special', specialVerb, true, dmg, { bsDA: isDoubleBackstabRound && backstabAttemptNumber === 2 });
+          pushCombatLog(tMs, 'special', 'special', specialVerb, true, dmg, { bsDA: isDoubleBackstabRound && backstabAttemptNumber === 2, isCrit: critResult.isCrit });
         }
 
         if (report.masterWu) {
@@ -1772,7 +1885,7 @@
             report.special.hitList.push(dmg);
             report.weapon1.totalDamage += dmg;
             report.totalDamage += dmg;
-            pushCombatLog(tMs, 'special', 'special', wuSkillCfg.name, true, dmg, { wu: true });
+            pushCombatLog(tMs, 'special', 'special', wuSkillCfg.name, true, dmg, { wu: true, isCrit: critResult.isCrit });
           }
 
           report.masterWu.mainRolls++;
@@ -1830,7 +1943,7 @@
               report.fistweaving.totalDamage += dmg;
               report.fistweaving.maxDamage = Math.max(report.fistweaving.maxDamage, dmg);
               report.totalDamage += dmg;
-              pushCombatLog(tMs, 'melee', fistweaveNonEpicOhMode ? 'fistweave-oh' : 'fist', fistweaveNonEpicOhMode ? 'weave' : 'punch', true, dmg);
+              pushCombatLog(tMs, 'melee', fistweaveNonEpicOhMode ? 'fistweave-oh' : 'fist', fistweaveNonEpicOhMode ? 'weave' : 'punch', true, dmg, { isCrit: critResult.isCrit });
             } else {
               report.fistweaving.swings++;
               addSwingThreatFist(threatBase);
@@ -1878,6 +1991,7 @@
           dmg = mult.damage;
           dmg += mainHandDamageBonus;
           dmg = Math.max(dmg, 1 + mainHandDamageBonus);
+          let _swingIsCrit1 = false;
           const slayResult1 = trySlayUndead(dmg, mainHandDamageBonus, 1, options, rng);
           if (slayResult1) {
             dmg = slayResult1.damage;
@@ -1889,7 +2003,7 @@
             const critResult = rollMeleeCrit(dmg, mainHandDamageBonus, level, options.classId, options.dex, options.critChanceMult, false, false, 0, options.critDmgDebugDmgBonus, rng, furyDmgBonusPct);
             dmg = critResult.damage;
             dmg = Math.max(dmg, 1 + mainHandDamageBonus);
-            if (critResult.isCrit) { report.critHits++; report.critDamageGain += (dmg - beforeCrit); }
+            if (critResult.isCrit) { _swingIsCrit1 = true; report.critHits++; report.critDamageGain += (dmg - beforeCrit); }
           }
           const mhDisciplineMin = getDisciplineMinHit(cappedW1Damage, mainHandDamageBonus, disciplineActiveMh);
           if (mhDisciplineMin != null && dmg < mhDisciplineMin) dmg = mhDisciplineMin;
@@ -1902,7 +2016,7 @@
           report.weapon1.hitList.push(dmg);
           report.totalDamage += dmg;
           report.damageBonusTotal += mainHandDamageBonus;
-          pushCombatLog(tMs, 'melee', 1, w1Verb, true, dmg, { roundLetter: mhRoundLetter, attemptNumber: 1, swingKind: 'BA' });
+          pushCombatLog(tMs, 'melee', 1, w1Verb, true, dmg, { roundLetter: mhRoundLetter, attemptNumber: 1, swingKind: 'BA', isCrit: _swingIsCrit1 });
         } else {
           report.weapon1.swings++; addSwingThreatMH();
           pushCombatLog(tMs, 'melee', 1, w1Verb, false, undefined, { roundLetter: mhRoundLetter, attemptNumber: 1, swingKind: 'BA' });
@@ -1920,6 +2034,7 @@
             dmg = mult.damage;
             dmg += mainHandDamageBonus;
             dmg = Math.max(dmg, 1 + mainHandDamageBonus);
+            let _swingIsCrit2 = false;
             const slayResult2 = trySlayUndead(dmg, mainHandDamageBonus, 1, options, rng);
             if (slayResult2) {
               dmg = slayResult2.damage;
@@ -1931,7 +2046,7 @@
               const critResult = rollMeleeCrit(dmg, mainHandDamageBonus, level, options.classId, options.dex, options.critChanceMult, false, false, 0, options.critDmgDebugDmgBonus, rng, furyDmgBonusPct);
               dmg = critResult.damage;
               dmg = Math.max(dmg, 1 + mainHandDamageBonus);
-              if (critResult.isCrit) { report.critHits++; report.critDamageGain += (dmg - beforeCrit); }
+              if (critResult.isCrit) { _swingIsCrit2 = true; report.critHits++; report.critDamageGain += (dmg - beforeCrit); }
             }
             const mhDisciplineMin2 = getDisciplineMinHit(cappedW1Damage, mainHandDamageBonus, disciplineActiveMh);
             if (mhDisciplineMin2 != null && dmg < mhDisciplineMin2) dmg = mhDisciplineMin2;
@@ -1944,7 +2059,7 @@
             report.weapon1.hitList.push(dmg);
             report.totalDamage += dmg;
             report.damageBonusTotal += mainHandDamageBonus;
-            pushCombatLog(tMs, 'melee', 1, w1Verb, true, dmg, { roundLetter: mhRoundLetter, attemptNumber: 2, swingKind: 'DA' });
+            pushCombatLog(tMs, 'melee', 1, w1Verb, true, dmg, { roundLetter: mhRoundLetter, attemptNumber: 2, swingKind: 'DA', isCrit: _swingIsCrit2 });
           } else {
             report.weapon1.swings++; addSwingThreatMH();
             pushCombatLog(tMs, 'melee', 1, w1Verb, false, undefined, { roundLetter: mhRoundLetter, attemptNumber: 2, swingKind: 'DA' });
@@ -1961,6 +2076,7 @@
               dmg = mult.damage;
               dmg += mainHandDamageBonus;
               dmg = Math.max(dmg, 1 + mainHandDamageBonus);
+              let _swingIsCrit3 = false;
               const slayResult3 = trySlayUndead(dmg, mainHandDamageBonus, 1, options, rng);
               if (slayResult3) {
                 dmg = slayResult3.damage;
@@ -1972,7 +2088,7 @@
                 const critResult = rollMeleeCrit(dmg, mainHandDamageBonus, level, options.classId, options.dex, options.critChanceMult, false, false, 0, options.critDmgDebugDmgBonus, rng, furyDmgBonusPct);
                 dmg = critResult.damage;
                 dmg = Math.max(dmg, 1 + mainHandDamageBonus);
-                if (critResult.isCrit) { report.critHits++; report.critDamageGain += (dmg - beforeCrit); }
+                if (critResult.isCrit) { _swingIsCrit3 = true; report.critHits++; report.critDamageGain += (dmg - beforeCrit); }
               }
               const mhDisciplineMin3 = getDisciplineMinHit(cappedW1Damage, mainHandDamageBonus, disciplineActiveMh);
               if (mhDisciplineMin3 != null && dmg < mhDisciplineMin3) dmg = mhDisciplineMin3;
@@ -1985,7 +2101,7 @@
               report.weapon1.hitList.push(dmg);
               report.totalDamage += dmg;
               report.damageBonusTotal += mainHandDamageBonus;
-              pushCombatLog(tMs, 'melee', 1, w1Verb, true, dmg, { roundLetter: mhRoundLetter, attemptNumber: 3, swingKind: 'TA' });
+              pushCombatLog(tMs, 'melee', 1, w1Verb, true, dmg, { roundLetter: mhRoundLetter, attemptNumber: 3, swingKind: 'TA', isCrit: _swingIsCrit3 });
             } else {
               report.weapon1.swings++; addSwingThreatMH();
               pushCombatLog(tMs, 'melee', 1, w1Verb, false, undefined, { roundLetter: mhRoundLetter, attemptNumber: 3, swingKind: 'TA' });
@@ -2004,6 +2120,7 @@
                 dmg = mult.damage;
                 dmg += mainHandDamageBonus;
                 dmg = Math.max(dmg, 1 + mainHandDamageBonus);
+                let _swingIsCritF = false;
                 const slayResultF = trySlayUndead(dmg, mainHandDamageBonus, 1, options, rng);
                 if (slayResultF) {
                   dmg = slayResultF.damage;
@@ -2015,7 +2132,7 @@
                   const critResult = rollMeleeCrit(dmg, mainHandDamageBonus, level, options.classId, options.dex, options.critChanceMult, false, false, 0, options.critDmgDebugDmgBonus, rng, furyDmgBonusPct);
                   dmg = critResult.damage;
                   dmg = Math.max(dmg, 1 + mainHandDamageBonus);
-                  if (critResult.isCrit) { report.critHits++; report.critDamageGain += (dmg - beforeCrit); }
+                  if (critResult.isCrit) { _swingIsCritF = true; report.critHits++; report.critDamageGain += (dmg - beforeCrit); }
                 }
                 const mhDisciplineMinF = getDisciplineMinHit(cappedW1Damage, mainHandDamageBonus, disciplineActiveMh);
                 if (mhDisciplineMinF != null && dmg < mhDisciplineMinF) dmg = mhDisciplineMinF;
@@ -2028,7 +2145,7 @@
                 report.weapon1.hitList.push(dmg);
                 report.totalDamage += dmg;
                 report.damageBonusTotal += mainHandDamageBonus;
-                pushCombatLog(tMs, 'melee', 1, w1Verb, true, dmg, { roundLetter: mhRoundLetter, attemptNumber: 4, swingKind: 'FL' });
+                pushCombatLog(tMs, 'melee', 1, w1Verb, true, dmg, { roundLetter: mhRoundLetter, attemptNumber: 4, swingKind: 'FL', isCrit: _swingIsCritF });
               } else {
                 report.weapon1.swings++; addSwingThreatMH();
                 pushCombatLog(tMs, 'melee', 1, w1Verb, false, undefined, { roundLetter: mhRoundLetter, attemptNumber: 4, swingKind: 'FL' });
@@ -2047,6 +2164,7 @@
                 dmg = mult.damage;
                 dmg += mainHandDamageBonus;
                 dmg = Math.max(dmg, 1 + mainHandDamageBonus);
+                let _swingIsCritRF = false;
                 const slayResultRF = trySlayUndead(dmg, mainHandDamageBonus, 1, options, rng);
                 if (slayResultRF) {
                   dmg = slayResultRF.damage;
@@ -2058,7 +2176,7 @@
                   const critResult = rollMeleeCrit(dmg, mainHandDamageBonus, level, options.classId, options.dex, options.critChanceMult, false, false, 0, options.critDmgDebugDmgBonus, rng, furyDmgBonusPct);
                   dmg = critResult.damage;
                   dmg = Math.max(dmg, 1 + mainHandDamageBonus);
-                  if (critResult.isCrit) { report.critHits++; report.critDamageGain += (dmg - beforeCrit); }
+                  if (critResult.isCrit) { _swingIsCritRF = true; report.critHits++; report.critDamageGain += (dmg - beforeCrit); }
                 }
                 const mhDisciplineMinRF = getDisciplineMinHit(cappedW1Damage, mainHandDamageBonus, disciplineActiveMh);
                 if (mhDisciplineMinRF != null && dmg < mhDisciplineMinRF) dmg = mhDisciplineMinRF;
@@ -2071,7 +2189,7 @@
                 report.weapon1.hitList.push(dmg);
                 report.totalDamage += dmg;
                 report.damageBonusTotal += mainHandDamageBonus;
-                pushCombatLog(tMs, 'melee', 1, w1Verb, true, dmg, { roundLetter: mhRoundLetter, attemptNumber: 5, swingKind: 'RF' });
+                pushCombatLog(tMs, 'melee', 1, w1Verb, true, dmg, { roundLetter: mhRoundLetter, attemptNumber: 5, swingKind: 'RF', isCrit: _swingIsCritRF });
               } else {
                 report.weapon1.swings++; addSwingThreatMH();
                 pushCombatLog(tMs, 'melee', 1, w1Verb, false, undefined, { roundLetter: mhRoundLetter, attemptNumber: 5, swingKind: 'RF' });
@@ -2093,6 +2211,7 @@
               dmg = mult.damage;
               dmg += mainHandDamageBonus;
               dmg = Math.max(dmg, 1 + mainHandDamageBonus);
+              let _swingIsCritPB = false;
               const slayResultPB = trySlayUndead(dmg, mainHandDamageBonus, 1, options, rng);
               if (slayResultPB) {
                 dmg = slayResultPB.damage;
@@ -2104,7 +2223,7 @@
                 const critResult = rollMeleeCrit(dmg, mainHandDamageBonus, level, options.classId, options.dex, options.critChanceMult, false, false, 0, options.critDmgDebugDmgBonus, rng, furyDmgBonusPct);
                 dmg = critResult.damage;
                 dmg = Math.max(dmg, 1 + mainHandDamageBonus);
-                if (critResult.isCrit) { report.critHits++; report.critDamageGain += (dmg - beforeCrit); }
+                if (critResult.isCrit) { _swingIsCritPB = true; report.critHits++; report.critDamageGain += (dmg - beforeCrit); }
               }
               const mhDisciplineMinPB = getDisciplineMinHit(cappedW1Damage, mainHandDamageBonus, disciplineActiveMh);
               if (mhDisciplineMinPB != null && dmg < mhDisciplineMinPB) dmg = mhDisciplineMinPB;
@@ -2117,7 +2236,7 @@
               report.weapon1.hitList.push(dmg);
               report.totalDamage += dmg;
               report.damageBonusTotal += mainHandDamageBonus;
-              pushCombatLog(tMs, 'melee', 1, w1Verb, true, dmg, { roundLetter: mhRoundLetter, attemptNumber: 5, swingKind: 'PB' });
+              pushCombatLog(tMs, 'melee', 1, w1Verb, true, dmg, { roundLetter: mhRoundLetter, attemptNumber: 5, swingKind: 'PB', isCrit: _swingIsCritPB });
             } else {
               report.weapon1.swings++; addSwingThreatMH();
               pushCombatLog(tMs, 'melee', 1, w1Verb, false, undefined, { roundLetter: mhRoundLetter, attemptNumber: 5, swingKind: 'PB' });
@@ -2136,6 +2255,7 @@
               dmg = mult.damage;
               dmg += mainHandDamageBonus;
               dmg = Math.max(dmg, 1 + mainHandDamageBonus);
+              let _swingIsCritSK = false;
               const slayResultSK = trySlayUndead(dmg, mainHandDamageBonus, 1, options, rng);
               if (slayResultSK) {
                 dmg = slayResultSK.damage;
@@ -2147,7 +2267,7 @@
                 const critResult = rollMeleeCrit(dmg, mainHandDamageBonus, level, options.classId, options.dex, options.critChanceMult, false, false, 0, options.critDmgDebugDmgBonus, rng, furyDmgBonusPct);
                 dmg = critResult.damage;
                 dmg = Math.max(dmg, 1 + mainHandDamageBonus);
-                if (critResult.isCrit) { report.critHits++; report.critDamageGain += (dmg - beforeCrit); }
+                if (critResult.isCrit) { _swingIsCritSK = true; report.critHits++; report.critDamageGain += (dmg - beforeCrit); }
               }
               const mhDisciplineMinSK = getDisciplineMinHit(cappedW1Damage, mainHandDamageBonus, disciplineActiveMh);
               if (mhDisciplineMinSK != null && dmg < mhDisciplineMinSK) dmg = mhDisciplineMinSK;
@@ -2160,7 +2280,7 @@
               report.weapon1.hitList.push(dmg);
               report.totalDamage += dmg;
               report.damageBonusTotal += mainHandDamageBonus;
-              pushCombatLog(tMs, 'melee', 1, w1Verb, true, dmg, { roundLetter: mhRoundLetter, attemptNumber: 6, swingKind: 'SK' });
+              pushCombatLog(tMs, 'melee', 1, w1Verb, true, dmg, { roundLetter: mhRoundLetter, attemptNumber: 6, swingKind: 'SK', isCrit: _swingIsCritSK });
             } else {
               report.weapon1.swings++; addSwingThreatMH();
               pushCombatLog(tMs, 'melee', 1, w1Verb, false, undefined, { roundLetter: mhRoundLetter, attemptNumber: 6, swingKind: 'SK' });
@@ -2292,7 +2412,7 @@
             report.weapon2.minDamage = Math.min(report.weapon2.minDamage, dmg);
             report.weapon2.hitList.push(dmg);
             report.totalDamage += dmg;
-            pushCombatLog(tMs, 'melee', 2, w2Verb, true, dmg, { roundLetter: ohRoundLetter, attemptNumber: 1, swingKind: 'BA', dualWieldGate: true });
+            pushCombatLog(tMs, 'melee', 2, w2Verb, true, dmg, { roundLetter: ohRoundLetter, attemptNumber: 1, swingKind: 'BA', dualWieldGate: true, isCrit: critResult.isCrit });
           } else {
             report.weapon2.swings++; addSwingThreatOH();
             pushCombatLog(tMs, 'melee', 2, w2Verb, false, undefined, { roundLetter: ohRoundLetter, attemptNumber: 1, swingKind: 'BA', dualWieldGate: true });
@@ -2321,7 +2441,7 @@
               report.weapon2.minDamage = Math.min(report.weapon2.minDamage, dmg);
               report.weapon2.hitList.push(dmg);
               report.totalDamage += dmg;
-              pushCombatLog(tMs, 'melee', 2, w2Verb, true, dmg, { roundLetter: ohRoundLetter, attemptNumber: 2, swingKind: 'DA', dualWieldGate: true });
+              pushCombatLog(tMs, 'melee', 2, w2Verb, true, dmg, { roundLetter: ohRoundLetter, attemptNumber: 2, swingKind: 'DA', dualWieldGate: true, isCrit: critResult.isCrit });
             } else {
               report.weapon2.swings++; addSwingThreatOH();
               pushCombatLog(tMs, 'melee', 2, w2Verb, false, undefined, { roundLetter: ohRoundLetter, attemptNumber: 2, swingKind: 'DA', dualWieldGate: true });
@@ -2573,6 +2693,16 @@
     if (report.damageBonusTotal != null && report.damageBonusTotal > 0) lines.push(padLine('    Damage from bonus:', String(report.damageBonusTotal)));
     lines.push(padLine('    Total damage:', String(w1.totalDamage)));
     lines.push(padLine('    Weapon DPS:', (w1.totalDamage / dur).toFixed(2)));
+    {
+      const _cls = (report.classId || '').toLowerCase();
+      const _discLbl = report.discLabel || (_cls === 'rogue' ? 'Duelist' : _cls === 'monk' ? 'Innerflame' : 'Disc');
+      const _discNote = report.discEnabled ? '' : '  (Disc not enabled)';
+      const _furyNote = (report.furyDmgBonusPct || 0) > 0 ? ` + Fury +${report.furyDmgBonusPct}%` : '';
+      if (w1.theoreticMaxHitStd  != null) lines.push(padLine('    Max possible hit:',                         String(w1.theoreticMaxHitStd)));
+      if (w1.theoreticMaxHitCrit != null) lines.push(padLine(`    Max possible hit (crit${_furyNote}):`,       String(w1.theoreticMaxHitCrit)));
+      if (w1.theoreticMaxHitDisc != null) lines.push(padLine(`    Max possible hit (${_discLbl}):`,            String(w1.theoreticMaxHitDisc) + _discNote));
+      if (w1.theoreticMaxHitDiscCrit != null) lines.push(padLine(`    Max possible hit (${_discLbl} + crit${_furyNote}):`, String(w1.theoreticMaxHitDiscCrit) + _discNote));
+    }
     if (report.totalThreat != null && report.totalThreat >= 0) {
       const w1Swing = w1.swingThreat != null ? w1.swingThreat : 0;
       const w1Proc = w1.procThreat != null ? w1.procThreat : 0;
@@ -2586,6 +2716,16 @@
       lines.push(`  ${weapon2Label || 'Weapon 2'}`);
       lines.push(padLine('    Total damage:', String(w2.totalDamage)));
       lines.push(padLine('    Weapon DPS:', (w2.totalDamage / dur).toFixed(2)));
+      {
+        const _cls2 = (report.classId || '').toLowerCase();
+        const _discLbl2 = report.discLabel || (_cls2 === 'rogue' ? 'Duelist' : _cls2 === 'monk' ? 'Innerflame' : 'Disc');
+        const _discNote2 = report.discEnabled ? '' : '  (Disc not enabled)';
+        const _furyNote2 = (report.furyDmgBonusPct || 0) > 0 ? ` + Fury +${report.furyDmgBonusPct}%` : '';
+        if (w2.theoreticMaxHitStd  != null) lines.push(padLine('    Max possible hit:',                              String(w2.theoreticMaxHitStd)));
+        if (w2.theoreticMaxHitCrit != null) lines.push(padLine(`    Max possible hit (crit${_furyNote2}):`,           String(w2.theoreticMaxHitCrit)));
+        if (w2.theoreticMaxHitDisc != null) lines.push(padLine(`    Max possible hit (${_discLbl2}):`,                String(w2.theoreticMaxHitDisc) + _discNote2));
+        if (w2.theoreticMaxHitDiscCrit != null) lines.push(padLine(`    Max possible hit (${_discLbl2} + crit${_furyNote2}):`, String(w2.theoreticMaxHitDiscCrit) + _discNote2));
+      }
       if (report.totalThreat != null && report.totalThreat >= 0) {
         const w2Swing = w2.swingThreat != null ? w2.swingThreat : 0;
         const w2Proc = w2.procThreat != null ? w2.procThreat : 0;

@@ -305,6 +305,18 @@
       ],
     },
     {
+      id: 'spiritual_strength',
+      name: 'Spiritual Strength',
+      category: 'offensive',
+      source: 'SHM',
+      spellId: 2630,
+      sai: 2,
+      effects: [
+        { spa: SPA.ATK,      value: 25 },
+        { spa: SPA.TOTAL_HP, value: 150 },
+      ],
+    },
+    {
       id: 'torrent_of_hate_recourse',
       name: 'Torrent of Hate Recourse',
       category: 'offensive',
@@ -313,6 +325,18 @@
       sai: 35,
       effects: [
         { spa: SPA.ATK, value: 35 },
+      ],
+    },
+    {
+      id: 'grim_aura',
+      name: 'Grim Aura',
+      category: 'offensive',
+      source: 'SK',
+      spellId: 346,
+      sai: 8,
+      effects: [
+        // formula=101 base=5 limit=10: 5 + floor(60 * 0.5) = 35, capped at 10
+        { spa: SPA.ATK, value: 10 },
       ],
     },
     {
@@ -404,6 +428,19 @@
       ],
     },
     {
+      id: 'strength_of_tunare',
+      name: 'Strength of Tunare',
+      category: 'offensive',
+      source: 'DRU',
+      spellId: 3487,
+      sai: 2,
+      minEra: 'pop',
+      effects: [
+        { spa: SPA.ATK,      value: 60 },
+        { spa: SPA.TOTAL_HP, value: 125 },
+      ],
+    },
+    {
       id: 'warsong_vah_shir',
       name: 'Warsong of the Vah Shir',
       category: 'haste',
@@ -423,16 +460,16 @@
       category: 'haste',
       source: 'BRD',
       spellId: 1760,
-      sai: 42,
+      sai: 43,  // distinct from sai 42 (celestial_tranquility) so ATK stacks additively
       bardSong: true,
       effects: [],  // computed dynamically via rawSlots + buildBardEffects()
       rawSlots: [
         // eid=11 base=110 limit=140 formula=110 — v1 haste; limit 40% is hard ceiling
         { spa: SPA.HASTE_V1, base: 110, limit: 140, formula: 110 },
-        // eid=4  base=1   limit=0   formula=121 — STR (trivial)
+        // eid=4  base=1   limit=0   formula=100 — STR (trivial)
         { spa: SPA.STR,      base: 1,   limit: 0,   formula: 100 },
-        // eid=2  base=2   limit=0   formula=110 — ATK (trivial)
-        { spa: SPA.ATK,      base: 2,   limit: 0,   formula: 100 },
+        // eid=2  base=11  limit=0   formula=100 — ATK; floor(11 * 1.8) = 19 with bard epic
+        { spa: SPA.ATK,      base: 11,  limit: 0,   formula: 100 },
       ],
     },
     {
