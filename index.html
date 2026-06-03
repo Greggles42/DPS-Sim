@@ -766,8 +766,8 @@
     }
     .bis-control-group { display: inline-flex; align-items: center; gap: 0.4rem; }
     .bis-ctrl-label { font-size: 0.82rem; color: var(--muted); font-weight: 600; }
-    .bis-role-btns { display: inline-flex; gap: 0.25rem; }
-    .bis-role-btn {
+    .bis-preset-btns { display: inline-flex; gap: 0.25rem; flex-wrap: wrap; }
+    .bis-preset-btn {
       font: inherit;
       font-size: 0.8rem;
       font-weight: 600;
@@ -778,8 +778,141 @@
       color: var(--muted);
       cursor: pointer;
     }
-    .bis-role-btn:hover { color: var(--text); border-color: var(--accent); }
-    .bis-role-btn.active { color: var(--accent); border-color: var(--accent); background: rgba(255,255,255,0.06); }
+    .bis-preset-btn:hover { color: var(--text); border-color: var(--accent); }
+    .bis-controls-options { margin-top: 0.25rem; }
+    .bis-option-toggle { font-size: 0.82rem; color: var(--muted); cursor: pointer; user-select: none; }
+    .bis-option-toggle input { cursor: pointer; vertical-align: middle; margin-right: 0.3rem; }
+    /* Priority list */
+    .bis-prio-header { margin-top: 0.55rem; margin-bottom: 0.2rem; }
+    .bis-prio-title { font-size: 0.8rem; font-weight: 700; color: var(--text); }
+    .bis-prio-hint { font-size: 0.74rem; color: var(--muted); margin-left: 0.5rem; }
+    .bis-prio-cols-header {
+      display: grid;
+      grid-template-columns: 1.6rem 2.5rem 1fr 4.5rem 4.5rem;
+      gap: 0 0.4rem;
+      font-size: 0.68rem;
+      font-weight: 700;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      padding: 0.15rem 0.3rem;
+      border-bottom: 1px solid rgba(255,255,255,0.07);
+      margin-bottom: 0.1rem;
+    }
+    .bis-prio-list-wrap {
+      max-height: 240px;
+      overflow-y: auto;
+      border: 1px solid rgba(255,255,255,0.07);
+      border-radius: 4px;
+    }
+    .bis-prio-list { display: flex; flex-direction: column; }
+    .bis-prio-row {
+      display: grid;
+      grid-template-columns: 1.6rem 2.5rem 1fr 4.5rem 4.5rem;
+      gap: 0 0.4rem;
+      align-items: center;
+      padding: 0.22rem 0.3rem;
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+      font-size: 0.82rem;
+    }
+    .bis-prio-row:last-child { border-bottom: none; }
+    .bis-prio-row--disabled { opacity: 0.42; }
+    .bis-prio-rank { font-size: 0.72rem; color: var(--muted); text-align: center; font-weight: 700; }
+    .bis-prio-move { display: flex; flex-direction: column; gap: 0; }
+    .bis-prio-up, .bis-prio-down {
+      background: none; border: none; color: var(--muted); cursor: pointer;
+      font-size: 0.6rem; padding: 0; line-height: 1.2; width: 100%;
+    }
+    .bis-prio-up:hover:not(:disabled), .bis-prio-down:hover:not(:disabled) { color: var(--text); }
+    .bis-prio-up:disabled, .bis-prio-down:disabled { opacity: 0.2; cursor: default; }
+    .bis-prio-label { color: var(--text); font-weight: 500; white-space: nowrap; }
+    .bis-prio-target-wrap { display: flex; align-items: center; }
+    .bis-prio-target-input {
+      font: inherit;
+      font-size: 0.78rem;
+      background: var(--input-bg);
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      color: var(--text);
+      padding: 0.1rem 0.3rem;
+      width: 4rem;
+      text-align: right;
+    }
+    .bis-prio-toggle { font-size: 0.75rem; color: var(--muted); display: flex; align-items: center; gap: 0.2rem; cursor: pointer; white-space: nowrap; }
+    .bis-prio-toggle input { cursor: pointer; }
+    /* Gap summary table */
+    .bis-gap-bar {
+      margin-bottom: 0.9rem;
+      padding: 0.55rem 0.65rem 0.6rem;
+      background: rgba(255,255,255,0.03);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+    }
+    .bis-gap-title {
+      font-size: 0.72rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--muted);
+      margin-bottom: 0.45rem;
+    }
+    .bis-gap-table { width: 100%; border-collapse: collapse; font-size: 0.78rem; }
+    .bis-gap-table thead th {
+      text-align: left;
+      padding: 0.15rem 0.4rem;
+      font-size: 0.68rem;
+      font-weight: 700;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+    }
+    .bis-gap-row td { padding: 0.18rem 0.4rem; vertical-align: middle; }
+    .bis-gap-row--capped { background: rgba(80,200,120,0.06); }
+    .bis-gap-rank { color: var(--muted); font-size: 0.72rem; text-align: right; width: 1.5rem; }
+    .bis-gap-stat { font-weight: 600; white-space: nowrap; }
+    .bis-gap-cur  { color: var(--muted); white-space: nowrap; }
+    .bis-gap-cur--capped { color: #50c878; font-weight: 700; }
+    .bis-gap-bis  { color: var(--text); white-space: nowrap; font-weight: 500; }
+    .bis-gap-delta-up   { color: #50c878; font-weight: 700; }
+    .bis-gap-delta-down { color: #e88; font-weight: 700; }
+    .bis-gap-delta-eq   { color: #50c878; }
+    .bis-gap-cap  { color: var(--muted); font-size: 0.72rem; white-space: nowrap; }
+    .bis-cap-check { color: #50c878; font-weight: 700; }
+    .bis-gap-prog { width: 90px; }
+    .bis-prog-track {
+      position: relative;
+      height: 6px;
+      background: rgba(255,255,255,0.08);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+    .bis-prog-bis {
+      position: absolute;
+      top: 0; left: 0; bottom: 0;
+      background: rgba(255,255,255,0.15);
+      border-radius: 3px;
+    }
+    .bis-prog-cur {
+      position: absolute;
+      top: 0; left: 0; bottom: 0;
+      background: var(--accent);
+      border-radius: 3px;
+    }
+    /* Stat delta in upgrade advisor */
+    .bis-stat-delta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.15rem 0.5rem;
+      margin-top: 0.2rem;
+      padding: 0.15rem 0.3rem;
+      background: rgba(255,255,255,0.03);
+      border-radius: 3px;
+      font-size: 0.74rem;
+    }
+    .bis-sd-gain { color: #6d9; }
+    .bis-sd-loss { color: #e88; }
+    .bis-sd-cap  { color: #f0c040; font-weight: 700; }
     .bis-era-select {
       font: inherit;
       font-size: 0.82rem;
@@ -789,17 +922,6 @@
       color: var(--text);
       padding: 0.25rem 0.5rem;
     }
-    #bis-custom-weights { margin-top: 0.5rem; }
-    .bis-weights-title { font-size: 0.78rem; color: var(--muted); margin-bottom: 0.35rem; }
-    .bis-slider-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(13rem, 1fr));
-      gap: 0.2rem 1rem;
-    }
-    .bis-slider-row { display: flex; align-items: center; gap: 0.4rem; }
-    .bis-slider-label { font-size: 0.78rem; color: var(--muted); width: 3.5rem; text-align: right; flex-shrink: 0; }
-    .bis-weight-slider { flex: 1; min-width: 0; accent-color: var(--accent); }
-    .bis-slider-val { font-size: 0.78rem; color: var(--text); width: 1.2rem; text-align: right; flex-shrink: 0; }
     .bis-tab-bar {
       display: flex;
       border-bottom: 1px solid var(--border);
@@ -865,6 +987,9 @@
       padding: 0 0.35rem;
       vertical-align: middle;
     }
+    .bis-score-tip { cursor: help; border-bottom: 1px dotted rgba(255,255,255,0.25); }
+    .bis-slot-info { font-size: 0.72rem; color: var(--muted); cursor: help; vertical-align: middle; opacity: 0.7; }
+    .bis-slot-info:hover { opacity: 1; }
     .bis-candidates { margin: 0; padding: 0 0 0 1.25rem; list-style: decimal; }
     .bis-candidate { font-size: 0.82rem; padding: 0.15rem 0; }
     .bis-candidate.is-bis .bis-name-inline { color: var(--accent); }
@@ -916,46 +1041,6 @@
       margin: 0.3rem 0 0.1rem;
     }
     .bis-candidates-alt { opacity: 0.65; }
-    /* Upgrade Advisor summary bar */
-    .bis-summary-bar {
-      margin-bottom: 1rem;
-      padding: 0.6rem 0.75rem 0.65rem;
-      background: rgba(255,255,255,0.04);
-      border: 1px solid var(--border);
-      border-radius: 6px;
-    }
-    .bis-summary-title {
-      font-size: 0.72rem;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.06em;
-      color: var(--muted);
-      margin-bottom: 0.5rem;
-    }
-    .bis-summary-cells {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 0.35rem 0.5rem;
-    }
-    .bis-sum-cell {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      min-width: 3.8rem;
-      padding: 0.3rem 0.4rem;
-      background: rgba(255,255,255,0.03);
-      border: 1px solid rgba(255,255,255,0.07);
-      border-radius: 4px;
-    }
-    .bis-sum-label { font-size: 0.68rem; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; }
-    .bis-sum-vals  { font-size: 0.78rem; color: var(--text); display: flex; align-items: center; gap: 0.2rem; margin: 0.1rem 0; }
-    .bis-sum-cur   { color: var(--muted); }
-    .bis-sum-arrow { color: var(--muted); font-size: 0.65rem; }
-    .bis-sum-bis   { color: var(--text); font-weight: 600; }
-    .bis-sum-diff  { font-size: 0.78rem; font-weight: 700; }
-    .bis-sum-delta-up   { color: #50c878; }
-    .bis-sum-delta-down { color: #e88; }
-    .bis-sum-delta-eq   { color: #50c878; font-size: 0.85rem; }
 
     /* Item search autofilter */
     .item-search-wrap { position: relative; margin-bottom: 0.75rem; }
@@ -1494,8 +1579,8 @@
       flex-wrap: wrap;
       gap: 0.25rem 0.5rem;
       font-size: 0.8rem;
-      flex: 1;
-      min-width: 0;
+      flex-basis: 100%;
+      order: 1;
     }
     #shared-inventory-body {
       padding: 0 0.75rem 0.6rem;
@@ -2724,6 +2809,7 @@
   <section class="advanced-only" style="margin-top: 1rem;">
     <h2>Version log</h2>
     <ul style="font-size: 0.9rem; color: var(--muted); margin: 0; padding-left: 1.25rem;">
+      <li><strong>1.26</strong> — Fix elemental damage RNG contamination: elemental resist rolls now use a dedicated <code>elemRng</code> stream instead of the shared combat RNG. Previously, weapons with elemental damage (e.g. Great Mace of Slaughter's +1 magic) consumed an extra RNG call on each hit, shifting the RNG stream and causing systematic suppression of mainhand mean hit and crit frequency when such weapons were in the offhand slot. Item debug panel now correctly shows bane amount/body/race for newly loaded items (was showing stale form values). Equipped Items stat pills now appear on a dedicated row below the header line.</li>
       <li><strong>1.25</strong> — BIS Advisor: new Best-in-Slot recommendation tool — scores all wearable items for your selected era, class, and role (melee DPS, ranged, tank, healer); configurable stat weights via custom role; shows full BIS set and per-slot upgrade list vs. your currently equipped gear; lore item deduplication. Inventory Manager: new modal to browse and manage all equipped slots — search items per slot, preview stats, and apply directly to the sim. eraConfig: added item-ID-range helpers for era fallback filtering when <code>min_expansion</code> is absent. Fix 2H Weave: equipping a 2H primary via item search or preset no longer clears the offhand slot when 2H Weave (or monk non-epic fistweave) is enabled. Mechanics guide: new section 7.10 documenting the 2H Weave mechanic. items-data.js expanded with races, resists, proc fields, lore, min_expansion, and minstatus; 29 Luclin and 6 PoP items had incorrect min_expansion corrected; Bladesouls Spiritual Armguards excluded as a GM event item.</li>
       <li><strong>1.24</strong> — Fix <code>isWarriorClass</code> to include monk, rogue, and beastlord (matches EQMacEmu <code>IsWarriorClass</code>); fix <code>getDamageBonusClient</code> to apply only to warrior-class characters. Weapon Overview now shows theoretical max hit lines (standard, crit, disc, disc+crit) for each weapon, placed just below Weapon DPS. New offensive buffs: Strength of Tunare (PoP), Spiritual Strength, Grim Aura. McVaxius' Rousing Rondo: corrected ATK base 2→11, SAI now stacks correctly with Celestial Tranquility.</li>
       <li><strong>1.23</strong> — Apply Bane Damage checkbox now forces bane onto base damage regardless of target type, allowing direct comparison of bane vs non-bane DPS. Auto-detection still applies when checkbox is unchecked (bane added when target race/body matches; bane-only targets remain immune without matching bane). Rank/comparison sim gains the same checkbox override with target-aware auto-detection.
@@ -2820,11 +2906,7 @@
         <h2 id="bis-title">&#9733; BIS Advisor</h2>
         <button class="inv-manager-close-btn" id="bis-close" aria-label="Close">&#10005;</button>
       </div>
-      <div style="margin:0.6rem 1rem 0;padding:0.5rem 0.75rem;background:rgba(220,160,0,0.12);border:1px solid rgba(220,160,0,0.45);border-radius:4px;font-size:0.8rem;color:#e8c84a;display:flex;align-items:center;gap:0.5rem;">
-        <span style="font-size:1rem;">&#9888;</span>
-        <span>This feature is in development and is not fully functional or accurate.</span>
-      </div>
-      <div class="bis-controls-wrap">
+<div class="bis-controls-wrap">
         <div id="bis-controls-inner"></div>
       </div>
       <div class="bis-tab-bar">
@@ -3181,7 +3263,7 @@
       }
 
       // When releasing: 1) Bump VERSION below. 2) Add a new <li> at the top of the Version log section above.
-      const VERSION = '1.23';
+      const VERSION = '1.26';
       const versionEl = $('app-version');
       if (versionEl) versionEl.textContent = 'v' + VERSION;
 
@@ -4506,6 +4588,21 @@
         var chaEl = $('cha'); if (chaEl) chaEl.value = charCreation.gear.cha || 0;
         if (typeof window.updateTankHP === 'function') window.updateTankHP();
       }
+
+      /**
+       * Expose race base + allocated creation-point stats for external modules (e.g. BIS Advisor).
+       * Returns { str, dex, agi, sta } = race_base + creation_pts (no gear contribution).
+       */
+      window.getCharBaseStats = function () {
+        var rd  = RACE_DATA[charCreation.race] || RACE_DATA.human;
+        var pts = charCreation.pts;
+        return {
+          str: (rd.str || 75) + (pts.str || 0),
+          dex: (rd.dex || 75) + (pts.dex || 0),
+          agi: (rd.agi || 75) + (pts.agi || 0),
+          sta: (rd.sta || 75) + (pts.sta || 0)
+        };
+      };
 
       function initRaceSelector() {
         var raceEl = $('char-race');
@@ -9100,6 +9197,7 @@
           baneRaceEl.value = (br != null && !isNaN(br) && br > 0) ? String(Math.floor(br)) : '0';
         }
         updateBaneLabels(prefix);
+        updateItemSearchDebug(null, null);
         var normType = (weapon.type != null && weapon.type !== '') ? String(weapon.type).trim().toLowerCase() : null;
         var backstabModVal = (weapon.backstabModPercent != null && !isNaN(Number(weapon.backstabModPercent))) ? Number(weapon.backstabModPercent) : null;
         // Some item-search results may not carry the computed backstab mod field.
@@ -9193,6 +9291,7 @@
         }
         var rangedBaneBodyEl = $('ranged-bane-body');
         if (rangedBaneBodyEl) rangedBaneBodyEl.value = (weapon.baneDamageBody != null && !isNaN(Number(weapon.baneDamageBody))) ? String(Math.floor(weapon.baneDamageBody)) : '';
+        updateItemSearchDebug(null, null);
         var rangedArcheryModEl = $('ranged-archery-mod');
         if (rangedArcheryModEl) {
           var archeryModVal = (weapon.archeryModPercent != null && !isNaN(Number(weapon.archeryModPercent))) ? Number(weapon.archeryModPercent) : null;

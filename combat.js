@@ -689,6 +689,7 @@
     _roundMultUp = !!options.roundMultUp;
     const rng = createRng(options.seed);
     const procRng = createRng(options.seed != null ? options.seed + 9999 : undefined);
+    const elemRng = createRng(options.seed != null ? options.seed + 54321 : undefined);
     const level = options.level != null ? options.level : 60;
     const effectiveHastePercent = getEffectiveHastePercent(options.hastePercent, level, options.hasteCap60Bonus);
     const targetAC = options.targetAC != null ? options.targetAC : 300;
@@ -987,7 +988,7 @@
         continue;
       }
       report.ranged.hits++;
-      const rangedElemAdder = getElementalBaseAdder(bow, options, rng) + getElementalBaseAdder(arrow, options, rng);
+      const rangedElemAdder = getElementalBaseAdder(bow, options, elemRng) + getElementalBaseAdder(arrow, options, elemRng);
       report.elementalDamageTotal += rangedElemAdder;
       // special_attacks.cpp DoArcheryAttackDmg: server applies ArcheryBaseDamageBonus (rule, default 1.0),
       // then aabonuses.ArcheryDamageModifier (Archery Mastery), then spellbonuses.ArcheryDamageModifier
@@ -1300,6 +1301,7 @@
     const fromBehind = !!options.fromBehind;
     const rng = createRng(options.seed);
     const procRng = createRng(options.seed != null ? options.seed + 12345 : undefined);
+    const elemRng = createRng(options.seed != null ? options.seed + 54321 : undefined);
     const specialType = options.specialAttackType || getDefaultSpecialTypeForClass(options.classId);
     const specialConfig = (options.specialAttacks && options.classId && specialType && canClassUseSpecialType(options.classId, specialType) && SPECIAL_ATTACKS_BY_TYPE[specialType])
       ? SPECIAL_ATTACKS_BY_TYPE[specialType]
@@ -1793,7 +1795,7 @@
           let baseDmg;
           let backstabDisciplineMinHit = null;
           let duelistBackstabRound = false;
-          const specElemAdder = (specialConfig.useWeaponDamage === false) ? 0 : getElementalBaseAdder(w1, options, rng);
+          const specElemAdder = (specialConfig.useWeaponDamage === false) ? 0 : getElementalBaseAdder(w1, options, elemRng);
           if (specElemAdder > 0) report.elementalDamageTotal += specElemAdder;
           // specialOffenseRating: for backstab, server GetOffense(SkillBackstab) uses backstab skill — not the normal offense/weapon skill.
           let specialOffenseRating = offenseRating;
@@ -1929,7 +1931,7 @@
           function processFistweaveSwing() {
             const threatBase = fwUsesOhWeapon ? cappedFistweaveOhDamage : (options.fistweavingNonEpic ? 14 : 9);
             if (rollHit(toHit, avoidance, rng, fromBehind)) {
-              const ohElem = fwUsesOhWeapon ? getElementalBaseAdder(w2, options, rng) : 0;
+              const ohElem = fwUsesOhWeapon ? getElementalBaseAdder(w2, options, elemRng) : 0;
               if (ohElem > 0) report.elementalDamageTotal += ohElem;
               const phys = fwUsesOhWeapon ? cappedFistweaveOhDamage : (options.fistweavingNonEpic ? 14 : 9);
               const fistBase = phys + ohElem;
@@ -1997,7 +1999,7 @@
 
         // Crit is only rolled after a successful hit (we are inside the rollHit success block).
         if (rollHit(toHit, avoidance, rng, fromBehind)) {
-          const mhElemAdder = getElementalBaseAdder(w1, options, rng);
+          const mhElemAdder = getElementalBaseAdder(w1, options, elemRng);
           report.elementalDamageTotal += mhElemAdder;
           let mhBase = cappedW1Damage + mhElemAdder;
           mhBase = applyDisciplineDamageMod(mhBase, disciplineActiveMh);
@@ -2040,7 +2042,7 @@
         if (checkDoubleAttack(doubleAttackEffective, rng, options.classId) || (aaFlatDaChance > 0 && rng() < aaFlatDaChance)) {
           attacksThisRound = 2;
           if (rollHit(toHit, avoidance, rng, fromBehind)) {
-            const mhElemAdder2 = getElementalBaseAdder(w1, options, rng);
+            const mhElemAdder2 = getElementalBaseAdder(w1, options, elemRng);
             report.elementalDamageTotal += mhElemAdder2;
             let mhBase2 = cappedW1Damage + mhElemAdder2;
             mhBase2 = applyDisciplineDamageMod(mhBase2, disciplineActiveMh);
@@ -2082,7 +2084,7 @@
           if (checkTripleAttack(rng, level, options.classId)) {
             attacksThisRound = 3;
             if (rollHit(toHit, avoidance, rng, fromBehind)) {
-              const mhElemAdder3 = getElementalBaseAdder(w1, options, rng);
+              const mhElemAdder3 = getElementalBaseAdder(w1, options, elemRng);
               report.elementalDamageTotal += mhElemAdder3;
               let mhBase3 = cappedW1Damage + mhElemAdder3;
               mhBase3 = applyDisciplineDamageMod(mhBase3, disciplineActiveMh);
@@ -2126,7 +2128,7 @@
               attacksThisRound = 4;
               if (report.weapon1.flurry != null) report.weapon1.flurry++;
               if (rollHit(toHit, avoidance, rng, fromBehind)) {
-                const mhElemAdder4 = getElementalBaseAdder(w1, options, rng);
+                const mhElemAdder4 = getElementalBaseAdder(w1, options, elemRng);
                 report.elementalDamageTotal += mhElemAdder4;
                 let mhBase4 = cappedW1Damage + mhElemAdder4;
                 mhBase4 = applyDisciplineDamageMod(mhBase4, disciplineActiveMh);
@@ -2170,7 +2172,7 @@
             if (ragingFlurryChance > 0 && (options.classId || '').toLowerCase() === 'warrior' && level >= 60 && rng() < ragingFlurryChance) {
               report.weapon1.ragingFlurry++;
               if (rollHit(toHit, avoidance, rng, fromBehind)) {
-                const mhElemAdderRF = getElementalBaseAdder(w1, options, rng);
+                const mhElemAdderRF = getElementalBaseAdder(w1, options, elemRng);
                 report.elementalDamageTotal += mhElemAdderRF;
                 let mhBaseRF = cappedW1Damage + mhElemAdderRF;
                 mhBaseRF = applyDisciplineDamageMod(mhBaseRF, disciplineActiveMh);
@@ -2217,7 +2219,7 @@
           if (punishingBladeChance > 0 && w1.is2H && rng() * 100 < punishingBladeChance) {
             if (report.weapon1.punishingBlade != null) report.weapon1.punishingBlade++;
             if (rollHit(toHit, avoidance, rng, fromBehind)) {
-              const mhElemAdderPB = getElementalBaseAdder(w1, options, rng);
+              const mhElemAdderPB = getElementalBaseAdder(w1, options, elemRng);
               report.elementalDamageTotal += mhElemAdderPB;
               let mhBasePB = cappedW1Damage + mhElemAdderPB;
               mhBasePB = applyDisciplineDamageMod(mhBasePB, disciplineActiveMh);
@@ -2261,7 +2263,7 @@
           if (speedOfTheKnightChance > 0 && w1.is2H && rng() * 100 < speedOfTheKnightChance) {
             report.weapon1.speedOfTheKnight++;
             if (rollHit(toHit, avoidance, rng, fromBehind)) {
-              const mhElemAdderSK = getElementalBaseAdder(w1, options, rng);
+              const mhElemAdderSK = getElementalBaseAdder(w1, options, elemRng);
               report.elementalDamageTotal += mhElemAdderSK;
               let mhBaseSK = cappedW1Damage + mhElemAdderSK;
               mhBaseSK = applyDisciplineDamageMod(mhBaseSK, disciplineActiveMh);
@@ -2406,7 +2408,7 @@
           report.weapon2.rounds++;
           let attacksThisRound = 1;
           if (rollHit(toHit, avoidance, rng, fromBehind)) {
-            const ohElemAdder = getElementalBaseAdder(w2, options, rng);
+            const ohElemAdder = getElementalBaseAdder(w2, options, elemRng);
             report.elementalDamageTotal += ohElemAdder;
             let ohBase = cappedW2Damage + ohElemAdder;
             ohBase = applyDisciplineDamageMod(ohBase, disciplineActiveOh);
@@ -2435,7 +2437,7 @@
           if (checkDoubleAttack(doubleAttackEffective, rng, options.classId)) {
             attacksThisRound = 2;
             if (rollHit(toHit, avoidance, rng, fromBehind)) {
-              const ohElemAdder2 = getElementalBaseAdder(w2, options, rng);
+              const ohElemAdder2 = getElementalBaseAdder(w2, options, elemRng);
               report.elementalDamageTotal += ohElemAdder2;
               let ohBase2 = cappedW2Damage + ohElemAdder2;
               ohBase2 = applyDisciplineDamageMod(ohBase2, disciplineActiveOh);

@@ -71,65 +71,43 @@
     ft: 'FT', resist: 'Resist', regen: 'Regen'
   };
 
-  // Priority order for Melee DPS (monk example):
-  //   1. 41% haste (capped — only highest worn item counts)
-  //   2. Worn ATK up to 250 (capped at 250 in getStatCaps)
-  //   3. STR / STA / DEX / AGI — all equal; once capped marginal = 0
-  //   4. HP
-  //   5. Resists (total of all five)
-  //   6. HP regen
-  // Weights express relative priority within each tier.
-  // Cap-aware scoring naturally zeroes out overcapped stats, so
-  // a +20 STR item on a fully-capped character scores 0 for STR.
-  var ROLE_PRESETS = {
-    meleeDPS: {
-      label: 'Melee DPS',
-      // Tier 1: haste (capped at 41% — only highest worn item counts)
-      // Tier 2: worn ATK (capped at 250 — each point directly raises offense rating)
-      // Tier 3: primary stats (capped at 255 — contribute via formula, marginal value zeroes at cap)
-      // Tier 4+: HP, AC, resists, regen
-      // ATK weight is set well above stats so that e.g. 15 worn ATK (225) beats 20 mixed stats (120).
-      weights: { haste: 10, atk: 15, str: 6, sta: 6, dex: 6, agi: 6, hp: 3, ac: 1, resist: 1, regen: 1, wis: 0, int: 0, mana: 0 }
-    },
-    tank: {
-      label: 'Tank',
-      weights: { ac: 10, hp: 8, agi: 5, sta: 5, str: 2, haste: 2, atk: 1, dex: 1, resist: 2, regen: 1, wis: 0, int: 0, mana: 0 }
-    },
-    casterMana: {
-      label: 'Caster / Mana',
-      // Mana-focused classes (bard, cleric, druid, shaman, wizards, etc.)
-      // Tier 1: FT (Flowing Thought — stacks additively, capped at FT15; sustains mana indefinitely)
-      // Tier 2: mana pool (direct resource)
-      // Tier 3: INT / WIS (mana pool scaling, capped at 255)
-      // Tier 4: HP, AC (survivability)
-      // Tier 5: resists, regen
-      weights: { ft: 10, mana: 8, int: 6, wis: 6, hp: 4, ac: 3, sta: 2, resist: 2, regen: 2, haste: 0, atk: 0, str: 0, dex: 0, agi: 0 }
-    },
-    custom: {
-      label: 'Custom',
-      weights: { haste: 5, atk: 5, mana: 5, ft: 5, int: 3, wis: 3, str: 3, dex: 3, agi: 3, sta: 3, ac: 3, hp: 3, resist: 1, regen: 1 }
-    }
+  // Default targets for each stat (the cap value the optimizer tries to reach)
+  var STAT_DEFAULT_TARGETS = {
+    haste: 41, atk: 250, ft: 15,
+    str: 255, dex: 255, agi: 255, sta: 255, int: 255, wis: 255,
+    ac: 99999, hp: 99999, mana: 99999, resist: 99999, regen: 99999
+  };
+
+  // Role default priority orders — used to seed _priorityList from presets
+  var ROLE_DEFAULT_ORDERS = {
+    meleeDPS:   ['haste','atk','str','dex','agi','sta','hp','ac','resist','regen','ft','mana','int','wis'],
+    tank:       ['ac','hp','agi','sta','str','haste','atk','dex','resist','regen','ft','mana','int','wis'],
+    casterMana: ['ft','mana','int','wis','hp','ac','sta','resist','regen','haste','atk','str','dex','agi'],
+    rangedDPS:  ['haste','atk','dex','str','agi','sta','hp','ac','resist','regen','ft','mana','int','wis']
+  };
+
+  var ROLE_PRESET_LABELS = {
+    meleeDPS: 'Melee DPS', tank: 'Tank', casterMana: 'Caster', rangedDPS: 'Ranged'
+  };
+
+  // Stats enabled by default per role (others start disabled)
+  var ROLE_DEFAULT_ENABLED = {
+    meleeDPS:   { haste:1, atk:1, str:1, dex:1, agi:1, sta:1, hp:1, ac:1, resist:1, regen:1 },
+    tank:       { ac:1, hp:1, agi:1, sta:1, str:1, haste:1, atk:1, dex:1, resist:1, regen:1 },
+    casterMana: { ft:1, mana:1, int:1, wis:1, hp:1, ac:1, sta:1, resist:1, regen:1 },
+    rangedDPS:  { haste:1, atk:1, dex:1, str:1, agi:1, sta:1, hp:1, ac:1, resist:1, regen:1 }
   };
 
   var BASE_STAT_CAP = 255;
-
-  // Only the highest worn haste item applies in EQ — additional haste items are wasted.
-  // Score haste as "useful up to this threshold" so items at 41% and 55% score equally,
-  // and once any other slot provides 41%+ haste the marginal value of more haste = 0.
-  var HASTE_TARGET = 41;
-
-  // Practical worn ATK cap. Additional worn ATK beyond this provides no meaningful benefit.
-  var ATK_CAP = 250;
-
-  // Flowing Thought cap. FT items stack additively up to a maximum of FT15.
-  var FT_CAP = 15;
+  var HASTE_TARGET  = 41;
+  var ATK_CAP       = 250;
+  var FT_CAP        = 15;
 
   // Items that are unobtainable by players — GM items or summoned items that cannot be equipped.
-  // Summoned: prefix is filtered dynamically by name; GM items are listed here by name.
   var GM_ITEM_NAME_BLOCKLIST = {
     'The Ban Hammer': true,
-    'The Prime Healers Bulwark': true,  // artifact — unobtainable by players
-    'Bladesouls Spiritual Armguards': true  // GM event item — not obtainable by regular players
+    'The Prime Healers Bulwark': true,       // artifact — unobtainable by players
+    'Bladesouls Spiritual Armguards': true   // GM event item — not obtainable by regular players
   };
 
   /**
@@ -140,23 +118,187 @@
     var name = item.Name || item.name || '';
     if (name.indexOf('Summoned:') === 0) return true;
     if (GM_ITEM_NAME_BLOCKLIST[name]) return true;
-    // minstatus field is preserved by items-to-js.mjs (if present) — skip GM-status items
     if (parseInt(item.minstatus) > 0) return true;
     return false;
   }
 
   // ── Module state ───────────────────────────────────────────────────────────
 
-  var _currentRole = 'meleeDPS';
-  var _customWeights = Object.assign({}, ROLE_PRESETS.custom.weights);
-  // Ensure any new stat keys added later don't produce undefined slider values
-  Object.keys(ROLE_PRESETS.custom.weights).forEach(function (k) {
-    if (_customWeights[k] === undefined) _customWeights[k] = 0;
-  });
-  var _activeTab = 'bisset';
-  var _bisResult = null;       // { bisSet, upgrades } computed on open
-  var _itemStatsCache = {};    // item id → combined stat object (memoized)
-  var _eventsWired = false;    // static modal events wired once
+  var _priorityList        = buildDefaultPriorityList('meleeDPS');
+  var _activeTab           = 'bisset';
+  var _bisResult           = null;       // { bisSet, upgrades, gapData } computed on open
+  var _itemStatsCache      = {};         // item id → combined stat object (memoized)
+  var _eventsWired         = false;      // static modal events wired once
+  var _excludeWeaponHaste  = false;      // when true, haste is ignored when scoring weapon/range slots
+  var _charInfo            = null;       // set at recompute time; used by scoreSlot for class-aware weapon scoring
+
+  // Slots where haste exclusion applies
+  var WEAPON_RANGE_SLOTS = { Primary: true, Secondary: true, Range: true, Ammo: true };
+
+  // ── Class weapon-scoring profiles ─────────────────────────────────────────
+  //
+  //   'melee'  — ratio scoring on Primary + Secondary (two-hand or dual-wield DPS)
+  //   'knight' — ratio scoring on Primary; Secondary may be shield (scored by stats only)
+  //   'caster' — skip weapon slots entirely (no meaningful auto-attack)
+  //
+  var CLASS_WEAPON_PROFILE = {
+    warrior:     'melee',
+    ranger:      'melee',
+    rogue:       'melee',
+    monk:        'melee',
+    beastlord:   'melee',
+    bard:        'melee',
+    paladin:     'knight',
+    shadowknight:'knight',
+    cleric:      'caster',
+    druid:       'caster',
+    shaman:      'caster',
+    necromancer: 'caster',
+    wizard:      'caster',
+    magician:    'caster',
+    enchanter:   'caster'
+  };
+
+  // Weapon slots that use ratio-based scoring when the profile is melee/knight
+  var WEAPON_SCORED_SLOTS = { Primary: true, Secondary: true };
+
+  // ── Priority list ──────────────────────────────────────────────────────────
+
+  /**
+   * Build a default priority list for the given role key.
+   * Each entry: { stat, target, enabled }
+   */
+  function buildDefaultPriorityList(roleKey) {
+    var order   = ROLE_DEFAULT_ORDERS[roleKey] || ROLE_DEFAULT_ORDERS.meleeDPS;
+    var enabled = ROLE_DEFAULT_ENABLED[roleKey] || ROLE_DEFAULT_ENABLED.meleeDPS;
+    return order.map(function (stat) {
+      return {
+        stat:    stat,
+        target:  STAT_DEFAULT_TARGETS[stat] !== undefined ? STAT_DEFAULT_TARGETS[stat] : 99999,
+        enabled: !!enabled[stat]
+      };
+    });
+  }
+
+  /**
+   * Compute dynamic weights from the ordered priority list.
+   * Top-ranked enabled stat gets the highest weight (quadratic decay down the list).
+   * Once currentStats already meets a stat's target, weight drops to POST_CAP_FACTOR of full.
+   */
+  function computeWeightsFromPriority(priorityList, currentStats, statCaps, baseStats) {
+    var active = priorityList.filter(function (e) { return e.enabled; });
+    var n      = active.length;
+    var weights = {};
+    STAT_KEYS.forEach(function (s) { weights[s] = 0; });
+
+    // Identify the first and second uncapped priority stats in order.
+    // "Uncapped" means (gear from other slots + race base + creation pts) < entry.target.
+    var firstUncapped  = -1;
+    var secondUncapped = -1;
+    for (var i = 0; i < n; i++) {
+      var cur = (currentStats ? (currentStats[active[i].stat] || 0) : 0) +
+                (baseStats    ? (baseStats[active[i].stat]    || 0) : 0);
+      var atTarget = active[i].target < 9999 && cur >= active[i].target;
+      if (!atTarget) {
+        if (firstUncapped === -1)            firstUncapped  = i;
+        else if (secondUncapped === -1) { secondUncapped = i; break; }
+      }
+    }
+
+    // Three-tier weight multipliers ensure strict priority ordering:
+    //
+    //   T1 (first uncapped):  1,000,000 × rank
+    //     — guaranteed to beat any combination of T2+T3 stats on a single item,
+    //       because T1×1 > T2×(max item marginal) + T3×(max item marginal)×n_lower.
+    //       This means even +1 of the first uncapped stat beats any lower stats.
+    //
+    //   T2 (second uncapped): 10,000 × rank
+    //     — dominates all T3 stats combined (10,000 >> n×max_marginal for EQ items).
+    //
+    //   T3 (capped + lower uncapped): 1 × rank
+    //     — small tiebreaker by priority position only.
+    var T1 = 1000000;
+    var T2 = 10000;
+    var T3 = 1;
+
+    for (var i = 0; i < n; i++) {
+      var entry = active[i];
+      var rank  = n - i;  // n = highest priority, 1 = lowest
+      var cv    = (currentStats ? (currentStats[entry.stat] || 0) : 0) +
+                  (baseStats    ? (baseStats[entry.stat]    || 0) : 0);
+      var atCap = entry.target < 9999 && cv >= entry.target;
+
+      var mult = (atCap)               ? T3 :
+                 (i === firstUncapped) ? T1 :
+                 (i === secondUncapped)? T2 : T3;
+
+      weights[entry.stat] = mult * rank;
+    }
+    return weights;
+  }
+
+  /**
+   * Compute display-only weights using simple quadratic decay (rank²).
+   * No tier jumps — these weights produce human-readable scores.
+   * Capped stats get a 5% weight to still show minor value.
+   */
+  function computeDisplayWeights(priorityList, currentStats, statCaps, baseStats) {
+    var active = priorityList.filter(function (e) { return e.enabled; });
+    var n      = active.length;
+    var weights = {};
+    STAT_KEYS.forEach(function (s) { weights[s] = 0; });
+    var POST_CAP = 0.05;
+    for (var i = 0; i < n; i++) {
+      var entry = active[i];
+      var rank  = n - i;
+      var cv    = (currentStats ? (currentStats[entry.stat] || 0) : 0) +
+                  (baseStats    ? (baseStats[entry.stat]    || 0) : 0);
+      var atCap = entry.target < 9999 && cv >= entry.target;
+      weights[entry.stat] = atCap ? Math.round(rank * rank * POST_CAP) : rank * rank;
+    }
+    return weights;
+  }
+
+  /**
+   * Return a sorted array of per-stat contributions for a display score.
+   * Each entry: { label, marginal, weight, contribution }
+   * Only stats that actually contribute (marginal > 0, weight > 0) are included.
+   */
+  function computeDisplayBreakdown(itemStats, dispWeights, currentStats, statCaps, baseStats) {
+    var parts = [];
+    var keys  = Object.keys(dispWeights);
+    for (var i = 0; i < keys.length; i++) {
+      var stat = keys[i];
+      var w    = dispWeights[stat] || 0;
+      if (!w) continue;
+      var raw  = itemStats[stat] || 0;
+      if (!raw) continue;
+      var cap  = statCaps[stat];
+      var cur  = (currentStats ? (currentStats[stat] || 0) : 0) +
+                 (baseStats    ? (baseStats[stat]    || 0) : 0);
+      var marginal = (cap >= 9999) ? raw : Math.min(raw, Math.max(0, cap - cur));
+      if (!marginal) continue;
+      parts.push({
+        label:        STAT_LABELS[stat] || stat.toUpperCase(),
+        marginal:     marginal,
+        weight:       w,
+        contribution: marginal * w
+      });
+    }
+    parts.sort(function (a, b) { return b.contribution - a.contribution; });
+    return parts;
+  }
+
+  /** Format a score breakdown array into a title-attribute string. */
+  function formatBreakdownTitle(breakdown, total) {
+    if (!breakdown || !breakdown.length) return '';
+    var lines = breakdown.map(function (p) {
+      return p.label + ': ' + p.marginal + ' \u00d7 ' + p.weight + ' = ' + p.contribution;
+    });
+    lines.push('\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500');
+    lines.push('Total: ' + Math.round(total));
+    return lines.join('\n');
+  }
 
   // ── HTML helpers ───────────────────────────────────────────────────────────
 
@@ -172,7 +314,6 @@
 
   /**
    * Decode a worn-effect spell ID into all scoring-relevant stat bonuses.
-   * Extends the existing decodeWornSpell() to cover STR/DEX/AGI/STA/INT/WIS/AC/HP.
    *
    * SPA reference:
    *   1=AC, 2=ATK, 4=STR, 5=DEX, 6=AGI, 7=STA, 8=INT, 9=WIS,
@@ -190,7 +331,6 @@
       var eid = parseInt(s['effectid' + i]);
       var bv  = parseInt(s['effect_base_value' + i]);
       if (isNaN(eid) || eid === 254 || isNaN(bv)) continue;
-      // Formula 101 = scales with caster/item level; limit value is max at level 60
       var fm = parseInt(s['formula' + i]);
       var lv = parseInt(s['effect_limit_value' + i]);
       var ev = (fm === 101 && !isNaN(lv) && lv > bv) ? lv : bv;
@@ -206,14 +346,13 @@
         case 9:  if (ev > 0) result.wis = Math.max(result.wis, ev); break;
         case 11:
           if (bv > 100) {
-            // bv=101: generic haste category — real % encoded in item's wornlevel field
             var h = bv > 101 ? (bv - 100) : ((itemWornLevel || 0) + 1);
             result.haste = Math.max(result.haste, h);
           }
           break;
         case 69: if (ev > 0) result.hp   = Math.max(result.hp,   ev); break;
-        case 15: if (ev > 0) result.ft    = Math.max(result.ft,    ev); break; // SE_CurrentMana (Flowing Thought)
-        case 0:  if (ev > 0) result.regen = Math.max(result.regen, ev); break; // SE_CurrentHP (HP regen)
+        case 15: if (ev > 0) result.ft   = Math.max(result.ft,   ev); break;
+        case 0:  if (ev > 0) result.regen = Math.max(result.regen, ev); break;
       }
     }
     return result;
@@ -242,7 +381,6 @@
       atk:    0,
       haste:  0,
       ft:     0,
-      // Sum of all five resist types from raw item fields
       resist: (parseInt(item.mr) || 0) + (parseInt(item.fr) || 0) +
               (parseInt(item.cr) || 0) + (parseInt(item.dr) || 0) +
               (parseInt(item.pr) || 0),
@@ -274,18 +412,12 @@
 
   function getStatCaps(planarPowerRank) {
     var bonus = (planarPowerRank || 0) * 5;
-    var cap = BASE_STAT_CAP + bonus;
+    var cap   = BASE_STAT_CAP + bonus;
     return {
-      // Primary stats — hard capped; Planar Power raises cap by 5/rank
       str: cap, dex: cap, agi: cap, sta: cap, int: cap, wis: cap,
-      // Haste: only the highest worn item applies; capped at HASTE_TARGET
-      // sumStatsExcludingSlot tracks max (not sum), so a covered slot scores 0 for haste
       haste: HASTE_TARGET,
-      // Worn ATK: practical cap beyond which additional ATK has no benefit
-      atk: ATK_CAP,
-      // Flowing Thought: stacks additively across items up to FT15
-      ft: FT_CAP,
-      // Truly uncapped — scored on raw value only
+      atk:   ATK_CAP,
+      ft:    FT_CAP,
       ac: 99999, hp: 99999, mana: 99999, resist: 99999, regen: 99999
     };
   }
@@ -295,21 +427,24 @@
   /**
    * Score an item's stats given current stats in other slots and per-stat weights.
    * Cap-aware: only the marginal gain below the stat cap is counted.
+   * baseStats (race base + creation pts) is included in the effective current value
+   * so that a Barbarian's 103 base STR reduces the remaining gear cap room appropriately.
    */
-  function scoreItem(itemStats, weights, currentStats, statCaps) {
+  function scoreItem(itemStats, weights, currentStats, statCaps, baseStats) {
     var score = 0;
-    var keys = Object.keys(weights);
+    var keys  = Object.keys(weights);
     for (var i = 0; i < keys.length; i++) {
       var stat = keys[i];
-      var w = weights[stat] || 0;
+      var w    = weights[stat] || 0;
       if (!w) continue;
       var raw = itemStats[stat] || 0;
       if (!raw) continue;
       var cap = statCaps[stat];
-      var cur = currentStats ? (currentStats[stat] || 0) : 0;
+      var cur = (currentStats ? (currentStats[stat] || 0) : 0) +
+                (baseStats    ? (baseStats[stat]    || 0) : 0);
       var marginal;
       if (cap >= 9999) {
-        marginal = raw; // uncapped stat
+        marginal = raw;
       } else {
         marginal = Math.min(raw, Math.max(0, cap - cur));
       }
@@ -318,12 +453,64 @@
     return score;
   }
 
+  /**
+   * Score a weapon item for Primary/Secondary slots using a ratio-based proxy.
+   *
+   * Formula:
+   *   ratio_component  = (damage / delay) × RATIO_SCALE × ratioWeight
+   *   stat_component   = scoreItem(wornStats, weights, currentStats, statCaps, baseStats)
+   *
+   * RATIO_SCALE converts damage/delay (typically 0.3–1.2) into a number comparable
+   * to the stat score, so a fast/hard weapon beats a slow/weak one by roughly the
+   * same margin that winning a meaningful stat would.
+   *
+   * For a shield (no damage/delay), ratio_component = 0 and only stat_component counts —
+   * which is exactly right for knight secondaries.
+   *
+   * Returns { score, displayScore, scoreBreakdown, isWeaponScored: true }.
+   */
+  function scoreWeapon(item, itemStats, weights, dispWeights, currentStats, statCaps, baseStats) {
+    var dmg   = parseInt(item.damage) || 0;
+    var dly   = parseInt(item.delay)  || 0;
+    var ratio = (dmg > 0 && dly > 0) ? dmg / dly : 0;
+
+    // Ratio weight = average of ATK and haste weights (both amplify weapon DPS),
+    // scaled so a ratio difference of ~0.1 ≈ gaining ~5 ATK. Empirically ~50× works well.
+    var RATIO_SCALE  = 50;
+    var ratioWeight  = ((weights.atk || 0) + (weights.haste || 0)) / 2;
+    var ratioDisplay = ((dispWeights.atk || 0) + (dispWeights.haste || 0)) / 2;
+
+    var ratioScore        = ratio * RATIO_SCALE * ratioWeight;
+    var ratioDisplayScore = ratio * RATIO_SCALE * ratioDisplay;
+
+    var statScore        = scoreItem(itemStats, weights,     currentStats, statCaps, baseStats);
+    var statDisplayScore = scoreItem(itemStats, dispWeights, currentStats, statCaps, baseStats);
+
+    var breakdown = computeDisplayBreakdown(itemStats, dispWeights, currentStats, statCaps, baseStats);
+    if (ratio > 0 && ratioDisplay > 0) {
+      breakdown.unshift({
+        label:        'Dmg/Dly ratio',
+        marginal:     Math.round(ratio * 100) / 100,
+        weight:       Math.round(RATIO_SCALE * ratioDisplay),
+        contribution: Math.round(ratioDisplayScore)
+      });
+      breakdown.sort(function (a, b) { return b.contribution - a.contribution; });
+    }
+
+    return {
+      score:          ratioScore + statScore,
+      displayScore:   ratioDisplayScore + statDisplayScore,
+      scoreBreakdown: breakdown,
+      isWeaponScored: true
+    };
+  }
+
   // ── Stat accumulation ──────────────────────────────────────────────────────
 
   /**
    * Accumulate stats from all equipped slots except the given one.
    * Most stats are additive. Haste uses MAX because only the highest worn
-   * haste item applies in EQ — summing haste would produce incorrect scoring.
+   * haste item applies in EQ.
    */
   function sumStatsExcludingSlot(equippedItems, excludeSlot) {
     var totals = { ac: 0, hp: 0, mana: 0, str: 0, dex: 0, agi: 0, sta: 0, int: 0, wis: 0, atk: 0, haste: 0, ft: 0, resist: 0, regen: 0 };
@@ -342,10 +529,9 @@
       totals.int    += s.int    || 0;
       totals.wis    += s.wis    || 0;
       totals.atk    += s.atk    || 0;
-      totals.ft     += s.ft     || 0;  // FT stacks additively across items
+      totals.ft     += s.ft     || 0;
       totals.resist += s.resist || 0;
       totals.regen  += s.regen  || 0;
-      // Haste: only the highest item applies — track max, not sum
       if ((s.haste || 0) > totals.haste) totals.haste = s.haste;
     }
     return totals;
@@ -353,11 +539,6 @@
 
   // ── Corpus building ────────────────────────────────────────────────────────
 
-  /**
-   * Pre-filter items by class, race, level, and era into a flat array.
-   * Items are annotated with _slots (parsed int) for fast per-slot filtering.
-   * Called once per recompute(); results NOT cached (era/class may change).
-   */
   function buildFilteredCorpus(charInfo, selectedEraId) {
     var classMask = charInfo.classMask;
     var raceMask  = charInfo.raceMask;
@@ -371,25 +552,18 @@
       if (seen[id]) return;
       seen[id] = true;
 
-      // Filter GM/summoned/unobtainable items
       if (isUnobtainableItem(item)) return;
 
-      // Class filter. classes=0 means literally no class can equip (e.g. Sword of Truth).
-      // Treat missing/NaN classes as all-class (32767) to avoid dropping valid items.
       var icRaw = parseInt(item.classes);
-      var ic = isNaN(icRaw) ? 32767 : icRaw;
+      var ic    = isNaN(icRaw) ? 32767 : icRaw;
       if (ic === 0) return;
       if (classMask && (ic & classMask) === 0) return;
-      // Race filter
       if (raceMask) {
         var ir = parseInt(item.races) || 0;
         if (ir !== 0 && (ir & raceMask) === 0) return;
       }
-      // Level requirement
       var req = parseInt(item.reqlevel) || 0;
       if (req > level) return;
-      // Era filter — prefer min_expansion numeric field (0=Classic…4=PoP);
-      // fall back to ID-range heuristic only when field is absent.
       if (ec) {
         var selectedEraOrder = ec.getEra(selectedEraId) ? ec.getEra(selectedEraId).order : 99;
         if (item.min_expansion !== undefined && item.min_expansion !== null) {
@@ -399,7 +573,6 @@
         }
       }
 
-      // Pre-parse slots int for fast bitmask checks later
       item._slots = parseInt(item.slots) || 0;
       corpus.push(item);
     }
@@ -425,23 +598,19 @@
     return corpus;
   }
 
-  /** Filter a pre-built corpus to items valid for a specific slot. */
   function getItemsForSlot(corpus, slotKey) {
-    var mask = SLOT_BITMASK_MAP[slotKey] || 0;
+    var mask        = SLOT_BITMASK_MAP[slotKey] || 0;
     if (!mask) return [];
     var isSecondary = slotKey === 'Secondary';
     var out = [];
     for (var i = 0; i < corpus.length; i++) {
       var item = corpus[i];
       if ((item._slots & mask) === 0) continue;
-      // Secondary slot: only weapons (damage>0 && delay>0) or shields (itemtype 7).
-      // Misc/book items that technically fit the slot (e.g. Book of Contemplation)
-      // are excluded because players use a weapon or shield there in practice.
       if (isSecondary) {
-        var dmg  = parseInt(item.damage) || 0;
-        var dly  = parseInt(item.delay)  || 0;
+        var dmg   = parseInt(item.damage) || 0;
+        var dly   = parseInt(item.delay)  || 0;
         var itype = parseInt(item.itemtype) || 0;
-        if (!(( dmg > 0 && dly > 0) || itype === 7)) continue;
+        if (!((dmg > 0 && dly > 0) || itype === 7)) continue;
       }
       out.push(item);
     }
@@ -450,67 +619,128 @@
 
   // ── BIS computation ────────────────────────────────────────────────────────
 
-  /** Return the lore key for an item if it is equippable lore (*), else null. */
   function getLoreKey(item) {
     var lore = item.lore || item.Lore || '';
     return (typeof lore === 'string' && lore.charAt(0) === '*') ? lore : null;
   }
 
-  /** Score all items in a slot and return top N, sorted by score descending.
-   *  usedLore: Set-like object of lore strings already committed elsewhere — skip those items. */
-  function scoreSlot(corpus, slotKey, currentStats, weights, statCaps, n, usedLore) {
-    var items = getItemsForSlot(corpus, slotKey);
+  function scoreSlot(corpus, slotKey, currentStats, weights, statCaps, n, usedLore, baseStats) {
+    var items       = getItemsForSlot(corpus, slotKey);
+    var dispWeights = computeDisplayWeights(_priorityList, currentStats, statCaps, baseStats);
+    if (weights.haste === 0) dispWeights.haste = 0; // honour weapon-haste exclusion in display too
+
+    // Determine whether to use weapon ratio scoring for this slot
+    var profile       = _charInfo ? (CLASS_WEAPON_PROFILE[_charInfo.classId] || 'melee') : 'melee';
+    var useWeaponScore = WEAPON_SCORED_SLOTS[slotKey] && profile !== 'caster';
+    // For knights, Secondary may be a shield — scoreWeapon handles that gracefully (ratio=0)
+
     var scored = [];
     for (var i = 0; i < items.length; i++) {
-      // Skip lore items already committed to another slot
       if (usedLore) {
         var lk = getLoreKey(items[i]);
         if (lk && usedLore[lk]) continue;
       }
       var s = getItemCombinedStats(items[i]);
-      var score = scoreItem(s, weights, currentStats, statCaps);
-      scored.push({ item: items[i], stats: s, score: score });
+      var score, displayScore, scoreBreakdown;
+      if (useWeaponScore) {
+        var ws     = scoreWeapon(items[i], s, weights, dispWeights, currentStats, statCaps, baseStats);
+        score          = ws.score;
+        displayScore   = ws.displayScore;
+        scoreBreakdown = ws.scoreBreakdown;
+      } else {
+        score          = scoreItem(s, weights, currentStats, statCaps, baseStats);
+        displayScore   = scoreItem(s, dispWeights, currentStats, statCaps, baseStats);
+        scoreBreakdown = computeDisplayBreakdown(s, dispWeights, currentStats, statCaps, baseStats);
+      }
+      scored.push({ item: items[i], stats: s, score: score, displayScore: displayScore, scoreBreakdown: scoreBreakdown });
     }
     scored.sort(function (a, b) { return b.score - a.score; });
     return scored.slice(0, n || 5);
   }
 
-  /**
-   * Greedy BIS set: pick best item per slot in priority order,
-   * accumulating stats as we go for cap-aware scoring.
-   * Tracks used lore items so each equippable-lore item appears in at most one slot.
-   */
-  function computeBISSet(corpus, charInfo, weights) {
-    var caps        = getStatCaps(charInfo.planarPowerRank);
-    var accumulated = {}; // slotKey → { item }
-    var result      = {}; // slotKey → { item, stats, score }
-    var usedLore    = {}; // lore string → true, for items already picked
+  /** Build a usedLore map from a result set, optionally excluding one slot. */
+  function buildUsedLore(resultSet, excludeSlot) {
+    var usedLore = {};
+    for (var k in resultSet) {
+      if (k === excludeSlot) continue;
+      var entry = resultSet[k];
+      if (entry && entry.item) {
+        var lk = getLoreKey(entry.item);
+        if (lk) usedLore[lk] = true;
+      }
+    }
+    return usedLore;
+  }
 
+  /**
+   * Compute the BIS set using a greedy phase followed by iterative coordinate-descent
+   * refinement. Weights are computed dynamically per-slot from the priority list so
+   * the optimizer naturally hits higher-priority caps first.
+   */
+  function computeBISSet(corpus, charInfo) {
+    var caps      = getStatCaps(charInfo.planarPowerRank);
+    var base      = charInfo.baseStats || {};
+    var accumulated = {};
+    var result      = {};
+    var usedLore    = {};
+
+    // Phase 1: greedy pass (slot priority order)
     for (var i = 0; i < BIS_SLOT_PRIORITY.length; i++) {
-      var slotKey = BIS_SLOT_PRIORITY[i];
+      var slotKey      = BIS_SLOT_PRIORITY[i];
       var currentStats = sumStatsExcludingSlot(accumulated, slotKey);
-      var top = scoreSlot(corpus, slotKey, currentStats, weights, caps, 1, usedLore);
+      var weights      = computeWeightsFromPriority(_priorityList, currentStats, caps, base);
+      if (_excludeWeaponHaste && WEAPON_RANGE_SLOTS[slotKey]) weights.haste = 0;
+      var top          = scoreSlot(corpus, slotKey, currentStats, weights, caps, 1, usedLore, base);
       if (top.length > 0) {
-        result[slotKey] = top[0];
+        result[slotKey]      = top[0];
         accumulated[slotKey] = { item: top[0].item };
         var lk = getLoreKey(top[0].item);
         if (lk) usedLore[lk] = true;
       }
     }
+
+    // Phase 2: iterative coordinate-descent refinement (up to 5 passes)
+    var MAX_ITER = 5;
+    for (var iter = 0; iter < MAX_ITER; iter++) {
+      var improved = false;
+      for (var si = 0; si < BIS_SLOT_PRIORITY.length; si++) {
+        var sk        = BIS_SLOT_PRIORITY[si];
+        var ctxStats  = sumStatsExcludingSlot(result, sk);
+        var wts       = computeWeightsFromPriority(_priorityList, ctxStats, caps, base);
+        if (_excludeWeaponHaste && WEAPON_RANGE_SLOTS[sk]) wts.haste = 0;
+        var loreCtx   = buildUsedLore(result, sk);
+        var topNew    = scoreSlot(corpus, sk, ctxStats, wts, caps, 1, loreCtx, base);
+        if (!topNew.length) continue;
+
+        // Re-score the currently assigned item under the same context for a fair comparison
+        var curEntry  = result[sk];
+        var curScore  = curEntry
+          ? scoreItem(getItemCombinedStats(curEntry.item), wts, ctxStats, caps, base)
+          : 0;
+
+        if (topNew[0].score > curScore) {
+          // Check lore conflict before committing
+          var newLore = getLoreKey(topNew[0].item);
+          if (newLore && loreCtx[newLore]) continue;
+          result[sk] = topNew[0];
+          improved   = true;
+        }
+      }
+      if (!improved) break;
+    }
+
     return result;
   }
 
   /**
    * Upgrade advisor: for each slot, score all items against the current equipped set
-   * and return top N candidates.
-   * Lore items equipped in other slots are excluded from each slot's candidate list.
+   * and return top N candidates. Lore items equipped in other slots are excluded.
    */
-  function computeUpgrades(corpus, equippedItems, charInfo, weights) {
-    var caps   = getStatCaps(charInfo.planarPowerRank);
+  function computeUpgrades(corpus, equippedItems, charInfo) {
+    var caps = getStatCaps(charInfo.planarPowerRank);
+    var base = charInfo.baseStats || {};
     var result = {};
 
-    // Build a map of lore strings already equipped, keyed by slot
-    // so we can exclude a lore item from all slots except where it's currently worn.
     var equippedLoreBySlot = {};
     SLOT_KEYS.forEach(function (k) {
       var entry = equippedItems[k];
@@ -521,10 +751,11 @@
     });
 
     for (var k = 0; k < SLOT_KEYS.length; k++) {
-      var slotKey = SLOT_KEYS[k];
+      var slotKey      = SLOT_KEYS[k];
       var currentStats = sumStatsExcludingSlot(equippedItems, slotKey);
+      var weights      = computeWeightsFromPriority(_priorityList, currentStats, caps, base);
+      if (_excludeWeaponHaste && WEAPON_RANGE_SLOTS[slotKey]) weights.haste = 0;
 
-      // Build usedLore for this slot: all lore items equipped in OTHER slots
       var usedLore = {};
       SLOT_KEYS.forEach(function (other) {
         if (other !== slotKey && equippedLoreBySlot[other]) {
@@ -532,20 +763,97 @@
         }
       });
 
-      var candidates   = scoreSlot(corpus, slotKey, currentStats, weights, caps, 5, usedLore);
+      var dispWeights  = computeDisplayWeights(_priorityList, currentStats, caps, base);
+      if (_excludeWeaponHaste && WEAPON_RANGE_SLOTS[slotKey]) dispWeights.haste = 0;
 
+      var candidates   = scoreSlot(corpus, slotKey, currentStats, weights, caps, 5, usedLore, base);
       var currentEntry = equippedItems[slotKey];
       var currentItem  = currentEntry && currentEntry.item ? currentEntry.item : null;
+      var currentItemStats = currentItem ? getItemCombinedStats(currentItem) : null;
       var currentScore = currentItem
-        ? scoreItem(getItemCombinedStats(currentItem), weights, currentStats, caps)
+        ? scoreItem(currentItemStats, weights, currentStats, caps, base)
         : 0;
+      var currentDisplayScore = currentItem
+        ? scoreItem(currentItemStats, dispWeights, currentStats, caps, base)
+        : 0;
+      var currentBreakdown = currentItem
+        ? computeDisplayBreakdown(currentItemStats, dispWeights, currentStats, caps, base)
+        : null;
 
       result[slotKey] = {
-        current:    currentItem ? { item: currentItem, score: currentScore } : null,
+        current:    currentItem ? { item: currentItem, score: currentScore, displayScore: currentDisplayScore, scoreBreakdown: currentBreakdown, stats: currentItemStats } : null,
         candidates: candidates
       };
     }
     return result;
+  }
+
+  /**
+   * Compute gap data: for each enabled priority stat, compare current gear totals
+   * vs BIS set totals and report gap, cap info, and progress.
+   */
+  function computeGapData(bisSet, equippedItems) {
+    var charInfo   = getCharInfoFromUI();
+    var caps       = getStatCaps(charInfo.planarPowerRank);
+    var baseStats  = charInfo.baseStats || {};
+    var hasEquipped = false;
+    var curTotals  = { ac: 0, hp: 0, mana: 0, str: 0, dex: 0, agi: 0, sta: 0, int: 0, wis: 0, atk: 0, haste: 0, ft: 0, resist: 0, regen: 0 };
+    var bisTotals  = { ac: 0, hp: 0, mana: 0, str: 0, dex: 0, agi: 0, sta: 0, int: 0, wis: 0, atk: 0, haste: 0, ft: 0, resist: 0, regen: 0 };
+
+    SLOT_KEYS.forEach(function (k) {
+      var eEntry = equippedItems[k];
+      if (eEntry && eEntry.item) {
+        hasEquipped = true;
+        var es = getItemCombinedStats(eEntry.item);
+        STAT_KEYS.forEach(function (s) {
+          if (s === 'haste') { if ((es.haste || 0) > curTotals.haste) curTotals.haste = es.haste; }
+          else curTotals[s] += es[s] || 0;
+        });
+      }
+      var bEntry = bisSet[k];
+      if (bEntry && bEntry.stats) {
+        var bs = bEntry.stats;
+        STAT_KEYS.forEach(function (s) {
+          if (s === 'haste') { if ((bs.haste || 0) > bisTotals.haste) bisTotals.haste = bs.haste; }
+          else bisTotals[s] += bs[s] || 0;
+        });
+      }
+    });
+
+    // Add race base + creation pts to primary stats so the gap table shows
+    // net stats comparable directly against the cap (e.g. Barbarian 103 base STR
+    // means 103 already counts toward the 255 cap before any gear).
+    ['str', 'dex', 'agi', 'sta'].forEach(function (s) {
+      var b = baseStats[s] || 0;
+      curTotals[s] += b;
+      bisTotals[s] += b;
+    });
+
+    var rows = _priorityList
+      .filter(function (e) { return e.enabled; })
+      .map(function (e, idx) {
+        var stat    = e.stat;
+        var target  = e.target;
+        var cap     = caps[stat];
+        var curV    = curTotals[stat] || 0;
+        var bisV    = bisTotals[stat] || 0;
+        var dispCap = (cap < 9999) ? cap : null;
+        return {
+          stat:        stat,
+          label:       STAT_LABELS[stat] || stat.toUpperCase(),
+          rank:        idx + 1,
+          target:      target,
+          curTotal:    curV,
+          bisTotal:    bisV,
+          gap:         bisV - curV,
+          atCap:       dispCap !== null && curV >= dispCap,
+          bisCap:      dispCap !== null && bisV >= dispCap,
+          displayCap:  dispCap,
+          isHaste:     stat === 'haste'
+        };
+      });
+
+    return { rows: rows, hasEquipped: hasEquipped };
   }
 
   // ── Character info ─────────────────────────────────────────────────────────
@@ -558,17 +866,23 @@
     var raceId  = raceEl  ? raceEl.value  : 'human';
     var level   = levelEl ? (parseInt(levelEl.value) || 60) : 60;
 
-    // Read Planar Power rank from the AA button that is active
-    var ppBtn   = document.querySelector('.aa-seg-btn.active[data-aa-id="planarPower"]');
-    var ppRank  = ppBtn ? (parseInt(ppBtn.dataset.aaRank) || 0) : 0;
+    var ppBtn  = document.querySelector('.aa-seg-btn.active[data-aa-id="planarPower"]');
+    var ppRank = ppBtn ? (parseInt(ppBtn.dataset.aaRank) || 0) : 0;
+
+    // Base stats = race base + allocated creation pts; excludes gear.
+    // Cap room for primary stats = stat_cap - baseStats[stat] - gearFromOtherSlots.
+    var baseStats = (typeof window.getCharBaseStats === 'function')
+      ? window.getCharBaseStats()
+      : { str: 75, dex: 75, agi: 75, sta: 75 };
 
     return {
-      classId:        classId,
-      raceId:         raceId,
-      level:          level,
-      classMask:      CLASS_BITMASK_MAP[classId] || 0,
-      raceMask:       RACE_BITMASK_MAP[raceId]   || 0,
-      planarPowerRank: ppRank
+      classId:         classId,
+      raceId:          raceId,
+      level:           level,
+      classMask:       CLASS_BITMASK_MAP[classId] || 0,
+      raceMask:        RACE_BITMASK_MAP[raceId]   || 0,
+      planarPowerRank: ppRank,
+      baseStats:       baseStats
     };
   }
 
@@ -579,18 +893,14 @@
     return 'velious';
   }
 
-  function getCurrentWeights() {
-    if (_currentRole === 'custom') return _customWeights;
-    return (ROLE_PRESETS[_currentRole] || ROLE_PRESETS.meleeDPS).weights;
-  }
-
   // ── Persistence ────────────────────────────────────────────────────────────
 
   function savePrefs() {
     try {
       localStorage.setItem('bis_prefs', JSON.stringify({
-        role:          _currentRole,
-        customWeights: _customWeights
+        version:             2,
+        priorityList:        _priorityList,
+        excludeWeaponHaste:  _excludeWeaponHaste
       }));
     } catch (e) {}
   }
@@ -600,26 +910,52 @@
       var raw = localStorage.getItem('bis_prefs');
       if (!raw) return;
       var prefs = JSON.parse(raw);
-      if (prefs.role && ROLE_PRESETS[prefs.role]) _currentRole = prefs.role;
-      if (prefs.customWeights) _customWeights = Object.assign({}, ROLE_PRESETS.custom.weights, prefs.customWeights);
+
+      if (prefs.version === 2 && Array.isArray(prefs.priorityList) && prefs.priorityList.length > 0) {
+        // v2: restore priority list directly, filling any missing stats
+        var loaded  = prefs.priorityList;
+        var present = {};
+        loaded.forEach(function (e) { if (e && e.stat) present[e.stat] = true; });
+        // Append any stat keys missing from saved list (new stats added in later versions)
+        STAT_KEYS.forEach(function (s) {
+          if (!present[s]) {
+            loaded.push({ stat: s, target: STAT_DEFAULT_TARGETS[s] || 99999, enabled: false });
+          }
+        });
+        _priorityList = loaded;
+        if (typeof prefs.excludeWeaponHaste === 'boolean') _excludeWeaponHaste = prefs.excludeWeaponHaste;
+      } else if (prefs.role) {
+        // v1 migration: convert old role to priority list
+        var roleKey = prefs.role;
+        if (!ROLE_DEFAULT_ORDERS[roleKey]) roleKey = 'meleeDPS';
+        _priorityList = buildDefaultPriorityList(roleKey);
+      }
     } catch (e) {}
   }
 
   // ── Rendering ──────────────────────────────────────────────────────────────
 
-  /**
-   * Return a haste badge string if the item has a worn haste effect, else ''.
-   * Shown inline next to item names in both the BIS Set table and Upgrade Advisor.
-   */
+  var WEAPON_SCORE_TOOLTIP = 'Score uses a damage\u2215delay ratio proxy. Use the simulator for accurate DPS comparisons.';
+
+  function renderSlotLabel(slotKey) {
+    var label   = SLOT_DISPLAY_LABELS[slotKey] || slotKey;
+    var profile = _charInfo ? (CLASS_WEAPON_PROFILE[_charInfo.classId] || 'melee') : 'melee';
+    if (WEAPON_SCORED_SLOTS[slotKey] && profile !== 'caster') {
+      return esc(label) + ' <span class="bis-slot-info" title="' + esc(WEAPON_SCORE_TOOLTIP) + '">&#9432;</span>';
+    }
+    return esc(label);
+  }
+
   function renderHasteTag(stats) {
     var h = stats && stats.haste;
     if (!h) return '';
     return '<span class="bis-haste-tag" title="Worn haste">&#9889;&nbsp;' + h + '%</span>';
   }
 
-  /** Render top 4 non-zero stats for display. */
-  function renderKeyStats(stats) {
-    var ORDER = ['haste', 'atk', 'ft', 'mana', 'int', 'wis', 'str', 'dex', 'agi', 'sta', 'ac', 'hp', 'resist', 'regen'];
+  function renderKeyStats(stats, priorityOrder) {
+    var ORDER = priorityOrder && priorityOrder.length
+      ? priorityOrder.filter(function (e) { return e.enabled; }).map(function (e) { return e.stat; })
+      : ['haste', 'atk', 'ft', 'mana', 'int', 'wis', 'str', 'dex', 'agi', 'sta', 'ac', 'hp', 'resist', 'regen'];
     var parts = [];
     for (var i = 0; i < ORDER.length && parts.length < 4; i++) {
       var s = ORDER[i];
@@ -631,27 +967,136 @@
     return parts.join('  ') || '—';
   }
 
-  function renderBISSetTab(bisSet) {
+  /**
+   * Render stat delta between a candidate item and the current item in a slot.
+   * Shows gains (green), losses (red), and cap-crossing events.
+   */
+  function renderStatDelta(candidateStats, currentStats, contextStats, statCaps) {
+    var parts = [];
+    var capEvents = [];
+    var ORDER = _priorityList.filter(function (e) { return e.enabled; }).map(function (e) { return e.stat; });
+
+    for (var i = 0; i < ORDER.length; i++) {
+      var stat  = ORDER[i];
+      var candV = candidateStats[stat] || 0;
+      var curV  = currentStats ? (currentStats[stat] || 0) : 0;
+      var delta = candV - curV;
+      if (!delta) continue;
+
+      var label = STAT_LABELS[stat] || stat.toUpperCase();
+      var suffix = stat === 'haste' ? '%' : '';
+
+      if (delta > 0) {
+        // Check if this delta crosses the stat's cap target
+        var ctxV   = contextStats ? (contextStats[stat] || 0) : 0;
+        var cap    = statCaps[stat];
+        var before = ctxV + curV;
+        var after  = ctxV + candV;
+        var target = cap < 9999 ? cap : 99999;
+        if (before < target && after >= target) {
+          capEvents.push(label);
+        }
+        parts.push('<span class="bis-sd-gain">+' + delta + suffix + ' ' + label + '</span>');
+      } else {
+        parts.push('<span class="bis-sd-loss">' + delta + suffix + ' ' + label + '</span>');
+      }
+    }
+
+    if (!parts.length && !capEvents.length) return '';
+    var html = '<div class="bis-stat-delta">' + parts.join('') ;
+    if (capEvents.length) {
+      html += '<span class="bis-sd-cap">&#9733; caps ' + capEvents.join(', ') + '</span>';
+    }
+    html += '</div>';
+    return html;
+  }
+
+  /**
+   * Render the priority stat gap summary.
+   * Shows current gear vs BIS totals for each enabled priority stat
+   * with progress bars toward caps.
+   */
+  function renderGapSummary(gapData) {
+    if (!gapData || !gapData.rows || !gapData.rows.length) return '';
+
+    var rows = gapData.rows.map(function (r) {
+      var suffix    = r.isHaste ? '%' : '';
+      var capLabel  = r.displayCap !== null ? r.displayCap + suffix : '—';
+
+      // Progress bar widths
+      var bisRef    = r.displayCap !== null ? r.displayCap : Math.max(r.bisTotal, 1);
+      var curPct    = Math.min(100, Math.round((r.curTotal / bisRef) * 100));
+      var bisPct    = Math.min(100, Math.round((r.bisTotal / bisRef) * 100));
+
+      var curClass  = 'bis-gap-cur' + (r.atCap ? ' bis-gap-cur--capped' : '');
+      var rowClass  = 'bis-gap-row' + (r.atCap ? ' bis-gap-row--capped' : '');
+      var deltaClass = r.gap > 0 ? 'bis-gap-delta-up' : (r.gap < 0 ? 'bis-gap-delta-down' : 'bis-gap-delta-eq');
+      var deltaHtml;
+      if (r.gap > 0)      deltaHtml = '+' + r.gap + suffix;
+      else if (r.gap < 0) deltaHtml = r.gap + suffix;
+      else                deltaHtml = '&#10003;';
+
+      // Only show equipped columns when inventory is loaded
+      var curCellHtml = gapData.hasEquipped
+        ? '<td class="' + curClass + '">' + r.curTotal + suffix + (r.atCap ? ' <span class="bis-cap-check">&#10003;</span>' : '') + '</td>'
+        : '';
+      var deltaCellHtml = gapData.hasEquipped
+        ? '<td class="' + deltaClass + '">' + deltaHtml + '</td>'
+        : '';
+
+      return '<tr class="' + rowClass + '">' +
+        '<td class="bis-gap-rank">' + r.rank + '</td>' +
+        '<td class="bis-gap-stat">' + esc(r.label) + '</td>' +
+        curCellHtml +
+        '<td class="bis-gap-bis">' + r.bisTotal + suffix + (r.bisCap ? ' <span class="bis-cap-check">&#10003;</span>' : '') + '</td>' +
+        deltaCellHtml +
+        '<td class="bis-gap-cap">' + capLabel + '</td>' +
+        '<td class="bis-gap-prog">' +
+          '<div class="bis-prog-track">' +
+            '<div class="bis-prog-bis" style="width:' + bisPct + '%"></div>' +
+            '<div class="bis-prog-cur" style="width:' + curPct + '%"></div>' +
+          '</div>' +
+        '</td>' +
+        '</tr>';
+    }).join('');
+
+    var headerCols = gapData.hasEquipped
+      ? '<th>Your Gear</th><th>BIS Set</th><th>Gap</th>'
+      : '<th>BIS Set</th>';
+
+    return '<div class="bis-gap-bar">' +
+      '<div class="bis-gap-title">Priority Stat Summary' + (gapData.hasEquipped ? ' — Current Gear vs BIS' : '') + '</div>' +
+      '<table class="bis-gap-table">' +
+        '<thead><tr><th>#</th><th>Stat</th>' + headerCols + '<th>Cap</th><th>Progress</th></tr></thead>' +
+        '<tbody>' + rows + '</tbody>' +
+      '</table>' +
+      '</div>';
+  }
+
+  function renderBISSetTab(bisSet, gapData) {
+    var gap = gapData ? renderGapSummary(gapData) : '';
     var rows = SLOT_KEYS.map(function (slotKey) {
       var entry = bisSet[slotKey];
       var label = SLOT_DISPLAY_LABELS[slotKey] || slotKey;
       if (!entry) {
-        return '<tr><td class="bis-td-slot">' + esc(label) + '</td>' +
+        return '<tr><td class="bis-td-slot">' + renderSlotLabel(slotKey) + '</td>' +
           '<td colspan="3" style="color:var(--muted);font-size:0.82rem;">No items found</td></tr>';
       }
-      var name     = entry.item.Name || entry.item.name || '?';
-      var score    = Math.round(entry.score);
-      var statsStr = renderKeyStats(entry.stats);
+      var name      = entry.item.Name || entry.item.name || '?';
+      var score     = Math.round(entry.displayScore !== undefined ? entry.displayScore : entry.score);
+      var statsStr  = renderKeyStats(entry.stats, _priorityList);
       var hastePart = renderHasteTag(entry.stats);
+      var bkTitle   = entry.scoreBreakdown ? esc(formatBreakdownTitle(entry.scoreBreakdown, score)) : '';
       return '<tr>' +
-        '<td class="bis-td-slot">'  + esc(label)    + '</td>' +
+        '<td class="bis-td-slot">'  + renderSlotLabel(slotKey) + '</td>' +
         '<td class="bis-td-name">'  + esc(name)     + '</td>' +
         '<td class="bis-td-haste">' + hastePart     + '</td>' +
         '<td class="bis-td-stats">' + esc(statsStr) + '</td>' +
-        '<td class="bis-td-score">' + score         + '</td>' +
+        '<td class="bis-td-score"><span class="bis-score-pill bis-score-tip"' + (bkTitle ? ' title="' + bkTitle + '"' : '') + '>' + score + '</span></td>' +
         '</tr>';
     });
-    return '<div class="bis-table-wrap"><table class="bis-table">' +
+    return gap +
+      '<div class="bis-table-wrap"><table class="bis-table">' +
       '<thead><tr>' +
       '<th>Slot</th><th>Best Item</th><th></th><th>Key Stats</th><th>Score</th>' +
       '</tr></thead>' +
@@ -659,126 +1104,63 @@
       '</table></div>';
   }
 
-  /**
-   * Render the summary diff bar at the top of the Upgrade Advisor.
-   * Shows total current gear stats vs BIS stats, and the delta for each.
-   * Only shown when at least one item is equipped (inventory was imported).
-   */
-  function renderUpgradeSummary(upgrades, bisSet) {
-    // Show only stats with non-zero weight in the current role — keeps the bar concise
-    // and automatically highlights the right stats for caster vs melee vs tank roles.
-    var weights = getCurrentWeights();
-    var ALL_STATS = ['haste', 'atk', 'ft', 'mana', 'int', 'wis', 'str', 'dex', 'agi', 'sta', 'ac', 'hp', 'resist', 'regen'];
-    var SUMMARY_STATS = ALL_STATS.filter(function (s) { return (weights[s] || 0) > 0; });
-    var cur = {}; var bis = {};
-    SUMMARY_STATS.forEach(function (s) { cur[s] = 0; bis[s] = 0; });
+  function renderUpgradeAdvisorTab(upgrades, gapData) {
+    var caps = getStatCaps(getCharInfoFromUI().planarPowerRank);
+    var gap  = gapData && gapData.hasEquipped ? renderGapSummary(gapData) : '';
+    var html = gap;
 
-    var anyEquipped = false;
-    SLOT_KEYS.forEach(function (slotKey) {
-      var upg  = upgrades[slotKey];
-      var bisE = bisSet && bisSet[slotKey];
-
-      // Current gear — additive except haste (max)
-      if (upg && upg.current) {
-        anyEquipped = true;
-        var cs = getItemCombinedStats(upg.current.item);
-        SUMMARY_STATS.forEach(function (s) {
-          if (s === 'haste') { if ((cs.haste || 0) > cur.haste) cur.haste = cs.haste; }
-          else cur[s] += cs[s] || 0;
-        });
-      }
-      // BIS gear — additive except haste (max)
-      if (bisE) {
-        var bs = bisE.stats;
-        SUMMARY_STATS.forEach(function (s) {
-          if (s === 'haste') { if ((bs.haste || 0) > bis.haste) bis.haste = bs.haste; }
-          else bis[s] += bs[s] || 0;
-        });
-      }
-    });
-
-    if (!anyEquipped) return ''; // No inventory loaded — skip summary
-
-    var cells = SUMMARY_STATS.map(function (s) {
-      var label = STAT_LABELS[s] || s.toUpperCase();
-      var curV  = cur[s];
-      var bisV  = bis[s];
-      var diff  = bisV - curV;
-      var diffHtml;
-      if (diff > 0)      diffHtml = '<span class="bis-sum-delta-up">+' + diff + (s === 'haste' ? '%' : '') + '</span>';
-      else if (diff < 0) diffHtml = '<span class="bis-sum-delta-down">' + diff + (s === 'haste' ? '%' : '') + '</span>';
-      else               diffHtml = '<span class="bis-sum-delta-eq">&#10003;</span>';
-      return '<div class="bis-sum-cell">' +
-        '<div class="bis-sum-label">' + esc(label) + '</div>' +
-        '<div class="bis-sum-vals">' +
-          '<span class="bis-sum-cur">' + curV + (s === 'haste' ? '%' : '') + '</span>' +
-          '<span class="bis-sum-arrow">&#8594;</span>' +
-          '<span class="bis-sum-bis">' + bisV + (s === 'haste' ? '%' : '') + '</span>' +
-        '</div>' +
-        '<div class="bis-sum-diff">' + diffHtml + '</div>' +
-        '</div>';
-    });
-
-    return '<div class="bis-summary-bar">' +
-      '<div class="bis-summary-title">Current gear vs. full BIS</div>' +
-      '<div class="bis-summary-cells">' + cells.join('') + '</div>' +
-      '</div>';
-  }
-
-  function renderUpgradeAdvisorTab(upgrades) {
-    var html = '';
     SLOT_KEYS.forEach(function (slotKey) {
       var data  = upgrades[slotKey];
       if (!data) return;
-      var label = SLOT_DISPLAY_LABELS[slotKey] || slotKey;
-      var currentItem  = data.current ? data.current.item : null;
-      var currentName  = currentItem ? (currentItem.Name || currentItem.name || '?') : '(empty)';
-      var currentScore = data.current ? Math.round(data.current.score) : 0;
-      var currentId    = currentItem ? String(currentItem.id || currentItem.Id || '') : '';
+      var label       = renderSlotLabel(slotKey);
+      var currentItem = data.current ? data.current.item : null;
+      var currentName = currentItem ? (currentItem.Name || currentItem.name || '?') : '(empty)';
+      var currentScore = data.current ? Math.round(data.current.displayScore !== undefined ? data.current.displayScore : data.current.score) : 0;
+      var currentStats = data.current ? data.current.stats : null;
+      var currentId   = currentItem ? String(currentItem.id || currentItem.Id || '') : '';
 
-      // Detect if currently equipped item IS the top-ranked candidate
-      var topCandidate   = data.candidates.length > 0 ? data.candidates[0] : null;
-      var topId          = topCandidate ? String(topCandidate.item.id || topCandidate.item.Id || '') : '';
-      var isOptimal      = currentItem && topCandidate && currentId === topId;
+      var topCandidate = data.candidates.length > 0 ? data.candidates[0] : null;
+      var topId        = topCandidate ? String(topCandidate.item.id || topCandidate.item.Id || '') : '';
+      var isOptimal    = currentItem && topCandidate && currentId === topId;
+
+      // context stats = all other slots in equippedItems
+      var ctxStats = sumStatsExcludingSlot(window.__invManagerState || {}, slotKey);
 
       html += '<div class="bis-upgrade-slot' + (isOptimal ? ' is-optimal' : '') + '">';
-
-      // Slot header — with checkmark badge when optimal
       html += '<div class="bis-upgrade-header">';
-      if (isOptimal) {
-        html += '<span class="bis-optimal-check" title="You have the best item for this slot">&#10003;</span> ';
-      }
-      html += esc(label) + '</div>';
+      if (isOptimal) html += '<span class="bis-optimal-check" title="You have the best item for this slot">&#10003;</span> ';
+      html += label + '</div>';
 
       if (isOptimal) {
-        // Clear "slot done" banner
         html += '<div class="bis-optimal-banner">';
         html += '<span class="bis-optimal-icon">&#10003;</span>';
         html += '<span class="bis-optimal-text">Best in slot equipped — <strong>' + esc(currentName) + '</strong></span>';
         html += '</div>';
-        // Still show remaining candidates (starting from #2) so the player can see what's close
         var alternates = data.candidates.slice(1);
         if (alternates.length) {
           html += '<div class="bis-alternates-label">Alternatives:</div>';
           html += '<ol class="bis-candidates bis-candidates-alt" start="2">';
           alternates.forEach(function (c) {
-            var score = Math.round(c.score);
+            var score = Math.round(c.displayScore !== undefined ? c.displayScore : c.score);
             var name  = c.item.Name || c.item.name || '?';
             var pct   = currentScore > 0 ? Math.round(((score - currentScore) / currentScore) * 100) : 0;
             var delta = pct < 0 ? '<span class="bis-delta-down">(' + pct + '%)</span>' : '';
             html += '<li class="bis-candidate">';
+            var altBkTitle = c.scoreBreakdown ? esc(formatBreakdownTitle(c.scoreBreakdown, score)) : '';
             html += '<span class="bis-name-inline">' + esc(name) + '</span>';
             html += renderHasteTag(c.stats);
-            html += ' <span class="bis-score-pill">' + score + '</span>';
+            html += ' <span class="bis-score-pill bis-score-tip"' + (altBkTitle ? ' title="' + altBkTitle + '"' : '') + '>' + score + '</span>';
             if (delta) html += ' ' + delta;
             html += '</li>';
           });
           html += '</ol>';
         }
       } else {
-        // Normal (not optimal) — show current item and ranked candidates
         html += '<div class="bis-upgrade-current">Currently: <span class="bis-name-inline">' + esc(currentName) + '</span>';
-        if (currentItem) html += ' <span class="bis-score-pill">' + currentScore + '</span>';
+        if (currentItem) {
+          var curBkTitle = data.current && data.current.scoreBreakdown ? esc(formatBreakdownTitle(data.current.scoreBreakdown, currentScore)) : '';
+          html += ' <span class="bis-score-pill bis-score-tip"' + (curBkTitle ? ' title="' + curBkTitle + '"' : '') + '>' + currentScore + '</span>';
+        }
         html += '</div>';
 
         if (!data.candidates.length) {
@@ -786,9 +1168,9 @@
         } else {
           html += '<ol class="bis-candidates">';
           data.candidates.forEach(function (c, idx) {
-            var score = Math.round(c.score);
-            var name  = c.item.Name || c.item.name || '?';
-            var delta = '';
+            var score  = Math.round(c.displayScore !== undefined ? c.displayScore : c.score);
+            var name   = c.item.Name || c.item.name || '?';
+            var delta  = '';
             if (currentItem && currentScore > 0) {
               var pct = Math.round(((score - currentScore) / currentScore) * 100);
               if (pct > 0) delta = '<span class="bis-delta-up">(+' + pct + '%)</span>';
@@ -796,13 +1178,18 @@
             } else if (!currentItem && score > 0) {
               delta = '<span class="bis-delta-up">(new)</span>';
             }
-            var isBIS = idx === 0;
+            var isBIS    = idx === 0;
+            var candBkTitle = c.scoreBreakdown ? esc(formatBreakdownTitle(c.scoreBreakdown, score)) : '';
             html += '<li class="bis-candidate' + (isBIS ? ' is-bis' : '') + '">';
             html += '<span class="bis-name-inline">' + esc(name) + '</span>';
             html += renderHasteTag(c.stats);
-            html += ' <span class="bis-score-pill">' + score + '</span>';
+            html += ' <span class="bis-score-pill bis-score-tip"' + (candBkTitle ? ' title="' + candBkTitle + '"' : '') + '>' + score + '</span>';
             if (delta) html += ' ' + delta;
             if (isBIS) html += ' <span class="bis-bis-tag">BIS</span>';
+            // Stats delta for top candidate only
+            if (isBIS) {
+              html += renderStatDelta(c.stats, currentStats, ctxStats, caps);
+            }
             html += '</li>';
           });
           html += '</ol>';
@@ -814,19 +1201,35 @@
     return html || '<div class="bis-no-results">No data available.</div>';
   }
 
-  function renderWeightSliders() {
-    var ORDER = ['haste', 'atk', 'ft', 'mana', 'int', 'wis', 'str', 'dex', 'agi', 'sta', 'ac', 'hp', 'resist', 'regen'];
-    var rows  = ORDER.map(function (stat) {
-      var label = STAT_LABELS[stat] || stat.toUpperCase();
-      var val   = _customWeights[stat] !== undefined ? _customWeights[stat] : 0;
-      return '<div class="bis-slider-row">' +
-        '<span class="bis-slider-label">' + esc(label) + '</span>' +
-        '<input type="range" class="bis-weight-slider" data-stat="' + stat + '" ' +
-               'min="0" max="10" step="1" value="' + val + '">' +
-        '<span class="bis-slider-val" id="bis-w-' + stat + '">' + val + '</span>' +
+  // ── Priority list UI ───────────────────────────────────────────────────────
+
+  function renderPriorityList() {
+    var rows = _priorityList.map(function (entry, idx) {
+      var label    = STAT_LABELS[entry.stat] || entry.stat.toUpperCase();
+      var isFirst  = idx === 0;
+      var isLast   = idx === _priorityList.length - 1;
+      var targetDisp = entry.target >= 9999 ? '' : String(entry.target);
+      var targetPH   = entry.target >= 9999 ? 'Max' : '';
+      var disabledCls = entry.enabled ? '' : ' bis-prio-row--disabled';
+      return '<div class="bis-prio-row' + disabledCls + '" data-idx="' + idx + '">' +
+        '<span class="bis-prio-rank">' + (entry.enabled ? (idx + 1) : '—') + '</span>' +
+        '<div class="bis-prio-move">' +
+          '<button type="button" class="bis-prio-up" data-idx="' + idx + '"' + (isFirst ? ' disabled' : '') + '>&#9650;</button>' +
+          '<button type="button" class="bis-prio-down" data-idx="' + idx + '"' + (isLast ? ' disabled' : '') + '>&#9660;</button>' +
+        '</div>' +
+        '<span class="bis-prio-label">' + esc(label) + '</span>' +
+        '<span class="bis-prio-target-wrap">' +
+          '<input type="number" class="bis-prio-target-input" data-idx="' + idx + '" ' +
+            'value="' + targetDisp + '" placeholder="' + targetPH + '" min="1" max="99999">' +
+        '</span>' +
+        '<label class="bis-prio-toggle">' +
+          '<input type="checkbox" class="bis-prio-check" data-idx="' + idx + '"' + (entry.enabled ? ' checked' : '') + '>' +
+          ' Active' +
+        '</label>' +
         '</div>';
-    });
-    return '<div class="bis-slider-grid">' + rows.join('') + '</div>';
+    }).join('');
+
+    return '<div class="bis-prio-list">' + rows + '</div>';
   }
 
   function renderControls() {
@@ -837,26 +1240,46 @@
       return '<option value="' + e.id + '"' + (e.id === eraId ? ' selected' : '') + '>' + esc(e.label) + '</option>';
     }).join('');
 
-    var roleBtns = Object.keys(ROLE_PRESETS).map(function (key) {
-      var label = ROLE_PRESETS[key].label;
-      var active = _currentRole === key ? ' active' : '';
-      return '<button type="button" class="bis-role-btn' + active + '" data-role="' + key + '">' + esc(label) + '</button>';
+    var presetBtns = Object.keys(ROLE_DEFAULT_ORDERS).map(function (key) {
+      return '<button type="button" class="bis-preset-btn" data-preset="' + key + '">' + esc(ROLE_PRESET_LABELS[key] || key) + '</button>';
     }).join('');
 
     return '<div class="bis-controls-row">' +
         '<div class="bis-control-group">' +
-          '<span class="bis-ctrl-label">Role:</span>' +
-          '<div class="bis-role-btns">' + roleBtns + '</div>' +
-        '</div>' +
-        '<div class="bis-control-group">' +
           '<label for="bis-era-select" class="bis-ctrl-label">Era:</label>' +
           '<select id="bis-era-select" class="bis-era-select">' + eraOpts + '</select>' +
         '</div>' +
+        '<div class="bis-control-group">' +
+          '<span class="bis-ctrl-label">Preset:</span>' +
+          '<div class="bis-preset-btns">' + presetBtns + '</div>' +
+        '</div>' +
       '</div>' +
-      '<div id="bis-custom-weights"' + (_currentRole === 'custom' ? '' : ' style="display:none"') + '>' +
-        '<div class="bis-weights-title">Stat Weights (0 = ignore, 10 = max priority)</div>' +
-        renderWeightSliders() +
+      '<div class="bis-controls-row bis-controls-options">' +
+        '<label class="bis-option-toggle" title="Ignore haste bonuses on weapons and ranged slots — lets the optimizer pick the best weapon by damage/stats without being biased toward haste proc items">' +
+          '<input type="checkbox" id="bis-exclude-weapon-haste"' + (_excludeWeaponHaste ? ' checked' : '') + '> ' +
+          'Exclude haste from weapon &amp; ranged slots' +
+        '</label>' +
+      '</div>' +
+      '<div class="bis-prio-header">' +
+        '<span class="bis-prio-title">Priority Order</span>' +
+        '<span class="bis-prio-hint">Optimizer targets each stat\'s cap in order before moving to the next.</span>' +
+      '</div>' +
+      '<div class="bis-prio-cols-header">' +
+        '<span class="bis-prio-col-rank">#</span>' +
+        '<span class="bis-prio-col-move"></span>' +
+        '<span class="bis-prio-col-label">Stat</span>' +
+        '<span class="bis-prio-col-target">Target</span>' +
+        '<span class="bis-prio-col-active">Active</span>' +
+      '</div>' +
+      '<div id="bis-prio-list-wrap" class="bis-prio-list-wrap">' +
+        renderPriorityList() +
       '</div>';
+  }
+
+  function refreshPriorityListUI() {
+    var wrap = $('bis-prio-list-wrap');
+    if (wrap) wrap.innerHTML = renderPriorityList();
+    wirePriorityListEvents();
   }
 
   // ── Recompute ──────────────────────────────────────────────────────────────
@@ -864,20 +1287,20 @@
   function recompute() {
     var content = $('bis-content');
     if (content) {
-      content.innerHTML = '<div class="bis-loading">Computing&#x2026;</div>';
+      content.innerHTML = '<div class="bis-loading">Optimizing&#x2026;</div>';
     }
-    // Defer so the loading state renders before we block the thread
     setTimeout(function () {
       try {
         var charInfo      = getCharInfoFromUI();
+        _charInfo         = charInfo;   // make available to scoreSlot for class-aware weapon scoring
         var selectedEraId = getCurrentEraId();
-        var weights       = getCurrentWeights();
         var equippedItems = window.__invManagerState || {};
 
         var corpus   = buildFilteredCorpus(charInfo, selectedEraId);
-        var bisSet   = computeBISSet(corpus, charInfo, weights);
-        var upgrades = computeUpgrades(corpus, equippedItems, charInfo, weights);
-        _bisResult   = { bisSet: bisSet, upgrades: upgrades };
+        var bisSet   = computeBISSet(corpus, charInfo);
+        var upgrades = computeUpgrades(corpus, equippedItems, charInfo);
+        var gapData  = computeGapData(bisSet, equippedItems);
+        _bisResult   = { bisSet: bisSet, upgrades: upgrades, gapData: gapData };
         renderCurrentTab();
       } catch (e) {
         var c = $('bis-content');
@@ -890,11 +1313,9 @@
     var content = $('bis-content');
     if (!content || !_bisResult) return;
     if (_activeTab === 'bisset') {
-      content.innerHTML = renderBISSetTab(_bisResult.bisSet);
+      content.innerHTML = renderBISSetTab(_bisResult.bisSet, _bisResult.gapData);
     } else {
-      content.innerHTML =
-        renderUpgradeSummary(_bisResult.upgrades, _bisResult.bisSet) +
-        renderUpgradeAdvisorTab(_bisResult.upgrades);
+      content.innerHTML = renderUpgradeAdvisorTab(_bisResult.upgrades, _bisResult.gapData);
     }
   }
 
@@ -911,40 +1332,94 @@
 
   // ── Event wiring ───────────────────────────────────────────────────────────
 
-  /** Wire dynamic control events after controls HTML is re-rendered. */
-  function wireControlEvents() {
-    // Role preset buttons
-    var roleBtns = document.querySelectorAll('#bis-controls-inner .bis-role-btn');
-    roleBtns.forEach(function (btn) {
+  function wirePriorityListEvents() {
+    // ↑ / ↓ buttons
+    var upBtns = document.querySelectorAll('#bis-prio-list-wrap .bis-prio-up');
+    upBtns.forEach(function (btn) {
       btn.addEventListener('click', function () {
-        _currentRole = this.dataset.role;
-        roleBtns.forEach(function (b) {
-          b.classList.toggle('active', b.dataset.role === _currentRole);
-        });
-        var weightsEl = $('bis-custom-weights');
-        if (weightsEl) weightsEl.style.display = _currentRole === 'custom' ? '' : 'none';
+        var idx = parseInt(this.dataset.idx);
+        if (idx <= 0) return;
+        var tmp               = _priorityList[idx - 1];
+        _priorityList[idx - 1] = _priorityList[idx];
+        _priorityList[idx]    = tmp;
+        savePrefs();
+        refreshPriorityListUI();
+        recompute();
+      });
+    });
+
+    var downBtns = document.querySelectorAll('#bis-prio-list-wrap .bis-prio-down');
+    downBtns.forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var idx = parseInt(this.dataset.idx);
+        if (idx >= _priorityList.length - 1) return;
+        var tmp               = _priorityList[idx + 1];
+        _priorityList[idx + 1] = _priorityList[idx];
+        _priorityList[idx]    = tmp;
+        savePrefs();
+        refreshPriorityListUI();
+        recompute();
+      });
+    });
+
+    // Target value inputs
+    var targetInputs = document.querySelectorAll('#bis-prio-list-wrap .bis-prio-target-input');
+    targetInputs.forEach(function (input) {
+      input.addEventListener('change', function () {
+        var idx = parseInt(this.dataset.idx);
+        var val = parseInt(this.value);
+        if (!isNaN(val) && val > 0) {
+          _priorityList[idx].target = val;
+        } else {
+          _priorityList[idx].target = 99999;
+          this.value = '';
+        }
         savePrefs();
         recompute();
       });
     });
 
+    // Active checkboxes
+    var checks = document.querySelectorAll('#bis-prio-list-wrap .bis-prio-check');
+    checks.forEach(function (cb) {
+      cb.addEventListener('change', function () {
+        var idx = parseInt(this.dataset.idx);
+        _priorityList[idx].enabled = this.checked;
+        savePrefs();
+        refreshPriorityListUI();
+        recompute();
+      });
+    });
+  }
+
+  function wireControlEvents() {
     // Era selector
     var eraEl = $('bis-era-select');
     if (eraEl) eraEl.addEventListener('change', recompute);
 
-    // Weight sliders
-    var sliders = document.querySelectorAll('#bis-controls-inner .bis-weight-slider');
-    sliders.forEach(function (slider) {
-      slider.addEventListener('input', function () {
-        var stat = this.dataset.stat;
-        var val  = parseInt(this.value);
-        _customWeights[stat] = val;
-        var display = $('bis-w-' + stat);
-        if (display) display.textContent = val;
+    // Exclude weapon haste toggle
+    var exHasteEl = $('bis-exclude-weapon-haste');
+    if (exHasteEl) {
+      exHasteEl.addEventListener('change', function () {
+        _excludeWeaponHaste = this.checked;
         savePrefs();
-        if (_currentRole === 'custom') recompute();
+        recompute();
+      });
+    }
+
+    // Preset buttons
+    var presetBtns = document.querySelectorAll('#bis-controls-inner .bis-preset-btn');
+    presetBtns.forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var roleKey = this.dataset.preset;
+        _priorityList = buildDefaultPriorityList(roleKey);
+        savePrefs();
+        refreshPriorityListUI();
+        recompute();
       });
     });
+
+    wirePriorityListEvents();
   }
 
   // ── Modal open / close ─────────────────────────────────────────────────────
@@ -953,13 +1428,11 @@
     var overlay = $('bis-overlay');
     if (!overlay) return;
     loadPrefs();
-    _itemStatsCache = {}; // clear cache so resist/regen fields are freshly computed
+    _itemStatsCache = {};
 
-    // Render controls HTML (era select + role buttons + sliders)
     var controlsInner = $('bis-controls-inner');
     if (controlsInner) controlsInner.innerHTML = renderControls();
 
-    // Restore active tab indicator
     ['bisset', 'upgrade'].forEach(function (t) {
       var btn = $('bis-tab-' + t);
       if (btn) btn.classList.toggle('active', t === _activeTab);
@@ -984,15 +1457,12 @@
     if (_eventsWired) return;
     _eventsWired = true;
 
-    // Open button
     var openBtn = $('bis-open');
     if (openBtn) openBtn.addEventListener('click', openBISModal);
 
-    // Close button (static in HTML)
     var closeBtn = $('bis-close');
     if (closeBtn) closeBtn.addEventListener('click', closeBISModal);
 
-    // Click outside overlay
     var overlay = $('bis-overlay');
     if (overlay) {
       overlay.addEventListener('click', function (e) {
@@ -1000,7 +1470,6 @@
       });
     }
 
-    // Tab buttons (static in HTML)
     var bissetBtn  = $('bis-tab-bisset');
     var upgradeBtn = $('bis-tab-upgrade');
     if (bissetBtn)  bissetBtn.addEventListener('click',  function () { switchBISTab('bisset'); });
