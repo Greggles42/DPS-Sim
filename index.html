@@ -2809,6 +2809,7 @@
   <section class="advanced-only" style="margin-top: 1rem;">
     <h2>Version log</h2>
     <ul style="font-size: 0.9rem; color: var(--muted); margin: 0; padding-left: 1.25rem;">
+      <li><strong>1.27</strong> — Fix Punishing Blade, Speed of the Knight, Raging Flurry, Knight's Advantage, Tactical Mastery, Soul Abrasion, and Two-Hand Bash AAs: these PoP abilities were built by the AA option builder but never forwarded into the sim options, so they had no effect. All seven are now correctly passed to the sim. Fix attack distribution report: Flurry, Raging Flurry, Punishing Blade, and Speed of the Knight proc counts were missing from the multi-run averaged report object, so those lines never appeared. Flurry and Raging Flurry now appear as sub-lines under Triple attacks; Punishing Blade and Speed of the Knight appear as top-level lines. Mechanics guide: added Punishing Blade AA description (War/Rng/Monk, PoP; 2%/4%/8% chance after double attack, 2H required); corrected Flurry description (fires after triple attack succeeds, not independently).</li>
       <li><strong>1.26</strong> — Fix elemental damage RNG contamination: elemental resist rolls now use a dedicated <code>elemRng</code> stream instead of the shared combat RNG. Previously, weapons with elemental damage (e.g. Great Mace of Slaughter's +1 magic) consumed an extra RNG call on each hit, shifting the RNG stream and causing systematic suppression of mainhand mean hit and crit frequency when such weapons were in the offhand slot. Item debug panel now correctly shows bane amount/body/race for newly loaded items (was showing stale form values). Equipped Items stat pills now appear on a dedicated row below the header line.</li>
       <li><strong>1.25</strong> — BIS Advisor: new Best-in-Slot recommendation tool — scores all wearable items for your selected era, class, and role (melee DPS, ranged, tank, healer); configurable stat weights via custom role; shows full BIS set and per-slot upgrade list vs. your currently equipped gear; lore item deduplication. Inventory Manager: new modal to browse and manage all equipped slots — search items per slot, preview stats, and apply directly to the sim. eraConfig: added item-ID-range helpers for era fallback filtering when <code>min_expansion</code> is absent. Fix 2H Weave: equipping a 2H primary via item search or preset no longer clears the offhand slot when 2H Weave (or monk non-epic fistweave) is enabled. Mechanics guide: new section 7.10 documenting the 2H Weave mechanic. items-data.js expanded with races, resists, proc fields, lore, min_expansion, and minstatus; 29 Luclin and 6 PoP items had incorrect min_expansion corrected; Bladesouls Spiritual Armguards excluded as a GM event item.</li>
       <li><strong>1.24</strong> — Fix <code>isWarriorClass</code> to include monk, rogue, and beastlord (matches EQMacEmu <code>IsWarriorClass</code>); fix <code>getDamageBonusClient</code> to apply only to warrior-class characters. Weapon Overview now shows theoretical max hit lines (standard, crit, disc, disc+crit) for each weapon, placed just below Weapon DPS. New offensive buffs: Strength of Tunare (PoP), Spiritual Strength, Grim Aura. McVaxius' Rousing Rondo: corrected ATK base 2→11, SAI now stacks correctly with Celestial Tranquility.</li>
@@ -3263,7 +3264,7 @@
       }
 
       // When releasing: 1) Bump VERSION below. 2) Add a new <li> at the top of the Version log section above.
-      const VERSION = '1.26';
+      const VERSION = '1.27';
       const versionEl = $('app-version');
       if (versionEl) versionEl.textContent = 'v' + VERSION;
 
@@ -5007,6 +5008,13 @@
           ferocityRank: aaOpts.ferocityRank,
           bestialFrenzyRank: aaOpts.bestialFrenzyRank,
           harmoniousAttackRank: aaOpts.harmoniousAttackRank,
+          punishingBladeRank: aaOpts.punishingBladeRank,
+          speedOfTheKnightRank: aaOpts.speedOfTheKnightRank,
+          ragingFlurryRank: aaOpts.ragingFlurryRank,
+          knightsAdvantageRank: aaOpts.knightsAdvantageRank,
+          tacticalMasteryRank: aaOpts.tacticalMasteryRank,
+          soulAbrasionRank: aaOpts.soulAbrasionRank,
+          twoHandBash: aaOpts.twoHandBash,
           backstabReuseEffectiveSec: (backstabReuseManual && (() => { const v = parseFloat($('backstab-reuse-sec').value); return v > 0 && !isNaN(v) ? v : undefined; })()) || undefined,
           flyingKickReuseEffectiveSec: (flyingKickReuseManual && (() => { const v = parseFloat($('flyingkick-reuse-sec').value); return v > 0 && !isNaN(v) ? v : undefined; })()) || undefined,
           kickReuseEffectiveSec: (kickReuseManual && (() => { const v = parseFloat($('kick-reuse-sec').value); return v > 0 && !isNaN(v) ? v : undefined; })()) || undefined,
@@ -5048,6 +5056,10 @@
               single: Math.round(reports.reduce((s, r) => s + (r.weapon1.single || 0), 0) / runs),
               double: Math.round(reports.reduce((s, r) => s + (r.weapon1.double || 0), 0) / runs),
               triple: Math.round(reports.reduce((s, r) => s + (r.weapon1.triple || 0), 0) / runs),
+              flurry: Math.round(reports.reduce((s, r) => s + (r.weapon1.flurry || 0), 0) / runs),
+              ragingFlurry: Math.round(reports.reduce((s, r) => s + (r.weapon1.ragingFlurry || 0), 0) / runs),
+              punishingBlade: Math.round(reports.reduce((s, r) => s + (r.weapon1.punishingBlade || 0), 0) / runs),
+              speedOfTheKnight: Math.round(reports.reduce((s, r) => s + (r.weapon1.speedOfTheKnight || 0), 0) / runs),
               swings: Math.round(reports.reduce((s, r) => s + r.weapon1.swings, 0) / runs),
               hits: Math.round(reports.reduce((s, r) => s + r.weapon1.hits, 0) / runs),
               totalDamage: Math.round(reports.reduce((s, r) => s + r.weapon1.totalDamage, 0) / runs),
@@ -5949,6 +5961,13 @@
           ferocityRank: rankAaOpts.ferocityRank || 0,
           bestialFrenzyRank: rankAaOpts.bestialFrenzyRank || 0,
           harmoniousAttackRank: rankAaOpts.harmoniousAttackRank || 0,
+          punishingBladeRank: rankAaOpts.punishingBladeRank || 0,
+          speedOfTheKnightRank: rankAaOpts.speedOfTheKnightRank || 0,
+          ragingFlurryRank: rankAaOpts.ragingFlurryRank || 0,
+          knightsAdvantageRank: rankAaOpts.knightsAdvantageRank || 0,
+          tacticalMasteryRank: rankAaOpts.tacticalMasteryRank || 0,
+          soulAbrasionRank: rankAaOpts.soulAbrasionRank || 0,
+          twoHandBash: rankAaOpts.twoHandBash || false,
           critChanceMult: critChanceMult || undefined,
           backstabReuseEffectiveSec: (backstabReuseManual && (() => { const v = parseFloat($('backstab-reuse-sec').value); return v > 0 && !isNaN(v) ? v : undefined; })()) || undefined,
           flyingKickReuseEffectiveSec: (flyingKickReuseManual && (() => { const v = parseFloat($('flyingkick-reuse-sec').value); return v > 0 && !isNaN(v) ? v : undefined; })()) || undefined,

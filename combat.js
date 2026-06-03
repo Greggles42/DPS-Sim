@@ -2776,8 +2776,9 @@
     lines.push(padLine('    Single attacks:', String(w1.single != null ? w1.single : '—')));
     lines.push(padLine('    Double attacks:', String(w1.double != null ? w1.double : '—')));
     lines.push(padLine('    Triple attacks:', String(w1.triple != null ? w1.triple : '—')));
+    if (w1.flurry) lines.push(padLine('      Flurry procs:', String(w1.flurry)));
+    if (w1.ragingFlurry) lines.push(padLine('      Raging Flurry procs:', String(w1.ragingFlurry)));
     if (w1.punishingBlade) lines.push(padLine('    Punishing Blade procs:', String(w1.punishingBlade)));
-    if (w1.ragingFlurry) lines.push(padLine('    Raging Flurry procs:', String(w1.ragingFlurry)));
     if (w1.speedOfTheKnight) lines.push(padLine('    Speed of the Knight procs:', String(w1.speedOfTheKnight)));
     lines.push(padLine('    Swings:', String(w1.swings)));
     lines.push(padLine('    Hits:', String(w1.hits)));
