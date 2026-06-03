@@ -131,6 +131,8 @@
   var _eventsWired         = false;      // static modal events wired once
   var _excludeWeaponHaste  = false;      // when true, haste is ignored when scoring weapon/range slots
   var _charInfo            = null;       // set at recompute time; used by scoreSlot for class-aware weapon scoring
+  var _customWeightsMode   = false;      // true when custom numeric weights are active instead of priority list
+  var _customWeights       = {};         // stat → numeric weight; populated lazily
 
   // Slots where haste exclusion applies
   var WEAPON_RANGE_SLOTS = { Primary: true, Secondary: true, Range: true, Ammo: true };
@@ -178,6 +180,10 @@
         enabled: !!enabled[stat]
       };
     });
+  }
+
+  function buildDefaultCustomWeights() {
+    return { haste:10, atk:9, str:8, dex:7, agi:5, sta:4, hp:3, ac:2, resist:1, regen:1, ft:0, mana:0, int:0, wis:0 };
   }
 
   /**
@@ -257,6 +263,27 @@
       weights[entry.stat] = atCap ? Math.round(rank * rank * POST_CAP) : rank * rank;
     }
     return weights;
+  }
+
+  /**
+   * Return weights for the active mode: custom numeric weights or computed priority weights.
+   */
+  function getActiveWeights(currentStats, caps, base) {
+    if (_customWeightsMode) {
+      var w = {};
+      STAT_KEYS.forEach(function (s) { w[s] = _customWeights[s] || 0; });
+      return w;
+    }
+    return computeWeightsFromPriority(_priorityList, currentStats, caps, base);
+  }
+
+  function getActiveDisplayWeights(currentStats, caps, base) {
+    if (_customWeightsMode) {
+      var w = {};
+      STAT_KEYS.forEach(function (s) { w[s] = _customWeights[s] || 0; });
+      return w;
+    }
+    return computeDisplayWeights(_priorityList, currentStats, caps, base);
   }
 
   /**
@@ -626,7 +653,7 @@
 
   function scoreSlot(corpus, slotKey, currentStats, weights, statCaps, n, usedLore, baseStats) {
     var items       = getItemsForSlot(corpus, slotKey);
-    var dispWeights = computeDisplayWeights(_priorityList, currentStats, statCaps, baseStats);
+    var dispWeights = getActiveDisplayWeights(currentStats, statCaps, baseStats);
     if (weights.haste === 0) dispWeights.haste = 0; // honour weapon-haste exclusion in display too
 
     // Determine whether to use weapon ratio scoring for this slot
@@ -688,7 +715,7 @@
     for (var i = 0; i < BIS_SLOT_PRIORITY.length; i++) {
       var slotKey      = BIS_SLOT_PRIORITY[i];
       var currentStats = sumStatsExcludingSlot(accumulated, slotKey);
-      var weights      = computeWeightsFromPriority(_priorityList, currentStats, caps, base);
+      var weights      = getActiveWeights(currentStats, caps, base);
       if (_excludeWeaponHaste && WEAPON_RANGE_SLOTS[slotKey]) weights.haste = 0;
       var top          = scoreSlot(corpus, slotKey, currentStats, weights, caps, 1, usedLore, base);
       if (top.length > 0) {
@@ -706,7 +733,7 @@
       for (var si = 0; si < BIS_SLOT_PRIORITY.length; si++) {
         var sk        = BIS_SLOT_PRIORITY[si];
         var ctxStats  = sumStatsExcludingSlot(result, sk);
-        var wts       = computeWeightsFromPriority(_priorityList, ctxStats, caps, base);
+        var wts       = getActiveWeights(ctxStats, caps, base);
         if (_excludeWeaponHaste && WEAPON_RANGE_SLOTS[sk]) wts.haste = 0;
         var loreCtx   = buildUsedLore(result, sk);
         var topNew    = scoreSlot(corpus, sk, ctxStats, wts, caps, 1, loreCtx, base);
@@ -753,7 +780,7 @@
     for (var k = 0; k < SLOT_KEYS.length; k++) {
       var slotKey      = SLOT_KEYS[k];
       var currentStats = sumStatsExcludingSlot(equippedItems, slotKey);
-      var weights      = computeWeightsFromPriority(_priorityList, currentStats, caps, base);
+      var weights      = getActiveWeights(currentStats, caps, base);
       if (_excludeWeaponHaste && WEAPON_RANGE_SLOTS[slotKey]) weights.haste = 0;
 
       var usedLore = {};
@@ -763,7 +790,7 @@
         }
       });
 
-      var dispWeights  = computeDisplayWeights(_priorityList, currentStats, caps, base);
+      var dispWeights  = getActiveDisplayWeights(currentStats, caps, base);
       if (_excludeWeaponHaste && WEAPON_RANGE_SLOTS[slotKey]) dispWeights.haste = 0;
 
       var candidates   = scoreSlot(corpus, slotKey, currentStats, weights, caps, 5, usedLore, base);
@@ -898,9 +925,11 @@
   function savePrefs() {
     try {
       localStorage.setItem('bis_prefs', JSON.stringify({
-        version:             2,
+        version:             3,
         priorityList:        _priorityList,
-        excludeWeaponHaste:  _excludeWeaponHaste
+        excludeWeaponHaste:  _excludeWeaponHaste,
+        customWeightsMode:   _customWeightsMode,
+        customWeights:       _customWeights
       }));
     } catch (e) {}
   }
@@ -911,8 +940,8 @@
       if (!raw) return;
       var prefs = JSON.parse(raw);
 
-      if (prefs.version === 2 && Array.isArray(prefs.priorityList) && prefs.priorityList.length > 0) {
-        // v2: restore priority list directly, filling any missing stats
+      if ((prefs.version === 2 || prefs.version === 3) && Array.isArray(prefs.priorityList) && prefs.priorityList.length > 0) {
+        // v2/v3: restore priority list directly, filling any missing stats
         var loaded  = prefs.priorityList;
         var present = {};
         loaded.forEach(function (e) { if (e && e.stat) present[e.stat] = true; });
@@ -924,6 +953,10 @@
         });
         _priorityList = loaded;
         if (typeof prefs.excludeWeaponHaste === 'boolean') _excludeWeaponHaste = prefs.excludeWeaponHaste;
+        if (prefs.version === 3) {
+          if (typeof prefs.customWeightsMode === 'boolean') _customWeightsMode = prefs.customWeightsMode;
+          if (prefs.customWeights && typeof prefs.customWeights === 'object') _customWeights = prefs.customWeights;
+        }
       } else if (prefs.role) {
         // v1 migration: convert old role to priority list
         var roleKey = prefs.role;
@@ -1232,6 +1265,34 @@
     return '<div class="bis-prio-list">' + rows + '</div>';
   }
 
+  function buildPresetTooltipHtml(roleKey) {
+    var order   = ROLE_DEFAULT_ORDERS[roleKey] || [];
+    var enabled = ROLE_DEFAULT_ENABLED[roleKey] || {};
+    var active  = order.filter(function (s) { return !!enabled[s]; });
+    var off     = order.filter(function (s) { return !enabled[s]; });
+    var html = active.map(function (s, i) {
+      return '<span class="bis-tip-row">' + (i + 1) + '. ' + esc(STAT_LABELS[s] || s.toUpperCase()) + '</span>';
+    }).join('');
+    if (off.length) {
+      html += '<span class="bis-tip-row bis-tip-off">Off: ' + off.map(function (s) { return esc(STAT_LABELS[s] || s.toUpperCase()); }).join(', ') + '</span>';
+    }
+    return html;
+  }
+
+  function renderCustomWeights() {
+    if (!Object.keys(_customWeights).length) _customWeights = buildDefaultCustomWeights();
+    var rows = STAT_KEYS.map(function (stat) {
+      var label = STAT_LABELS[stat] || stat.toUpperCase();
+      var val   = _customWeights[stat] != null ? _customWeights[stat] : 0;
+      return '<div class="bis-cw-row">' +
+        '<span class="bis-cw-label">' + esc(label) + '</span>' +
+        '<input type="number" class="bis-cw-input" data-stat="' + stat + '" ' +
+          'value="' + val + '" min="0" max="999" step="1">' +
+        '</div>';
+    }).join('');
+    return '<div class="bis-cw-grid">' + rows + '</div>';
+  }
+
   function renderControls() {
     var ec     = window.EraConfig;
     var eras   = (ec && ec.ERAS) ? ec.ERAS : [];
@@ -1241,8 +1302,12 @@
     }).join('');
 
     var presetBtns = Object.keys(ROLE_DEFAULT_ORDERS).map(function (key) {
-      return '<button type="button" class="bis-preset-btn" data-preset="' + key + '">' + esc(ROLE_PRESET_LABELS[key] || key) + '</button>';
+      return '<span class="bis-preset-tip-wrap">' +
+        '<button type="button" class="bis-preset-btn" data-preset="' + key + '">' + esc(ROLE_PRESET_LABELS[key] || key) + '</button>' +
+        '<span class="bis-preset-tip">' + buildPresetTooltipHtml(key) + '</span>' +
+        '</span>';
     }).join('');
+    presetBtns += '<button type="button" class="bis-preset-btn' + (_customWeightsMode ? ' bis-preset-btn--active' : '') + '" data-preset="custom">Custom</button>';
 
     return '<div class="bis-controls-row">' +
         '<div class="bis-control-group">' +
@@ -1260,20 +1325,26 @@
           'Exclude haste from weapon &amp; ranged slots' +
         '</label>' +
       '</div>' +
-      '<div class="bis-prio-header">' +
-        '<span class="bis-prio-title">Priority Order</span>' +
-        '<span class="bis-prio-hint">Optimizer targets each stat\'s cap in order before moving to the next.</span>' +
-      '</div>' +
-      '<div class="bis-prio-cols-header">' +
-        '<span class="bis-prio-col-rank">#</span>' +
-        '<span class="bis-prio-col-move"></span>' +
-        '<span class="bis-prio-col-label">Stat</span>' +
-        '<span class="bis-prio-col-target">Target</span>' +
-        '<span class="bis-prio-col-active">Active</span>' +
-      '</div>' +
-      '<div id="bis-prio-list-wrap" class="bis-prio-list-wrap">' +
-        renderPriorityList() +
-      '</div>';
+      (_customWeightsMode
+        ? '<div class="bis-prio-header">' +
+            '<span class="bis-prio-title">Custom Weights</span>' +
+            '<span class="bis-prio-hint">Enter a numeric weight per stat (0 = ignored). Higher = more important.</span>' +
+          '</div>' +
+          '<div id="bis-cw-wrap">' + renderCustomWeights() + '</div>'
+        : '<div class="bis-prio-header">' +
+            '<span class="bis-prio-title">Priority Order</span>' +
+            '<span class="bis-prio-hint">Optimizer targets each stat\'s cap in order before moving to the next.</span>' +
+          '</div>' +
+          '<div class="bis-prio-cols-header">' +
+            '<span class="bis-prio-col-rank">#</span>' +
+            '<span class="bis-prio-col-move"></span>' +
+            '<span class="bis-prio-col-label">Stat</span>' +
+            '<span class="bis-prio-col-target">Target</span>' +
+            '<span class="bis-prio-col-active">Active</span>' +
+          '</div>' +
+          '<div id="bis-prio-list-wrap" class="bis-prio-list-wrap">' +
+            renderPriorityList() +
+          '</div>');
   }
 
   function refreshPriorityListUI() {
@@ -1392,6 +1463,26 @@
     });
   }
 
+  function refreshControlsUI() {
+    var inner = $('bis-controls-inner');
+    if (inner) inner.innerHTML = renderControls();
+    wireControlEvents();
+  }
+
+  function wireCustomWeightsEvents() {
+    var inputs = document.querySelectorAll('#bis-cw-wrap .bis-cw-input');
+    inputs.forEach(function (inp) {
+      inp.addEventListener('change', function () {
+        var stat = this.dataset.stat;
+        var val  = Math.max(0, parseInt(this.value, 10) || 0);
+        this.value = val;
+        _customWeights[stat] = val;
+        savePrefs();
+        recompute();
+      });
+    });
+  }
+
   function wireControlEvents() {
     // Era selector
     var eraEl = $('bis-era-select');
@@ -1412,14 +1503,26 @@
     presetBtns.forEach(function (btn) {
       btn.addEventListener('click', function () {
         var roleKey = this.dataset.preset;
-        _priorityList = buildDefaultPriorityList(roleKey);
-        savePrefs();
-        refreshPriorityListUI();
-        recompute();
+        if (roleKey === 'custom') {
+          if (!_customWeightsMode) {
+            _customWeightsMode = true;
+            if (!Object.keys(_customWeights).length) _customWeights = buildDefaultCustomWeights();
+            savePrefs();
+            refreshControlsUI();
+            recompute();
+          }
+        } else {
+          var wasCustom = _customWeightsMode;
+          _customWeightsMode = false;
+          _priorityList = buildDefaultPriorityList(roleKey);
+          savePrefs();
+          if (wasCustom) { refreshControlsUI(); } else { refreshPriorityListUI(); }
+          recompute();
+        }
       });
     });
 
-    wirePriorityListEvents();
+    if (_customWeightsMode) { wireCustomWeightsEvents(); } else { wirePriorityListEvents(); }
   }
 
   // ── Modal open / close ─────────────────────────────────────────────────────
