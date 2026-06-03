@@ -785,7 +785,7 @@
     .bis-preset-tip {
       display: none;
       position: absolute;
-      bottom: calc(100% + 7px);
+      top: calc(100% + 7px);
       left: 50%;
       transform: translateX(-50%);
       background: var(--panel-bg, #1c2233);
@@ -801,11 +801,11 @@
     .bis-preset-tip::after {
       content: '';
       position: absolute;
-      top: 100%;
+      bottom: 100%;
       left: 50%;
       transform: translateX(-50%);
       border: 5px solid transparent;
-      border-top-color: var(--border);
+      border-bottom-color: var(--border);
     }
     .bis-preset-tip-wrap:hover .bis-preset-tip { display: flex; flex-direction: column; gap: 0.18rem; }
     .bis-tip-row { font-size: 0.72rem; color: var(--text); line-height: 1.35; }
@@ -2859,6 +2859,7 @@
   <section class="advanced-only" style="margin-top: 1rem;">
     <h2>Version log</h2>
     <ul style="font-size: 0.9rem; color: var(--muted); margin: 0; padding-left: 1.25rem;">
+      <li><strong>1.29</strong> — BIS Advisor preset tooltip bubbles now appear below the button instead of above, so they are not clipped by the modal header.</li>
       <li><strong>1.28</strong> — BIS Advisor: added Custom Weights mode — click the new "Custom" button to replace the priority-order list with a direct numeric weight input per stat (e.g. ATK=10, STR=5). Custom weights use proportional scoring instead of the tier-based priority system. Mode and weights persist to localStorage. Added hover tooltip bubbles on all preset buttons (Melee DPS, Tank, Caster, Ranged) showing the stat priority order and which stats are on/off for that preset.</li>
       <li><strong>1.27</strong> — Fix Punishing Blade, Speed of the Knight, Raging Flurry, Knight's Advantage, Tactical Mastery, Soul Abrasion, and Two-Hand Bash AAs: these PoP abilities were built by the AA option builder but never forwarded into the sim options, so they had no effect. All seven are now correctly passed to the sim. Fix attack distribution report: Flurry, Raging Flurry, Punishing Blade, and Speed of the Knight proc counts were missing from the multi-run averaged report object, so those lines never appeared. Flurry and Raging Flurry now appear as sub-lines under Triple attacks; Punishing Blade and Speed of the Knight appear as top-level lines. Mechanics guide: added Punishing Blade AA description (War/Rng/Monk, PoP; 2%/4%/8% chance after double attack, 2H required); corrected Flurry description (fires after triple attack succeeds, not independently).</li>
       <li><strong>1.26</strong> — Fix elemental damage RNG contamination: elemental resist rolls now use a dedicated <code>elemRng</code> stream instead of the shared combat RNG. Previously, weapons with elemental damage (e.g. Great Mace of Slaughter's +1 magic) consumed an extra RNG call on each hit, shifting the RNG stream and causing systematic suppression of mainhand mean hit and crit frequency when such weapons were in the offhand slot. Item debug panel now correctly shows bane amount/body/race for newly loaded items (was showing stale form values). Equipped Items stat pills now appear on a dedicated row below the header line.</li>
@@ -3315,7 +3316,7 @@
       }
 
       // When releasing: 1) Bump VERSION below. 2) Add a new <li> at the top of the Version log section above.
-      const VERSION = '1.28';
+      const VERSION = '1.29';
       const versionEl = $('app-version');
       if (versionEl) versionEl.textContent = 'v' + VERSION;
 
