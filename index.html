@@ -538,7 +538,7 @@
       vertical-align: 0.04em;
     }
     #sim-history-list { font-size: 0.85rem; }
-    .sim-history-row { display: grid; grid-template-columns: 1fr 1fr minmax(0, 1fr) auto auto auto; gap: 0.5rem 0.75rem; align-items: center; padding: 0.5rem 0; border-bottom: 1px solid var(--border); }
+    .sim-history-row { display: grid; grid-template-columns: 1fr 1fr minmax(0, 1fr) 4rem 4rem 4.5rem; gap: 0.5rem 0.75rem; align-items: center; padding: 0.5rem 0; border-bottom: 1px solid var(--border); }
     .sim-history-row:last-child { border-bottom: none; }
     .sim-history-header { font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); padding-bottom: 0.35rem; border-bottom: 1px solid var(--border); margin-bottom: 0.25rem; }
     .sim-history-row .sim-history-w1, .sim-history-row .sim-history-w2, .sim-history-row .sim-history-target { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -610,6 +610,352 @@
     .submit-issue-message.is-visible { display: block; }
     .submit-issue-message.success { color: var(--accent); }
     .submit-issue-message.error { color: #e88; }
+
+    /* Inventory Manager Modal */
+    .inv-manager-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.65);
+      z-index: 1001;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+    }
+    .inv-manager-overlay.is-open { display: flex; }
+    .inv-manager-modal {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      width: min(740px, 95vw);
+      max-height: 88vh;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+    }
+    .inv-manager-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.75rem 1rem 0.6rem;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .inv-manager-header h2 { margin: 0; font-size: 1.05rem; font-weight: 600; }
+    .inv-manager-close-btn {
+      background: none; border: none; color: var(--muted);
+      cursor: pointer; font-size: 1rem; padding: 0.25rem 0.5rem; border-radius: 3px;
+    }
+    .inv-manager-close-btn:hover { color: var(--text); background: rgba(255,255,255,0.07); }
+    .inv-manager-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 0.25rem 0.75rem 0.5rem;
+    }
+    .inv-slot-row {
+      display: grid;
+      grid-template-columns: 7rem 1fr auto auto;
+      gap: 0.3rem 0.6rem;
+      align-items: center;
+      padding: 0.3rem 0.1rem;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+      font-size: 0.84rem;
+    }
+    .inv-slot-row:last-child { border-bottom: none; }
+    .inv-slot-label { color: var(--muted); font-size: 0.77rem; }
+    .inv-slot-item { color: var(--text); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .inv-slot-item.is-empty { color: var(--muted); font-style: italic; }
+    .inv-slot-stats { font-size: 0.71rem; color: #7eb8c9; white-space: nowrap; }
+    .inv-slot-btn {
+      padding: 0.18rem 0.5rem;
+      font-size: 0.74rem;
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      background: var(--input-bg);
+      color: var(--muted);
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .inv-slot-btn:hover { color: var(--text); border-color: var(--accent); }
+    .inv-slot-btn.inv-search-btn { color: var(--accent); }
+    .inv-manager-search-panel {
+      border-top: 1px solid var(--border);
+      padding: 0.65rem 0.85rem 0.75rem;
+      flex-shrink: 0;
+      background: var(--panel);
+      border-radius: 0 0 8px 8px;
+    }
+    .inv-manager-search-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 0.45rem;
+      font-size: 0.84rem;
+    }
+    .inv-manager-search-header button {
+      padding: 0.18rem 0.55rem;
+      font-size: 0.77rem;
+      background: var(--input-bg);
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      color: var(--muted);
+      cursor: pointer;
+    }
+    .inv-manager-search-header button:hover { color: var(--text); }
+    .inv-manager-search-results {
+      max-height: 220px;
+      overflow-y: auto;
+      margin-top: 0.4rem;
+      border: 1px solid var(--border);
+      border-radius: 3px;
+    }
+    .inv-search-result-row {
+      display: flex;
+      flex-direction: column;
+      padding: 0.35rem 0.5rem;
+      cursor: pointer;
+      font-size: 0.81rem;
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+    }
+    .inv-search-result-row:last-child { border-bottom: none; }
+    .inv-search-result-row:hover { background: rgba(255,255,255,0.06); }
+    .inv-search-result-name { color: var(--text); }
+    .inv-search-result-stats { font-size: 0.71rem; color: var(--muted); margin-top: 0.1rem; }
+
+    /* ── BIS Advisor Modal ─────────────────────────────────────────── */
+    .bis-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.7);
+      z-index: 1002;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+    }
+    .bis-overlay.is-open { display: flex; }
+    .bis-modal {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      width: min(860px, 96vw);
+      max-height: 90vh;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+    }
+    .bis-modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.75rem 1rem 0.6rem;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .bis-modal-header h2 { margin: 0; font-size: 1.05rem; font-weight: 600; }
+    .bis-controls-wrap {
+      padding: 0.6rem 1rem 0.5rem;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .bis-controls-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.75rem 1.25rem;
+    }
+    .bis-control-group { display: inline-flex; align-items: center; gap: 0.4rem; }
+    .bis-ctrl-label { font-size: 0.82rem; color: var(--muted); font-weight: 600; }
+    .bis-role-btns { display: inline-flex; gap: 0.25rem; }
+    .bis-role-btn {
+      font: inherit;
+      font-size: 0.8rem;
+      font-weight: 600;
+      padding: 0.25rem 0.65rem;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      background: rgba(255,255,255,0.04);
+      color: var(--muted);
+      cursor: pointer;
+    }
+    .bis-role-btn:hover { color: var(--text); border-color: var(--accent); }
+    .bis-role-btn.active { color: var(--accent); border-color: var(--accent); background: rgba(255,255,255,0.06); }
+    .bis-era-select {
+      font: inherit;
+      font-size: 0.82rem;
+      background: var(--input-bg);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      color: var(--text);
+      padding: 0.25rem 0.5rem;
+    }
+    #bis-custom-weights { margin-top: 0.5rem; }
+    .bis-weights-title { font-size: 0.78rem; color: var(--muted); margin-bottom: 0.35rem; }
+    .bis-slider-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(13rem, 1fr));
+      gap: 0.2rem 1rem;
+    }
+    .bis-slider-row { display: flex; align-items: center; gap: 0.4rem; }
+    .bis-slider-label { font-size: 0.78rem; color: var(--muted); width: 3.5rem; text-align: right; flex-shrink: 0; }
+    .bis-weight-slider { flex: 1; min-width: 0; accent-color: var(--accent); }
+    .bis-slider-val { font-size: 0.78rem; color: var(--text); width: 1.2rem; text-align: right; flex-shrink: 0; }
+    .bis-tab-bar {
+      display: flex;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+      padding: 0 0.75rem;
+    }
+    .bis-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 0.5rem 0.75rem 0.75rem;
+      min-height: 0;
+    }
+    .bis-loading { padding: 2rem; text-align: center; color: var(--muted); font-size: 0.9rem; }
+    /* BIS Set table */
+    .bis-table-wrap { overflow-x: auto; }
+    .bis-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+    .bis-table thead th {
+      text-align: left;
+      padding: 0.3rem 0.5rem;
+      border-bottom: 1px solid var(--border);
+      color: var(--muted);
+      font-weight: 600;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .bis-table tbody tr:hover { background: rgba(255,255,255,0.03); }
+    .bis-td-slot  { padding: 0.3rem 0.5rem; color: var(--muted); font-size: 0.78rem; white-space: nowrap; min-width: 6rem; }
+    .bis-td-name  { padding: 0.3rem 0.5rem; color: var(--text); font-weight: 500; }
+    .bis-td-haste { padding: 0.3rem 0.25rem; white-space: nowrap; }
+    .bis-td-stats { padding: 0.3rem 0.5rem; color: var(--muted); font-size: 0.78rem; white-space: nowrap; }
+    .bis-td-score { padding: 0.3rem 0.5rem; text-align: right; font-size: 0.78rem; color: var(--accent); white-space: nowrap; }
+    .bis-haste-tag {
+      display: inline-block;
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: #f0c040;
+      background: rgba(240, 192, 64, 0.12);
+      border: 1px solid rgba(240, 192, 64, 0.35);
+      border-radius: 3px;
+      padding: 0 0.35rem;
+      vertical-align: middle;
+      margin-left: 0.3rem;
+      white-space: nowrap;
+    }
+    /* Upgrade Advisor */
+    .bis-upgrade-slot {
+      padding: 0.5rem 0.5rem 0.4rem;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+    }
+    .bis-upgrade-slot:last-child { border-bottom: none; }
+    .bis-upgrade-header { font-size: 0.75rem; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.2rem; }
+    .bis-upgrade-current { font-size: 0.82rem; color: var(--muted); margin-bottom: 0.25rem; }
+    .bis-name-inline { color: var(--text); font-weight: 500; }
+    .bis-score-pill {
+      display: inline-block;
+      font-size: 0.72rem;
+      font-weight: 600;
+      color: var(--accent);
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 3px;
+      padding: 0 0.35rem;
+      vertical-align: middle;
+    }
+    .bis-candidates { margin: 0; padding: 0 0 0 1.25rem; list-style: decimal; }
+    .bis-candidate { font-size: 0.82rem; padding: 0.15rem 0; }
+    .bis-candidate.is-bis .bis-name-inline { color: var(--accent); }
+    .bis-bis-tag {
+      display: inline-block;
+      font-size: 0.68rem;
+      font-weight: 700;
+      color: var(--bg);
+      background: var(--accent);
+      border-radius: 3px;
+      padding: 0 0.35rem;
+      vertical-align: middle;
+      margin-left: 0.15rem;
+    }
+    .bis-delta-up   { font-size: 0.75rem; color: #6d9; }
+    .bis-delta-down { font-size: 0.75rem; color: #e88; }
+    .bis-no-results { color: var(--muted); font-size: 0.82rem; padding: 0.25rem 0; }
+    /* Optimal (BIS equipped) slot state */
+    .bis-upgrade-slot.is-optimal {
+      background: rgba(80, 200, 120, 0.06);
+      border-left: 3px solid #50c878;
+      padding-left: calc(0.5rem - 3px);
+    }
+    .bis-upgrade-slot.is-optimal .bis-upgrade-header { color: #50c878; }
+    .bis-optimal-check { color: #50c878; font-weight: 700; }
+    .bis-optimal-banner {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.3rem 0.5rem;
+      margin: 0.2rem 0 0.25rem;
+      background: rgba(80, 200, 120, 0.1);
+      border-radius: 4px;
+      font-size: 0.82rem;
+    }
+    .bis-optimal-icon {
+      font-size: 1rem;
+      color: #50c878;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+    .bis-optimal-text { color: var(--text); }
+    .bis-optimal-text strong { color: #50c878; }
+    .bis-alternates-label {
+      font-size: 0.73rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin: 0.3rem 0 0.1rem;
+    }
+    .bis-candidates-alt { opacity: 0.65; }
+    /* Upgrade Advisor summary bar */
+    .bis-summary-bar {
+      margin-bottom: 1rem;
+      padding: 0.6rem 0.75rem 0.65rem;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+    }
+    .bis-summary-title {
+      font-size: 0.72rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--muted);
+      margin-bottom: 0.5rem;
+    }
+    .bis-summary-cells {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.35rem 0.5rem;
+    }
+    .bis-sum-cell {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-width: 3.8rem;
+      padding: 0.3rem 0.4rem;
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.07);
+      border-radius: 4px;
+    }
+    .bis-sum-label { font-size: 0.68rem; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; }
+    .bis-sum-vals  { font-size: 0.78rem; color: var(--text); display: flex; align-items: center; gap: 0.2rem; margin: 0.1rem 0; }
+    .bis-sum-cur   { color: var(--muted); }
+    .bis-sum-arrow { color: var(--muted); font-size: 0.65rem; }
+    .bis-sum-bis   { color: var(--text); font-weight: 600; }
+    .bis-sum-diff  { font-size: 0.78rem; font-weight: 700; }
+    .bis-sum-delta-up   { color: #50c878; }
+    .bis-sum-delta-down { color: #e88; }
+    .bis-sum-delta-eq   { color: #50c878; font-size: 0.85rem; }
 
     /* Item search autofilter */
     .item-search-wrap { position: relative; margin-bottom: 0.75rem; }
@@ -1148,9 +1494,15 @@
       flex-wrap: wrap;
       gap: 0.25rem 0.5rem;
       font-size: 0.8rem;
+      flex: 1;
+      min-width: 0;
     }
     #shared-inventory-body {
       padding: 0 0.75rem 0.6rem;
+      display: none;
+    }
+    #shared-inventory-display.has-inventory #shared-inventory-body {
+      display: block;
     }
     #aa-configurator summary {
       list-style: none;
@@ -1420,7 +1772,7 @@
       <iconify-icon icon="ra:crossed-swords" class="text-2xl md:text-3xl text-[#d4af37] flex-shrink-0"></iconify-icon>
       <div class="flex flex-col min-w-0">
         <span class="font-fantasy text-base md:text-xl tracking-widest text-[#d4af37] truncate"><span class="app-title-g-small">g</span>Sim for Project Quarm</span>
-        <span class="text-[10px] text-gray-500 uppercase tracking-tighter">Everquest DPS Simulator · <span id="app-version">v1.18</span></span>
+        <span class="text-[10px] text-gray-500 uppercase tracking-tighter">Everquest DPS Simulator · <span id="app-version">v1.25</span></span>
       </div>
     </div>
     <div class="flex items-center gap-3 md:gap-8 flex-shrink-0">
@@ -1581,15 +1933,30 @@
     <button type="button" class="tab-btn active" id="tab-melee" aria-selected="true">Melee</button>
     <button type="button" class="tab-btn" id="tab-ranged" aria-selected="false">Ranged</button>
     <button type="button" class="tab-btn" id="tab-tanking" aria-selected="false" title="Work in Progress — results may be incomplete or inaccurate">Tanking <span style="font-size:0.65em;opacity:0.7;vertical-align:middle;">(WIP)</span></button>
-    <label style="margin-left:auto;margin-right:0.5rem;cursor:pointer;display:inline-flex;align-items:center;gap:0.4rem;font-size:0.78rem;font-weight:600;color:var(--muted);padding:0.3rem 0.75rem;border:1px solid var(--border);border-radius:4px;background:rgba(255,255,255,0.04);white-space:nowrap;" title="Import your EQ /outputfile inventory export (.txt) to auto-fill stats across all tabs">
-      &#8599; Import Inventory
-      <input type="file" id="shared-inventory-file" accept=".txt" style="display:none;">
-    </label>
   </div>
 
   <!-- Shared inventory display — shown for all tabs when inventory is loaded -->
-  <details id="shared-inventory-display" style="display:none;margin:0.5rem 0;background:var(--input-bg);border:1px solid var(--border);border-radius:4px;">
-    <summary>Equipped Items <div id="shared-inventory-pills"></div></summary>
+  <details id="shared-inventory-display" style="margin:0.5rem 0;background:var(--input-bg);border:1px solid var(--border);border-radius:4px;">
+    <summary>
+      <span>Equipped Items</span>
+      <div id="shared-inventory-pills"></div>
+      <div style="display:inline-flex;align-items:center;gap:0.4rem;margin-left:auto;">
+        <label style="font:inherit;margin:0;cursor:pointer;display:inline-flex;align-items:center;gap:0.4rem;font-size:0.78rem;font-weight:600;color:var(--muted);padding:0.3rem 0.75rem;border:1px solid var(--border);border-radius:4px;background:rgba(255,255,255,0.04);white-space:nowrap;text-transform:none;letter-spacing:normal;" title="Import your EQ /outputfile inventory export (.txt) to auto-fill stats across all tabs">
+          &#8599; Import Inventory
+          <input type="file" id="shared-inventory-file" accept=".txt" style="display:none;">
+        </label>
+        <button type="button" id="inventory-manager-open"
+          style="font:inherit;margin:0;cursor:pointer;display:inline-flex;align-items:center;gap:0.4rem;font-size:0.78rem;font-weight:600;color:var(--muted);padding:0.3rem 0.75rem;border:1px solid var(--border);border-radius:4px;background:rgba(255,255,255,0.04);white-space:nowrap;"
+          title="Manually equip items by searching the item database">
+          &#9998; Edit Inventory
+        </button>
+        <button type="button" id="bis-open"
+          style="font:inherit;margin:0;cursor:pointer;display:inline-flex;align-items:center;gap:0.4rem;font-size:0.78rem;font-weight:600;color:var(--muted);padding:0.3rem 0.75rem;border:1px solid var(--border);border-radius:4px;background:rgba(255,255,255,0.04);white-space:nowrap;"
+          title="Find best-in-slot items for your class and role">
+          &#9733; BIS Advisor
+        </button>
+      </div>
+    </summary>
     <div id="shared-inventory-body">
       <div id="shared-inventory-slots" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(18rem,1fr));gap:0.1rem 1.5rem;color:var(--text);"></div>
       <div id="shared-inventory-summary"></div>
@@ -1767,6 +2134,13 @@
           <div class="char-field char-field-num" style="margin-top:0.5rem;">
             <label for="fistweaving-reaction-delay-ms" class="small-label">Fistweave reaction delay (ms)</label>
             <input type="number" id="fistweaving-reaction-delay-ms" min="0" max="1000" step="10" value="200">
+          </div>
+        </div>
+        <div id="twohand-weave-row" style="display: none;">
+          <label class="checkbox-label char-checkbox"><input type="checkbox" id="twohand-weave"> 2H Weave (equipped 1H offhand)</label>
+          <div class="char-field char-field-num" style="margin-top:0.5rem;">
+            <label for="twohand-weave-reaction-delay-ms" class="small-label">Weave reaction delay (ms)</label>
+            <input type="number" id="twohand-weave-reaction-delay-ms" min="0" max="1000" step="10" value="200">
           </div>
         </div>
         <div id="innerflame-row" style="display: none;">
@@ -2350,6 +2724,8 @@
   <section class="advanced-only" style="margin-top: 1rem;">
     <h2>Version log</h2>
     <ul style="font-size: 0.9rem; color: var(--muted); margin: 0; padding-left: 1.25rem;">
+      <li><strong>1.25</strong> — BIS Advisor: new Best-in-Slot recommendation tool — scores all wearable items for your selected era, class, and role (melee DPS, ranged, tank, healer); configurable stat weights via custom role; shows full BIS set and per-slot upgrade list vs. your currently equipped gear; lore item deduplication. Inventory Manager: new modal to browse and manage all equipped slots — search items per slot, preview stats, and apply directly to the sim. eraConfig: added item-ID-range helpers for era fallback filtering when <code>min_expansion</code> is absent. Fix 2H Weave: equipping a 2H primary via item search or preset no longer clears the offhand slot when 2H Weave (or monk non-epic fistweave) is enabled. Mechanics guide: new section 7.10 documenting the 2H Weave mechanic. items-data.js expanded with races, resists, proc fields, lore, min_expansion, and minstatus; 29 Luclin and 6 PoP items had incorrect min_expansion corrected; Bladesouls Spiritual Armguards excluded as a GM event item.</li>
+      <li><strong>1.24</strong> — Fix <code>isWarriorClass</code> to include monk, rogue, and beastlord (matches EQMacEmu <code>IsWarriorClass</code>); fix <code>getDamageBonusClient</code> to apply only to warrior-class characters. Weapon Overview now shows theoretical max hit lines (standard, crit, disc, disc+crit) for each weapon, placed just below Weapon DPS. New offensive buffs: Strength of Tunare (PoP), Spiritual Strength, Grim Aura. McVaxius' Rousing Rondo: corrected ATK base 2→11, SAI now stacks correctly with Celestial Tranquility.</li>
       <li><strong>1.23</strong> — Apply Bane Damage checkbox now forces bane onto base damage regardless of target type, allowing direct comparison of bane vs non-bane DPS. Auto-detection still applies when checkbox is unchecked (bane added when target race/body matches; bane-only targets remain immune without matching bane). Rank/comparison sim gains the same checkbox override with target-aware auto-detection.
       <li><strong>1.22</strong> — Ranged sim: archery skill 0 no longer treated as "use default" (falsy-zero fix); worn +archery% mod auto-populates from inventory import (supports manual override); gear summary shows archery mod items by name; Eye of the Frenzied Owlbear and other skillmod items now detected (items-data.js now includes skillmodtype/skillmodvalue). Bow of Flames proc resist type correctly applied in async spell-fetch path. Ranged archery options inputs aligned on one row. Trueshot now always engages at the start of each sim run (was previously random within the fight window). Ranged report now shows crit percentage and crit count per run.
       <li><strong>1.21</strong> — Fix Warsong of Zek spell ATK value: was incorrectly computing ~489 ATK due to formula=109 being misinterpreted as a level-scaling multiplier; correct values are 18 base / 46 with epic + Instrument Mastery. Per-slot instrument modifier support added to bard effect builder.</li>
@@ -2416,6 +2792,51 @@
     </div>
   </div>
 
+  <!-- Inventory Manager Modal -->
+  <div id="inv-manager-overlay" class="inv-manager-overlay" aria-hidden="true">
+    <div class="inv-manager-modal" role="dialog" aria-labelledby="inv-manager-title">
+      <div class="inv-manager-header">
+        <h2 id="inv-manager-title">Inventory Manager</h2>
+        <button class="inv-manager-close-btn" id="inv-manager-close" aria-label="Close">&#10005;</button>
+      </div>
+      <div class="inv-manager-body">
+        <div id="inv-manager-slots"></div>
+      </div>
+      <div id="inv-manager-search-panel" class="inv-manager-search-panel" style="display:none;">
+        <div class="inv-manager-search-header">
+          <span>Searching: <strong id="inv-manager-search-slot-name"></strong></span>
+          <button type="button" id="inv-manager-search-cancel">Cancel</button>
+        </div>
+        <input type="text" id="inv-manager-search-input" placeholder="Type item name (3+ chars)&#x2026;" autocomplete="off" style="width:100%;box-sizing:border-box;padding:0.35rem 0.5rem;background:var(--input-bg);border:1px solid var(--border);border-radius:3px;color:var(--text);font-size:0.85rem;">
+        <div id="inv-manager-search-results" class="inv-manager-search-results"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- BIS Advisor Modal -->
+  <div id="bis-overlay" class="bis-overlay" aria-hidden="true">
+    <div id="bis-modal" class="bis-modal" role="dialog" aria-labelledby="bis-title">
+      <div class="bis-modal-header">
+        <h2 id="bis-title">&#9733; BIS Advisor</h2>
+        <button class="inv-manager-close-btn" id="bis-close" aria-label="Close">&#10005;</button>
+      </div>
+      <div style="margin:0.6rem 1rem 0;padding:0.5rem 0.75rem;background:rgba(220,160,0,0.12);border:1px solid rgba(220,160,0,0.45);border-radius:4px;font-size:0.8rem;color:#e8c84a;display:flex;align-items:center;gap:0.5rem;">
+        <span style="font-size:1rem;">&#9888;</span>
+        <span>This feature is in development and is not fully functional or accurate.</span>
+      </div>
+      <div class="bis-controls-wrap">
+        <div id="bis-controls-inner"></div>
+      </div>
+      <div class="bis-tab-bar">
+        <button type="button" class="tab-btn active" id="bis-tab-bisset">BIS Set</button>
+        <button type="button" class="tab-btn" id="bis-tab-upgrade">Upgrade Advisor</button>
+      </div>
+      <div class="bis-body" id="bis-content">
+        <div class="bis-loading">Open to compute&#x2026;</div>
+      </div>
+    </div>
+  </div>
+
   <p class="muted" style="margin-top: 1.5rem; font-size: 0.85rem;">
     Formulas based on <a href="https://github.com/SecretsOTheP/EQMacEmu/blob/main/zone/attack.cpp" target="_blank" rel="noopener" style="color: var(--accent);">EQMacEmu attack.cpp</a>.
   </p>
@@ -2429,6 +2850,7 @@
 
   <script src="threat.js"></script>
   <script src="js/modules/eraConfig.js"></script>
+  <script src="js/modules/bisAdvisor.js"></script>
   <script src="js/modules/abilityRegistry.js"></script>
   <script src="js/modules/buffs.js"></script>
   <script src="js/modules/tankingEngine.js"></script>
@@ -3451,7 +3873,9 @@
         if (!span) return;
         if (prefix === 'w2' && isW1TwoHanded()) {
           const cls = ($('class').value || '').toLowerCase();
-          const allowOh = cls === 'monk' && $('fistweaving') && $('fistweaving').checked && $('fistweaving-nonepic') && $('fistweaving-nonepic').checked;
+          const isTwWeaveClass = ['warrior','ranger','beastlord'].indexOf(cls) >= 0;
+          const allowOh = (cls === 'monk' && $('fistweaving') && $('fistweaving').checked && $('fistweaving-nonepic') && $('fistweaving-nonepic').checked)
+            || (isTwWeaveClass && $('twohand-weave') && $('twohand-weave').checked);
           if (!allowOh) {
             span.textContent = 'Unavailable';
             if (skillEl) skillEl.textContent = '';
@@ -3624,7 +4048,10 @@
           }
           updateBaneLabels(prefix);
           if (prefix === 'w1' && (p.is2H || pType2H)) {
-            applyWeaponPreset('w2', 'unequipped');
+            const clsP = ($('class') ? $('class').value : '').toLowerCase();
+            const twWeaveP = ['warrior','ranger','beastlord'].indexOf(clsP) >= 0 && $('twohand-weave') && $('twohand-weave').checked;
+            const fwNonEpicP = clsP === 'monk' && $('fistweaving') && $('fistweaving').checked && $('fistweaving-nonepic') && $('fistweaving-nonepic').checked;
+            if (!twWeaveP && !fwNonEpicP) applyWeaponPreset('w2', 'unequipped');
           }
           if (prefix === 'w1') {
             updateWeapon2Disabled();
@@ -4360,9 +4787,10 @@
         const specialAttacks = specialAttackType !== 'none';
 
         const fwNonEpicMonk = classId === 'monk' && hasMainHand && weapon1.is2H && $('fistweaving').checked && $('fistweaving-nonepic') && $('fistweaving-nonepic').checked;
+        const twWeaveActive = ['warrior','ranger','beastlord'].indexOf(classId) >= 0 && hasMainHand && weapon1.is2H && $('twohand-weave') && $('twohand-weave').checked;
         let useWeapon2 = weapon2.damage > 0 && weapon2.delay > 0 && dualWieldSkill > 0;
         if (hasMainHand && weapon1.is2H) {
-          useWeapon2 = !!(fwNonEpicMonk && useWeapon2 && !weapon2.is2H);
+          useWeapon2 = !!((fwNonEpicMonk || twWeaveActive) && useWeapon2 && !weapon2.is2H);
         }
 
         const offenseSkill = Math.min(255, Math.max(0, parseInt($('offense-skill').value, 10) || 252));
@@ -4465,13 +4893,14 @@
           slayUndead: aaOpts.slayUndead,
           fistweaving: hasMainHand && classId === 'monk' && weapon1.is2H && $('fistweaving').checked,
           fistweavingNonEpic: ($('fistweaving-nonepic') && $('fistweaving-nonepic').checked) || false,
+          twoHandWeave: twWeaveActive && useWeapon2,
           fistweavingReactionDelayMs: (() => {
-            const el = $('fistweaving-reaction-delay-ms');
+            const el = twWeaveActive ? $('twohand-weave-reaction-delay-ms') : $('fistweaving-reaction-delay-ms');
             const v = el ? parseInt(el.value, 10) : 200;
             if (isNaN(v)) return 200;
             return Math.max(0, Math.min(1000, v));
           })(),
-          fistweavingOffhandLabel: (fwNonEpicMonk && useWeapon2)
+          fistweavingOffhandLabel: ((fwNonEpicMonk || (twWeaveActive && useWeapon2)) && useWeapon2)
             ? (w2DisplayName || (String(weapon2.damage) + ' dmg / ' + String(weapon2.delay) + ' delay'))
             : undefined,
           critChanceMult: aaOpts.critChanceMult,
@@ -4674,6 +5103,7 @@
               : null,
             fistweaving: reports[0].fistweaving
               ? {
+                  weaveMode: reports[0].fistweaving.weaveMode || 'fistweave',
                   baseDamage: reports[0].fistweaving.baseDamage != null ? reports[0].fistweaving.baseDamage : 9,
                   rounds: Math.round(reports.reduce((s, r) => s + (r.fistweaving ? r.fistweaving.rounds : 0), 0) / runs),
                   swings: Math.round(reports.reduce((s, r) => s + (r.fistweaving ? r.fistweaving.swings : 0), 0) / runs),
@@ -4843,7 +5273,7 @@
             runs,
             totalDamage: report.totalDamage,
             specialAttacks: !!specialAttacks,
-            fistweaving: !!(classId === 'monk' && weapon1.is2H && $('fistweaving').checked),
+            fistweaving: !!(classId === 'monk' && weapon1.is2H && $('fistweaving').checked) || !!(twWeaveActive && useWeapon2),
           });
         }
       }
@@ -5428,8 +5858,10 @@
           kickReuseEffectiveSec: (kickReuseManual && (() => { const v = parseFloat($('kick-reuse-sec').value); return v > 0 && !isNaN(v) ? v : undefined; })()) || undefined,
           bashReuseEffectiveSec: (bashReuseManual && (() => { const v = parseFloat($('bash-reuse-sec').value); return v > 0 && !isNaN(v) ? v : undefined; })()) || undefined,
           fistweavingNonEpic: ($('fistweaving-nonepic') && $('fistweaving-nonepic').checked) || false,
+          twoHandWeave: false,
           fistweavingReactionDelayMs: (() => {
-            const el = $('fistweaving-reaction-delay-ms');
+            const isTwWeaveClass = ['warrior','ranger','beastlord'].indexOf(classId) >= 0;
+            const el = isTwWeaveClass ? $('twohand-weave-reaction-delay-ms') : $('fistweaving-reaction-delay-ms');
             const v = el ? parseInt(el.value, 10) : 200;
             if (isNaN(v)) return 200;
             return Math.max(0, Math.min(1000, v));
@@ -5624,13 +6056,14 @@
         });
         const canDualWield = classConfig && (classConfig.dualWield != null && classConfig.dualWield > 0);
         var rankMonkFwNonEpic = classId === 'monk' && $('fistweaving') && $('fistweaving').checked && $('fistweaving-nonepic') && $('fistweaving-nonepic').checked;
+        var rankTwoHandWeave = ['warrior','ranger','beastlord'].indexOf(classId) >= 0 && $('twohand-weave') && $('twohand-weave').checked;
         const combinations = [];
         primaryWeapons.forEach(function (primaryId) {
           var norm = rankWeaponMap[primaryId];
           var is2H = !!(norm.is2H || (norm.type && offhandBlockedTypes[norm.type]));
           if (is2H) {
             combinations.push({ primaryId: primaryId, secondaryId: null });
-            if (rankMonkFwNonEpic && canDualWield) {
+            if ((rankMonkFwNonEpic || rankTwoHandWeave) && canDualWield) {
               secondaryWeapons.forEach(function (secondaryId) {
                 combinations.push({ primaryId: primaryId, secondaryId: secondaryId });
               });
@@ -5818,7 +6251,8 @@
                 backstabModPercent: comboWornBackstab.backstabModPercent,
                 backstabSkill: rankBaseBackstabSkill,
                 fistweaving: classId === 'monk' && is2H && $('fistweaving').checked,
-                fistweavingNonEpic: ($('fistweaving-nonepic') && $('fistweaving-nonepic').checked) || false
+                fistweavingNonEpic: ($('fistweaving-nonepic') && $('fistweaving-nonepic').checked) || false,
+                twoHandWeave: false
               });
               try {
                 var r = EQCombat.runFight(options);
@@ -5846,6 +6280,18 @@
                 if (!_is2h) return;
                 var _md = mainhand_dps[pid] != null ? mainhand_dps[pid] : 0;
                 if (_md > _bestMh) { _bestMh = _md; monkFwRef2HId = pid; }
+              });
+            }
+            var twWeaveRef2HId = null;
+            if (rankTwoHandWeave) {
+              var _bestMhTw = -1;
+              primaryWeapons.forEach(function (pid) {
+                var nw = rankWeaponMap[pid];
+                if (!nw) return;
+                var _is2h = !!(nw.is2H || (nw.type && offhandBlockedTypes[nw.type]));
+                if (!_is2h) return;
+                var _md = mainhand_dps[pid] != null ? mainhand_dps[pid] : 0;
+                if (_md > _bestMhTw) { _bestMhTw = _md; twWeaveRef2HId = pid; }
               });
             }
             end = Math.min(simIndex + chunkSize, secondaryWeapons.length);
@@ -5897,6 +6343,7 @@
                     backstabSkill: rankBaseBackstabSkill,
                     fistweaving: true,
                     fistweavingNonEpic: true,
+                    twoHandWeave: false,
                     fistweavingOffhandLabel: (p2.name != null ? String(p2.name) : String(secId))
                   });
                   var r2f = EQCombat.runFight(optsFwOh);
@@ -5911,6 +6358,43 @@
                     offhand_dps[secId] = Math.max(0, fullDpsv - refDpsOnly);
                     offhand_tps[secId] = Math.max(0, fullTpsv - refTpsOnly);
                   }
+                } else if (rankTwoHandWeave && twWeaveRef2HId != null) {
+                  var pRefTw = rankWeaponMap[twWeaveRef2HId];
+                  var w1refTw = normalizedToWeapon1(pRefTw, false);
+                  applyBaneOnlyForRankWeapon(w1refTw, pRefTw);
+                  var refSkillKeyTw = skillKeyForCap(pRefTw.type, true);
+                  var refWpnSkillTw = WeaponSkillCaps.getCapForSimClass(classId, refSkillKeyTw, level) || 252;
+                  if (refSkillKeyTw === '2hs' && pRefTw && pRefTw.twoHsSkillMod != null && !isNaN(Number(pRefTw.twoHsSkillMod)) && Number(pRefTw.twoHsSkillMod) > 0) {
+                    refWpnSkillTw = Math.min(255, refWpnSkillTw + Number(pRefTw.twoHsSkillMod));
+                  }
+                  var comboWbTw = getRankComboWornAndBackstab(pRefTw, p2);
+                  var optsTwOh = Object.assign({}, baseOptions, {
+                    weapon1: w1refTw,
+                    weapon2: w2,
+                    weapon1Type: pRefTw.type || undefined,
+                    weapon2Type: p2.type || undefined,
+                    dualWieldSkill: dualWieldSkillForm,
+                    weaponSkillForToHit: refWpnSkillTw,
+                    weaponSkillKeyForToHit: refSkillKeyTw,
+                    wornAttack: comboWbTw.wornAttack,
+                    backstabModPercent: comboWbTw.backstabModPercent,
+                    backstabSkill: rankBaseBackstabSkill,
+                    fistweaving: false,
+                    twoHandWeave: true,
+                    fistweavingOffhandLabel: (p2.name != null ? String(p2.name) : String(secId))
+                  });
+                  var rTwOh = EQCombat.runFight(optsTwOh);
+                  if (rTwOh.error) {
+                    offhand_dps[secId] = 0;
+                    offhand_tps[secId] = 0;
+                  } else {
+                    var refDpsTw = mainhand_dps[twWeaveRef2HId] != null ? mainhand_dps[twWeaveRef2HId] : 0;
+                    var refTpsTw = mainhand_tps[twWeaveRef2HId] != null ? mainhand_tps[twWeaveRef2HId] : 0;
+                    var fullDpsTwv = rTwOh.totalDamage != null ? rTwOh.totalDamage / durationSec : 0;
+                    var fullTpsTwv = rTwOh.totalThreat != null ? rTwOh.totalThreat / durationSec : 0;
+                    offhand_dps[secId] = Math.max(0, fullDpsTwv - refDpsTw);
+                    offhand_tps[secId] = Math.max(0, fullTpsTwv - refTpsTw);
+                  }
                 } else {
                   var opts = Object.assign({}, baseOptions, {
                     weapon1: undefined,
@@ -5922,7 +6406,8 @@
                     backstabModPercent: comboWornBackstabOff.backstabModPercent,
                     backstabSkill: rankBaseBackstabSkill,
                     fistweaving: false,
-                    fistweavingNonEpic: ($('fistweaving-nonepic') && $('fistweaving-nonepic').checked) || false
+                    fistweavingNonEpic: ($('fistweaving-nonepic') && $('fistweaving-nonepic').checked) || false,
+                    twoHandWeave: false
                   });
                   var r2 = EQCombat.runFight(opts);
                   offhand_dps[secId] = r2.error ? 0 : (r2.totalDamage != null ? r2.totalDamage / durationSec : 0);
@@ -6012,7 +6497,8 @@
                   backstabModPercent: comboWornBackstab.backstabModPercent,
                   backstabSkill: rankBaseBackstabSkill,
                   fistweaving: false,
-                  fistweavingNonEpic: ($('fistweaving-nonepic') && $('fistweaving-nonepic').checked) || false
+                  fistweavingNonEpic: ($('fistweaving-nonepic') && $('fistweaving-nonepic').checked) || false,
+                  twoHandWeave: false
                 });
               } else {
                 var is2H = !!(p1.is2H || (p1.type && offhandBlockedTypes[p1.type]));
@@ -6035,6 +6521,7 @@
                   backstabSkill: rankBaseBackstabSkill,
                   fistweaving: classId === 'monk' && is2H && $('fistweaving').checked,
                   fistweavingNonEpic: ($('fistweaving-nonepic') && $('fistweaving-nonepic').checked) || false,
+                  twoHandWeave: rankTwoHandWeave && is2H,
                   fistweavingOffhandLabel: undefined
                 });
                 if (secId) {
@@ -6056,6 +6543,8 @@
                   opts.dualWieldSkill = dualWieldSkillForm;
                   opts.weapon2Type = p2.type || undefined;
                   if (rankMonkFwNonEpic) {
+                    opts.fistweavingOffhandLabel = p2.name != null ? String(p2.name) : String(secId);
+                  } else if (rankTwoHandWeave && is2H) {
                     opts.fistweavingOffhandLabel = p2.name != null ? String(p2.name) : String(secId);
                   }
                 }
@@ -6321,7 +6810,8 @@
                 wornAttack: comboOffOnly.wornAttack,
                 backstabModPercent: comboOffOnly.backstabModPercent,
                 backstabSkill: rankBaseBackstabSkill,
-                fistweaving: false
+                fistweaving: false,
+                twoHandWeave: false
               });
             } else {
               var p1 = rankWeaponMap[row.primaryId];
@@ -6346,6 +6836,7 @@
                 backstabSkill: rankBaseBackstabSkill,
                 fistweaving: classId === 'monk' && is2H && $('fistweaving').checked,
                 fistweavingNonEpic: ($('fistweaving-nonepic') && $('fistweaving-nonepic').checked) || false,
+                twoHandWeave: rankTwoHandWeave && is2H,
                 fistweavingOffhandLabel: undefined
               });
               if (row.secondaryId) {
@@ -6370,6 +6861,8 @@
                 opts.backstabModPercent = comboWornBackstabTop.backstabModPercent;
                 opts.weapon2Type = p2.type || undefined;
                 if (rankMonkFwNonEpic) {
+                  opts.fistweavingOffhandLabel = p2.name != null ? String(p2.name) : String(row.secondaryId);
+                } else if (rankTwoHandWeave && is2H) {
                   opts.fistweavingOffhandLabel = p2.name != null ? String(p2.name) : String(row.secondaryId);
                 }
               }
@@ -8219,17 +8712,21 @@
       });
       function updateFistweavingVisibility() {
         const classId = ($('class').value || '').toLowerCase();
-        const row = $('fistweaving-row');
-        if (row) row.style.display = classId === 'monk' ? '' : 'none';
+        const fwRow = $('fistweaving-row');
+        if (fwRow) fwRow.style.display = classId === 'monk' ? '' : 'none';
+        const twRow = $('twohand-weave-row');
+        if (twRow) twRow.style.display = (['warrior','ranger','beastlord'].indexOf(classId) >= 0) ? '' : 'none';
       }
-      ['fistweaving', 'fistweaving-nonepic'].forEach(function (fid) {
+      ['fistweaving', 'fistweaving-nonepic', 'twohand-weave'].forEach(function (fid) {
         var fel = $(fid);
         if (fel) fel.addEventListener('change', function () { updateWeapon2Disabled(); });
       });
       function updateWeapon2Disabled() {
         const is2H = isW1TwoHanded();
         const classId = ($('class').value || '').toLowerCase();
-        const allowOhWith2H = classId === 'monk' && is2H && $('fistweaving') && $('fistweaving').checked && $('fistweaving-nonepic') && $('fistweaving-nonepic').checked;
+        const isTwWeaveClass = ['warrior','ranger','beastlord'].indexOf(classId) >= 0;
+        const allowOhWith2H = (classId === 'monk' && is2H && $('fistweaving') && $('fistweaving').checked && $('fistweaving-nonepic') && $('fistweaving-nonepic').checked)
+          || (isTwWeaveClass && is2H && $('twohand-weave') && $('twohand-weave').checked);
         if (is2H && !allowOhWith2H) applyWeaponPreset('w2', 'unequipped');
         const section = $('weapon2-section');
         if (section) {
@@ -8656,7 +9153,12 @@
           const is2H = !!weapon.is2H || !!type2H;
           const overrideEl = $('w1-is2h-override');
           if (overrideEl) overrideEl.value = is2H ? '1' : '0';
-          if (is2H) applyWeaponPreset('w2', 'unequipped');
+          if (is2H) {
+            const cls2h = ($('class') ? $('class').value : '').toLowerCase();
+            const twWeave2h = ['warrior','ranger','beastlord'].indexOf(cls2h) >= 0 && $('twohand-weave') && $('twohand-weave').checked;
+            const fwNonEpic2h = cls2h === 'monk' && $('fistweaving') && $('fistweaving').checked && $('fistweaving-nonepic') && $('fistweaving-nonepic').checked;
+            if (!twWeave2h && !fwNonEpic2h) applyWeaponPreset('w2', 'unequipped');
+          }
           updateWeapon2Disabled();
           updateFistweavingVisibility();
         }
@@ -9620,6 +10122,15 @@
   var btnRunTanking = document.getElementById('btn-run-tanking');
   if (!btnRunTanking) return;
 
+  // ---- Inventory Manager state ----
+  var inventoryManagerState = {};
+  var MANAGER_SLOT_KEYS = [
+    'Head','Face','Ear','Ear2','Neck','Shoulders','Back','Arms',
+    'Wrist','Wrist2','Hands','Fingers','Fingers2',
+    'Chest','Legs','Feet','Waist',
+    'Primary','Secondary','Range','Ammo'
+  ];
+
   // ---- Inventory import ----
 
   // Spell effect decoder: returns { haste, atk, spellName } from a worn effect spell ID.
@@ -9699,10 +10210,7 @@
     return slots;
   }
 
-  function applyInventory(text) {
-    window.inventoryLoaded = true;
-    var equippedSlots = parseInventoryTsv(text);
-
+  function _applyInventoryFromEquippedSlots(equippedSlots) {
     // ---- Aggregate stats across all equipped items ----
     var totals = { ac: 0, str: 0, dex: 0, agi: 0, sta: 0, wis: 0, int: 0, cha: 0, hp: 0, mana: 0, atk: 0, mr: 0, fr: 0, cr: 0, dr: 0, pr: 0, regen: 0, ft: 0, archeryMod: 0 };
     var hasteItems  = [];   // { name, haste, spellName }
@@ -9712,16 +10220,11 @@
     var classMask   = 0x7FFF; // intersection starts at ALL_CLASSES, narrow down
     var hasClassConstraint = false;
 
-    var DISPLAY_ORDER = ['Head','Face','Ear','Ear2','Neck','Shoulders','Back','Arms',
-                         'Wrist','Wrist2','Hands','Fingers','Fingers2',
-                         'Chest','Legs','Feet','Waist',
-                         'Primary','Secondary','Range','Ammo'];
-
     var slotsDiv   = document.getElementById('shared-inventory-slots');
     var displayDiv = document.getElementById('shared-inventory-display');
     var html = '';
 
-    DISPLAY_ORDER.forEach(function (slot) {
+    MANAGER_SLOT_KEYS.forEach(function (slot) {
       var entry = equippedSlots[slot];
       if (!entry) return;
       var item = lookupItem(entry.id);
@@ -9818,7 +10321,7 @@
     });
 
     if (slotsDiv)   slotsDiv.innerHTML = html;
-    if (displayDiv) { displayDiv.style.display = ''; displayDiv.open = true; }
+    if (displayDiv) { displayDiv.classList.add('has-inventory'); displayDiv.open = true; }
 
     // Auto-fill worn archery mod field with full total (bow + gear).
     // Also track the gear-only portion separately for the rank/comparison sim.
@@ -10147,6 +10650,27 @@
     if (typeof syncEasyWeaponSummaries === 'function') syncEasyWeaponSummaries();
   }
 
+  function applyInventoryFromState() {
+    var equippedSlots = {};
+    MANAGER_SLOT_KEYS.forEach(function(k) {
+      var s = inventoryManagerState[k];
+      if (s) equippedSlots[k] = { id: s.id, name: s.name };
+    });
+    _applyInventoryFromEquippedSlots(equippedSlots);
+  }
+
+  function applyInventory(text) {
+    window.inventoryLoaded = true;
+    var equippedSlots = parseInventoryTsv(text);
+    MANAGER_SLOT_KEYS.forEach(function(k) {
+      var entry = equippedSlots[k];
+      inventoryManagerState[k] = entry
+        ? { id: entry.id, name: entry.name, item: lookupItem(entry.id) }
+        : null;
+    });
+    _applyInventoryFromEquippedSlots(equippedSlots);
+  }
+
   var fileInput = document.getElementById('shared-inventory-file');
   if (fileInput) {
     fileInput.addEventListener('change', function () {
@@ -10364,6 +10888,310 @@
       UsageLog.sendLog(payload, tankLogUrl);
     }
   });
+
+  // ---- Inventory Manager bridge ----
+  window.__invManagerState   = inventoryManagerState;
+  window.__invManagerSetSlot = function(slotKey, entry) {
+    inventoryManagerState[slotKey] = entry
+      ? { id: entry.id, name: entry.name, item: lookupItem(entry.id) }
+      : null;
+  };
+  window.applyInventoryFromState = applyInventoryFromState;
+})();
+
+// ============================================================
+// Inventory Manager UI
+// ============================================================
+(function initInventoryManager() {
+
+  // ---- Lookup tables ----
+  var RACE_BITMASK_MAP = {
+    human:1, barbarian:2, erudite:4, wood_elf:8, high_elf:16, dark_elf:32,
+    half_elf:64, dwarf:128, troll:256, ogre:512, halfling:1024, gnome:2048,
+    iksar:4096, vah_shir:8192
+  };
+
+  var SLOT_BITMASK_MAP = {
+    Head:4, Face:8, Ear:2|16, Ear2:2|16,
+    Neck:32, Shoulders:64, Arms:128, Back:256,
+    Wrist:512|1024, Wrist2:512|1024,
+    Range:2048, Hands:4096,
+    Primary:8192, Secondary:16384,
+    Fingers:32768|65536, Fingers2:32768|65536,
+    Chest:131072, Legs:262144, Feet:524288, Waist:1048576, Ammo:2097152
+  };
+
+  var CLASS_BITMASK_MAP = {
+    warrior:1, cleric:2, paladin:4, ranger:8, shadowknight:16,
+    druid:32, monk:64, bard:128, rogue:256, shaman:512,
+    necromancer:1024, wizard:2048, magician:4096, enchanter:8192, beastlord:16384
+  };
+
+  var SLOT_DISPLAY_LABELS = {
+    Head:'Head', Face:'Face', Ear:'Ear (1)', Ear2:'Ear (2)',
+    Neck:'Neck', Shoulders:'Shoulder', Arms:'Arms', Back:'Back',
+    Wrist:'Wrist (1)', Wrist2:'Wrist (2)', Range:'Range',
+    Hands:'Hands', Primary:'Primary', Secondary:'Secondary',
+    Fingers:'Ring (1)', Fingers2:'Ring (2)', Chest:'Chest',
+    Legs:'Legs', Feet:'Feet', Waist:'Waist', Ammo:'Ammo'
+  };
+
+  var MANAGER_SLOT_KEYS = [
+    'Head','Face','Ear','Ear2','Neck','Shoulders','Back','Arms',
+    'Wrist','Wrist2','Hands','Fingers','Fingers2',
+    'Chest','Legs','Feet','Waist',
+    'Primary','Secondary','Range','Ammo'
+  ];
+
+  // ---- HTML helpers ----
+  function escHtml(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+  function escAttr(s) {
+    return escHtml(s).replace(/'/g,'&#39;');
+  }
+
+  // ---- Search corpus (lazy) ----
+  var _searchCorpus = null;
+  function getSearchCorpus() {
+    if (_searchCorpus) return _searchCorpus;
+    _searchCorpus = [];
+    var items   = window.__DPS_ITEMS__;
+    var weapons = window.__DPS_WEAPONS_MERGED__;
+    var seen = {};
+    if (items) {
+      var ids = Object.keys(items);
+      for (var i = 0; i < ids.length; i++) {
+        var id = ids[i];
+        var it = items[id];
+        if (!it || !it.Name) continue;
+        seen[id] = true;
+        var entry = { _id: id, _source: 'items' };
+        for (var k in it) entry[k] = it[k];
+        _searchCorpus.push(entry);
+      }
+    }
+    if (weapons) {
+      var wids = Object.keys(weapons);
+      for (var j = 0; j < wids.length; j++) {
+        var wid = wids[j];
+        if (seen[wid]) continue;
+        var wi = weapons[wid];
+        if (!wi || !wi.Name) continue;
+        var wentry = { _id: wid, _source: 'weapons' };
+        for (var wk in wi) wentry[wk] = wi[wk];
+        _searchCorpus.push(wentry);
+      }
+    }
+    return _searchCorpus;
+  }
+
+  function searchItemsForSlot(slotKey, query, classId, raceValue) {
+    var corpus   = getSearchCorpus();
+    var slotMask = SLOT_BITMASK_MAP[slotKey] || 0;
+    var classMask = classId  ? (CLASS_BITMASK_MAP[classId]  || 0) : 0;
+    var raceMask  = raceValue ? (RACE_BITMASK_MAP[raceValue] || 0) : 0;
+    var q = query.toLowerCase().trim();
+    var results = [];
+    for (var i = 0; i < corpus.length && results.length < 50; i++) {
+      var item = corpus[i];
+      if (slotMask) {
+        var itemSlots = parseInt(item.slots) || 0;
+        if ((itemSlots & slotMask) === 0) continue;
+      }
+      if (classMask) {
+        var ic = parseInt(item.classes) || 0;
+        if (ic !== 0 && (ic & classMask) === 0) continue;
+      }
+      if (raceMask && item.races !== undefined) {
+        var ir = parseInt(item.races) || 0;
+        if (ir !== 0 && (ir & raceMask) === 0) continue;
+      }
+      if (q && item.Name.toLowerCase().indexOf(q) < 0) continue;
+      results.push(item);
+    }
+    return results;
+  }
+
+  // ---- Rendering ----
+  function itemStatSummary(item) {
+    var parts = [];
+    var ac  = parseInt(item.ac)   || 0;
+    var hp  = parseInt(item.hp)   || 0;
+    var str = parseInt(item.astr) || 0;
+    var dex = parseInt(item.adex) || 0;
+    var agi = parseInt(item.aagi) || 0;
+    var sta = parseInt(item.asta) || 0;
+    var dmg = parseInt(item.damage) || 0;
+    var dly = parseInt(item.delay)  || 0;
+    if (ac)  parts.push('AC '+ac);
+    if (hp)  parts.push('HP '+hp);
+    if (str) parts.push('STR '+str);
+    if (dex) parts.push('DEX '+dex);
+    if (agi) parts.push('AGI '+agi);
+    if (sta) parts.push('STA '+sta);
+    if (dmg) parts.push(dmg+'/'+dly);
+    return parts.join(' ');
+  }
+
+  function renderSlotRow(slotKey) {
+    var state = window.__invManagerState || {};
+    var entry = state[slotKey];
+    var label = SLOT_DISPLAY_LABELS[slotKey] || slotKey;
+    var isEmpty = !entry;
+    var itemName = entry ? entry.name : 'Empty';
+    var statsHtml = (!isEmpty && entry.item) ? itemStatSummary(entry.item) : '';
+    return '<div class="inv-slot-row" data-slot="' + slotKey + '">'
+      + '<span class="inv-slot-label">' + escHtml(label) + '</span>'
+      + '<span class="inv-slot-item' + (isEmpty ? ' is-empty' : '') + '">' + escHtml(itemName) + '</span>'
+      + '<span class="inv-slot-stats">' + escHtml(statsHtml) + '</span>'
+      + '<button type="button" class="inv-slot-btn inv-search-btn" data-action="search" data-slot="' + slotKey + '">Search</button>'
+      + (isEmpty ? '' : '<button type="button" class="inv-slot-btn" data-action="remove" data-slot="' + slotKey + '">Remove</button>')
+      + '</div>';
+  }
+
+  function renderAllSlots() {
+    var container = document.getElementById('inv-manager-slots');
+    if (!container) return;
+    container.innerHTML = MANAGER_SLOT_KEYS.map(renderSlotRow).join('');
+  }
+
+  function renderSearchResult(item) {
+    var stats = itemStatSummary(item);
+    return '<div class="inv-search-result-row" data-item-id="' + escAttr(item._id) + '" data-item-name="' + escAttr(item.Name) + '">'
+      + '<span class="inv-search-result-name">' + escHtml(item.Name) + '</span>'
+      + (stats ? '<span class="inv-search-result-stats">' + escHtml(stats) + '</span>' : '')
+      + '</div>';
+  }
+
+  // ---- Modal open/close ----
+  function openInventoryManager() {
+    var overlay = document.getElementById('inv-manager-overlay');
+    if (!overlay) return;
+    renderAllSlots();
+    hideSearchPanel();
+    overlay.classList.add('is-open');
+    overlay.setAttribute('aria-hidden', 'false');
+  }
+
+  function closeInventoryManager() {
+    var overlay = document.getElementById('inv-manager-overlay');
+    if (!overlay) return;
+    overlay.classList.remove('is-open');
+    overlay.setAttribute('aria-hidden', 'true');
+  }
+
+  // ---- Search panel ----
+  var _activeSearchSlot = null;
+
+  function openSearchPanel(slotKey) {
+    _activeSearchSlot = slotKey;
+    var labelEl = document.getElementById('inv-manager-search-slot-name');
+    if (labelEl) labelEl.textContent = SLOT_DISPLAY_LABELS[slotKey] || slotKey;
+    var inputEl = document.getElementById('inv-manager-search-input');
+    if (inputEl) { inputEl.value = ''; inputEl.focus(); }
+    var resultsEl = document.getElementById('inv-manager-search-results');
+    if (resultsEl) resultsEl.innerHTML = '';
+    var panel = document.getElementById('inv-manager-search-panel');
+    if (panel) panel.style.display = '';
+  }
+
+  function hideSearchPanel() {
+    var panel = document.getElementById('inv-manager-search-panel');
+    if (panel) panel.style.display = 'none';
+    _activeSearchSlot = null;
+  }
+
+  // ---- Events ----
+  document.addEventListener('DOMContentLoaded', function() {
+    var openBtn    = document.getElementById('inventory-manager-open');
+    var closeBtn   = document.getElementById('inv-manager-close');
+    var overlay    = document.getElementById('inv-manager-overlay');
+    var slotsEl    = document.getElementById('inv-manager-slots');
+    var searchInput = document.getElementById('inv-manager-search-input');
+    var resultsEl  = document.getElementById('inv-manager-search-results');
+    var cancelBtn  = document.getElementById('inv-manager-search-cancel');
+
+    if (openBtn)  openBtn.addEventListener('click', openInventoryManager);
+    if (closeBtn) closeBtn.addEventListener('click', closeInventoryManager);
+    if (overlay) {
+      overlay.addEventListener('click', function(e) {
+        if (e.target === overlay) closeInventoryManager();
+      });
+    }
+    if (cancelBtn) cancelBtn.addEventListener('click', hideSearchPanel);
+
+    // Slot grid: search / remove delegation
+    if (slotsEl) {
+      slotsEl.addEventListener('click', function(e) {
+        var btn = e.target.closest('[data-action]');
+        if (!btn) return;
+        var action  = btn.dataset.action;
+        var slotKey = btn.dataset.slot;
+        if (action === 'search') {
+          openSearchPanel(slotKey);
+        } else if (action === 'remove') {
+          if (window.__invManagerSetSlot) window.__invManagerSetSlot(slotKey, null);
+          renderSlotRow_update(slotKey);
+          if (typeof window.applyInventoryFromState === 'function') window.applyInventoryFromState();
+        }
+      });
+    }
+
+    // Search input (debounced)
+    var _searchTimer = null;
+    if (searchInput) {
+      searchInput.addEventListener('input', function() {
+        clearTimeout(_searchTimer);
+        var val = this.value.trim();
+        _searchTimer = setTimeout(function() {
+          if (!resultsEl) return;
+          if (val.length < 3) {
+            resultsEl.innerHTML = '<div style="padding:0.5rem 0.6rem;font-size:0.82rem;color:var(--muted);">Type 3 or more characters to search.</div>';
+            return;
+          }
+          var classEl = document.getElementById('class');
+          var raceEl  = document.getElementById('char-race');
+          var classId    = classEl   ? classEl.value   : '';
+          var raceValue  = raceEl    ? raceEl.value    : '';
+          var items = searchItemsForSlot(_activeSearchSlot, val, classId, raceValue);
+          if (!items.length) {
+            resultsEl.innerHTML = '<div style="padding:0.5rem 0.6rem;font-size:0.82rem;color:var(--muted);">No items found.</div>';
+            return;
+          }
+          resultsEl.innerHTML = items.map(renderSearchResult).join('');
+        }, 120);
+      });
+    }
+
+    // Search results click
+    if (resultsEl) {
+      resultsEl.addEventListener('click', function(e) {
+        var row = e.target.closest('[data-item-id]');
+        if (!row || !_activeSearchSlot) return;
+        var itemId   = row.dataset.itemId;
+        var itemName = row.dataset.itemName;
+        if (window.__invManagerSetSlot) {
+          window.__invManagerSetSlot(_activeSearchSlot, { id: parseInt(itemId, 10), name: itemName });
+        }
+        hideSearchPanel();
+        renderAllSlots();
+        if (typeof window.applyInventoryFromState === 'function') window.applyInventoryFromState();
+      });
+    }
+  });
+
+  // Helper: update a single slot row in place
+  function renderSlotRow_update(slotKey) {
+    var container = document.getElementById('inv-manager-slots');
+    if (!container) return;
+    var existing = container.querySelector('[data-slot="' + slotKey + '"]');
+    if (!existing) { renderAllSlots(); return; }
+    var tmp = document.createElement('div');
+    tmp.innerHTML = renderSlotRow(slotKey);
+    container.replaceChild(tmp.firstChild, existing);
+  }
+
 })();
   </script>
   <script src="https://code.iconify.design/iconify-icon/1.0.7/iconify-icon.min.js" async></script>

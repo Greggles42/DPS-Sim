@@ -97,10 +97,52 @@
     return era ? era.order >= 3 : false; // Luclin+
   }
 
+  /**
+   * Approximate EQEmu item ID ranges by expansion.
+   * Used to determine era availability when an item lacks an explicit `expansion` field.
+   */
+  const ITEM_ID_ERA_RANGES = [
+    { era: 'classic', min: 1,     max: 9999  },
+    { era: 'kunark',  min: 10000, max: 19999 },
+    { era: 'velious', min: 20000, max: 29999 },
+    { era: 'luclin',  min: 30000, max: 65534 },
+    { era: 'pop',     min: 65535, max: Infinity }
+  ];
+
+  /**
+   * Return the era string for a numeric item ID based on ID ranges.
+   * @param {number|string} itemId
+   * @returns {string} era id ('classic' | 'kunark' | 'velious' | 'luclin' | 'pop')
+   */
+  function getItemEraById(itemId) {
+    var id = parseInt(itemId, 10);
+    if (isNaN(id)) return 'classic';
+    for (var i = ITEM_ID_ERA_RANGES.length - 1; i >= 0; i--) {
+      var r = ITEM_ID_ERA_RANGES[i];
+      if (id >= r.min && id <= r.max) return r.era;
+    }
+    return 'classic';
+  }
+
+  /**
+   * Check if an item (identified by its numeric ID) is available in the selected era.
+   * Uses ITEM_ID_ERA_RANGES for era detection.
+   * @param {number|string} itemId
+   * @param {string} selectedEraId
+   * @returns {boolean}
+   */
+  function isItemIdAvailableInEra(itemId, selectedEraId) {
+    var itemEra = getItemEraById(itemId);
+    return isAvailableInEra(itemEra, selectedEraId);
+  }
+
   global.EraConfig = {
     ERAS: ERAS,
+    ITEM_ID_ERA_RANGES: ITEM_ID_ERA_RANGES,
     getEra: getEra,
+    getItemEraById: getItemEraById,
     isAvailableInEra: isAvailableInEra,
+    isItemIdAvailableInEra: isItemIdAvailableInEra,
     erasHasAA: erasHasAA,
     eraHasBeastlord: eraHasBeastlord
   };

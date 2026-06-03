@@ -1292,7 +1292,8 @@
    * @param {boolean} [options.innerFlame] - monk only: SE_DamageModifier[185] (+100% base damage) for 12s at a random time in the fight
    * @param {boolean} [options.duelistPermanent] - with duelist: discipline effect for entire fight (unrealistic; UI shift+click)
    * @param {boolean} [options.innerFlamePermanent] - with innerFlame: same (UI shift+click)
-   * @param {string} [options.fistweavingOffhandLabel] - when non-epic fistweaving uses equipped 1H offhand with 2H primary: display name for report
+   * @param {string} [options.fistweavingOffhandLabel] - when non-epic fistweaving or 2H weave uses equipped 1H offhand with 2H primary: display name for report
+   * @param {boolean} [options.twoHandWeave] - warrior/ranger/beastlord: after each mainhand 2H swing, manually weave the equipped 1H offhand weapon (no auto offhand rounds; DA rules follow class: warrior/ranger normal DA, beastlord only via Bestial Frenzy AA)
    */
   function runFight(options) {
     _roundMultUp = !!options.roundMultUp;
@@ -1386,7 +1387,10 @@
     }
     const fistweaveNonEpicOhMode = !!(options.classId === 'monk' && options.fistweaving && options.fistweavingNonEpic && mainHandEquipped && w1.is2H
       && rawOffhandEquipped && !w2.is2H && (options.dualWieldSkill | 0) > 0);
-    const offhandEquipped = rawOffhandEquipped && !fistweaveNonEpicOhMode;
+    const TWO_HAND_WEAVE_CLASSES = ['warrior', 'ranger', 'beastlord'];
+    const twoHandWeaveMode = !!(options.twoHandWeave && TWO_HAND_WEAVE_CLASSES.indexOf((options.classId || '').toLowerCase()) >= 0
+      && mainHandEquipped && w1.is2H && rawOffhandEquipped && !w2.is2H && (options.dualWieldSkill | 0) > 0);
+    const offhandEquipped = rawOffhandEquipped && !fistweaveNonEpicOhMode && !twoHandWeaveMode;
     const hasMainHand = !!mainHandEquipped;
     if (specialType === 'backstab' && options.classId === 'rogue' && canFireSpecial && hasMainHand) {
       const mainHandType = (options.weapon1Type != null ? String(options.weapon1Type) : (w1.type != null ? String(w1.type) : '')).toLowerCase();
@@ -1404,7 +1408,7 @@
     const baseDamageCap = getBaseDamageCap(level, options.classId);
     const cappedW1Damage = hasMainHand ? (baseDamageCap != null ? Math.min(w1.damage, baseDamageCap) : w1.damage) : 0;
     const cappedW2Damage = offhandEquipped ? (baseDamageCap != null ? Math.min(w2.damage, baseDamageCap) : w2.damage) : 0;
-    const cappedFistweaveOhDamage = fistweaveNonEpicOhMode
+    const cappedFistweaveOhDamage = (fistweaveNonEpicOhMode || twoHandWeaveMode)
       ? (baseDamageCap != null ? Math.min(w2.damage, baseDamageCap) : w2.damage)
       : 0;
     const mainHandDamageBonus = hasMainHand ? getDamageBonusClient(level, options.classId, w1.delay, !!w1.is2H) : 0;
@@ -1545,11 +1549,12 @@
           'Round Kick':   { attempts: 0, hits: 0, damage: 0 },
         },
       } : null,
-      fistweaving: (options.classId === 'monk' && hasMainHand && w1.is2H && options.fistweaving) ? {
-        baseDamage: fistweaveNonEpicOhMode ? cappedFistweaveOhDamage : (options.fistweavingNonEpic ? 14 : 9),
-        usesEquippedOffhandWeapon: fistweaveNonEpicOhMode,
-        nonEpicWeaponLabel: fistweaveNonEpicOhMode ? (options.fistweavingOffhandLabel || null) : null,
-        nonEpicWeaponDelayDecisec: fistweaveNonEpicOhMode ? w2.delay : null,
+      fistweaving: ((options.classId === 'monk' && hasMainHand && w1.is2H && options.fistweaving) || twoHandWeaveMode) ? {
+        weaveMode: twoHandWeaveMode ? 'twoHandWeave' : 'fistweave',
+        baseDamage: (fistweaveNonEpicOhMode || twoHandWeaveMode) ? cappedFistweaveOhDamage : (options.fistweavingNonEpic ? 14 : 9),
+        usesEquippedOffhandWeapon: fistweaveNonEpicOhMode || twoHandWeaveMode,
+        nonEpicWeaponLabel: (fistweaveNonEpicOhMode || twoHandWeaveMode) ? (options.fistweavingOffhandLabel || null) : null,
+        nonEpicWeaponDelayDecisec: (fistweaveNonEpicOhMode || twoHandWeaveMode) ? w2.delay : null,
         rounds: 0, swings: 0, hits: 0, totalDamage: 0, maxDamage: 0, single: 0, double: 0, swingThreat: 0,
       } : null,
       classId: options.classId || undefined,
@@ -1732,7 +1737,8 @@
       if (isNaN(v)) return 200;
       return Math.max(0, Math.min(1000, v));
     })();
-    const fistweavingOffhandDelayDecisec = options.fistweavingNonEpic ? 27 : 16; // epic:16, non-epic:27
+    const fistweavingOffhandDelayDecisec = twoHandWeaveMode ? w2.delay
+      : (options.fistweavingNonEpic ? 27 : 16); // twoHandWeave: weapon delay; epic:16, non-epic:27
     const fistweavingOffhandDelayMs = report.fistweaving
       ? effectiveDelayMs(fistweavingOffhandDelayDecisec, effectiveHastePercent)
       : Infinity;
@@ -1919,12 +1925,13 @@
           report.fistweaving.rounds++;
           let fwAttacks = 1;
 
+          const fwUsesOhWeapon = fistweaveNonEpicOhMode || twoHandWeaveMode;
           function processFistweaveSwing() {
-            const threatBase = fistweaveNonEpicOhMode ? cappedFistweaveOhDamage : (options.fistweavingNonEpic ? 14 : 9);
+            const threatBase = fwUsesOhWeapon ? cappedFistweaveOhDamage : (options.fistweavingNonEpic ? 14 : 9);
             if (rollHit(toHit, avoidance, rng, fromBehind)) {
-              const ohElem = fistweaveNonEpicOhMode ? getElementalBaseAdder(w2, options, rng) : 0;
+              const ohElem = fwUsesOhWeapon ? getElementalBaseAdder(w2, options, rng) : 0;
               if (ohElem > 0) report.elementalDamageTotal += ohElem;
-              const phys = fistweaveNonEpicOhMode ? cappedFistweaveOhDamage : (options.fistweavingNonEpic ? 14 : 9);
+              const phys = fwUsesOhWeapon ? cappedFistweaveOhDamage : (options.fistweavingNonEpic ? 14 : 9);
               const fistBase = phys + ohElem;
               let dmg = calcMeleeDamage(fistBase, offenseRating, mitigation, rng, 0);
               const mult = rollDamageMultiplier(offenseRating, dmg, level, options.classId, false, rng);
@@ -1933,7 +1940,7 @@
               const critResult = rollMeleeCrit(dmg, 0, level, options.classId, options.dex, options.critChanceMult, false, false, 0, options.critDmgDebugDmgBonus, rng, furyDmgBonusPct);
               dmg = critResult.damage;
               if (critResult.isCrit) { report.critHits++; report.critDamageGain += (dmg - beforeCrit); }
-              if (fistweaveNonEpicOhMode && w2 && w2.noDamageVsTarget) {
+              if (fwUsesOhWeapon && w2 && w2.noDamageVsTarget) {
                 if (ohElem > 0) report.elementalDamageTotal -= ohElem;
                 dmg = 0;
               }
@@ -1943,17 +1950,25 @@
               report.fistweaving.totalDamage += dmg;
               report.fistweaving.maxDamage = Math.max(report.fistweaving.maxDamage, dmg);
               report.totalDamage += dmg;
-              pushCombatLog(tMs, 'melee', fistweaveNonEpicOhMode ? 'fistweave-oh' : 'fist', fistweaveNonEpicOhMode ? 'weave' : 'punch', true, dmg, { isCrit: critResult.isCrit });
+              const fwSlot = twoHandWeaveMode ? '2hweave' : (fistweaveNonEpicOhMode ? 'fistweave-oh' : 'fist');
+              const fwVerb = fwUsesOhWeapon ? 'weave' : 'punch';
+              pushCombatLog(tMs, 'melee', fwSlot, fwVerb, true, dmg, { isCrit: critResult.isCrit });
             } else {
               report.fistweaving.swings++;
               addSwingThreatFist(threatBase);
-              pushCombatLog(tMs, 'melee', fistweaveNonEpicOhMode ? 'fistweave-oh' : 'fist', fistweaveNonEpicOhMode ? 'weave' : 'punch', false);
+              const fwSlot = twoHandWeaveMode ? '2hweave' : (fistweaveNonEpicOhMode ? 'fistweave-oh' : 'fist');
+              const fwVerb = fwUsesOhWeapon ? 'weave' : 'punch';
+              pushCombatLog(tMs, 'melee', fwSlot, fwVerb, false);
             }
           }
 
           processFistweaveSwing();
 
-          if (checkDoubleAttack(doubleAttackEffective, rng, options.classId)) {
+          // Double attack check: beastlord in 2H weave mode only gets DA via Bestial Frenzy AA
+          const fwDoA = (twoHandWeaveMode && options.classId === 'beastlord')
+            ? (aaFlatDaChance > 0 && rng() < aaFlatDaChance)
+            : checkDoubleAttack(doubleAttackEffective, rng, options.classId);
+          if (fwDoA) {
             fwAttacks = 2;
             processFistweaveSwing();
           }
@@ -2738,7 +2753,8 @@
     }
     if (report.fistweaving && (report.fistweaving.swingThreat || 0) > 0) {
       const fwSt = report.fistweaving.swingThreat || 0;
-      lines.push('  Fistweaving (unarmed swings)');
+      const fwThreatLabel = (report.fistweaving.weaveMode === 'twoHandWeave') ? '2H Weave (equipped secondary)' : 'Fistweaving (unarmed swings)';
+      lines.push('  ' + fwThreatLabel);
       lines.push(padLine('    Swing threat (approx):', String(Math.round(fwSt))));
       lines.push(padLine('    Swing TPS (threat, approx):', dur ? (fwSt / dur).toFixed(2) : '—'));
       lines.push('');
@@ -2920,8 +2936,11 @@
       const wlabel = fw.nonEpicWeaponLabel || 'Offhand weapon';
       const wdly = fw.nonEpicWeaponDelayDecisec != null ? fw.nonEpicWeaponDelayDecisec : '—';
       const wphys = fw.baseDamage != null ? fw.baseDamage : '—';
+      const ohSectionTitle = (fw.weaveMode === 'twoHandWeave')
+        ? '  *** 2H Weave (equipped secondary) ***'
+        : '  *** Non-Epic Fistweaving (equipped secondary) ***';
       lines.push('');
-      lines.push('  *** Non-Epic Fistweaving (equipped secondary) ***');
+      lines.push(ohSectionTitle);
       lines.push('    Weaved attacks use the offhand item\'s damage and delay (no automatic offhand round swings; no offhand procs).');
       lines.push(padLine('    Secondary weapon:', `${wlabel} — ${wphys} damage / ${wdly} delay (decisec)`));
     }
@@ -2940,11 +2959,13 @@
       const fw = report.fistweaving;
       const fwAcc = fw.swings > 0 ? (fw.hits / fw.swings * 100).toFixed(1) : '0';
       const fwDmg = fw.baseDamage != null ? fw.baseDamage : 9;
+      const is2HWeave = fw.weaveMode === 'twoHandWeave';
       const fwTitle = fw.usesEquippedOffhandWeapon
-        ? ('Fistweaving — non-epic, secondary weapon base ' + fwDmg + ' / delay ' + (fw.nonEpicWeaponDelayDecisec != null ? fw.nonEpicWeaponDelayDecisec : '—') + ' (no proc)')
+        ? ((is2HWeave ? '2H Weave' : 'Fistweaving') + ' — secondary weapon base ' + fwDmg + ' / delay ' + (fw.nonEpicWeaponDelayDecisec != null ? fw.nonEpicWeaponDelayDecisec : '—') + ' (no proc)')
         : ('Fistweaving (' + fwDmg + ' dmg, no proc)');
       lines.push('  ' + fwTitle);
-      if (fw.reactionDelayMs != null) lines.push(padLine('    Fistweave reaction delay:', String(fw.reactionDelayMs) + 'ms'));
+      const reactionLabel = is2HWeave ? '    2H Weave reaction delay:' : '    Fistweave reaction delay:';
+      if (fw.reactionDelayMs != null) lines.push(padLine(reactionLabel, String(fw.reactionDelayMs) + 'ms'));
       if (fw.mainhandSwingDelayMs != null) lines.push(padLine('    Mainhand swing timer:', String(Number(fw.mainhandSwingDelayMs).toFixed(0)) + 'ms'));
       if (fw.offhandSwingDelayMs != null) {
         const msStr = (Number.isFinite(Number(fw.offhandSwingDelayMs)) ? Number(fw.offhandSwingDelayMs).toFixed(0) : String(fw.offhandSwingDelayMs));

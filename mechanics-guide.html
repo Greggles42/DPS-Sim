@@ -524,6 +524,27 @@
     </div>
 
     <div class="card">
+      <h2>7.10) 2H Weave (Warrior / Ranger / Beastlord)</h2>
+      <p>
+        Warriors, Rangers, and Beastlords can optionally "weave" an offhand 1H weapon alongside a two-handed primary.
+        Enable this by checking <strong>2H Weave</strong> in the weapon section and equipping a 1H weapon in the offhand slot.
+      </p>
+      <p>
+        After every main-hand 2H swing, the sim makes one offhand swing attempt using the equipped 1H weapon.
+        The offhand attempt goes through a normal dual-wield round check (based on your dual-wield skill), then a full hit/miss
+        resolution using the 1H weapon's stats. No main-hand damage bonus applies to the weaved offhand swing.
+      </p>
+      <p>
+        This is identical in structure to the Monk non-epic fistweave — it uses the same weave-mode code path in the engine,
+        just with a 1H weapon in place of fists.
+      </p>
+      <p class="muted">
+        The offhand weapon must be a 1H weapon type (not a 2H or bow). The dual-wield skill field must be non-zero.
+        If either condition is unmet, 2H Weave has no effect.
+      </p>
+    </div>
+
+    <div class="card">
       <h2>8) Elemental Damage on Weapons</h2>
       <p>
         Elemental weapon damage is treated as an extra base-damage adder before the melee damage roll.
