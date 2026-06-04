@@ -1722,8 +1722,9 @@
     if (report.special && specialConfig && specialConfig.fromBehindOnly && options.classId === 'rogue') {
       const bsSkill = options.backstabSkill != null ? options.backstabSkill : 225;
       const bsModPct = options.backstabModPercent || 0;
-      report.special.backstabToHit = 7 + OFFENSE_SKILL + bsSkill;
-      report.special.effectiveBackstabSkillReport = Math.min(252, Math.floor(bsSkill * (100 + bsModPct) / 100));
+      const bsEffectiveSkill = Math.min(252, Math.floor(bsSkill * (100 + bsModPct) / 100));
+      report.special.backstabToHit = 7 + OFFENSE_SKILL + bsEffectiveSkill;
+      report.special.effectiveBackstabSkillReport = bsEffectiveSkill;
     }
     let nextSwing1Ms = hasMainHand ? 0 : Infinity;
     let nextSwing2Ms = dualWielding && offhandEquipped ? rng() * delay2Ms : Infinity;
@@ -1774,8 +1775,9 @@
         const isRogueBackstab = specialConfig.fromBehindOnly === true;
         const backstabSkill = options.backstabSkill != null ? options.backstabSkill : 225;
         const backstabModPct = options.backstabModPercent || 0;
-        // EQMacEmu GetToHit(skill): toHit = 7 + Offense SKILL + skill (Backstab for backstab). Use raw backstab skill, not modded.
-        const backstabToHit = isRogueBackstab ? (7 + OFFENSE_SKILL + backstabSkill) : toHit;
+        const backstabEffectiveSkill = Math.min(252, Math.floor(backstabSkill * (100 + backstabModPct) / 100));
+        // GetToHit(skill): toHit = 7 + Offense SKILL + effective backstab skill (weapon mod applied, capped at 252).
+        const backstabToHit = isRogueBackstab ? (7 + OFFENSE_SKILL + backstabEffectiveSkill) : toHit;
 
         // Backstab: do double attack check first. If it fails → single backstab (one to-hit roll). If it succeeds → double backstab (normal + bonus attempt, two to-hit rolls).
         const isDoubleBackstabRound = isRogueBackstab && options.classId === 'rogue' && level > 54 && report.special.doubleBackstabs !== undefined && checkDoubleAttack(doubleAttackEffective, rng, options.classId);
@@ -1800,10 +1802,9 @@
           // specialOffenseRating: for backstab, server GetOffense(SkillBackstab) uses backstab skill — not the normal offense/weapon skill.
           let specialOffenseRating = offenseRating;
           if (isRogueBackstab) {
-            const effectiveSkill = Math.min(252, Math.floor(backstabSkill * (100 + backstabModPct) / 100));
-            const backstabOffenseRating = effectiveSkill + strBonus + wornAttack + spellAttack;
+            const backstabOffenseRating = backstabEffectiveSkill + strBonus + wornAttack + spellAttack;
             specialOffenseRating = backstabOffenseRating;
-            const backstabBaseRaw = Math.floor(((effectiveSkill * 0.02) + 2) * cappedW1Damage) + specElemAdder;
+            const backstabBaseRaw = Math.floor(((backstabEffectiveSkill * 0.02) + 2) * cappedW1Damage) + specElemAdder;
             duelistBackstabRound = disciplineDuelistActive(tMs);
             backstabDisciplineMinHit = getDisciplineMinHit(backstabBaseRaw, 0, duelistBackstabRound);
             let backstabBase = applyDisciplineDamageMod(backstabBaseRaw, duelistBackstabRound);

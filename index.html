@@ -2340,6 +2340,7 @@
       <div class="weapon-damage-row">
         <div><label for="w1-damage" class="small-label">Damage</label><input type="number" id="w1-damage" min="0" value="12" placeholder="0 = unequipped"></div>
         <div><label for="w1-delay" class="small-label">Delay (decisec)</label><input type="number" id="w1-delay" min="0" value="40" placeholder="0 = unequipped, 40 = 4.0s"></div>
+        <div id="w1-custom-type-wrap"><label for="w1-custom-type" class="small-label">Type</label><select id="w1-custom-type"><option value="">—</option><option value="1hb">1HB</option><option value="1hs">1HS</option><option value="1hp">1HP</option><option value="2hb">2HB</option><option value="2hs">2HS</option><option value="2hp">2HP</option><option value="h2h">H2H</option></select></div>
       </div>
       <p class="hint">Delay in tenths of a second (40 = 4.0s, 25 = 2.5s).</p>
       <details class="collapse-secondary">
@@ -2397,6 +2398,7 @@
       <div class="weapon-damage-row">
         <div><label for="w2-damage" class="small-label">Damage</label><input type="number" id="w2-damage" min="0" value="0" placeholder="0 = no offhand"></div>
         <div><label for="w2-delay" class="small-label">Delay (decisec)</label><input type="number" id="w2-delay" min="0" value="0" placeholder="0"></div>
+        <div id="w2-custom-type-wrap"><label for="w2-custom-type" class="small-label">Type</label><select id="w2-custom-type"><option value="">—</option><option value="1hb">1HB</option><option value="1hs">1HS</option><option value="1hp">1HP</option><option value="2hb">2HB</option><option value="2hs">2HS</option><option value="2hp">2HP</option><option value="h2h">H2H</option></select></div>
       </div>
       <p class="hint">Delay in tenths of a second (40 = 4.0s, 25 = 2.5s)</p>
       <details class="collapse-secondary">
@@ -2859,6 +2861,7 @@
   <section class="advanced-only" style="margin-top: 1rem;">
     <h2>Version log</h2>
     <ul style="font-size: 0.9rem; color: var(--muted); margin: 0; padding-left: 1.25rem;">
+      <li><strong>1.30</strong> — Fix backstab to-hit using raw weapon skill instead of the weapon-mod-adjusted value: <code>backstabToHit = 7 + OffenseSkill + min(252, floor(baseSkill × (100 + mod%) / 100))</code> — weapons with a backstab % modifier (e.g. Bloodbath +12%, Khalshazar +15%) now correctly cap at 252, equalising their to-hit contribution. Advanced mode custom weapons now show a weapon-type selector (1HB / 1HS / 1HP / 2HB / 2HS / 2HP / H2H) next to the damage/delay fields; hidden when a weapon is loaded from item search. Rank Weapons bane fix: low-base-damage bane weapons (e.g. Trident of Slaughter: 1 base + 16 bane) were silently dropped by the damage/delay ratio filter before bane was ever evaluated — they now bypass that filter when their bane race or body type matches the selected target, and bane damage is correctly added during simulation. Additionally fixed a false-positive bane match where weapons with <code>baneDamageBody = 0</code> (no body bane) were incorrectly treated as having a body bane. Worn ATK cap: combined gear + weapon worn attack bonus is now capped at 250 in both the regular sim and the Rank Weapons engine.</li>
       <li><strong>1.29</strong> — BIS Advisor preset tooltip bubbles now appear below the button instead of above, so they are not clipped by the modal header.</li>
       <li><strong>1.28</strong> — BIS Advisor: added Custom Weights mode — click the new "Custom" button to replace the priority-order list with a direct numeric weight input per stat (e.g. ATK=10, STR=5). Custom weights use proportional scoring instead of the tier-based priority system. Mode and weights persist to localStorage. Added hover tooltip bubbles on all preset buttons (Melee DPS, Tank, Caster, Ranged) showing the stat priority order and which stats are on/off for that preset.</li>
       <li><strong>1.27</strong> — Fix Punishing Blade, Speed of the Knight, Raging Flurry, Knight's Advantage, Tactical Mastery, Soul Abrasion, and Two-Hand Bash AAs: these PoP abilities were built by the AA option builder but never forwarded into the sim options, so they had no effect. All seven are now correctly passed to the sim. Fix attack distribution report: Flurry, Raging Flurry, Punishing Blade, and Speed of the Knight proc counts were missing from the multi-run averaged report object, so those lines never appeared. Flurry and Raging Flurry now appear as sub-lines under Triple attacks; Punishing Blade and Speed of the Knight appear as top-level lines. Mechanics guide: added Punishing Blade AA description (War/Rng/Monk, PoP; 2%/4%/8% chance after double attack, 2H required); corrected Flurry description (fires after triple attack succeeds, not independently).</li>
@@ -3316,7 +3319,7 @@
       }
 
       // When releasing: 1) Bump VERSION below. 2) Add a new <li> at the top of the Version log section above.
-      const VERSION = '1.29';
+      const VERSION = '1.30';
       const versionEl = $('app-version');
       if (versionEl) versionEl.textContent = 'v' + VERSION;
 
@@ -4132,6 +4135,7 @@
           w2WornAttackBonus = p2WornAtk > 0 ? p2WornAtk : null;
           if (id === 'unequipped') { w2DisplayName = ''; if (typeof updateItemSearchDebug === 'function') updateItemSearchDebug('W2', null); }
         }
+        updateCustomTypeVisibility(prefix);
         if (p) {
           $(prefix + '-damage').value = p.damage;
           $(prefix + '-delay').value = p.delay;
@@ -4221,6 +4225,7 @@
         t = w1DisplayName; w1DisplayName = w2DisplayName; w2DisplayName = t;
         t = w1FromItemSearch; w1FromItemSearch = w2FromItemSearch; w2FromItemSearch = t;
         t = w1WeaponType; w1WeaponType = w2WeaponType; w2WeaponType = t;
+        updateCustomTypeVisibility('w1'); updateCustomTypeVisibility('w2');
         t = w1BackstabModPercent; w1BackstabModPercent = w2BackstabModPercent; w2BackstabModPercent = t;
         t = w1TwoHsSkillMod; w1TwoHsSkillMod = w2TwoHsSkillMod; w2TwoHsSkillMod = t;
         t = w1WornAttackBonus; w1WornAttackBonus = w2WornAttackBonus; w2WornAttackBonus = t;
@@ -5003,7 +5008,7 @@
           weapon1Type: w1WeaponType || undefined,
           hastePercent,
           offenseSkill,
-          wornAttack: (wornAttack || 0) + equippedWornAttackBonus,
+          wornAttack: Math.min(250, (wornAttack || 0) + equippedWornAttackBonus),
           spellAttack,
           toHitBonus,
           ambidexterity: aaOpts.ambidexterity,
@@ -6046,7 +6051,7 @@
           var baseWorn = (baseOptions.wornAttack != null && !isNaN(Number(baseOptions.wornAttack))) ? Number(baseOptions.wornAttack) : 0;
           var w1 = (norm1 != null ? getWornAttackBonusForNorm(norm1) : 0) || 0;
           var w2 = (norm2 != null ? getWornAttackBonusForNorm(norm2) : 0) || 0;
-          var wornAttack = baseWorn + w1 + w2;
+          var wornAttack = Math.min(250, baseWorn + w1 + w2);
           var bs1 = (norm1 != null && classId === 'rogue') ? getBackstabModPercentForNorm(norm1) : 0;
           var bs2 = (norm2 != null && classId === 'rogue') ? getBackstabModPercentForNorm(norm2) : 0;
           /* For rogue: use the greater of the two weapons' backstab mods (or 0); sim applies this to rankBaseBackstabSkill. */
@@ -6118,8 +6123,8 @@
             }
             return;
           }
-          var raceMatch = targetRaceForBane != null && norm.baneDamageRace != null && norm.baneDamageRace === targetRaceForBane && (norm.baneDamage || 0) > 0;
-          var bodyMatch = targetBodyTypeForBane != null && norm.baneDamageBody != null && norm.baneDamageBody === targetBodyTypeForBane && (norm.baneDamage || 0) > 0;
+          var raceMatch = targetRaceForBane != null && (norm.baneDamageRace || 0) > 0 && norm.baneDamageRace === targetRaceForBane && (norm.baneDamage || 0) > 0;
+          var bodyMatch = targetBodyTypeForBane != null && (norm.baneDamageBody || 0) > 0 && norm.baneDamageBody === targetBodyTypeForBane && (norm.baneDamage || 0) > 0;
           if (raceMatch || bodyMatch) {
             if (norm.baneDamage) weaponObj.damage += norm.baneDamage;
           }
@@ -6152,12 +6157,32 @@
         }
         var rankWeaponMap = {};
         var allIds = [];
+        // Returns true if a raw item has bane damage matching the current rank target (race or body type).
+        // Used to bypass the damage/delay ratio filter for low-base-damage bane weapons (e.g. Trident of Slaughter).
+        function rawItemMatchesBaneTarget(raw) {
+          if (!raw) return false;
+          var bane = parseInt(raw.banedmgamt || raw.baneDmgAmt || raw.baneDamage || raw.bane || 0, 10);
+          if (!(bane > 0)) return false;
+          var baneRace = parseInt(raw.baneDamageRace || raw.banedmgrace || raw.baneDmgRace || 0, 10);
+          var baneBody = parseInt(raw.baneDamageBody || raw.banedmgbody || 0, 10);
+          if (targetRaceForBane != null && baneRace > 0 && baneRace === targetRaceForBane) return true;
+          if (targetBodyTypeForBane != null && baneBody > 0 && baneBody === targetBodyTypeForBane) return true;
+          if (isRankBaneOnlyTarget) {
+            var req = RANK_BANE_ONLY_TARGETS[rankTargetNpcId];
+            var reqs = Array.isArray(req) ? req : [req];
+            return reqs.some(function (r) {
+              return (r.type === 'race' && baneRace > 0 && baneRace === r.value) ||
+                     (r.type === 'body' && baneBody > 0 && baneBody === r.value);
+            });
+          }
+          return false;
+        }
         function addToRankMap(source) {
           Object.keys(source).forEach(function (id) {
             if (rankWeaponMap[id]) return;
             var raw = source[id];
             if (!raw || raw.damage < 1 || raw.delay < 1) return;
-            if (typeof weaponMeetsRankDamageDelayRatio === 'function' && !weaponMeetsRankDamageDelayRatio(raw)) return;
+            if (!rawItemMatchesBaneTarget(raw) && typeof weaponMeetsRankDamageDelayRatio === 'function' && !weaponMeetsRankDamageDelayRatio(raw)) return;
             if (typeof weaponAllowedForRank === 'function' && !weaponAllowedForRank(id, raw, includePop)) return;
             var itemName = raw.Name != null ? String(raw.Name).trim().toLowerCase() : '';
             if (itemName === 'fist of steel' || itemName === 'dagger of the disciple') return;
@@ -8952,8 +8977,22 @@
       updateWeaponNameDisplay('w1');
       updateWeaponNameDisplay('w2');
       updateWeapon2Disabled();
+      function syncCustomTypeSelect(prefix) {
+        var el = $(prefix + '-custom-type');
+        if (!el) return;
+        var currentType = (prefix === 'w1' ? w1WeaponType : w2WeaponType) || '';
+        el.value = currentType.toLowerCase();
+        if (el.value !== currentType.toLowerCase()) el.value = '';
+      }
+      function updateCustomTypeVisibility(prefix) {
+        var wrap = $(prefix + '-custom-type-wrap');
+        var fromSearch = (prefix === 'w1') ? w1FromItemSearch : w2FromItemSearch;
+        if (wrap) wrap.style.display = fromSearch ? 'none' : '';
+        syncCustomTypeSelect(prefix);
+      }
       function clearItemSearchOnManualEdit(prefix) {
         if (prefix === 'w1') { w1FromItemSearch = false; } else { w2FromItemSearch = false; }
+        updateCustomTypeVisibility(prefix);
         refreshWornAttackFromCurrentWeapons();
         refreshBackstabModsFromCurrentWeapons();
         refreshTwoHsSkillModsFromCurrentWeapons();
@@ -8961,6 +9000,12 @@
       }
       [$('w1-damage'), $('w1-delay')].forEach(function (el) { if (el) el.addEventListener('input', function () { clearItemSearchOnManualEdit('w1'); updateWeaponNameDisplay('w1'); updateWeaponNameDisplay('w2'); }); });
       [$('w2-damage'), $('w2-delay')].forEach(function (el) { if (el) el.addEventListener('input', function () { clearItemSearchOnManualEdit('w2'); updateWeaponNameDisplay('w2'); updateWeaponNameDisplay('w1'); }); });
+      (function () {
+        var ct1 = $('w1-custom-type');
+        if (ct1) ct1.addEventListener('change', function () { w1WeaponType = this.value || null; updateWeaponSkillInputs(); updateWeaponNameDisplay('w1'); });
+        var ct2 = $('w2-custom-type');
+        if (ct2) ct2.addEventListener('change', function () { w2WeaponType = this.value || null; updateWeaponSkillInputs(); updateWeaponNameDisplay('w2'); });
+      })();
       [$('w1-bane-body'), $('w1-bane-race')].forEach(function (el) { if (el) { el.addEventListener('input', function () { updateBaneLabels('w1'); }); el.addEventListener('change', function () { updateBaneLabels('w1'); }); } });
       [$('w2-bane-body'), $('w2-bane-race')].forEach(function (el) { if (el) { el.addEventListener('input', function () { updateBaneLabels('w2'); }); el.addEventListener('change', function () { updateBaneLabels('w2'); }); } });
       function onWeaponIconClick(prefix) {
@@ -9314,6 +9359,7 @@
           w2FromItemSearch = true;
           w2WeaponType = normType;
         }
+        updateCustomTypeVisibility(prefix);
         refreshWornAttackFromCurrentWeapons();
         updateWeaponNameDisplay(prefix);
         updateWeaponSkillInputs();
