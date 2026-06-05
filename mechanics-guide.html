@@ -528,23 +528,33 @@
     </div>
 
     <div class="card">
-      <h2>7.10) 2H Weave (Warrior / Ranger / Beastlord)</h2>
+      <h2>7.10) 2H Weave / Monk Non-Epic Fistweave (Equipped Offhand)</h2>
       <p>
-        Warriors, Rangers, and Beastlords can optionally "weave" an offhand 1H weapon alongside a two-handed primary.
-        Enable this by checking <strong>2H Weave</strong> in the weapon section and equipping a 1H weapon in the offhand slot.
+        Warriors, Rangers, and Beastlords can "weave" a 1H offhand weapon alongside a two-handed primary by enabling
+        <strong>2H Weave</strong>. Monks using a 2H weapon with a 1H weapon in the offhand slot and Non-Epic Fistweave
+        checked use the same mechanic. In both cases, every mainhand round produces one weave opportunity.
       </p>
       <p>
-        After every main-hand 2H swing, the sim makes one offhand swing attempt using the equipped 1H weapon.
-        The offhand attempt goes through a normal dual-wield round check (based on your dual-wield skill), then a full hit/miss
-        resolution using the 1H weapon's stats. No main-hand damage bonus applies to the weaved offhand swing.
+        Each weave opportunity resolves as follows:
+      </p>
+      <ol>
+        <li><strong>Reaction delay</strong> — the weave is attempted a configurable number of milliseconds after the mainhand swing (default 200ms), representing player reaction time.</li>
+        <li><strong>Offhand cooldown check</strong> — the offhand weapon has its own independent swing timer equal to its delay divided by haste. If the offhand is still on cooldown at weave time, the attempt is skipped (counted as "offhand not ready").</li>
+        <li><strong>Dual wield check</strong> — a standard DW check is made (<code>dualWieldEffective &gt; random(0, 374)</code>). Every DW roll counts as one <strong>weave attempt</strong>. Failures are counted separately.</li>
+        <li><strong>Attack resolution</strong> — DW successes execute the swing: hit/miss, damage, double attack, and crits resolve normally using the offhand weapon's stats. These count as <strong>Rounds (DW check passed)</strong>.</li>
+      </ol>
+      <p>
+        The offhand cooldown uses the equipped weapon's actual delay (subject to haste), not any fist-punch delay.
+        As long as the offhand weapon's delay is &le; the mainhand weapon's delay, the offhand will always be ready
+        for the next weave attempt and the only gating factor is the dual wield check.
       </p>
       <p>
-        This is identical in structure to the Monk non-epic fistweave — it uses the same weave-mode code path in the engine,
-        just with a 1H weapon in place of fists.
+        The sim report shows: <em>Weave attempts</em> (DW rolls made), <em>Blocked by dual wield check</em> (DW failures),
+        and <em>Rounds (DW check passed)</em> (swings that actually executed).
       </p>
       <p class="muted">
-        The offhand weapon must be a 1H weapon type (not a 2H or bow). The dual-wield skill field must be non-zero.
-        If either condition is unmet, 2H Weave has no effect.
+        The offhand weapon must be a 1H type. The dual-wield skill field must be non-zero.
+        Ambidexterity AA adds +32 to effective dual wield skill, increasing weave success rate.
       </p>
     </div>
 
@@ -1030,6 +1040,78 @@
       </table>
       <p>
         In <strong>buildAASimOptions</strong>, each AA value is gated by both era availability and class eligibility. An AA that is out-of-era or not available to the selected class returns 0 regardless of the configurator setting.
+      </p>
+    </div>
+
+    <div class="card">
+      <h2>18) Rank Weapons — How It Works</h2>
+      <p>
+        Rank Weapons evaluates every eligible weapon in the database against your current character settings and produces a ranked list of the best mainhand, offhand, and combination options. It runs in four sequential phases, each feeding results into the next.
+      </p>
+
+      <h3>18.1) Setup — Building the weapon pool</h3>
+      <p>
+        Before any simulations run, all weapons in the database are filtered down to a candidate pool. A weapon is included only if it passes every check:
+      </p>
+      <ul>
+        <li>Base damage ≥ 1 and delay ≥ 1.</li>
+        <li>Damage/delay ratio ≥ 0.5 (removes ceremonial junk) — <em>unless</em> the weapon has bane damage matching the selected target's race or body type (so low-base bane weapons like Trident of Slaughter are never excluded when relevant).</li>
+        <li>Allowed by the era filter (Luclin vs. PoP toggle).</li>
+        <li>Equippable by your class (class bitmask).</li>
+        <li>Your class has a non-zero weapon skill cap for the weapon's type.</li>
+        <li>Does not exceed your character level's required level.</li>
+        <li>Not usable by no races (races = 0).</li>
+        <li>Not excluded by the No Drop filter (if enabled).</li>
+      </ul>
+      <p>
+        Surviving weapons are split into a <strong>primary list</strong> (can equip in mainhand) and a <strong>secondary list</strong> (1H types that can go in the offhand). Every valid mainhand+offhand pair — including 2H solo, and 2H+offhand for Monk fistweave and 2H Weave classes — is pre-built as a combinations list. For bane-only targets (Seru, Emperor Ssraeshza), any combination where neither weapon has the required bane is removed immediately.
+      </p>
+      <p>
+        All of your current character settings (haste, STR, DEX, worn ATK, spell ATK, offense skill, target AC/level/resists, fight duration, all AAs, disc flags, backstab skill, etc.) are captured into a shared base configuration that every simulation in every phase will use.
+      </p>
+
+      <h3>18.2) Phase 1 — Mainhand solo</h3>
+      <p>
+        Every weapon on the primary list is simulated <strong>alone in the mainhand with no offhand</strong> — a full fight simulation using the correct weapon skill cap, worn ATK contribution from that weapon, backstab modifier from that weapon (rogues), and bane damage applied if the target matches. The result is a raw DPS (and TPS) number for each weapon as a solo mainhand.
+      </p>
+      <p>
+        Simulations run in small chunks per animation frame so the page stays responsive. At the end of Phase 1, the top 10 mainhand weapons are saved for the phase breakdown panel.
+      </p>
+
+      <h3>18.3) Phase 2 — Offhand solo</h3>
+      <p>
+        Every weapon on the secondary list is simulated <strong>alone in the offhand with no mainhand</strong>. For Monk non-epic fistweave and 2H Weave (Warrior/Ranger/Beastlord), the offhand is instead paired with the best 2H weapon found in Phase 1 as a reference primary — this captures the correct combined swing contribution for those mechanics rather than attributing all output to the offhand alone.
+      </p>
+      <p>
+        At the end of Phase 2, the top 10 offhand weapons are saved. Then <strong>coarse combination scores</strong> are computed for every pair by simply adding the individual mainhand DPS + offhand DPS scores from the solo phases. This is an approximation (it ignores dual-wield interaction effects) but it is fast and sufficient to identify the top 500 candidates to carry forward.
+      </p>
+
+      <h3>18.4) Phase 3 — Combination sims (top 500)</h3>
+      <p>
+        The top 500 coarse-ranked combinations are each run through a <strong>full joint simulation</strong> — both weapons together in a single fight. This captures real dual-wield interaction: the actual dual-wield offhand proc rate, shared proc behavior, mainhand/offhand damage split as tracked by the sim, and correct worn ATK combining both weapons (capped at 250). Bane damage is applied per weapon independently. Any combination where neither weapon has bane on a bane-only target does 0 damage and scores 0.
+      </p>
+      <p>
+        Any combinations outside the top 500 keep their coarse additive estimate and are still shown in the final results — they just have lower confidence scores.
+      </p>
+
+      <h3>18.5) Phase 4 — Top 40 averaging</h3>
+      <p>
+        After Phase 3, all combinations are sorted and the top 40 are <strong>re-simulated N times</strong> (N = the Runs setting, default 20) with different random seeds. The results are averaged. This smooths out RNG variance from proc crits, dual-wield rolls, and backstab rolls, so the final ordering reflects expected performance rather than a single lucky run. The averaged DPS/TPS replaces the single-run Phase 3 score for each of those 40 entries.
+      </p>
+
+      <h3>18.6) Output and view modes</h3>
+      <p>
+        The final results are sorted by total DPS (or TPS if that toggle is on) and displayed in two view modes:
+      </p>
+      <ul>
+        <li><strong>Combinations view:</strong> top 400 combinations ranked as mainhand+offhand pairs with per-slot DPS columns. The top 40 have averaged numbers; ranks 41–500 have single-run Phase 3 numbers; beyond 500 are coarse estimates.</li>
+        <li><strong>Slot view:</strong> three separate tables — Best 1H Mainhand, Best Offhand, Best 2H Mainhand — each ranking individual weapons by their solo phase score. Use this when you want to evaluate one slot in isolation rather than pairings.</li>
+      </ul>
+      <p>
+        A bar chart shows the top 40 combinations relative to #1 (100% = BIS). A phase breakdown panel (expandable) shows the top 10 from each phase so you can see how rankings evolved through the pipeline.
+      </p>
+      <p>
+        Weapon labels annotate worn ATK bonuses (<code>[ATK+N]</code>) and backstab modifiers (<code>[BS+N%]</code>) directly in the combination name so you can see at a glance which items are contributing stat bonuses beyond raw damage.
       </p>
     </div>
 

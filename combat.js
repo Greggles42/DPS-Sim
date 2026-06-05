@@ -1557,7 +1557,7 @@
         usesEquippedOffhandWeapon: fistweaveNonEpicOhMode || twoHandWeaveMode,
         nonEpicWeaponLabel: (fistweaveNonEpicOhMode || twoHandWeaveMode) ? (options.fistweavingOffhandLabel || null) : null,
         nonEpicWeaponDelayDecisec: (fistweaveNonEpicOhMode || twoHandWeaveMode) ? w2.delay : null,
-        rounds: 0, swings: 0, hits: 0, totalDamage: 0, maxDamage: 0, single: 0, double: 0, swingThreat: 0,
+        rounds: 0, attempts: 0, dwFailed: 0, swings: 0, hits: 0, totalDamage: 0, maxDamage: 0, single: 0, double: 0, swingThreat: 0,
       } : null,
       classId: options.classId || undefined,
     };
@@ -1731,30 +1731,26 @@
     let nextSpecialAtMs = (canFireSpecial && report.special) ? 0 : Infinity;
     let mainHandRoundCounter = 0;
     let offhandRoundCounter = 0;
-    // Monk fistweaving: reaction delay (human timing) + normal offhand swing cooldown gating.
-      // We arm the attempted weaved strike based on the mainhand swing timer (hit/miss irrelevant),
-      // then the weaved strike only executes if the weaved offhand timer is already ready.
-      // If another mainhand swing happens before the armed weaved attempt time, we discard/clip it.
+    // Monk fistweaving / 2H weave: every mainhand round, attempt a weave after reaction delay.
+      // The weave is gated on: (1) offhand cooldown ready at weave time, (2) dual wield check.
+      // Each DW check is one "weave attempt"; successes are "rounds".
     const fistweavingReactionDelayMs = (() => {
       const v = options.fistweavingReactionDelayMs != null ? parseInt(options.fistweavingReactionDelayMs, 10) : 200;
       if (isNaN(v)) return 200;
       return Math.max(0, Math.min(1000, v));
     })();
-    const fistweavingOffhandDelayDecisec = twoHandWeaveMode ? w2.delay
-      : (options.fistweavingNonEpic ? 27 : 16); // twoHandWeave: weapon delay; epic:16, non-epic:27
+    const fistweavingOffhandDelayDecisec = (twoHandWeaveMode || fistweaveNonEpicOhMode) ? w2.delay
+      : (options.fistweavingNonEpic ? 27 : 16); // equipped weapon: use weapon delay; bare fists: epic=16, non-epic=27
     const fistweavingOffhandDelayMs = report.fistweaving
       ? effectiveDelayMs(fistweavingOffhandDelayDecisec, effectiveHastePercent)
       : Infinity;
-    let fistweavingAttemptAtMs = Infinity; // armed time for the next weaved strike attempt
-    let fistweavingOffhandReadyAtMs = 0; // offhand cooldown completion time for the next weaved attempt
-    let fistweavingClippedDueToMainhand = 0;
+    let fistweavingOffhandReadyAtMs = 0; // offhand cooldown completion time
     let fistweavingClippedDueToOffhandNotReady = 0;
     if (report.fistweaving) {
       report.fistweaving.reactionDelayMs = fistweavingReactionDelayMs;
       report.fistweaving.offhandSwingDelayMs = fistweavingOffhandDelayMs;
       report.fistweaving.offhandSwingDelayDecisec = fistweavingOffhandDelayDecisec;
       report.fistweaving.mainhandSwingDelayMs = delay1Ms;
-      report.fistweaving.clippedDueToMainhand = 0;
       report.fistweaving.clippedDueToOffhandNotReady = 0;
     }
 
@@ -1764,7 +1760,6 @@
         nextSpecialAtMs,
         nextSwing1Ms,
         dualWielding ? nextSwing2Ms : Infinity,
-        fistweavingAttemptAtMs,
         durationMs
       );
       if (tMs >= durationMs) break;
@@ -1910,80 +1905,6 @@
         }
 
         nextSpecialAtMs = tMs + specialCooldownMs;
-      }
-
-      // Fistweaving attempted strike (monk 2H): reaction delay + offhand cooldown gating
-      if (report.fistweaving && tMs >= fistweavingAttemptAtMs) {
-        // Always clear the armed attempt when its scheduled time arrives.
-        const attemptTimeMs = tMs;
-        fistweavingAttemptAtMs = Infinity;
-
-        if (attemptTimeMs >= fistweavingOffhandReadyAtMs) {
-          // Offhand cooldown is ready; now gate on dual-wield skill check (same as regular offhand).
-          // Cooldown advances regardless of the DW check outcome.
-          fistweavingOffhandReadyAtMs = tMs + fistweavingOffhandDelayMs;
-          if (!checkDualWield(dualWieldEffective, rng)) {
-            // DW check failed — no swing this attempt.
-          } else {
-          report.fistweaving.rounds++;
-          let fwAttacks = 1;
-
-          const fwUsesOhWeapon = fistweaveNonEpicOhMode || twoHandWeaveMode;
-          function processFistweaveSwing() {
-            const threatBase = fwUsesOhWeapon ? cappedFistweaveOhDamage : (options.fistweavingNonEpic ? 14 : 9);
-            if (rollHit(toHit, avoidance, rng, fromBehind)) {
-              const ohElem = fwUsesOhWeapon ? getElementalBaseAdder(w2, options, elemRng) : 0;
-              if (ohElem > 0) report.elementalDamageTotal += ohElem;
-              const phys = fwUsesOhWeapon ? cappedFistweaveOhDamage : (options.fistweavingNonEpic ? 14 : 9);
-              const fistBase = phys + ohElem;
-              let dmg = calcMeleeDamage(fistBase, offenseRating, mitigation, rng, 0);
-              const mult = rollDamageMultiplier(offenseRating, dmg, level, options.classId, false, rng);
-              dmg = mult.damage;
-              const beforeCrit = dmg;
-              const critResult = rollMeleeCrit(dmg, 0, level, options.classId, options.dex, options.critChanceMult, false, false, 0, options.critDmgDebugDmgBonus, rng, furyDmgBonusPct);
-              dmg = critResult.damage;
-              if (critResult.isCrit) { report.critHits++; report.critDamageGain += (dmg - beforeCrit); }
-              if (fwUsesOhWeapon && w2 && w2.noDamageVsTarget) {
-                if (ohElem > 0) report.elementalDamageTotal -= ohElem;
-                dmg = 0;
-              }
-              report.fistweaving.swings++;
-              addSwingThreatFist(threatBase);
-              report.fistweaving.hits++;
-              report.fistweaving.totalDamage += dmg;
-              report.fistweaving.maxDamage = Math.max(report.fistweaving.maxDamage, dmg);
-              report.totalDamage += dmg;
-              const fwSlot = twoHandWeaveMode ? '2hweave' : (fistweaveNonEpicOhMode ? 'fistweave-oh' : 'fist');
-              const fwVerb = fwUsesOhWeapon ? 'weave' : 'punch';
-              pushCombatLog(tMs, 'melee', fwSlot, fwVerb, true, dmg, { isCrit: critResult.isCrit });
-            } else {
-              report.fistweaving.swings++;
-              addSwingThreatFist(threatBase);
-              const fwSlot = twoHandWeaveMode ? '2hweave' : (fistweaveNonEpicOhMode ? 'fistweave-oh' : 'fist');
-              const fwVerb = fwUsesOhWeapon ? 'weave' : 'punch';
-              pushCombatLog(tMs, 'melee', fwSlot, fwVerb, false);
-            }
-          }
-
-          processFistweaveSwing();
-
-          // Double attack check: beastlord in 2H weave mode only gets DA via Bestial Frenzy AA
-          const fwDoA = (twoHandWeaveMode && options.classId === 'beastlord')
-            ? (aaFlatDaChance > 0 && rng() < aaFlatDaChance)
-            : checkDoubleAttack(doubleAttackEffective, rng, options.classId);
-          if (fwDoA) {
-            fwAttacks = 2;
-            processFistweaveSwing();
-          }
-
-          if (fwAttacks === 1) report.fistweaving.single++;
-          else report.fistweaving.double++;
-          } // end checkDualWield
-        } else {
-          // Weaved attempt time arrived, but offhand cooldown isn't ready yet.
-          fistweavingClippedDueToOffhandNotReady++;
-          if (report.fistweaving) report.fistweaving.clippedDueToOffhandNotReady = fistweavingClippedDueToOffhandNotReady;
-        }
       }
 
       // Main hand (one round = one swing opportunity; 1, 2, or 3 attacks per round)
@@ -2385,15 +2306,72 @@
         if (attacksThisRound === 1) report.weapon1.single++;
         else if (attacksThisRound === 2) report.weapon1.double++;
         else report.weapon1.triple++;
-        // Arm a weaved strike for this mainhand swing at (mainhandSwingTime + reactionDelayMs).
-        // If another mainhand swing happens before the previously-armed weaved attempt time,
-        // discard/clip the pending attempt and re-arm from the new mainhand swing.
+
+        // Weave attempt: every mainhand round triggers one weave opportunity.
+        // Gate (1): offhand cooldown must be up at weave time (tMs + reactionDelay).
+        // Gate (2): dual wield check — every DW roll is one "weave attempt".
+        // Only DW successes execute and count as "rounds".
         if (report.fistweaving) {
-          if (fistweavingAttemptAtMs !== Infinity && tMs < fistweavingAttemptAtMs) {
-            fistweavingClippedDueToMainhand++;
-            if (report.fistweaving) report.fistweaving.clippedDueToMainhand = fistweavingClippedDueToMainhand;
+          const weaveCheckMs = tMs + fistweavingReactionDelayMs;
+          if (weaveCheckMs >= fistweavingOffhandReadyAtMs) {
+            // Offhand is ready; cooldown advances regardless of DW check outcome.
+            fistweavingOffhandReadyAtMs = weaveCheckMs + fistweavingOffhandDelayMs;
+            report.fistweaving.attempts++;
+            if (!checkDualWield(dualWieldEffective, rng)) {
+              report.fistweaving.dwFailed++;
+            } else {
+              report.fistweaving.rounds++;
+              let fwAttacks = 1;
+              const fwUsesOhWeapon = fistweaveNonEpicOhMode || twoHandWeaveMode;
+              const processFistweaveSwing = function () {
+                const threatBase = fwUsesOhWeapon ? cappedFistweaveOhDamage : (options.fistweavingNonEpic ? 14 : 9);
+                if (rollHit(toHit, avoidance, rng, fromBehind)) {
+                  const ohElem = fwUsesOhWeapon ? getElementalBaseAdder(w2, options, elemRng) : 0;
+                  if (ohElem > 0) report.elementalDamageTotal += ohElem;
+                  const phys = fwUsesOhWeapon ? cappedFistweaveOhDamage : (options.fistweavingNonEpic ? 14 : 9);
+                  const fistBase = phys + ohElem;
+                  let dmg = calcMeleeDamage(fistBase, offenseRating, mitigation, rng, 0);
+                  const mult = rollDamageMultiplier(offenseRating, dmg, level, options.classId, false, rng);
+                  dmg = mult.damage;
+                  const beforeCrit = dmg;
+                  const critResult = rollMeleeCrit(dmg, 0, level, options.classId, options.dex, options.critChanceMult, false, false, 0, options.critDmgDebugDmgBonus, rng, furyDmgBonusPct);
+                  dmg = critResult.damage;
+                  if (critResult.isCrit) { report.critHits++; report.critDamageGain += (dmg - beforeCrit); }
+                  if (fwUsesOhWeapon && w2 && w2.noDamageVsTarget) {
+                    if (ohElem > 0) report.elementalDamageTotal -= ohElem;
+                    dmg = 0;
+                  }
+                  report.fistweaving.swings++;
+                  addSwingThreatFist(threatBase);
+                  report.fistweaving.hits++;
+                  report.fistweaving.totalDamage += dmg;
+                  report.fistweaving.maxDamage = Math.max(report.fistweaving.maxDamage, dmg);
+                  report.totalDamage += dmg;
+                  const fwSlot = twoHandWeaveMode ? '2hweave' : (fistweaveNonEpicOhMode ? 'fistweave-oh' : 'fist');
+                  const fwVerb = fwUsesOhWeapon ? 'weave' : 'punch';
+                  pushCombatLog(tMs, 'melee', fwSlot, fwVerb, true, dmg, { isCrit: critResult.isCrit });
+                } else {
+                  report.fistweaving.swings++;
+                  addSwingThreatFist(threatBase);
+                  const fwSlot = twoHandWeaveMode ? '2hweave' : (fistweaveNonEpicOhMode ? 'fistweave-oh' : 'fist');
+                  const fwVerb = fwUsesOhWeapon ? 'weave' : 'punch';
+                  pushCombatLog(tMs, 'melee', fwSlot, fwVerb, false);
+                }
+              };
+              processFistweaveSwing();
+              // Double attack: beastlord in 2H weave only gets DA via Bestial Frenzy AA
+              const fwDoA = (twoHandWeaveMode && options.classId === 'beastlord')
+                ? (aaFlatDaChance > 0 && rng() < aaFlatDaChance)
+                : checkDoubleAttack(doubleAttackEffective, rng, options.classId);
+              if (fwDoA) { fwAttacks = 2; processFistweaveSwing(); }
+              if (fwAttacks === 1) report.fistweaving.single++;
+              else report.fistweaving.double++;
+            }
+          } else {
+            // Offhand cooldown not yet up — weave skipped this round.
+            fistweavingClippedDueToOffhandNotReady++;
+            report.fistweaving.clippedDueToOffhandNotReady = fistweavingClippedDueToOffhandNotReady;
           }
-          fistweavingAttemptAtMs = tMs + fistweavingReactionDelayMs;
         }
       }
 
@@ -2979,8 +2957,9 @@
           lines.push(padLine('    Weaved offhand swing timer:', msStr + 'ms'));
         }
       }
-      lines.push(padLine('    Clipped weaved attempts (mainhand came around early):', String(fw.clippedDueToMainhand != null ? fw.clippedDueToMainhand : 0)));
-      lines.push(padLine('    Rounds:', String(fw.rounds)));
+      lines.push(padLine('    Weave attempts:', String(fw.attempts != null ? fw.attempts : 0)));
+      lines.push(padLine('    Blocked by dual wield check:', String(fw.dwFailed != null ? fw.dwFailed : 0)));
+      lines.push(padLine('    Rounds (DW check passed):', String(fw.rounds)));
       lines.push(padLine('    Single / Double:', `${fw.single ?? '—'} / ${fw.double ?? '—'}`));
       lines.push(padLine('    Swings:', String(fw.swings)));
       lines.push(padLine('    Hits:', String(fw.hits)));

@@ -2861,6 +2861,7 @@
   <section class="advanced-only" style="margin-top: 1rem;">
     <h2>Version log</h2>
     <ul style="font-size: 0.9rem; color: var(--muted); margin: 0; padding-left: 1.25rem;">
+      <li><strong>1.31</strong> — 2H Weave / fistweave overhaul: weave attempts now fire inline on every mainhand round rather than as a deferred timer event. The offhand cooldown timer is checked at weave time (mainhand swing time + reaction delay); if the offhand is ready, a dual wield check is made — every DW roll counts as one "weave attempt". Only DW successes execute and count as "Rounds (DW check passed)". Offhand cooldown now correctly uses the equipped weapon's delay instead of the hardcoded fist delay (27/16 decisec) for non-epic fistweave and 2H weave. The report now shows: Weave attempts, Blocked by dual wield check, and Rounds (DW check passed). Fixed: Ambidexterity AA now auto-defaults to On for level 65 characters (was checking level === 60, missing PoP-era default level). Fixed: PoP era selection now defaults character level to 65; switching away from PoP resets to 60 if level was exactly 65.</li>
       <li><strong>1.30</strong> — Fix backstab to-hit using raw weapon skill instead of the weapon-mod-adjusted value: <code>backstabToHit = 7 + OffenseSkill + min(252, floor(baseSkill × (100 + mod%) / 100))</code> — weapons with a backstab % modifier (e.g. Bloodbath +12%, Khalshazar +15%) now correctly cap at 252, equalising their to-hit contribution. Advanced mode custom weapons now show a weapon-type selector (1HB / 1HS / 1HP / 2HB / 2HS / 2HP / H2H) next to the damage/delay fields; hidden when a weapon is loaded from item search. Rank Weapons bane fix: low-base-damage bane weapons (e.g. Trident of Slaughter: 1 base + 16 bane) were silently dropped by the damage/delay ratio filter before bane was ever evaluated — they now bypass that filter when their bane race or body type matches the selected target, and bane damage is correctly added during simulation. Additionally fixed a false-positive bane match where weapons with <code>baneDamageBody = 0</code> (no body bane) were incorrectly treated as having a body bane. Worn ATK cap: combined gear + weapon worn attack bonus is now capped at 250 in both the regular sim and the Rank Weapons engine.</li>
       <li><strong>1.29</strong> — BIS Advisor preset tooltip bubbles now appear below the button instead of above, so they are not clipped by the modal header.</li>
       <li><strong>1.28</strong> — BIS Advisor: added Custom Weights mode — click the new "Custom" button to replace the priority-order list with a direct numeric weight input per stat (e.g. ATK=10, STR=5). Custom weights use proportional scoring instead of the tier-based priority system. Mode and weights persist to localStorage. Added hover tooltip bubbles on all preset buttons (Melee DPS, Tank, Caster, Ranged) showing the stat priority order and which stats are on/off for that preset.</li>
@@ -3319,7 +3320,7 @@
       }
 
       // When releasing: 1) Bump VERSION below. 2) Add a new <li> at the top of the Version log section above.
-      const VERSION = '1.30';
+      const VERSION = '1.31';
       const versionEl = $('app-version');
       if (versionEl) versionEl.textContent = 'v' + VERSION;
 
@@ -5272,6 +5273,9 @@
                   weaveMode: reports[0].fistweaving.weaveMode || 'fistweave',
                   baseDamage: reports[0].fistweaving.baseDamage != null ? reports[0].fistweaving.baseDamage : 9,
                   rounds: Math.round(reports.reduce((s, r) => s + (r.fistweaving ? r.fistweaving.rounds : 0), 0) / runs),
+                  attempts: Math.round(reports.reduce((s, r) => s + (r.fistweaving ? (r.fistweaving.attempts || 0) : 0), 0) / runs),
+                  dwFailed: Math.round(reports.reduce((s, r) => s + (r.fistweaving ? (r.fistweaving.dwFailed || 0) : 0), 0) / runs),
+                  clippedDueToOffhandNotReady: Math.round(reports.reduce((s, r) => s + (r.fistweaving ? (r.fistweaving.clippedDueToOffhandNotReady || 0) : 0), 0) / runs),
                   swings: Math.round(reports.reduce((s, r) => s + (r.fistweaving ? r.fistweaving.swings : 0), 0) / runs),
                   hits: Math.round(reports.reduce((s, r) => s + (r.fistweaving ? r.fistweaving.hits : 0), 0) / runs),
                   totalDamage: Math.round(reports.reduce((s, r) => s + (r.fistweaving ? r.fistweaving.totalDamage : 0), 0) / runs),
@@ -8618,7 +8622,7 @@
         const classId = ($('class').value || '').toLowerCase();
         const level = parseInt($('level').value, 10) || 60;
         const ambidextrousClasses = ['warrior', 'ranger', 'monk', 'bard', 'rogue', 'beastlord'];
-        aaConfig.ambidexterity = (level === 60 && ambidextrousClasses.includes(classId)) ? 1 : 0;
+        aaConfig.ambidexterity = (level >= 60 && ambidextrousClasses.includes(classId)) ? 1 : 0;
         if (typeof buildAAConfiguratorUI === 'function') buildAAConfiguratorUI();
       }
       function onClassOrLevelChange(opts) {
@@ -10303,6 +10307,21 @@
       var el = document.getElementById(id);
       if (el) el.checked = includePop;
     });
+
+    // Adjust default character level when era changes (PoP = 65, others = 60)
+    var levelEl = document.getElementById('level');
+    if (levelEl) {
+      var curLevel = parseInt(levelEl.value, 10);
+      if (eraId === 'pop' && curLevel <= 60) {
+        levelEl.value = 65;
+        levelEl.dispatchEvent(new Event('input'));
+        levelEl.dispatchEvent(new Event('change'));
+      } else if (eraId !== 'pop' && curLevel === 65) {
+        levelEl.value = 60;
+        levelEl.dispatchEvent(new Event('input'));
+        levelEl.dispatchEvent(new Event('change'));
+      }
+    }
 
     // Persist selection
     try { localStorage.setItem('gsim_era', eraId); } catch (e) {}
