@@ -126,6 +126,17 @@
   const BUFFS = [
     // ── HASTE ──────────────────────────────────────────────────────────────
     {
+      id: 'captain_nalots_quickening',
+      name: "Captain Nalot's Quickening",
+      category: 'haste',
+      source: 'Click',
+      spellId: 1925,
+      sai: 16,
+      effects: [
+        { spa: SPA.HASTE_V1, value: 20 },
+      ],
+    },
+    {
       id: 'visions_of_grandeur',
       name: 'Visions of Grandeur',
       category: 'haste',
@@ -137,6 +148,20 @@
         { spa: SPA.AGI,      value: 40 },
         { spa: SPA.DEX,      value: 25 },
         { spa: SPA.ATK,      value: 20 },
+      ],
+    },
+    {
+      id: 'natures_melody',
+      name: "Nature's Melody",
+      category: 'haste',
+      source: 'Click',
+      spellId: 2050,
+      sai: 42,
+      effects: [
+        { spa: SPA.HASTE_V1, value: 60 },
+        { spa: SPA.STR,      value: 30 },
+        { spa: SPA.AGI,      value: 30 },
+        { spa: SPA.AC,       value: 50 },
       ],
     },
     {
@@ -163,20 +188,6 @@
         { spa: SPA.HASTE_V1, value: 66 },
         { spa: SPA.AGI,      value: 40 },
         { spa: SPA.AC,       value: 40 },
-      ],
-    },
-    {
-      id: 'natures_melody',
-      name: "Nature's Melody",
-      category: 'haste',
-      source: 'Click',
-      spellId: 2050,
-      sai: 42,
-      effects: [
-        { spa: SPA.HASTE_V1, value: 60 },
-        { spa: SPA.STR,      value: 30 },
-        { spa: SPA.AGI,      value: 30 },
-        { spa: SPA.AC,       value: 50 },
       ],
     },
 
@@ -877,6 +888,39 @@
     return { totals: totals, dominated: dominated };
   }
 
+  var SPA_LABEL = {
+    [SPA.AC]:       'AC',
+    [SPA.ATK]:      'ATK',
+    [SPA.STR]:      'STR',
+    [SPA.DEX]:      'DEX',
+    [SPA.AGI]:      'AGI',
+    [SPA.STA]:      'STA',
+    [SPA.INT]:      'INT',
+    [SPA.WIS]:      'WIS',
+    [SPA.HASTE_V1]: 'Haste',
+    [SPA.TOTAL_HP]: 'HP',
+    [SPA.HASTE_V3]: 'Bard Haste (V3)',
+  };
+
+  function buffTooltipText(buff) {
+    var effects = buff.effects || [];
+    // For bard songs, effects are dynamic (level-dependent); show a note instead
+    if (buff.bardSong && (!effects || effects.length === 0)) {
+      return buff.name + ' (bard song — values scale with level)';
+    }
+    var lines = [buff.name];
+    effects.forEach(function (e) {
+      var label = SPA_LABEL[e.spa] || ('SPA ' + e.spa);
+      var sign  = e.value >= 0 ? '+' : '';
+      if (e.spa === SPA.HASTE_V1 || e.spa === SPA.HASTE_V3) {
+        lines.push(sign + e.value + '% ' + label);
+      } else {
+        lines.push(sign + e.value + ' ' + label);
+      }
+    });
+    return lines.join('\n');
+  }
+
   window.Buffs = {
     BUFFS: BUFFS,
     SPA: SPA,
@@ -884,5 +928,6 @@
     buildBardEffects: buildBardEffects,
     resolveBuffEffects: resolveBuffEffects,
     resolveBuffsWithDominance: resolveBuffsWithDominance,
+    buffTooltipText: buffTooltipText,
   };
 })();

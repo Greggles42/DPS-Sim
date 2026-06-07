@@ -309,12 +309,27 @@
         Choosing <strong>Behind</strong> does <em>not</em> force all swings to land. Misses still happen from to-hit vs avoidance.
       </p>
       <ul>
-        <li><strong>Behind</strong>: skips block/parry/riposte/dodge layer.</li>
-        <li><strong>Front</strong>: after a successful hit roll, there is an additional avoid chance.</li>
+        <li><strong>Behind</strong>: skips block/parry/riposte/dodge; only the to-hit roll applies.</li>
+        <li><strong>Front</strong>: after a successful hit roll, the NPC attempts sequential block → parry → riposte → dodge checks before the hit registers.</li>
       </ul>
-      <div class="formula">front extra avoid layer = 8%</div>
+      <p>
+        Each check uses the NPC's class and level to derive a skill value (<code>min(level × 5, class_cap)</code>), then converts it to a chance with EQMacEmu's divisor formula:
+      </p>
+      <div class="formula">
+        block chance = floor((blockSkill + 100) / 25) / 100<br>
+        parry chance = floor((parrySkill + 100) / 50) / 100<br>
+        riposte chance = floor((riposteSkill + 100) / 55) / 100<br>
+        dodge chance = floor((dodgeSkill + 100) / 45) / 100
+      </div>
+      <p>
+        Checks are sequential; each is only reached if the previous failed. The combined avoidance probability is:
+      </p>
+      <div class="formula">frontAvoid = 1 − (1−block) × (1−parry) × (1−riposte) × (1−dodge)</div>
+      <p>
+        Warrior-type mobs (all four skills) have significantly higher front avoidance than casters (dodge only). A Level 60 Warrior avoids roughly 28% of front-facing swings that pass the to-hit check; a Level 60 Wizard avoids roughly 7%. Skill caps vary by class — for example, Warriors cap at 200/230/200/260 while Wizards cap at 0/50/0/175.
+      </p>
       <p class="muted">
-        Use front if you want a conservative/tank-facing estimate; use behind for DPS-from-rear assumptions.
+        Use Front for a conservative estimate that accounts for NPC defensive skills; use Behind for DPS-from-rear or when the mob is mezzed/snared and facing away.
       </p>
     </div>
 

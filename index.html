@@ -1880,6 +1880,27 @@
       margin-left: 0.2rem;
     }
     .buff-item.dominated label { opacity: 0.45; text-decoration: line-through; }
+    .buff-item { position: relative; }
+    .buff-item::after {
+      content: attr(data-tooltip);
+      position: absolute;
+      bottom: calc(100% + 4px);
+      left: 0;
+      background: #1a1d23;
+      border: 1px solid rgba(212,175,55,0.35);
+      color: var(--text);
+      font-size: 0.72rem;
+      font-weight: 400;
+      line-height: 1.5;
+      white-space: pre;
+      padding: 0.35rem 0.55rem;
+      border-radius: 5px;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.12s;
+      z-index: 999;
+    }
+    .buff-item[data-tooltip]:hover::after { opacity: 1; }
     .buff-totals {
       display: flex;
       flex-wrap: wrap;
@@ -2861,6 +2882,7 @@
   <section class="advanced-only" style="margin-top: 1rem;">
     <h2>Version log</h2>
     <ul style="font-size: 0.9rem; color: var(--muted); margin: 0; padding-left: 1.25rem;">
+      <li><strong>1.32</strong> — NPC front avoidance now uses class-based defense skills (block/parry/riposte/dodge) instead of a flat 8% constant. Each skill is derived from <code>min(level × 5, class_cap)</code> and converted to a chance via EQMacEmu's divisor formula; checks are sequential. Warrior-type mobs (~28% front avoid at level 60) are meaningfully harder to hit from the front than casters (~7%). Inventory Manager: added Save .txt button to export the current inventory in the same tab-separated format as EQ's /outputfile inventory command, so it can be re-imported later. Buff panel: hovering a buff now shows a tooltip with the buff name and all its effects (haste %, ATK, stats, AC, HP). Added Captain Nalot's Quickening (spell 1925, 20% V1 haste, click) to the haste buff list; haste buffs are now ordered ascending by haste %.</li>
       <li><strong>1.31</strong> — 2H Weave / fistweave overhaul: weave attempts now fire inline on every mainhand round rather than as a deferred timer event. The offhand cooldown timer is checked at weave time (mainhand swing time + reaction delay); if the offhand is ready, a dual wield check is made — every DW roll counts as one "weave attempt". Only DW successes execute and count as "Rounds (DW check passed)". Offhand cooldown now correctly uses the equipped weapon's delay instead of the hardcoded fist delay (27/16 decisec) for non-epic fistweave and 2H weave. The report now shows: Weave attempts, Blocked by dual wield check, and Rounds (DW check passed). Fixed: Ambidexterity AA now auto-defaults to On for level 65 characters (was checking level === 60, missing PoP-era default level). Fixed: PoP era selection now defaults character level to 65; switching away from PoP resets to 60 if level was exactly 65.</li>
       <li><strong>1.30</strong> — Fix backstab to-hit using raw weapon skill instead of the weapon-mod-adjusted value: <code>backstabToHit = 7 + OffenseSkill + min(252, floor(baseSkill × (100 + mod%) / 100))</code> — weapons with a backstab % modifier (e.g. Bloodbath +12%, Khalshazar +15%) now correctly cap at 252, equalising their to-hit contribution. Advanced mode custom weapons now show a weapon-type selector (1HB / 1HS / 1HP / 2HB / 2HS / 2HP / H2H) next to the damage/delay fields; hidden when a weapon is loaded from item search. Rank Weapons bane fix: low-base-damage bane weapons (e.g. Trident of Slaughter: 1 base + 16 bane) were silently dropped by the damage/delay ratio filter before bane was ever evaluated — they now bypass that filter when their bane race or body type matches the selected target, and bane damage is correctly added during simulation. Additionally fixed a false-positive bane match where weapons with <code>baneDamageBody = 0</code> (no body bane) were incorrectly treated as having a body bane. Worn ATK cap: combined gear + weapon worn attack bonus is now capped at 250 in both the regular sim and the Rank Weapons engine.</li>
       <li><strong>1.29</strong> — BIS Advisor preset tooltip bubbles now appear below the button instead of above, so they are not clipped by the modal header.</li>
@@ -2940,6 +2962,9 @@
     <div class="inv-manager-modal" role="dialog" aria-labelledby="inv-manager-title">
       <div class="inv-manager-header">
         <h2 id="inv-manager-title">Inventory Manager</h2>
+        <button type="button" id="inv-manager-export"
+          style="font:inherit;cursor:pointer;font-size:0.78rem;font-weight:600;color:var(--muted);padding:0.25rem 0.65rem;border:1px solid var(--border);border-radius:4px;background:rgba(255,255,255,0.04);white-space:nowrap;"
+          title="Download your current inventory as a .txt file (same format as EQ /outputfile inventory)">&#8600; Save .txt</button>
         <button class="inv-manager-close-btn" id="inv-manager-close" aria-label="Close">&#10005;</button>
       </div>
       <div class="inv-manager-body">
@@ -3591,6 +3616,9 @@
           var item = document.createElement('div');
           item.className = 'buff-item';
           item.dataset.buffId = buff.id;
+          if (window.Buffs.buffTooltipText) {
+            item.dataset.tooltip = window.Buffs.buffTooltipText(buff);
+          }
           var cb = document.createElement('input');
           cb.type = 'checkbox';
           cb.className = 'buff-checkbox';
@@ -5030,6 +5058,7 @@
           })(),
           targetBodyType: targetBodyType,
           targetMR, targetFR, targetCR, targetPR, targetDR,
+          mobClass: (function() { var npc = window.selectedTargetNpc; return (npc && npc.class != null) ? (parseInt(npc.class, 10) || null) : null; })(),
           fightDurationSec: durationSec,
           dex,
           str,
@@ -7209,6 +7238,7 @@
           targetCR: parseResist('ranged-target-cr'),
           targetPR: parseResist('ranged-target-pr'),
           targetDR: parseResist('ranged-target-dr'),
+          mobClass: (function() { var npc = window.selectedTargetNpc; return (npc && npc.class != null) ? (parseInt(npc.class, 10) || null) : null; })(),
           fightDurationSec: durationSec,
           offenseSkill: 252,
           archerySkill: Math.min(252, Math.max(0, (function(){ var _sv = parseInt($('ranged-archery-skill').value, 10); return isNaN(_sv) ? 252 : _sv; })())),
@@ -8405,6 +8435,7 @@
           targetCR: parseResist('ranged-target-cr'),
           targetPR: parseResist('ranged-target-pr'),
           targetDR: parseResist('ranged-target-dr'),
+          mobClass: (function() { var npc = window.selectedTargetNpc; return (npc && npc.class != null) ? (parseInt(npc.class, 10) || null) : null; })(),
           fightDurationSec: parseInt($('ranged-duration').value, 10) || 6000,
           offenseSkill: 252,
           archerySkill: Math.min(252, Math.max(0, (function(){ var _sv = parseInt($('ranged-archery-skill').value, 10); return isNaN(_sv) ? 252 : _sv; })())),
@@ -11414,6 +11445,33 @@
         if (typeof window.applyInventoryFromState === 'function') window.applyInventoryFromState();
       });
     }
+  });
+
+  // ---- Export inventory as .txt (EQ /outputfile format) ----
+  function exportInventoryTsv() {
+    var state = window.__invManagerState || {};
+    var lines = ['Location\tName\tID\tCount\tSlots'];
+    var BASE_SLOT = { Ear2: 'Ear', Wrist2: 'Wrist', Fingers2: 'Fingers' };
+    MANAGER_SLOT_KEYS.forEach(function(key) {
+      var entry = state[key];
+      if (!entry || !entry.name || !entry.id) return;
+      var slotName = BASE_SLOT[key] || key;
+      lines.push(slotName + '\t' + entry.name + '\t' + entry.id + '\t1\t4');
+    });
+    var blob = new Blob([lines.join('\r\n')], { type: 'text/plain' });
+    var url  = URL.createObjectURL(blob);
+    var a    = document.createElement('a');
+    a.href     = url;
+    a.download = 'inventory.txt';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  document.addEventListener('DOMContentLoaded', function() {
+    var exportBtn = document.getElementById('inv-manager-export');
+    if (exportBtn) exportBtn.addEventListener('click', exportInventoryTsv);
   });
 
   // Helper: update a single slot row in place

@@ -39,8 +39,30 @@
   /** Triple attack chance on a successful double attack round */
   var TRIPLE_ATTACK_CHANCE_ON_DOUBLE = 0.135;
 
-  /** Avoidance chance from front (combined dodge/block/parry/riposte, EQMacEmu Client::Attack) */
-  var AVOID_CHANCE_FROM_FRONT = 0.08;
+  // NPC defense skill caps by class (EQMacEmu skills.cpp class cap tables).
+  // [block, parry, riposte, dodge]. 0 = class cannot use that skill.
+  // Class IDs: 1=Warrior, 2=Cleric, 3=Paladin, 4=Ranger, 5=Shadow Knight,
+  //            6=Druid, 7=Monk, 8=Bard, 9=Rogue, 10=Shaman,
+  //            11=Necromancer, 12=Wizard, 13=Magician, 14=Enchanter, 15=Beastlord
+  var NPC_DEFENSE_CAPS = {
+    1:  [200, 230, 200, 260],  // Warrior
+    2:  [0,    85,   0, 200],  // Cleric
+    3:  [200, 220, 175, 250],  // Paladin
+    4:  [0,   220, 175, 250],  // Ranger
+    5:  [200, 205, 160, 250],  // Shadow Knight
+    6:  [0,    85,   0, 200],  // Druid
+    7:  [0,   175, 175, 260],  // Monk
+    8:  [0,   175, 175, 260],  // Bard
+    9:  [0,   185, 270, 260],  // Rogue
+    10: [0,    85,   0, 200],  // Shaman
+    11: [0,    50,   0, 175],  // Necromancer
+    12: [0,    50,   0, 175],  // Wizard
+    13: [0,    50,   0, 175],  // Magician
+    14: [0,    50,   0, 175],  // Enchanter
+    15: [0,   145, 100, 220],  // Beastlord
+  };
+  // Default caps for unknown/unspecified NPC class (generic melee mob)
+  var NPC_DEFENSE_CAPS_DEFAULT = [75, 150, 100, 230];
 
   /** Minimum effective weapon delay after haste, in deciseconds */
   var MIN_DELAY_DECISEC = 4;
@@ -70,13 +92,13 @@
     return (a * HIT_CHANCE_MULTIPLIER) / (b * 2.0);
   }
 
-  // fromBehind: when true, no block/parry/riposte/dodge; hit roll still applies (misses still occur).
-  // When false, after the hit roll we apply an avoid chance (block/parry/dodge/riposte).
-  function rollHit(toHit, avoidance, rng, fromBehind) {
+  // frontAvoidChance: 0 = attacking from behind (no block/parry/riposte/dodge); hit roll still applies.
+  // Non-zero = combined avoidance probability from NPC skill checks (block→parry→riposte→dodge).
+  function rollHit(toHit, avoidance, rng, frontAvoidChance) {
     const chance = getHitChance(toHit, avoidance);
     if (rng() >= chance) return false;
-    if (fromBehind) return true;
-    return rng() >= AVOID_CHANCE_FROM_FRONT;
+    if (!frontAvoidChance) return true;
+    return rng() >= frontAvoidChance;
   }
 
   // ----- Defender GetAvoidance() – used for HIT CHANCE only (AvoidanceCheck), NOT for damage -----
@@ -89,6 +111,26 @@
     else if (avoidance > 460) avoidance = 460;
     if (avoidance < 1) avoidance = 1;
     return avoidance;
+  }
+
+  // ----- NPC defense skills (block/parry/riposte/dodge) for front-attack avoidance -----
+  // NPC skill at level L = min(L * 5, class_cap), matching EQMacEmu GetSkill() NPC scaling.
+  function getNpcDefenseSkills(level, npcClass) {
+    const L = level != null ? level : 60;
+    const caps = (npcClass != null && NPC_DEFENSE_CAPS[npcClass]) ? NPC_DEFENSE_CAPS[npcClass] : NPC_DEFENSE_CAPS_DEFAULT;
+    return caps.map(function(cap) { return cap > 0 ? Math.min(L * 5, cap) : 0; });
+  }
+
+  // Combined front avoidance probability from sequential block→parry→riposte→dodge checks.
+  // Divisors from EQMacEmu attack.cpp Mob::AvoidDamage: block/25, parry/50, riposte/55, dodge/45.
+  function computeFrontAvoidChance(level, npcClass) {
+    var skills = getNpcDefenseSkills(level, npcClass);
+    function rate(skill, div) { return skill > 0 ? Math.min(1, Math.floor((skill + 100) / div) / 100) : 0; }
+    var block   = rate(skills[0], 25);
+    var parry   = rate(skills[1], 50);
+    var riposte = rate(skills[2], 55);
+    var dodge   = rate(skills[3], 45);
+    return 1 - (1 - block) * (1 - parry) * (1 - riposte) * (1 - dodge);
   }
 
   // ----- Defender GetMitigation() – mob's mitigation for DAMAGE ROLL only (RollD20), NOT hit chance -----
@@ -973,7 +1015,7 @@
           }
         }
       }
-      let hit = rollHit(currentToHit, avoidance, rng, true);
+      let hit = rollHit(currentToHit, avoidance, rng, 0);
       if (!hit) {
         nextRangedAtMs += delayMs;
         pushRangedLog(nextRangedAtMs - delayMs, 'shoot', false, undefined, { miss: true });
@@ -1318,6 +1360,10 @@
     // Tactical Mastery (warrior PoP AA): rank 1/2/3 reduces NPC effective avoidance by 10/20/30
     const tacticalMasteryRank = (options.tacticalMasteryRank | 0) || 0;
     const avoidance = Math.max(1, (options.avoidance != null ? options.avoidance : getAvoidanceNPC(mobLevel)) - ([0, 10, 20, 30][tacticalMasteryRank] || 0));
+    // Front avoidance: 0 when attacking from behind (no block/parry/riposte/dodge);
+    // otherwise computed from NPC class-based defense skills (block→parry→riposte→dodge).
+    const mobClass = options.mobClass != null ? options.mobClass : null;
+    const frontAvoidChance = fromBehind ? 0 : computeFrontAvoidChance(mobLevel, mobClass);
     // Damage roll uses MITIGATION (GetMitigation). Computed once and used every time we calc damage.
     const mitigation = getMitigation(mobLevel, targetAC, options.itemAcBonus ?? 0, options.spellAcBonus ?? 0);
     const str = options.str != null ? options.str : 255;
@@ -1782,7 +1828,7 @@
         function processOneBackstabHit(backstabAttemptNumber) {
           if (report.special.attemptedAttacks !== undefined) report.special.attemptedAttacks++;
           addSwingThreatMH();
-          const specialHits = rollHit(backstabToHit, avoidance, rng, fromBehind);
+          const specialHits = rollHit(backstabToHit, avoidance, rng, frontAvoidChance);
           if (!specialHits) {
             pushCombatLog(tMs, 'special', 'special', specialVerb, false, undefined, { bsDA: isDoubleBackstabRound && backstabAttemptNumber === 2 });
             return;
@@ -1862,7 +1908,7 @@
             if (skillEntry) skillEntry.attempts++;
             report.masterWu.extraAttempts++;
             addSwingThreatMH();
-            if (!rollHit(toHit, avoidance, rng, fromBehind)) {
+            if (!rollHit(toHit, avoidance, rng, frontAvoidChance)) {
               pushCombatLog(tMs, 'special', 'special', wuSkillCfg.name, false, undefined, { wu: true });
               return;
             }
@@ -1920,7 +1966,7 @@
         let attacksThisRound = 1;
 
         // Crit is only rolled after a successful hit (we are inside the rollHit success block).
-        if (rollHit(toHit, avoidance, rng, fromBehind)) {
+        if (rollHit(toHit, avoidance, rng, frontAvoidChance)) {
           const mhElemAdder = getElementalBaseAdder(w1, options, elemRng);
           report.elementalDamageTotal += mhElemAdder;
           let mhBase = cappedW1Damage + mhElemAdder;
@@ -1963,7 +2009,7 @@
 
         if (checkDoubleAttack(doubleAttackEffective, rng, options.classId) || (aaFlatDaChance > 0 && rng() < aaFlatDaChance)) {
           attacksThisRound = 2;
-          if (rollHit(toHit, avoidance, rng, fromBehind)) {
+          if (rollHit(toHit, avoidance, rng, frontAvoidChance)) {
             const mhElemAdder2 = getElementalBaseAdder(w1, options, elemRng);
             report.elementalDamageTotal += mhElemAdder2;
             let mhBase2 = cappedW1Damage + mhElemAdder2;
@@ -2005,7 +2051,7 @@
           }
           if (checkTripleAttack(rng, level, options.classId)) {
             attacksThisRound = 3;
-            if (rollHit(toHit, avoidance, rng, fromBehind)) {
+            if (rollHit(toHit, avoidance, rng, frontAvoidChance)) {
               const mhElemAdder3 = getElementalBaseAdder(w1, options, elemRng);
               report.elementalDamageTotal += mhElemAdder3;
               let mhBase3 = cappedW1Damage + mhElemAdder3;
@@ -2049,7 +2095,7 @@
             if (flurryRank > 0 && checkFlurry(flurryRank, level, (options.classId || '').toLowerCase(), rng)) {
               attacksThisRound = 4;
               if (report.weapon1.flurry != null) report.weapon1.flurry++;
-              if (rollHit(toHit, avoidance, rng, fromBehind)) {
+              if (rollHit(toHit, avoidance, rng, frontAvoidChance)) {
                 const mhElemAdder4 = getElementalBaseAdder(w1, options, elemRng);
                 report.elementalDamageTotal += mhElemAdder4;
                 let mhBase4 = cappedW1Damage + mhElemAdder4;
@@ -2093,7 +2139,7 @@
             // Raging Flurry (warrior PoP AA): additional flurry chance on successful triple attack
             if (ragingFlurryChance > 0 && (options.classId || '').toLowerCase() === 'warrior' && level >= 60 && rng() < ragingFlurryChance) {
               report.weapon1.ragingFlurry++;
-              if (rollHit(toHit, avoidance, rng, fromBehind)) {
+              if (rollHit(toHit, avoidance, rng, frontAvoidChance)) {
                 const mhElemAdderRF = getElementalBaseAdder(w1, options, elemRng);
                 report.elementalDamageTotal += mhElemAdderRF;
                 let mhBaseRF = cappedW1Damage + mhElemAdderRF;
@@ -2140,7 +2186,7 @@
           // Mirrors EQMacEmu client_process.cpp: fires after triple/flurry, inside CheckDoubleAttack block
           if (punishingBladeChance > 0 && w1.is2H && rng() * 100 < punishingBladeChance) {
             if (report.weapon1.punishingBlade != null) report.weapon1.punishingBlade++;
-            if (rollHit(toHit, avoidance, rng, fromBehind)) {
+            if (rollHit(toHit, avoidance, rng, frontAvoidChance)) {
               const mhElemAdderPB = getElementalBaseAdder(w1, options, elemRng);
               report.elementalDamageTotal += mhElemAdderPB;
               let mhBasePB = cappedW1Damage + mhElemAdderPB;
@@ -2184,7 +2230,7 @@
           // Speed of the Knight (paladin/shadowknight PoP AA): extra 2H primary attack after double attack
           if (speedOfTheKnightChance > 0 && w1.is2H && rng() * 100 < speedOfTheKnightChance) {
             report.weapon1.speedOfTheKnight++;
-            if (rollHit(toHit, avoidance, rng, fromBehind)) {
+            if (rollHit(toHit, avoidance, rng, frontAvoidChance)) {
               const mhElemAdderSK = getElementalBaseAdder(w1, options, elemRng);
               report.elementalDamageTotal += mhElemAdderSK;
               let mhBaseSK = cappedW1Damage + mhElemAdderSK;
@@ -2325,7 +2371,7 @@
               const fwUsesOhWeapon = fistweaveNonEpicOhMode || twoHandWeaveMode;
               const processFistweaveSwing = function () {
                 const threatBase = fwUsesOhWeapon ? cappedFistweaveOhDamage : (options.fistweavingNonEpic ? 14 : 9);
-                if (rollHit(toHit, avoidance, rng, fromBehind)) {
+                if (rollHit(toHit, avoidance, rng, frontAvoidChance)) {
                   const ohElem = fwUsesOhWeapon ? getElementalBaseAdder(w2, options, elemRng) : 0;
                   if (ohElem > 0) report.elementalDamageTotal += ohElem;
                   const phys = fwUsesOhWeapon ? cappedFistweaveOhDamage : (options.fistweavingNonEpic ? 14 : 9);
@@ -2386,7 +2432,7 @@
         if (checkDualWield(dualWieldEffective, rng)) {
           report.weapon2.rounds++;
           let attacksThisRound = 1;
-          if (rollHit(toHit, avoidance, rng, fromBehind)) {
+          if (rollHit(toHit, avoidance, rng, frontAvoidChance)) {
             const ohElemAdder = getElementalBaseAdder(w2, options, elemRng);
             report.elementalDamageTotal += ohElemAdder;
             let ohBase = cappedW2Damage + ohElemAdder;
@@ -2415,7 +2461,7 @@
           }
           if (checkDoubleAttack(doubleAttackEffective, rng, options.classId)) {
             attacksThisRound = 2;
-            if (rollHit(toHit, avoidance, rng, fromBehind)) {
+            if (rollHit(toHit, avoidance, rng, frontAvoidChance)) {
               const ohElemAdder2 = getElementalBaseAdder(w2, options, elemRng);
               report.elementalDamageTotal += ohElemAdder2;
               let ohBase2 = cappedW2Damage + ohElemAdder2;
