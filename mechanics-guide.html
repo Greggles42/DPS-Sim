@@ -556,6 +556,7 @@
         <li><strong>Reaction delay</strong> — the weave is attempted a configurable number of milliseconds after the mainhand swing (default 200ms), representing player reaction time.</li>
         <li><strong>Offhand cooldown check</strong> — the offhand weapon has its own independent swing timer equal to its delay divided by haste. If the offhand is still on cooldown at weave time, the attempt is skipped (counted as "offhand not ready").</li>
         <li><strong>Dual wield check</strong> — a standard DW check is made (<code>dualWieldEffective &gt; random(0, 374)</code>). Every DW roll counts as one <strong>weave attempt</strong>. Failures are counted separately.</li>
+        <li><strong>Proc attempt</strong> — if the DW check passes and the offhand weapon has a proc, the proc is attempted immediately (before the swing). The proc can fire even if the swing subsequently misses.</li>
         <li><strong>Attack resolution</strong> — DW successes execute the swing: hit/miss, damage, double attack, and crits resolve normally using the offhand weapon's stats. These count as <strong>Rounds (DW check passed)</strong>.</li>
       </ol>
       <p>
@@ -590,7 +591,7 @@
         High target resists can heavily suppress elemental contribution; this is why elemental-heavy weapons can vary by target profile.
       </p>
       <p class="muted">
-        Elemental resist rolls use a dedicated RNG stream (separate from the main combat RNG used for hit/damage rolls). This ensures that equipping a weapon with elemental damage in one slot has no effect on the RNG sequence seen by the other slot's hit and damage rolls.
+        Elemental resist rolls use a dedicated RNG stream (separate from the main combat RNG used for hit/damage rolls). This ensures that equipping a weapon with elemental damage in one slot has no effect on the RNG sequence seen by the other slot's hit and damage rolls. Similarly, all offhand and weave swing resolution (DW checks, to-hit, damage, crits) uses its own dedicated RNG stream, so enabling fistweaving or dual-wielding has no effect on the mainhand RNG sequence.
       </p>
     </div>
 

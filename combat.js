@@ -1344,6 +1344,7 @@
     const rng = createRng(options.seed);
     const procRng = createRng(options.seed != null ? options.seed + 12345 : undefined);
     const elemRng = createRng(options.seed != null ? options.seed + 54321 : undefined);
+    const weaveRng = createRng(options.seed != null ? options.seed + 99999 : undefined);
     const specialType = options.specialAttackType || getDefaultSpecialTypeForClass(options.classId);
     const specialConfig = (options.specialAttacks && options.classId && specialType && canClassUseSpecialType(options.classId, specialType) && SPECIAL_ATTACKS_BY_TYPE[specialType])
       ? SPECIAL_ATTACKS_BY_TYPE[specialType]
@@ -1528,17 +1529,21 @@
 
     const delay1 = hasMainHand ? effectiveDelayDecisec(w1.delay, effectiveHastePercent) : 0;
     const delay2 = offhandEquipped ? effectiveDelayDecisec(w2.delay, effectiveHastePercent) : 0;
+    // Fistweave OH mode: no regular offhand swing timer, but weapon delay still used for proc rate
+    const delay2ForProc = (offhandEquipped || fistweaveNonEpicOhMode || twoHandWeaveMode) && rawOffhandEquipped
+      ? effectiveDelayDecisec(w2.delay, effectiveHastePercent) : 0;
     const delay1Ms = hasMainHand ? delay1 * DECISEC_TO_MS : Infinity;
     const delay2Ms = offhandEquipped ? delay2 * DECISEC_TO_MS : 0;
 
+    const w2HasProc = rawOffhandEquipped && w2.procSpell != null && canTriggerProcAtLevel(w2, level);
     const baseProcChance1 = hasMainHand && w1.procSpell != null && canTriggerProcAtLevel(w1, level)
       ? getProcChancePerSwing(delay1, false, dualWieldPct, options.dex || 150)
       : 0;
-    const baseProcChance2 = offhandEquipped && w2.procSpell != null && canTriggerProcAtLevel(w2, level)
-      ? getProcChancePerSwing(delay2, true, dualWieldPct, options.dex || 150)
+    const baseProcChance2 = w2HasProc
+      ? getProcChancePerSwing(delay2ForProc, true, dualWieldPct, options.dex || 150)
       : 0;
     const procRate1 = (hasMainHand && w1.procRate != null && !Number.isNaN(Number(w1.procRate))) ? Number(w1.procRate) : 0;
-    const procRate2 = (offhandEquipped && w2.procRate != null && !Number.isNaN(Number(w2.procRate))) ? Number(w2.procRate) : 0;
+    const procRate2 = (rawOffhandEquipped && w2.procRate != null && !Number.isNaN(Number(w2.procRate))) ? Number(w2.procRate) : 0;
     const procChance1 = Math.min(1, Math.max(0, baseProcChance1 * (100 + procRate1) / 100));
     const procChance2 = Math.min(1, Math.max(0, baseProcChance2 * (100 + procRate2) / 100));
 
@@ -1655,7 +1660,7 @@
       report.weapon1.anticipatedProcChancePerRound = procChance1;
       report.weapon1.anticipatedProcsPerMinute = roundsPerMinW1 > 0 ? procChance1 * roundsPerMinW1 : null;
     }
-    if (offhandEquipped && w2.procSpell) {
+    if (w2HasProc) {
       report.weapon2.anticipatedProcChancePerRound = procChance2;
       report.weapon2.anticipatedProcsPerMinute = roundsPerMinW2 > 0 ? procChance2 * roundsPerMinW2 : null;
     }
@@ -2363,24 +2368,99 @@
             // Offhand is ready; cooldown advances regardless of DW check outcome.
             fistweavingOffhandReadyAtMs = weaveCheckMs + fistweavingOffhandDelayMs;
             report.fistweaving.attempts++;
-            if (!checkDualWield(dualWieldEffective, rng)) {
+            if (!checkDualWield(dualWieldEffective, weaveRng)) {
               report.fistweaving.dwFailed++;
             } else {
               report.fistweaving.rounds++;
               let fwAttacks = 1;
               const fwUsesOhWeapon = fistweaveNonEpicOhMode || twoHandWeaveMode;
+              // Proc fires when DW check passes, before the swing (can proc even on miss)
+              if (fwUsesOhWeapon && procChance2 > 0 && checkProc(procChance2, procRng) && canProcLandOnTarget(w2, options)) {
+                report.weapon2.procs++;
+                const procDmg = w2.noDamageVsTarget ? 0 : Math.floor(((w2.procSpellDamage != null ? w2.procSpellDamage : 0) | 0) * soulAbrasionProcMult);
+                const effectiveness = getProcSpellEffectiveness(w2, options, level, procRng);
+                if (procBuffTicks2 > 0 && procDmg > 0) {
+                  perTick2 = (procDmg / procBuffTicks2) * effectiveness / 100;
+                  const basePerTickThreat2 = procBuffTicks2 > 0 ? procDmg / procBuffTicks2 : 0;
+                  if (dotEndMs2 > lastProcMs2) {
+                    const ticksRan = Math.floor((Math.min(dotEndMs2, tMs) - lastProcMs2) / PROC_TICK_INTERVAL_MS);
+                    const dotDmg = Math.floor(ticksRan * perTick2);
+                    const threatDot = Math.floor(ticksRan * basePerTickThreat2);
+                    if (dotDmg > 0) {
+                      report.weapon2.procDamageTotal += dotDmg;
+                      report.totalDamage += dotDmg;
+                      addProcThreatAmt(threatDot, 2, false, false);
+                    }
+                  }
+                  lastProcMs2 = tMs;
+                  dotEndMs2 = tMs + procBuffTicks2 * PROC_TICK_INTERVAL_MS;
+                  const totalDoTDamage2 = Math.floor(procDmg * effectiveness / 100);
+                  if (totalDoTDamage2 === 0) {
+                    report.weapon2.procFullResists++;
+                    report.weapon2.procResists++;
+                    report.weapon2.procResistDamageLost += procDmg;
+                  } else if (totalDoTDamage2 < procDmg) {
+                    report.weapon2.procPartialResists++;
+                    report.weapon2.procResists++;
+                    report.weapon2.procResistDamageLost += (procDmg - totalDoTDamage2);
+                  }
+                } else if (w2.procSpellNonDamagingDetrimental) {
+                  if (effectiveness === 0) {
+                    report.weapon2.procFullResists++;
+                    report.weapon2.procResists++;
+                  } else if (effectiveness < 100) {
+                    report.weapon2.procPartialResists++;
+                    report.weapon2.procResists++;
+                  }
+                  if (effectiveness > 0) addProcThreatAmt(0, 2, true, true);
+                } else {
+                  let actualDmg = Math.floor(procDmg * effectiveness / 100);
+                  const scfResult2 = applySpellCastingFuryProc(actualDmg, options, procRng);
+                  actualDmg = scfResult2.damage;
+                  if (scfResult2.isCrit) {
+                    report.weapon2.spellProcCrits++;
+                    report.weapon2.maxSpellProcCritDmg = Math.max(report.weapon2.maxSpellProcCritDmg || 0, actualDmg);
+                  }
+                  report.weapon2.procDamageTotal += actualDmg;
+                  report.totalDamage += actualDmg;
+                  if (procDmg > 0) {
+                    addProcThreatAmt(procDmg, 2, true, false);
+                  } else if (effectiveness > 0) {
+                    addProcThreatAmt(0, 2, true, false);
+                  }
+                  if (procDmg > 0) {
+                    if (actualDmg === 0) {
+                      report.weapon2.procFullResists++;
+                      report.weapon2.procResists++;
+                      report.weapon2.procResistDamageLost += procDmg;
+                    } else if (actualDmg < procDmg) {
+                      report.weapon2.procPartialResists++;
+                      report.weapon2.procResists++;
+                      report.weapon2.procResistDamageLost += (procDmg - actualDmg);
+                    }
+                  } else {
+                    if (effectiveness === 0) {
+                      report.weapon2.procFullResists++;
+                      report.weapon2.procResists++;
+                    } else if (effectiveness < 100) {
+                      report.weapon2.procPartialResists++;
+                      report.weapon2.procResists++;
+                    }
+                  }
+                }
+              }
               const processFistweaveSwing = function () {
                 const threatBase = fwUsesOhWeapon ? cappedFistweaveOhDamage : (options.fistweavingNonEpic ? 14 : 9);
-                if (rollHit(toHit, avoidance, rng, frontAvoidChance)) {
+                if (rollHit(toHit, avoidance, weaveRng, frontAvoidChance)) {
                   const ohElem = fwUsesOhWeapon ? getElementalBaseAdder(w2, options, elemRng) : 0;
                   if (ohElem > 0) report.elementalDamageTotal += ohElem;
                   const phys = fwUsesOhWeapon ? cappedFistweaveOhDamage : (options.fistweavingNonEpic ? 14 : 9);
                   const fistBase = phys + ohElem;
-                  let dmg = calcMeleeDamage(fistBase, offenseRating, mitigation, rng, 0);
-                  const mult = rollDamageMultiplier(offenseRating, dmg, level, options.classId, false, rng);
+                  let dmg = calcMeleeDamage(fistBase, offenseRating, mitigation, weaveRng, 0);
+                  const mult = rollDamageMultiplier(offenseRating, dmg, level, options.classId, false, weaveRng);
                   dmg = mult.damage;
                   const beforeCrit = dmg;
-                  const critResult = rollMeleeCrit(dmg, 0, level, options.classId, options.dex, options.critChanceMult, false, false, 0, options.critDmgDebugDmgBonus, rng, furyDmgBonusPct);
+                  const critResult = rollMeleeCrit(dmg, 0, level, options.classId, options.dex, options.critChanceMult, false, false, 0, options.critDmgDebugDmgBonus, weaveRng, furyDmgBonusPct);
                   dmg = critResult.damage;
                   if (critResult.isCrit) { report.critHits++; report.critDamageGain += (dmg - beforeCrit); }
                   if (fwUsesOhWeapon && w2 && w2.noDamageVsTarget) {
@@ -2407,8 +2487,8 @@
               processFistweaveSwing();
               // Double attack: beastlord in 2H weave only gets DA via Bestial Frenzy AA
               const fwDoA = (twoHandWeaveMode && options.classId === 'beastlord')
-                ? (aaFlatDaChance > 0 && rng() < aaFlatDaChance)
-                : checkDoubleAttack(doubleAttackEffective, rng, options.classId);
+                ? (aaFlatDaChance > 0 && weaveRng() < aaFlatDaChance)
+                : checkDoubleAttack(doubleAttackEffective, weaveRng, options.classId);
               if (fwDoA) { fwAttacks = 2; processFistweaveSwing(); }
               if (fwAttacks === 1) report.fistweaving.single++;
               else report.fistweaving.double++;
@@ -2429,68 +2509,11 @@
         const duelistOhRound = disciplineDuelistActive(tMs);
         const innerFlameOhRound = disciplineInnerFlameActive(tMs);
         const disciplineActiveOh = duelistOhRound || innerFlameOhRound;
-        if (checkDualWield(dualWieldEffective, rng)) {
+        if (checkDualWield(dualWieldEffective, weaveRng)) {
           report.weapon2.rounds++;
           let attacksThisRound = 1;
-          if (rollHit(toHit, avoidance, rng, frontAvoidChance)) {
-            const ohElemAdder = getElementalBaseAdder(w2, options, elemRng);
-            report.elementalDamageTotal += ohElemAdder;
-            let ohBase = cappedW2Damage + ohElemAdder;
-            ohBase = applyDisciplineDamageMod(ohBase, disciplineActiveOh);
-            let dmg = calcMeleeDamage(ohBase, offenseRating, mitigation, rng, 0);
-            const mult = rollDamageMultiplier(offenseRating, dmg, level, options.classId, false, rng);
-            dmg = mult.damage;
-            const beforeCrit = dmg;
-            const critResult = rollMeleeCrit(dmg, 0, level, options.classId, options.dex, options.critChanceMult, false, false, 0, options.critDmgDebugDmgBonus, rng, furyDmgBonusPct);
-            dmg = critResult.damage;
-            if (critResult.isCrit) { report.critHits++; report.critDamageGain += (dmg - beforeCrit); }
-            const ohDisciplineMin = getDisciplineMinHit(cappedW2Damage, 0, disciplineActiveOh);
-            if (ohDisciplineMin != null && dmg < ohDisciplineMin) dmg = ohDisciplineMin;
-            if (w2.noDamageVsTarget) { report.elementalDamageTotal -= ohElemAdder; dmg = 0; }
-            report.weapon2.swings++; addSwingThreatOH();
-            report.weapon2.hits++;
-            report.weapon2.totalDamage += dmg;
-            report.weapon2.maxDamage = Math.max(report.weapon2.maxDamage, dmg);
-            report.weapon2.minDamage = Math.min(report.weapon2.minDamage, dmg);
-            report.weapon2.hitList.push(dmg);
-            report.totalDamage += dmg;
-            pushCombatLog(tMs, 'melee', 2, w2Verb, true, dmg, { roundLetter: ohRoundLetter, attemptNumber: 1, swingKind: 'BA', dualWieldGate: true, isCrit: critResult.isCrit });
-          } else {
-            report.weapon2.swings++; addSwingThreatOH();
-            pushCombatLog(tMs, 'melee', 2, w2Verb, false, undefined, { roundLetter: ohRoundLetter, attemptNumber: 1, swingKind: 'BA', dualWieldGate: true });
-          }
-          if (checkDoubleAttack(doubleAttackEffective, rng, options.classId)) {
-            attacksThisRound = 2;
-            if (rollHit(toHit, avoidance, rng, frontAvoidChance)) {
-              const ohElemAdder2 = getElementalBaseAdder(w2, options, elemRng);
-              report.elementalDamageTotal += ohElemAdder2;
-              let ohBase2 = cappedW2Damage + ohElemAdder2;
-              ohBase2 = applyDisciplineDamageMod(ohBase2, disciplineActiveOh);
-              let dmg = calcMeleeDamage(ohBase2, offenseRating, mitigation, rng, 0);
-              const mult = rollDamageMultiplier(offenseRating, dmg, level, options.classId, false, rng);
-              dmg = mult.damage;
-              const beforeCrit = dmg;
-              const critResult = rollMeleeCrit(dmg, 0, level, options.classId, options.dex, options.critChanceMult, false, false, 0, options.critDmgDebugDmgBonus, rng, furyDmgBonusPct);
-              dmg = critResult.damage;
-              if (critResult.isCrit) { report.critHits++; report.critDamageGain += (dmg - beforeCrit); }
-              const ohDisciplineMin2 = getDisciplineMinHit(cappedW2Damage, 0, disciplineActiveOh);
-              if (ohDisciplineMin2 != null && dmg < ohDisciplineMin2) dmg = ohDisciplineMin2;
-              if (w2.noDamageVsTarget) { report.elementalDamageTotal -= ohElemAdder2; dmg = 0; }
-              report.weapon2.swings++; addSwingThreatOH();
-              report.weapon2.hits++;
-              report.weapon2.totalDamage += dmg;
-              report.weapon2.maxDamage = Math.max(report.weapon2.maxDamage, dmg);
-              report.weapon2.minDamage = Math.min(report.weapon2.minDamage, dmg);
-              report.weapon2.hitList.push(dmg);
-              report.totalDamage += dmg;
-              pushCombatLog(tMs, 'melee', 2, w2Verb, true, dmg, { roundLetter: ohRoundLetter, attemptNumber: 2, swingKind: 'DA', dualWieldGate: true, isCrit: critResult.isCrit });
-            } else {
-              report.weapon2.swings++; addSwingThreatOH();
-              pushCombatLog(tMs, 'melee', 2, w2Verb, false, undefined, { roundLetter: ohRoundLetter, attemptNumber: 2, swingKind: 'DA', dualWieldGate: true });
-            }
-          }
-          // Proc once per round (only if at least one hit landed)
-          if ( procChance2 > 0 && checkProc(procChance2, procRng) && canProcLandOnTarget(w2, options)) {
+          // Proc fires when DW check passes, before the swing (can proc even on miss)
+          if (procChance2 > 0 && checkProc(procChance2, procRng) && canProcLandOnTarget(w2, options)) {
             report.weapon2.procs++;
             const procDmg = w2.noDamageVsTarget ? 0 : Math.floor(((w2.procSpellDamage != null ? w2.procSpellDamage : 0) | 0) * soulAbrasionProcMult);
             const effectiveness = getProcSpellEffectiveness(w2, options, level, procRng);
@@ -2562,6 +2585,63 @@
                   report.weapon2.procResists++;
                 }
               }
+            }
+          }
+          if (rollHit(toHit, avoidance, weaveRng, frontAvoidChance)) {
+            const ohElemAdder = getElementalBaseAdder(w2, options, elemRng);
+            report.elementalDamageTotal += ohElemAdder;
+            let ohBase = cappedW2Damage + ohElemAdder;
+            ohBase = applyDisciplineDamageMod(ohBase, disciplineActiveOh);
+            let dmg = calcMeleeDamage(ohBase, offenseRating, mitigation, weaveRng, 0);
+            const mult = rollDamageMultiplier(offenseRating, dmg, level, options.classId, false, weaveRng);
+            dmg = mult.damage;
+            const beforeCrit = dmg;
+            const critResult = rollMeleeCrit(dmg, 0, level, options.classId, options.dex, options.critChanceMult, false, false, 0, options.critDmgDebugDmgBonus, weaveRng, furyDmgBonusPct);
+            dmg = critResult.damage;
+            if (critResult.isCrit) { report.critHits++; report.critDamageGain += (dmg - beforeCrit); }
+            const ohDisciplineMin = getDisciplineMinHit(cappedW2Damage, 0, disciplineActiveOh);
+            if (ohDisciplineMin != null && dmg < ohDisciplineMin) dmg = ohDisciplineMin;
+            if (w2.noDamageVsTarget) { report.elementalDamageTotal -= ohElemAdder; dmg = 0; }
+            report.weapon2.swings++; addSwingThreatOH();
+            report.weapon2.hits++;
+            report.weapon2.totalDamage += dmg;
+            report.weapon2.maxDamage = Math.max(report.weapon2.maxDamage, dmg);
+            report.weapon2.minDamage = Math.min(report.weapon2.minDamage, dmg);
+            report.weapon2.hitList.push(dmg);
+            report.totalDamage += dmg;
+            pushCombatLog(tMs, 'melee', 2, w2Verb, true, dmg, { roundLetter: ohRoundLetter, attemptNumber: 1, swingKind: 'BA', dualWieldGate: true, isCrit: critResult.isCrit });
+          } else {
+            report.weapon2.swings++; addSwingThreatOH();
+            pushCombatLog(tMs, 'melee', 2, w2Verb, false, undefined, { roundLetter: ohRoundLetter, attemptNumber: 1, swingKind: 'BA', dualWieldGate: true });
+          }
+          if (checkDoubleAttack(doubleAttackEffective, weaveRng, options.classId)) {
+            attacksThisRound = 2;
+            if (rollHit(toHit, avoidance, weaveRng, frontAvoidChance)) {
+              const ohElemAdder2 = getElementalBaseAdder(w2, options, elemRng);
+              report.elementalDamageTotal += ohElemAdder2;
+              let ohBase2 = cappedW2Damage + ohElemAdder2;
+              ohBase2 = applyDisciplineDamageMod(ohBase2, disciplineActiveOh);
+              let dmg = calcMeleeDamage(ohBase2, offenseRating, mitigation, weaveRng, 0);
+              const mult = rollDamageMultiplier(offenseRating, dmg, level, options.classId, false, weaveRng);
+              dmg = mult.damage;
+              const beforeCrit = dmg;
+              const critResult = rollMeleeCrit(dmg, 0, level, options.classId, options.dex, options.critChanceMult, false, false, 0, options.critDmgDebugDmgBonus, weaveRng, furyDmgBonusPct);
+              dmg = critResult.damage;
+              if (critResult.isCrit) { report.critHits++; report.critDamageGain += (dmg - beforeCrit); }
+              const ohDisciplineMin2 = getDisciplineMinHit(cappedW2Damage, 0, disciplineActiveOh);
+              if (ohDisciplineMin2 != null && dmg < ohDisciplineMin2) dmg = ohDisciplineMin2;
+              if (w2.noDamageVsTarget) { report.elementalDamageTotal -= ohElemAdder2; dmg = 0; }
+              report.weapon2.swings++; addSwingThreatOH();
+              report.weapon2.hits++;
+              report.weapon2.totalDamage += dmg;
+              report.weapon2.maxDamage = Math.max(report.weapon2.maxDamage, dmg);
+              report.weapon2.minDamage = Math.min(report.weapon2.minDamage, dmg);
+              report.weapon2.hitList.push(dmg);
+              report.totalDamage += dmg;
+              pushCombatLog(tMs, 'melee', 2, w2Verb, true, dmg, { roundLetter: ohRoundLetter, attemptNumber: 2, swingKind: 'DA', dualWieldGate: true, isCrit: critResult.isCrit });
+            } else {
+              report.weapon2.swings++; addSwingThreatOH();
+              pushCombatLog(tMs, 'melee', 2, w2Verb, false, undefined, { roundLetter: ohRoundLetter, attemptNumber: 2, swingKind: 'DA', dualWieldGate: true });
             }
           }
           if (attacksThisRound === 1) report.weapon2.single++;
@@ -2969,7 +3049,7 @@
         : '  *** Non-Epic Fistweaving (equipped secondary) ***';
       lines.push('');
       lines.push(ohSectionTitle);
-      lines.push('    Weaved attacks use the offhand item\'s damage and delay (no automatic offhand round swings; no offhand procs).');
+      lines.push('    Weaved attacks use the offhand item\'s damage and delay (no automatic offhand round swings; proc fires on DW check pass).');
       lines.push(padLine('    Secondary weapon:', `${wlabel} — ${wphys} damage / ${wdly} delay (decisec)`));
     }
     if ((report.classId || '').toLowerCase() === 'paladin') {
@@ -2988,8 +3068,9 @@
       const fwAcc = fw.swings > 0 ? (fw.hits / fw.swings * 100).toFixed(1) : '0';
       const fwDmg = fw.baseDamage != null ? fw.baseDamage : 9;
       const is2HWeave = fw.weaveMode === 'twoHandWeave';
+      const fwWeaponHasProc = fw.usesEquippedOffhandWeapon && report.weapon2 && report.weapon2.anticipatedProcChancePerRound > 0;
       const fwTitle = fw.usesEquippedOffhandWeapon
-        ? ((is2HWeave ? '2H Weave' : 'Fistweaving') + ' — secondary weapon base ' + fwDmg + ' / delay ' + (fw.nonEpicWeaponDelayDecisec != null ? fw.nonEpicWeaponDelayDecisec : '—') + ' (no proc)')
+        ? ((is2HWeave ? '2H Weave' : 'Fistweaving') + ' — secondary weapon base ' + fwDmg + ' / delay ' + (fw.nonEpicWeaponDelayDecisec != null ? fw.nonEpicWeaponDelayDecisec : '—') + (fwWeaponHasProc ? '' : ' (no proc)'))
         : ('Fistweaving (' + fwDmg + ' dmg, no proc)');
       lines.push('  ' + fwTitle);
       const reactionLabel = is2HWeave ? '    2H Weave reaction delay:' : '    Fistweave reaction delay:';
@@ -3012,6 +3093,12 @@
       lines.push(padLine('    Accuracy:', fwAcc + '%'));
       lines.push(padLine('    Total damage:', String(fw.totalDamage)));
       lines.push(padLine('    DPS:', (fw.totalDamage / dur).toFixed(2)));
+      if (fwWeaponHasProc) {
+        const w2r = report.weapon2;
+        lines.push(padLine('    Proc attempts:', String(w2r.procs || 0)));
+        if (w2r.procDamageTotal > 0) lines.push(padLine('    Proc damage:', String(w2r.procDamageTotal)));
+        if (w2r.procResists > 0) lines.push(padLine('    Proc resists:', String(w2r.procResists)));
+      }
     }
     lines.push('');
 
