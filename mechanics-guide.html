@@ -591,7 +591,7 @@
         High target resists can heavily suppress elemental contribution; this is why elemental-heavy weapons can vary by target profile.
       </p>
       <p class="muted">
-        Elemental resist rolls use a dedicated RNG stream (separate from the main combat RNG used for hit/damage rolls). This ensures that equipping a weapon with elemental damage in one slot has no effect on the RNG sequence seen by the other slot's hit and damage rolls. Similarly, all offhand and weave swing resolution (DW checks, to-hit, damage, crits) uses its own dedicated RNG stream, so enabling fistweaving or dual-wielding has no effect on the mainhand RNG sequence.
+        The sim uses five independent RNG streams per fight, each seeded separately so that rolls in one category never influence rolls in another: the main stream (mainhand hit/damage/DA/crit), a proc stream (proc trigger, resist, and SCF crit rolls), an elemental stream (elemental base adder rolls), a weave stream (fistweave/2H-weave DW checks), and a special stream (backstab/flying-kick hit, damage, crit, double-backstab DA check, and Master Wu trigger/skill rolls). This ensures that swapping a weapon between mainhand and offhand — which changes the number of mainhand swing rolls between special events — cannot shift the RNG state seen by backstab rolls, and vice versa.
       </p>
     </div>
 
