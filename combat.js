@@ -1345,6 +1345,7 @@
     const procRng = createRng(options.seed != null ? options.seed + 12345 : undefined);
     const elemRng = createRng(options.seed != null ? options.seed + 54321 : undefined);
     const weaveRng = createRng(options.seed != null ? options.seed + 99999 : undefined);
+    const specialRng = createRng(options.seed != null ? options.seed + 77777 : undefined);
     const specialType = options.specialAttackType || getDefaultSpecialTypeForClass(options.classId);
     const specialConfig = (options.specialAttacks && options.classId && specialType && canClassUseSpecialType(options.classId, specialType) && SPECIAL_ATTACKS_BY_TYPE[specialType])
       ? SPECIAL_ATTACKS_BY_TYPE[specialType]
@@ -1826,14 +1827,14 @@
         const backstabToHit = isRogueBackstab ? (7 + OFFENSE_SKILL + backstabEffectiveSkill) : toHit;
 
         // Backstab: do double attack check first. If it fails → single backstab (one to-hit roll). If it succeeds → double backstab (normal + bonus attempt, two to-hit rolls).
-        const isDoubleBackstabRound = isRogueBackstab && options.classId === 'rogue' && level > 54 && report.special.doubleBackstabs !== undefined && checkDoubleAttack(doubleAttackEffective, rng, options.classId);
+        const isDoubleBackstabRound = isRogueBackstab && options.classId === 'rogue' && level > 54 && report.special.doubleBackstabs !== undefined && checkDoubleAttack(doubleAttackEffective, specialRng, options.classId);
         const numBackstabRolls = isDoubleBackstabRound ? 2 : 1;
         if (isDoubleBackstabRound) report.special.doubleBackstabs++;
 
         function processOneBackstabHit(backstabAttemptNumber) {
           if (report.special.attemptedAttacks !== undefined) report.special.attemptedAttacks++;
           addSwingThreatMH();
-          const specialHits = rollHit(backstabToHit, avoidance, rng, frontAvoidChance);
+          const specialHits = rollHit(backstabToHit, avoidance, specialRng, frontAvoidChance);
           if (!specialHits) {
             pushCombatLog(tMs, 'special', 'special', specialVerb, false, undefined, { bsDA: isDoubleBackstabRound && backstabAttemptNumber === 2 });
             return;
@@ -1854,11 +1855,11 @@
             duelistBackstabRound = disciplineDuelistActive(tMs);
             backstabDisciplineMinHit = getDisciplineMinHit(backstabBaseRaw, 0, duelistBackstabRound);
             let backstabBase = applyDisciplineDamageMod(backstabBaseRaw, duelistBackstabRound);
-            baseDmg = calcMeleeDamage(backstabBase, backstabOffenseRating, mitigation, rng, 0);
+            baseDmg = calcMeleeDamage(backstabBase, backstabOffenseRating, mitigation, specialRng, 0);
             baseDmg = Math.max(1, baseDmg);
           } else if (specialConfig.useWeaponDamage === false && specialConfig.skillBaseDamage != null) {
             const skillBase = specialConfig.skillBaseDamage;
-            baseDmg = calcMeleeDamage(skillBase, offenseRating, mitigation, rng, 0);
+            baseDmg = calcMeleeDamage(skillBase, offenseRating, mitigation, specialRng, 0);
             if (specialConfig.minDamageFormula === 'level*4/5') {
               const fkMin = Math.floor(level * 4 / 5);
               baseDmg = Math.max(1, Math.max(baseDmg, fkMin));
@@ -1866,13 +1867,13 @@
               baseDmg = Math.max(1, baseDmg);
             }
           } else {
-            baseDmg = calcMeleeDamage(cappedW1Damage + specElemAdder, offenseRating, mitigation, rng);
+            baseDmg = calcMeleeDamage(cappedW1Damage + specElemAdder, offenseRating, mitigation, specialRng);
             baseDmg = Math.max(1, specialConfig.damageMultiplier ? Math.floor(baseDmg * specialConfig.damageMultiplier) : baseDmg);
           }
-          const mult = rollDamageMultiplier(specialOffenseRating, baseDmg, level, options.classId, false, rng);
+          const mult = rollDamageMultiplier(specialOffenseRating, baseDmg, level, options.classId, false, specialRng);
           let dmg = mult.damage;
           const beforeCrit = dmg;
-          const critResult = rollMeleeCrit(dmg, 0, level, options.classId, options.dex, options.critChanceMult, false, false, 0, options.critDmgDebugDmgBonus, rng, furyDmgBonusPct);
+          const critResult = rollMeleeCrit(dmg, 0, level, options.classId, options.dex, options.critChanceMult, false, false, 0, options.critDmgDebugDmgBonus, specialRng, furyDmgBonusPct);
           dmg = critResult.damage;
           if (critResult.isCrit) { report.critHits++; report.critDamageGain += (dmg - beforeCrit); }
           if (isRogueBackstab && level != null) {
@@ -1913,20 +1914,20 @@
             if (skillEntry) skillEntry.attempts++;
             report.masterWu.extraAttempts++;
             addSwingThreatMH();
-            if (!rollHit(toHit, avoidance, rng, frontAvoidChance)) {
+            if (!rollHit(toHit, avoidance, specialRng, frontAvoidChance)) {
               pushCombatLog(tMs, 'special', 'special', wuSkillCfg.name, false, undefined, { wu: true });
               return;
             }
-            let baseDmg = calcMeleeDamage(wuSkillCfg.skillBaseDamage, offenseRating, mitigation, rng, 0);
+            let baseDmg = calcMeleeDamage(wuSkillCfg.skillBaseDamage, offenseRating, mitigation, specialRng, 0);
             if (wuSkillCfg.minDamageFormula === 'level*4/5') {
               baseDmg = Math.max(1, Math.max(baseDmg, Math.floor(level * 4 / 5)));
             } else {
               baseDmg = Math.max(1, baseDmg);
             }
-            const mult = rollDamageMultiplier(offenseRating, baseDmg, level, options.classId, false, rng);
+            const mult = rollDamageMultiplier(offenseRating, baseDmg, level, options.classId, false, specialRng);
             let dmg = mult.damage;
             const beforeCrit = dmg;
-            const critResult = rollMeleeCrit(dmg, 0, level, options.classId, options.dex, options.critChanceMult, false, false, 0, options.critDmgDebugDmgBonus, rng, furyDmgBonusPct);
+            const critResult = rollMeleeCrit(dmg, 0, level, options.classId, options.dex, options.critChanceMult, false, false, 0, options.critDmgDebugDmgBonus, specialRng, furyDmgBonusPct);
             dmg = critResult.damage;
             if (critResult.isCrit) { report.critHits++; report.critDamageGain += (dmg - beforeCrit); }
             if (w1.noDamageVsTarget) { dmg = 0; }
@@ -1944,12 +1945,12 @@
           }
 
           report.masterWu.mainRolls++;
-          if (wuChance >= 100 || rng() * 100 < wuChance) {
+          if (wuChance >= 100 || specialRng() * 100 < wuChance) {
             report.masterWu.triggered++;
             let extra = 1;
-            if (rng() * 100 < wuChance / 4) extra++;
+            if (specialRng() * 100 < wuChance / 4) extra++;
             while (extra > 0) {
-              doMonkWuStrike(WU_MONK_SKILLS[Math.floor(rng() * 4)]);
+              doMonkWuStrike(WU_MONK_SKILLS[Math.floor(specialRng() * 4)]);
               extra--;
             }
           }
