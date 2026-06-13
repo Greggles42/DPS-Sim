@@ -3412,8 +3412,11 @@
         // ATK portion — only update if elements exist; hide worn ATK wrap when 0
         var spellAtkInput = parseInt(($('spell-attack') && $('spell-attack').value) || '0', 10) || 0;
         var wornAtkInput  = parseInt(($('worn-attack')  && $('worn-attack').value)  || '0', 10) || 0;
+        var buffSpellAtk = 0;
+        if (typeof getBuffEffects === 'function') { var _bfxAtk = getBuffEffects(); buffSpellAtk = _bfxAtk ? (_bfxAtk.atk || 0) : 0; }
         var effSpellAtkEl = $('eff-spell-atk');
-        if (effSpellAtkEl) effSpellAtkEl.textContent = (spellAtkInput >= 0 ? '+' : '') + spellAtkInput;
+        var totalEffSpellAtk = spellAtkInput + buffSpellAtk;
+        if (effSpellAtkEl) effSpellAtkEl.textContent = (totalEffSpellAtk >= 0 ? '+' : '') + totalEffSpellAtk;
         var wornWrap = $('eff-worn-atk-wrap');
         if (wornWrap) wornWrap.style.display = wornAtkInput ? '' : 'none';
         var effWornAtkEl = $('eff-worn-atk');
