@@ -1922,7 +1922,7 @@
       <iconify-icon icon="ra:crossed-swords" class="text-2xl md:text-3xl text-[#d4af37] flex-shrink-0"></iconify-icon>
       <div class="flex flex-col min-w-0">
         <span class="font-fantasy text-base md:text-xl tracking-widest text-[#d4af37] truncate"><span class="app-title-g-small">g</span>Sim for Project Quarm</span>
-        <span class="text-[10px] text-gray-500 uppercase tracking-tighter">Everquest DPS Simulator · <span id="app-version">v1.25</span></span>
+        <span class="text-[10px] text-gray-500 uppercase tracking-tighter">Everquest DPS Simulator · <span id="app-version">v1.35</span></span>
       </div>
     </div>
     <div class="flex items-center gap-3 md:gap-8 flex-shrink-0">
@@ -2876,6 +2876,7 @@
   <section class="advanced-only" style="margin-top: 1rem;">
     <h2>Version log</h2>
     <ul style="font-size: 0.9rem; color: var(--muted); margin: 0; padding-left: 1.25rem;">
+      <li><strong>1.35</strong> — Inventory import now supports the full Quarm character export format (the tab-separated file produced by <code>/outputfile inventory</code> with a Character header row). The Character row is parsed to extract the character's name, level, and class — class is set directly from the explicit class ID rather than inferred from item restrictions. The AA section at the bottom of the file is parsed and mapped to the sim's AA configurator: Combat Fury, Combat Stability, Combat Agility, Natural Durability, Spell Casting Fury, Ambidexterity, Return Kick, Double Riposte, and Technique of Master Wu are all auto-imported at the correct rank. Level is auto-filled into both the advanced and easy-mode level fields. The inventory summary now shows the character's name, level, explicit class, and a list of imported AAs with their ranks. The old format (slot/name/id only, no Character header) continues to work unchanged.</li>
       <li><strong>1.34</strong> — Fix: backstab and special-attack rolls (hit, damage, crit, double-backstab DA check, Master Wu trigger/skill-select) now use a dedicated RNG stream (<code>specialRng</code>) isolated from mainhand swing rolls. Previously all shared the same stream, causing weapon delay differences between mainhand and offhand to systematically shift the RNG state at each backstab event — producing a spurious ~2% backstab accuracy gap between otherwise equivalent MH/OH slot assignments. Verified eliminated: 500-seed × 6000s test now shows 0.000% BS accuracy difference between configs. Excluded Malevolence and Long Sword of the Defender (GM/artifact weapons) from Rank Weapons lists.</li>
       <li><strong>1.33</strong> — Weave RNG isolation: fistweave/2H-weave dual-wield checks now use a dedicated <code>weaveRng</code> stream. Proc-before-swing ordering: proc trigger fires before the hit roll on each round (matching server behavior). Fistweave offhand procs now fire correctly when non-epic fistweave or 2H weave uses an equipped offhand with a proc.</li>
       <li><strong>1.32</strong> — NPC front avoidance now uses class-based defense skills (block/parry/riposte/dodge) instead of a flat 8% constant. Each skill is derived from <code>min(level × 5, class_cap)</code> and converted to a chance via EQMacEmu's divisor formula; checks are sequential. Warrior-type mobs (~28% front avoid at level 60) are meaningfully harder to hit from the front than casters (~7%). Inventory Manager: added Save .txt button to export the current inventory in the same tab-separated format as EQ's /outputfile inventory command, so it can be re-imported later. Buff panel: hovering a buff now shows a tooltip with the buff name and all its effects (haste %, ATK, stats, AC, HP). Added Captain Nalot's Quickening (spell 1925, 20% V1 haste, click) to the haste buff list; haste buffs are now ordered ascending by haste %.</li>
@@ -10489,11 +10490,71 @@
 
   var _rangedWornArcheryModUserSet = false;
 
+  // EQ numeric AA ID (from inventory export) → sim aaConfig string key
+  var EQ_AA_ID_TO_SIM = {
+    13: 'combatFury',
+    17: 'combatStability',
+    28: 'combatAgility',
+    30: 'naturalDurability',
+    34: 'spellCastingFury',
+    81: 'ambidexterity',
+    97: 'returnKick',
+    120: 'doubleRiposte',
+    211: 'masterWu'
+  };
+
+  // EQ numeric class ID (from inventory export) → sim class string
+  var EQ_CLASS_ID_TO_STR = {
+    1: 'warrior', 2: 'cleric', 3: 'paladin', 4: 'ranger', 5: 'shadowknight',
+    6: 'druid', 7: 'monk', 8: 'bard', 9: 'rogue', 10: 'shaman',
+    11: 'necromancer', 12: 'wizard', 13: 'magician', 14: 'enchanter', 15: 'beastlord'
+  };
+
   function parseInventoryTsv(text) {
     var lines = text.split(/\r?\n/);
     var slots = {};
+    var charInfo = null;   // { name, level, classStr } from Character row
+    var aaRanks  = {};     // simAaId → rank, from AAIndex section
+    var inAASection = false;
+
     lines.forEach(function (line) {
       var cols = line.split('\t');
+
+      // ── AA section header ──────────────────────────────────────────
+      if (cols.length >= 2 && cols[0].trim() === 'AAIndex') {
+        inAASection = true;
+        return;
+      }
+
+      // ── AA data rows ───────────────────────────────────────────────
+      if (inAASection) {
+        if (cols.length < 2) return;
+        var aaId   = parseInt(cols[0].trim(), 10);
+        var aaRank = parseInt(cols[1].trim(), 10);
+        if (!isNaN(aaId) && !isNaN(aaRank) && aaRank > 0) {
+          var simId = EQ_AA_ID_TO_SIM[aaId];
+          if (simId) aaRanks[simId] = aaRank;
+        }
+        return;
+      }
+
+      // ── Character data row: Character <Tab> Name <Tab> LastName <Tab> Level <Tab> ClassId … ──
+      // Header row has cols[1] === 'Name'; data row has cols[1] = actual name.
+      if (cols[0].trim() === 'Character' && cols.length >= 5 && cols[1].trim() !== 'Name') {
+        var charName    = cols[1].trim();
+        var charLevel   = parseInt(cols[3], 10);
+        var charClassId = parseInt(cols[4], 10);
+        if (charName) {
+          charInfo = {
+            name:     charName,
+            level:    isNaN(charLevel)   ? null : charLevel,
+            classStr: EQ_CLASS_ID_TO_STR[charClassId] || null
+          };
+        }
+        return;
+      }
+
+      // ── Equipment slot rows ────────────────────────────────────────
       if (cols.length < 3) return;
       var slot = cols[0].trim();
       var name = cols[1].trim();
@@ -10506,10 +10567,11 @@
         slots[slot + '2'] = { name: name, id: id };
       }
     });
-    return slots;
+
+    return { slots: slots, charInfo: charInfo, aaRanks: aaRanks };
   }
 
-  function _applyInventoryFromEquippedSlots(equippedSlots) {
+  function _applyInventoryFromEquippedSlots(equippedSlots, charInfo, aaRanks) {
     // ---- Aggregate stats across all equipped items ----
     var totals = { ac: 0, str: 0, dex: 0, agi: 0, sta: 0, wis: 0, int: 0, cha: 0, hp: 0, mana: 0, atk: 0, mr: 0, fr: 0, cr: 0, dr: 0, pr: 0, regen: 0, ft: 0, archeryMod: 0 };
     var hasteItems  = [];   // { name, haste, spellName }
@@ -10833,13 +10895,20 @@
       32:'druid', 64:'monk', 128:'bard', 256:'rogue', 512:'shaman',
       1024:'necromancer', 2048:'wizard', 4096:'magician', 8192:'enchanter', 16384:'beastlord'
     };
+    // ── Explicit class from charInfo (new format) takes priority over bitmask detection ──
     var detectedClass = null;
     var detectedClassName = null;
-    if (hasClassConstraint && classMask > 0) {
-      // Check if exactly one bit is set
+    var classSource = null;  // 'explicit' | 'items' | null
+    if (charInfo && charInfo.classStr) {
+      detectedClass     = charInfo.classStr;
+      detectedClassName = detectedClass.charAt(0).toUpperCase() + detectedClass.slice(1);
+      classSource       = 'explicit';
+    } else if (hasClassConstraint && classMask > 0) {
+      // Fall back to bitmask intersection — only works when exactly one class bit remains
       if ((classMask & (classMask - 1)) === 0) {
         detectedClass     = CLASS_MAP[classMask] || null;
         detectedClassName = detectedClass ? (detectedClass.charAt(0).toUpperCase() + detectedClass.slice(1)) : null;
+        classSource       = 'items';
       }
     }
     if (detectedClass) {
@@ -10857,6 +10926,21 @@
         var easyHasteReadout = document.getElementById('easy-worn-haste-value');
         if (easyHasteReadout) easyHasteReadout.textContent = totalHaste + '%';
       }
+    }
+
+    // ── Level from charInfo ─────────────────────────────────────────────────────────────
+    if (charInfo && charInfo.level) {
+      setEl('level', charInfo.level);
+      var easyLevelEl = document.getElementById('easy-level');
+      if (easyLevelEl) easyLevelEl.value = charInfo.level;
+    }
+
+    // ── AAs from charInfo ───────────────────────────────────────────────────────────────
+    if (aaRanks && Object.keys(aaRanks).length > 0) {
+      Object.keys(aaRanks).forEach(function (id) {
+        aaConfig[id] = aaRanks[id];
+      });
+      if (typeof buildAAConfiguratorUI === 'function') buildAAConfiguratorUI();
     }
 
     // ---- Inventory summary (below equipment list) ----
@@ -10933,12 +11017,30 @@
         summLines.push('</div>');
       }
 
-      // Detected class
+      // Character name + class + level (from explicit charInfo) or bitmask-detected class
+      if (charInfo && charInfo.name) {
+        var charLabel = charInfo.name;
+        if (charInfo.level) charLabel += ' (Level ' + charInfo.level + ')';
+        summLines.push('<div style="margin-top:0.35rem;font-size:0.8rem;color:var(--muted);">');
+        summLines.push('<strong style="color:#d4af37;">Character:</strong> ');
+        summLines.push('<span style="color:#7eb8c9;">' + charLabel + '</span>');
+        summLines.push('</div>');
+      }
       if (detectedClassName) {
         summLines.push('<div style="margin-top:0.35rem;font-size:0.8rem;color:var(--muted);">');
-        summLines.push('<strong style="color:#d4af37;">Detected class:</strong> ');
+        summLines.push('<strong style="color:#d4af37;">' + (classSource === 'explicit' ? 'Class:' : 'Detected class:') + '</strong> ');
         summLines.push('<span style="color:#7eb8c9;">' + detectedClassName + '</span>');
-        summLines.push(' <span>(auto-filled from class-restricted items)</span>');
+        if (classSource !== 'explicit') summLines.push(' <span>(auto-filled from class-restricted items)</span>');
+        summLines.push('</div>');
+      }
+      if (aaRanks && Object.keys(aaRanks).length > 0) {
+        var aaNames = Object.keys(aaRanks).map(function (id) {
+          var def = window.AbilityRegistry && window.AbilityRegistry.AA_DEFINITIONS.find(function (a) { return a.id === id; });
+          return (def ? def.label : id) + ' ' + aaRanks[id];
+        });
+        summLines.push('<div style="margin-top:0.35rem;font-size:0.8rem;color:var(--muted);">');
+        summLines.push('<strong style="color:#d4af37;">AAs imported:</strong> ');
+        summLines.push('<span style="color:#7eb8c9;">' + aaNames.join(', ') + '</span>');
         summLines.push('</div>');
       }
 
@@ -10960,14 +11062,15 @@
 
   function applyInventory(text) {
     window.inventoryLoaded = true;
-    var equippedSlots = parseInventoryTsv(text);
+    var parsed = parseInventoryTsv(text);
+    var equippedSlots = parsed.slots;
     MANAGER_SLOT_KEYS.forEach(function(k) {
       var entry = equippedSlots[k];
       inventoryManagerState[k] = entry
         ? { id: entry.id, name: entry.name, item: lookupItem(entry.id) }
         : null;
     });
-    _applyInventoryFromEquippedSlots(equippedSlots);
+    _applyInventoryFromEquippedSlots(equippedSlots, parsed.charInfo, parsed.aaRanks);
   }
 
   var fileInput = document.getElementById('shared-inventory-file');
