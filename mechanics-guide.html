@@ -717,6 +717,32 @@
       <p>Rangers above level 54 also receive a linear bonus:</p>
       <div class="formula">rangerBonus = level × 4 − 216  (e.g. +24 at level 60, +44 at level 65)</div>
 
+      <h3>10.2.1) How much does DEX matter for ranged damage?</h3>
+      <p>
+        The DEX contribution to offense rating is:
+      </p>
+      <div class="formula">dexBonus = floor((2 × DEX − 150) / 3)  (requires DEX ≥ 75; otherwise 0)</div>
+      <p>
+        Every <strong>1.5 DEX = +1 offense rating</strong>. At the 255 cap, DEX contributes +120 offense rating over the zero-bonus baseline:
+      </p>
+      <table>
+        <tr><th>DEX</th><th>dexBonus (offense rating)</th></tr>
+        <tr><td>75</td><td>0</td></tr>
+        <tr><td>150</td><td>+50</td></tr>
+        <tr><td>200</td><td>+83</td></tr>
+        <tr><td>255</td><td>+120</td></tr>
+      </table>
+      <p>
+        DEX also raises <strong>Ranger archery crit chance</strong> and <strong>proc chance</strong>:
+      </p>
+      <ul>
+        <li><strong>Crit chance (Ranger, level &gt; 16):</strong> <code>1.35 + DEX/34</code>% — going from DEX 75 to 255 adds roughly +5.3% crit chance.</li>
+        <li><strong>Proc chance:</strong> <code>~0.00001144 × DEX × delay</code> per swing — a small but real factor on slow bows.</li>
+      </ul>
+      <p class="muted">
+        In practice, DEX past the 255 stat cap provides a small additional bonus to crit chance and proc chance (each extra DEX point above 255 is divided by 400 for crits, 200 for procs), but the main payoff from DEX comes from reaching 255.
+      </p>
+
       <h3>10.3) Quiver haste</h3>
       <p>
         Applied separately from standard haste (not subject to the 125% cap). If a quiver provides weight reduction (WR%), quiver haste = WR% ÷ 4 ÷ 100.
