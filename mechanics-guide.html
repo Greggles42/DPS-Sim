@@ -79,6 +79,30 @@
       color: var(--muted);
       font-weight: 600;
     }
+    .badge {
+      display: inline-block;
+      font-size: 0.62rem;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      padding: 0.15rem 0.45rem;
+      border-radius: 3px;
+      vertical-align: middle;
+      margin-left: 0.55rem;
+      text-transform: uppercase;
+      font-family: "Segoe UI", system-ui, sans-serif;
+      position: relative;
+      top: -1px;
+    }
+    .badge-game {
+      background: rgba(94, 190, 120, 0.13);
+      color: #6dca84;
+      border: 1px solid rgba(94, 190, 120, 0.28);
+    }
+    .badge-sim {
+      background: rgba(212, 175, 55, 0.13);
+      color: #d4af37;
+      border: 1px solid rgba(212, 175, 55, 0.28);
+    }
   </style>
 </head>
 <body>
@@ -88,9 +112,13 @@
       This page explains exactly how this simulator models melee damage, hit chance, haste, offense, and target defenses.
       Formulas are based on EQMacEmu combat logic and this simulator's implementation.
     </p>
+    <p class="muted" style="margin-top:0.25rem;">
+      <span class="badge badge-game">In-Game Mechanic</span> — direct simulation of EQ server behavior. &nbsp;
+      <span class="badge badge-sim">Sim Feature</span> — specific to this simulator; not how the game itself works internally.
+    </p>
 
     <div class="card">
-      <h2>1) Weapon Base Damage and Delay</h2>
+      <h2>1) Weapon Base Damage and Delay <span class="badge badge-game">In-Game Mechanic</span></h2>
       <p>
         Every weapon starts from <strong>base damage</strong> and <strong>delay</strong>. Delay is in deciseconds
         (<code>40 = 4.0s</code>).
@@ -102,12 +130,12 @@
     </div>
 
     <div class="card">
-      <h2>2) Threat and TPS (not the same as DPS)</h2>
+      <h2>2) Threat and TPS (not the same as DPS) <span class="badge badge-sim">Sim Feature</span></h2>
       <p>
         The header shows <strong>Total TPS (Beta)</strong> — approximate <strong>threat per second</strong>. It is <strong>not</strong> your damage per second; it is a separate aggregate used to reason about tank snap aggro and weapon proc contribution.
       </p>
 
-      <h3>2.1) What “total threat” is</h3>
+      <h3>2.1) What "total threat" is</h3>
       <p>
         Over a simulated fight of length <code>T</code> seconds, the sim accumulates integer <strong>threat</strong> from allowed sources. The report value is:
       </p>
@@ -133,33 +161,33 @@
           <strong>Special attacks (backstab, flying kick, kick, bash, etc.)</strong> — <strong>Yes, they count.</strong> Each time a special fires on its cooldown, the sim adds <strong>one primary-hand swing hate event</strong> — the <strong>same amount</strong> as a normal main-hand auto (weapon base + main-hand damage bonus), including on a miss. Special <strong>damage</strong> does not add extra threat in this model: a huge backstab number does not increase swing hate beyond that single MH-sized slice.
         </li>
         <li>
-          <strong>Monk fistweaving</strong> — Weaved punches add swing threat as their configured fist base (epic vs non-epic), using the same “primary style” helper as other MH swing hate for those events (<code>meleeSwingThreatPrimary(fistBase, 0)</code>).
+          <strong>Monk fistweaving</strong> — Weaved punches add swing threat as their configured fist base (epic vs non-epic), using the same "primary style" helper as other MH swing hate for those events (<code>meleeSwingThreatPrimary(fistBase, 0)</code>).
         </li>
         <li>
-          <strong>Proc threat (direct damage spells)</strong> — When a weapon proc deals instant DD, hate from damage uses the spell’s <strong>base</strong> proc damage (before resists / Spell Casting Fury crit), then applies the per-event cap (default <strong>400</strong>). DoT procs accrue threat from <strong>unresisted per-tick base</strong> (total proc damage ÷ tick count), not from resisted tick damage.
+          <strong>Proc threat (direct damage spells)</strong> — When a weapon proc deals instant DD, hate from damage uses the spell's <strong>base</strong> proc damage (before resists / Spell Casting Fury crit), then applies the per-event cap (default <strong>400</strong>). DoT procs accrue threat from <strong>unresisted per-tick base</strong> (total proc damage ÷ tick count), not from resisted tick damage.
         </li>
         <li>
           <strong>Proc threat (DD + stun)</strong> — If spell data includes both HP damage and a stun (EQEmu SE 21), the sim adds an <strong>additional</strong> mob–max-HP detrimental slice (<code>min(1200, max(25, floor(targetMaxHp / 15)))</code>) on top of the DD-based proc hate (e.g. Thunder Strike).
         </li>
         <li>
           <strong>Proc threat (detrimental, no HP damage)</strong> — For procs classified as detrimental with no SE_CurrentHP damage in spell data:
-          <code>min(1200, max(25, floor(targetMaxHp / 15)))</code>. <code>targetMaxHp</code> comes from the selected NPC’s <code>hp</code> when you pick a target from search; otherwise a generic HP curve (e.g. 22,105 at mob level 60, scaled by level).
+          <code>min(1200, max(25, floor(targetMaxHp / 15)))</code>. <code>targetMaxHp</code> comes from the selected NPC's <code>hp</code> when you pick a target from search; otherwise a generic HP curve (e.g. 22,105 at mob level 60, scaled by level).
         </li>
         <li>
-          <strong>Flat proc hate (SE 92)</strong> — <code>effect_base_value</code> on SE 92 is applied once per instant proc (not each DoT tick), signed: positive adds hate, negative reduces it (e.g. Khalshazar’s Deceit). Spells that are <strong>only</strong> SE 92 (no HP damage) do not use the max-HP/15 non-DD bucket—they use this flat value only.
+          <strong>Flat proc hate (SE 92)</strong> — <code>effect_base_value</code> on SE 92 is applied once per instant proc (not each DoT tick), signed: positive adds hate, negative reduces it (e.g. Khalshazar's Deceit). Spells that are <strong>only</strong> SE 92 (no HP damage) do not use the max-HP/15 non-DD bucket—they use this flat value only.
         </li>
       </ol>
 
       <h3>2.3) Components of total threat (ranged)</h3>
       <ul>
-        <li><strong>Per shot:</strong> swing threat ≈ bow displayed damage + arrow displayed damage (same idea as “base” before the hit roll).</li>
+        <li><strong>Per shot:</strong> swing threat ≈ bow displayed damage + arrow displayed damage (same idea as "base" before the hit roll).</li>
         <li><strong>Procs:</strong> same DD base / cap / non-DD detrimental / flat hate rules as melee, on the bow object.</li>
       </ul>
 
       <h3>2.4) What is not in this TPS</h3>
       <ul>
         <li>Threat from casting player spells, heals, buffs, or non-weapon abilities (not simulated).</li>
-        <li>Separate “damage-based” hate for specials (the sim does not add threat equal to special hit damage).</li>
+        <li>Separate "damage-based" hate for specials (the sim does not add threat equal to special hit damage).</li>
         <li>Rune absorb, mez/root flat hate tables, etc., unless modeled elsewhere in the future.</li>
       </ul>
 
@@ -189,7 +217,7 @@
     </div>
 
     <div class="card">
-      <h2>3) Haste</h2>
+      <h2>3) Haste <span class="badge badge-game">In-Game Mechanic</span></h2>
       <p>Actual haste rules used by the simulator:</p>
       <ol>
         <li>
@@ -220,7 +248,7 @@
     </div>
 
     <div class="card">
-      <h2>4) Offense Skill vs Offense Rating (Important)</h2>
+      <h2>4) Offense Skill vs Offense Rating (Important) <span class="badge badge-game">In-Game Mechanic</span></h2>
       <p>
         These are different and used in different parts of the calculation:
       </p>
@@ -240,7 +268,7 @@
     </div>
 
     <div class="card">
-      <h2>5) Hit Chance (Avoidance) vs Damage (Mitigation)</h2>
+      <h2>5) Hit Chance (Avoidance) vs Damage (Mitigation) <span class="badge badge-game">In-Game Mechanic</span></h2>
       <p>
         AC is not a single value in this sim. It is split into two defense concepts:
       </p>
@@ -276,7 +304,7 @@
       <div class="formula">rollIndex = RollD20(offenseRating, mitigation)  // result 1..20</div>
       <div class="formula">damage = floor((rollIndex × baseDamage + 5) / 10) + damageBonus</div>
       <p>
-        So <strong>rollIndex = 1</strong> gives minimum damage; <strong>rollIndex = 20</strong> gives maximum damage (for that weapon’s base range, before crits etc.).
+        So <strong>rollIndex = 1</strong> gives minimum damage; <strong>rollIndex = 20</strong> gives maximum damage (for that weapon's base range, before crits etc.).
       </p>
       <p><strong>How rollIndex is derived (the atk/def roll competition):</strong></p>
       <ol>
@@ -295,16 +323,16 @@
       </ol>
       <p><strong>What causes a hit to hit for max vs min?</strong></p>
       <ul>
-        <li><strong>High damage (max or near-max):</strong> When <strong>atkRoll</strong> is high and <strong>defRoll</strong> is low, (atkRoll − defRoll) is large, so the scaled index is high (near 20). So you get max (or near-max) hits when the attacker “wins” the roll contest by a wide margin.</li>
-        <li><strong>Low damage (min or near-min):</strong> When <strong>atkRoll</strong> is low and <strong>defRoll</strong> is high, (atkRoll − defRoll) is small or negative, so the scaled index is low (near 1). So you get min (or near-min) hits when the defender “wins” the roll contest.</li>
+        <li><strong>High damage (max or near-max):</strong> When <strong>atkRoll</strong> is high and <strong>defRoll</strong> is low, (atkRoll − defRoll) is large, so the scaled index is high (near 20). So you get max (or near-max) hits when the attacker "wins" the roll contest by a wide margin.</li>
+        <li><strong>Low damage (min or near-min):</strong> When <strong>atkRoll</strong> is low and <strong>defRoll</strong> is high, (atkRoll − defRoll) is small or negative, so the scaled index is low (near 1). So you get min (or near-min) hits when the defender "wins" the roll contest.</li>
       </ul>
       <p class="muted">
-        Higher <strong>offense rating</strong> (STR, worn ATK, spell ATK, offense skill) increases the range of atkRoll, so you can roll higher and get more big hits. Higher <strong>mitigation</strong> (e.g. high-AC or high-level mobs) increases the range of defRoll, so the defender often “wins” more and you see more low (min) hits and fewer max hits. That is why high-mitigation targets feel like they reduce your damage spread and push hits toward the bottom of the range.
+        Higher <strong>offense rating</strong> (STR, worn ATK, spell ATK, offense skill) increases the range of atkRoll, so you can roll higher and get more big hits. Higher <strong>mitigation</strong> (e.g. high-AC or high-level mobs) increases the range of defRoll, so the defender often "wins" more and you see more low (min) hits and fewer max hits. That is why high-mitigation targets feel like they reduce your damage spread and push hits toward the bottom of the range.
       </p>
     </div>
 
     <div class="card">
-      <h2>6) In Front vs Behind</h2>
+      <h2>6) In Front vs Behind <span class="badge badge-game">In-Game Mechanic</span></h2>
       <p>
         Choosing <strong>Behind</strong> does <em>not</em> force all swings to land. Misses still happen from to-hit vs avoidance.
       </p>
@@ -334,7 +362,7 @@
     </div>
 
     <div class="card">
-      <h2>7) Core Max-Hit Formulas</h2>
+      <h2>7) Core Max-Hit Formulas <span class="badge badge-game">In-Game Mechanic</span></h2>
       <p>
         For a single landed non-crit swing before proc damage:
       </p>
@@ -349,7 +377,7 @@
     </div>
 
     <div class="card">
-      <h2>7.5) Double Attack, Triple Attack, and Dual Wield</h2>
+      <h2>7.5) Double Attack, Triple Attack, and Dual Wield <span class="badge badge-game">In-Game Mechanic</span></h2>
 
       <h3>Double attack (main-hand extra swing)</h3>
       <p>
@@ -421,7 +449,7 @@
     </div>
 
     <div class="card">
-      <h2>7.6) Technique of Master Wu (Monk, PoP)</h2>
+      <h2>7.6) Technique of Master Wu (Monk, PoP) <span class="badge badge-game">In-Game Mechanic</span></h2>
       <p>
         After each Flying Kick attempt (hit or miss), if <strong>Technique of Master Wu</strong> is trained, two independent rolls determine whether bonus strikes fire.
         Source: <code>EQMacEmu special_attacks.cpp</code>.
@@ -455,7 +483,7 @@
     </div>
 
     <div class="card">
-      <h2>7.7) Flurry AA (Warrior, Luclin)</h2>
+      <h2>7.7) Flurry AA (Warrior, Luclin) <span class="badge badge-game">In-Game Mechanic</span></h2>
       <p>
         <strong>Flurry</strong> gives a chance of an extra primary-hand attack on rounds where triple attack succeeds. Ranks 1/2/3 give a 10%/20%/30% chance. Requires level 60+.
       </p>
@@ -466,7 +494,7 @@
     </div>
 
     <div class="card">
-      <h2>7.8) Slay Undead (Paladin AA, Luclin)</h2>
+      <h2>7.8) Slay Undead (Paladin AA, Luclin) <span class="badge badge-game">In-Game Mechanic</span></h2>
       <p>
         <strong>Slay Undead</strong> is a Paladin-exclusive class AA (3 ranks, available from Luclin onward).
         On each melee swing that lands against an undead target, the engine first rolls for Slay Undead <em>before</em> checking for a regular melee crit.
@@ -532,7 +560,7 @@
     </div>
 
     <div class="card">
-      <h2>7.9) Two Hand Bash (Paladin / Shadow Knight, Luclin)</h2>
+      <h2>7.9) Two Hand Bash (Paladin / Shadow Knight, Luclin) <span class="badge badge-game">In-Game Mechanic</span></h2>
       <p>
         By default, Paladin and Shadow Knight characters cannot bash while wielding a two-handed weapon in the primary slot — the bash special attack is suppressed.
         The <strong>Two Hand Bash</strong> Luclin class AA removes this restriction, enabling bash on cooldown regardless of weapon type.
@@ -543,7 +571,7 @@
     </div>
 
     <div class="card">
-      <h2>7.10) 2H Weave / Monk Non-Epic Fistweave (Equipped Offhand)</h2>
+      <h2>7.10) 2H Weave / Monk Non-Epic Fistweave (Equipped Offhand) <span class="badge badge-game">In-Game Mechanic</span></h2>
       <p>
         Warriors, Rangers, and Beastlords can "weave" a 1H offhand weapon alongside a two-handed primary by enabling
         <strong>2H Weave</strong>. Monks using a 2H weapon with a 1H weapon in the offhand slot and Non-Epic Fistweave
@@ -575,7 +603,7 @@
     </div>
 
     <div class="card">
-      <h2>8) Elemental Damage on Weapons</h2>
+      <h2>8) Elemental Damage on Weapons <span class="badge badge-game">In-Game Mechanic</span></h2>
       <p>
         Elemental weapon damage is treated as an extra base-damage adder before the melee damage roll.
         It is first reduced by target resist for that element (MR/FR/CR/PR/DR).
@@ -596,7 +624,7 @@
     </div>
 
     <div class="card">
-      <h2>9) Proc Chance and Proc Resists</h2>
+      <h2>9) Proc Chance and Proc Resists <span class="badge badge-game">In-Game Mechanic</span></h2>
       <h3>Proc chance per swing/round</h3>
       <p>
         Proc chance scales with effective delay and DEX. Offhand has a dual-wield adjustment. Then proc-rate modifiers are applied.
@@ -642,7 +670,7 @@
         The damage pipeline follows <code>special_attacks.cpp Mob::DoArcheryAttackDmg</code> and <code>attack.cpp CalcMeleeDamage</code>.
       </p>
 
-      <h3>10.0) Archery damage pipeline</h3>
+      <h3>10.0) Archery damage pipeline <span class="badge badge-game">In-Game Mechanic</span></h3>
       <p>In order, for each shot that hits:</p>
       <ol>
         <li>
@@ -679,7 +707,7 @@
         </li>
       </ol>
 
-      <h3>10.0.1) Max shot damage formula</h3>
+      <h3>10.0.1) Max shot damage formula <span class="badge badge-game">In-Game Mechanic</span></h3>
       <p>
         The D20 roll produces a value from 1–20; roll = 20 gives the maximum non-crit hit. There is no melee damage bonus for archery (<code>damageBonus = 0</code>), so:
       </p>
@@ -693,7 +721,7 @@
       </p>
       <div class="formula">maxNonCritShot (stationary) = 2 × floor((20 × shotBase + 5) / 10)</div>
 
-      <h3>10.1) Ranger 51+ Stationary Bonus (beacon.cpp)</h3>
+      <h3>10.1) Ranger 51+ Stationary Bonus (beacon.cpp) <span class="badge badge-game">In-Game Mechanic</span></h3>
       <p>
         When a Ranger above level 50 shoots a target that is an NPC, not currently moving, and not temporarily rooted, the arrow deals double damage. This is implemented in <code>beacon.cpp Beacon::Update</code> and fires before <code>TryCriticalHit</code>, so the doubled value feeds into the multiplier and crit rolls.
       </p>
@@ -711,13 +739,13 @@
         The <strong>Mob stationary</strong> checkbox in the ranged tab controls whether this bonus applies in the simulation. It is checked by default because most raid and camp targets are stationary. Uncheck it when simulating a kiting or moving target.
       </p>
 
-      <h3>10.2) Archery offense rating (GetOffense for SkillArchery)</h3>
+      <h3>10.2) Archery offense rating (GetOffense for SkillArchery) <span class="badge badge-game">In-Game Mechanic</span></h3>
       <p>Archery uses <strong>DEX</strong>, not STR, for the stat bonus:</p>
       <div class="formula">offenseRating = archerySkill + floor((2×DEX − 150) / 3) + wornATK + spellATK  (when DEX ≥ 75)</div>
       <p>Rangers above level 54 also receive a linear bonus:</p>
       <div class="formula">rangerBonus = level × 4 − 216  (e.g. +24 at level 60, +44 at level 65)</div>
 
-      <h3>10.2.1) How much does DEX matter for ranged damage?</h3>
+      <h3>10.2.1) How much does DEX matter for ranged damage? <span class="badge badge-game">In-Game Mechanic</span></h3>
       <p>
         The DEX contribution to offense rating is:
       </p>
@@ -743,7 +771,7 @@
         In practice, DEX past the 255 stat cap provides a small additional bonus to crit chance and proc chance (each extra DEX point above 255 is divided by 400 for crits, 200 for procs), but the main payoff from DEX comes from reaching 255.
       </p>
 
-      <h3>10.3) Quiver haste</h3>
+      <h3>10.3) Quiver haste <span class="badge badge-game">In-Game Mechanic</span></h3>
       <p>
         Applied separately from standard haste (not subject to the 125% cap). If a quiver provides weight reduction (WR%), quiver haste = WR% ÷ 4 ÷ 100.
       </p>
@@ -751,7 +779,7 @@
       <div class="formula">if (speedMs − reduction > 1000ms): effectiveDelay = speedMs − reduction</div>
       <p class="muted">The Sony rule prevents the quiver from pushing delay below 1000ms (1 second).</p>
 
-      <h3>10.4) Separating base vs proc damage (for ranking)</h3>
+      <h3>10.4) Separating base vs proc damage (for ranking) <span class="badge badge-sim">Sim Feature</span></h3>
       <p>
         The ranged tab also answers: how much DPS should be credited to the bow vs the arrow so they can be ranked independently?
       </p>
@@ -769,7 +797,7 @@
         procDps = procTotal / durationSec
       </div>
 
-      <h3>10.5) Splitting base DPS between bow and arrow</h3>
+      <h3>10.5) Splitting base DPS between bow and arrow <span class="badge badge-sim">Sim Feature</span></h3>
       <p>
         The simulator assumes that, before procs, the bow and arrow contribute proportionally to base DPS according to their relative base damages:
       </p>
@@ -793,7 +821,7 @@
         The ranged ranking UI shows these values as <strong>Bow DPS</strong>, <strong>Arrow DPS</strong>, and <strong>Total DPS</strong>.
       </p>
 
-      <h3>10.6) Ranking bows and arrows separately (slot mode)</h3>
+      <h3>10.6) Ranking bows and arrows separately (slot mode) <span class="badge badge-sim">Sim Feature</span></h3>
       <p>
         To rank bows and arrows independently, the simulator first computes DPS for a grid of bow+arrow combinations, then derives
         <em>slot values</em> from those combos:
@@ -813,7 +841,7 @@
         This mirrors the melee slot-ranking behavior but is tailored for bows/arrows.
       </p>
 
-      <h3>10.7) Reducing permutations: top-K bow selection</h3>
+      <h3>10.7) Reducing permutations: top-K bow selection <span class="badge badge-sim">Sim Feature</span></h3>
       <p>
         The full grid of combinations is <code>#bows × #arrows</code>. To keep the simulation responsive while still ranking
         arrows meaningfully, the simulator prunes bows using a simple damage/delay heuristic:
@@ -830,7 +858,7 @@
     </div>
 
     <div class="card">
-      <h2>11) What ATK and AC Usually Do (Prioritization)</h2>
+      <h2>11) What ATK and AC Usually Do (Prioritization) <span class="badge badge-game">In-Game Mechanic</span></h2>
       <table>
         <thead>
           <tr>
@@ -869,7 +897,7 @@
     </div>
 
     <div class="card">
-      <h2>12) Displayed ATK in Report</h2>
+      <h2>12) Displayed ATK in Report <span class="badge badge-sim">Sim Feature</span></h2>
       <div class="formula">displayedATK = floor((offenseRating + toHit) * 1000 / 744)</div>
       <p class="muted">
         This is a reporting transform and not itself the core swing resolution formula.
@@ -877,7 +905,7 @@
     </div>
 
     <div class="card">
-      <h2>12.5) Tanking Simulation — NPC Attack Mechanics</h2>
+      <h2>12.5) Tanking Simulation — NPC Attack Mechanics <span class="badge badge-game">In-Game Mechanic</span></h2>
       <p>
         The tanking tab models the number of times a mob swings per attack round, matching EQMacEmu's <code>DoMainHandRound</code>.
       </p>
@@ -918,7 +946,7 @@
     </div>
 
     <div class="card">
-      <h2>13) Tanking Simulation — Avoidance Chain</h2>
+      <h2>13) Tanking Simulation — Avoidance Chain <span class="badge badge-game">In-Game Mechanic</span></h2>
       <p>
         The tanking sim models each mob swing as a sequential set of independent checks mirroring EQMacEmu's <code>Mob::AvoidDamage</code>. Checks fire in this order; the first one that succeeds negates the swing:
       </p>
@@ -947,7 +975,7 @@
     </div>
 
     <div class="card">
-      <h2>14) Tanking Simulation — Mitigation and AC Breakdown</h2>
+      <h2>14) Tanking Simulation — Mitigation and AC Breakdown <span class="badge badge-game">In-Game Mechanic</span></h2>
       <p>
         When a swing lands (passes hit check and all avoidance checks), the damage roll uses the same <strong>RollD20</strong> contest from Section 5 — mob offense rating vs player mitigation. Player mitigation is built from several components derived from your worn AC, skills, spells, and AGI.
       </p>
@@ -1013,7 +1041,7 @@
     </div>
 
     <div class="card">
-      <h2>15) Tanking Simulation — Riposte Counter-Damage</h2>
+      <h2>15) Tanking Simulation — Riposte Counter-Damage <span class="badge badge-game">In-Game Mechanic</span></h2>
       <p>
         When a riposte succeeds, the mob's swing is negated <em>and</em> the player deals counter-damage using their mainhand weapon and offense stats. The counter-damage uses the same RollD20 / damage roll logic as a player melee swing, but against mob mitigation (derived from mob AC).
       </p>
@@ -1040,7 +1068,7 @@
     </div>
 
     <div class="card">
-      <h2>16) Tanking Simulation — Survivability</h2>
+      <h2>16) Tanking Simulation — Survivability <span class="badge badge-game">In-Game Mechanic</span></h2>
       <p>
         The sim tracks HP across the fight. Each mob swing that lands reduces HP by its rolled damage. Between rounds, HP recovers from regen:
       </p>
@@ -1050,7 +1078,7 @@
         When HP hits 0, the sim records the time of death as <strong>survival time</strong>. If HP never drops to 0, survival time is reported as "survived full fight."
       </p>
       <p>
-        <strong>CH chain simulation:</strong> The report always computes a Complete Heal chain estimate. Complete Heal fills the tank to full HP (player's total HP). The CH cast time is configurable (default 10s for an unmodified Cleric CH). The estimate shows max safe interval (HP ÷ DTPS), recommended interval (with 1.5× safety factor), clerics needed, and the HP threshold at which a cleric must begin casting.
+        <strong>CH chain simulation <span class="badge badge-sim">Sim Feature</span>:</strong> The report always computes a Complete Heal chain estimate. Complete Heal fills the tank to full HP (player's total HP). The CH cast time is configurable (default 10s for an unmodified Cleric CH). The estimate shows max safe interval (HP ÷ DTPS), recommended interval (with 1.5× safety factor), clerics needed, and the HP threshold at which a cleric must begin casting.
       </p>
 
       <h3>Key survivability metrics in the report</h3>
@@ -1068,7 +1096,7 @@
     </div>
 
     <div class="card">
-      <h2>17) Alternate Advancement (AA) System</h2>
+      <h2>17) Alternate Advancement (AA) System <span class="badge badge-game">In-Game Mechanic</span></h2>
       <p>
         AAs are era-gated. The <strong>era selector</strong> controls which AA sections are visible in the configurator. Only AAs available in the selected era (and earlier) are shown and applied to the sim.
       </p>
@@ -1086,7 +1114,7 @@
     </div>
 
     <div class="card">
-      <h2>18) Rank Weapons — How It Works</h2>
+      <h2>18) Rank Weapons — How It Works <span class="badge badge-sim">Sim Feature</span></h2>
       <p>
         Rank Weapons evaluates every eligible weapon in the database against your current character settings and produces a ranked list of the best mainhand, offhand, and combination options. It runs in four sequential phases, each feeding results into the next.
       </p>
