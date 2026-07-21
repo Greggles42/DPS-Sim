@@ -1922,7 +1922,7 @@
       <iconify-icon icon="ra:crossed-swords" class="text-2xl md:text-3xl text-[#d4af37] flex-shrink-0"></iconify-icon>
       <div class="flex flex-col min-w-0">
         <span class="font-fantasy text-base md:text-xl tracking-widest text-[#d4af37] truncate"><span class="app-title-g-small">g</span>Sim for Project Quarm</span>
-        <span class="text-[10px] text-gray-500 uppercase tracking-tighter">Everquest DPS Simulator · <span id="app-version">v1.35.3</span></span>
+        <span class="text-[10px] text-gray-500 uppercase tracking-tighter">Everquest DPS Simulator · <span id="app-version">v1.36</span></span>
       </div>
     </div>
     <div class="flex items-center gap-3 md:gap-8 flex-shrink-0">
@@ -2605,9 +2605,12 @@
             <option value="magic">Magic</option>
           </select></div>
           <div><label for="ranged-elem-damage" class="small-label">Elem dmg</label><input type="number" id="ranged-elem-damage" min="0" value="0" placeholder="0"></div>
-          <div><label for="ranged-bane" class="small-label">Bane dmg</label><input type="number" id="ranged-bane" min="0" value="0" placeholder="0"></div>
         </div>
-        <input type="hidden" id="ranged-bane-race" value=""><input type="hidden" id="ranged-bane-body" value="">
+        <div class="row">
+          <div><label for="ranged-bane" class="small-label">Bane dmg</label><input type="number" id="ranged-bane" min="0" value="0" placeholder="0"></div>
+          <div><label for="ranged-bane-body" class="small-label">Bane body</label><input type="number" id="ranged-bane-body" min="0" value="0" placeholder="0" title="EQEmu body type ID"><span id="ranged-bane-body-label" class="bane-id-label" aria-live="polite"></span></div>
+          <div><label for="ranged-bane-race" class="small-label">Bane race</label><input type="number" id="ranged-bane-race" min="0" value="0" placeholder="0" title="EQEmu race ID"><span id="ranged-bane-race-label" class="bane-id-label" aria-live="polite"></span></div>
+        </div>
       </details>
     </section>
 
@@ -2671,8 +2674,6 @@
           <div><label for="ranged-target-dr" class="small-label">DR</label><input type="number" id="ranged-target-dr" min="0" value="35" placeholder="35"></div>
         </div>
         <p class="hint">Magic, Fire, Cold, Poison, Disease.</p>
-        <label class="checkbox-label"><input type="checkbox" id="ranged-apply-bane"> Apply Bane Damage</label>
-        <p class="hint">When checked, ranged weapon bane damage is added to base damage.</p>
       </details>
       <button type="button" id="btn-run-ranged" class="magic-btn">Run simulation</button>
       <hr class="sim-rank-divider" aria-hidden="true">
@@ -2876,6 +2877,7 @@
   <section class="advanced-only" style="margin-top: 1rem;">
     <h2>Version log</h2>
     <ul style="font-size: 0.9rem; color: var(--muted); margin: 0; padding-left: 1.25rem;">
+      <li><strong>1.36</strong> — Ranged bane overhaul: bane body and bane race fields are now visible on the ranged tab (replacing hidden inputs), with inline labels showing the resolved name (e.g. "14 (Greater Akheva)") identical to the melee tab. The "Apply Bane Damage" checkbox has been removed — bane is now applied automatically based on the selected target's race and body type, matching the melee tab's behavior: bane-only NPCs (Emperor Ssraeshza, Lord Inquisitor Seru) are immune without a matching bane weapon; normal targets receive bane damage when their race or body type matches the weapon's bane fields. Rank Weapons (ranged): <code>baneDamageRace</code> and <code>baneDamageBody</code> were missing from bow objects in the ranking loop, so race/body auto-matching never fired — fixed. Rank Weapons (ranged): the 0.5 dmg/delay ratio pre-filter now correctly bypasses bows whose bane matches the selected target's race or body type (e.g. Great Bow of Slaughter — 1 base / 40 bane / body 14 — is now included and ranked when targeting a Greater Akheva mob such as Aten Ha Ra). Target race and body type are now resolved before the bow-building loop so the bane bypass has access to them.</li>
       <li><strong>1.35.3</strong> — Fix: Quarm inventory imports now always show the full gear stat summary (AC, STR, STA, DEX, AGI, WIS, INT, CHA, HP, Mana, ATK, haste breakdown). Previously the stat pills could be silently skipped if the class-change event handler threw during the explicit class auto-set that Quarm imports trigger. Stat rendering is now ordered before class/level/AA DOM updates.</li>
       <li><strong>1.35</strong> — Inventory import now supports the full Quarm character export format (the tab-separated file produced by <code>/outputfile inventory</code> with a Character header row). The Character row is parsed to extract the character's name, level, and class — class is set directly from the explicit class ID rather than inferred from item restrictions. The AA section at the bottom of the file is parsed and mapped to the sim's AA configurator: Combat Fury, Combat Stability, Combat Agility, Natural Durability, Spell Casting Fury, Ambidexterity, Return Kick, Double Riposte, and Technique of Master Wu are all auto-imported at the correct rank. Level is auto-filled into both the advanced and easy-mode level fields. The inventory summary now shows the character's name, level, explicit class, and a list of imported AAs with their ranks. The old format (slot/name/id only, no Character header) continues to work unchanged.</li>
       <li><strong>1.34</strong> — Fix: backstab and special-attack rolls (hit, damage, crit, double-backstab DA check, Master Wu trigger/skill-select) now use a dedicated RNG stream (<code>specialRng</code>) isolated from mainhand swing rolls. Previously all shared the same stream, causing weapon delay differences between mainhand and offhand to systematically shift the RNG state at each backstab event — producing a spurious ~2% backstab accuracy gap between otherwise equivalent MH/OH slot assignments. Verified eliminated: 500-seed × 6000s test now shows 0.000% BS accuracy difference between configs. Excluded Malevolence and Long Sword of the Defender (GM/artifact weapons) from Rank Weapons lists.</li>
@@ -3346,7 +3348,7 @@
       }
 
       // When releasing: 1) Bump VERSION below. 2) Add a new <li> at the top of the Version log section above.
-      const VERSION = '1.34';
+      const VERSION = '1.36';
       const versionEl = $('app-version');
       if (versionEl) versionEl.textContent = 'v' + VERSION;
 
@@ -7177,12 +7179,37 @@
           $('report').textContent = 'resources/weapons.json failed to load.';
           return;
         }
+        var rankTargetRace = (function () {
+          var npc = window.selectedTargetNpc;
+          if (!npc || typeof npc !== 'object') return null;
+          var rr = npc.race != null ? npc.race : (npc.Race != null ? npc.Race : null);
+          if (rr == null || rr === '') return null;
+          var rn = parseInt(rr, 10); return isNaN(rn) ? null : rn;
+        })();
+        var rankTargetBodyType = (function () {
+          if ($('target-undead-mob') && $('target-undead-mob').checked) return 3;
+          var npc = window.selectedTargetNpc;
+          if (!npc || typeof npc !== 'object') return null;
+          var bt = npc.bodytype != null ? npc.bodytype : (npc.BodyType != null ? npc.BodyType : null);
+          if (bt == null && bt !== 0) return null;
+          var bn = parseInt(bt, 10); return isNaN(bn) ? null : bn;
+        })();
+        function rawBowMatchesBaneTarget(raw) {
+          if (!raw) return false;
+          var bane = parseInt(raw.banedmgamt || raw.baneDmgAmt || 0, 10);
+          if (!(bane > 0)) return false;
+          var baneRace = parseInt(raw.banedmgrace || raw.baneDmgRace || 0, 10);
+          var baneBody = parseInt(raw.banedmgbody || raw.baneDmgBody || 0, 10);
+          if (rankTargetRace != null && baneRace > 0 && baneRace === rankTargetRace) return true;
+          if (rankTargetBodyType != null && baneBody > 0 && baneBody === rankTargetBodyType) return true;
+          return false;
+        }
         var bowSource = allWeaponsData;
         var bows = [];
         Object.keys(bowSource).forEach(function (id) {
           var raw = bowSource[id];
           if (typeof weaponAllowedForRank === 'function' && !weaponAllowedForRank(id, raw, includePop)) return;
-          if (typeof weaponMeetsRankDamageDelayRatio === 'function' && raw && !weaponMeetsRankDamageDelayRatio(raw)) return;
+          if (typeof weaponMeetsRankDamageDelayRatio === 'function' && raw && !weaponMeetsRankDamageDelayRatio(raw) && !rawBowMatchesBaneTarget(raw)) return;
           var races = raw && raw.races != null ? parseInt(raw.races, 10) : NaN;
           if (!isNaN(races) && races === 0) return;
           var norm = normalizeBowFromList(id, raw);
@@ -7211,6 +7238,8 @@
               elemType: norm.elemType,
               elemDamage: norm.elemDamage,
               baneDamage: norm.baneDamage,
+              baneDamageRace: norm.baneDamageRace,
+              baneDamageBody: norm.baneDamageBody,
               procBuffDurationTicks: norm.procBuffDurationTicks,
               score: score
             });
@@ -7237,22 +7266,6 @@
 
         var level = parseInt($('level').value, 10) || 60;
         var durationSec = parseInt($('ranged-duration').value, 10) || 6000;
-        var applyBane = $('ranged-apply-bane').checked;
-        var rankTargetRace = (function () {
-          var npc = window.selectedTargetNpc;
-          if (!npc || typeof npc !== 'object') return null;
-          var rr = npc.race != null ? npc.race : (npc.Race != null ? npc.Race : null);
-          if (rr == null || rr === '') return null;
-          var rn = parseInt(rr, 10); return isNaN(rn) ? null : rn;
-        })();
-        var rankTargetBodyType = (function () {
-          if ($('target-undead-mob') && $('target-undead-mob').checked) return 3;
-          var npc = window.selectedTargetNpc;
-          if (!npc || typeof npc !== 'object') return null;
-          var bt = npc.bodytype != null ? npc.bodytype : (npc.BodyType != null ? npc.BodyType : null);
-          if (bt == null && bt !== 0) return null;
-          var bn = parseInt(bt, 10); return isNaN(bn) ? null : bn;
-        })();
         var rangedRankBuffFx = (typeof getBuffEffects === 'function') ? getBuffEffects() : null;
         var baseOptions = {
           hastePercent: getRangedTotalHastePercent(),
@@ -7309,13 +7322,10 @@
             var bow = comb.bow;
             var arrow = comb.arrow;
             var bowDamage = bow.damage;
-            if ((bow.baneDamage || 0) > 0) {
-              if (applyBane) { bowDamage += bow.baneDamage; }
-              else if (rankTargetRace != null || rankTargetBodyType != null) {
-                var _bRaceMatch = rankTargetRace != null && bow.baneDamageRace != null && bow.baneDamageRace === rankTargetRace;
-                var _bBodyMatch = rankTargetBodyType != null && bow.baneDamageBody != null && bow.baneDamageBody === rankTargetBodyType;
-                if (_bRaceMatch || _bBodyMatch) bowDamage += bow.baneDamage;
-              }
+            if ((bow.baneDamage || 0) > 0 && (rankTargetRace != null || rankTargetBodyType != null)) {
+              var _bRaceMatch = rankTargetRace != null && bow.baneDamageRace != null && bow.baneDamageRace === rankTargetRace;
+              var _bBodyMatch = rankTargetBodyType != null && bow.baneDamageBody != null && bow.baneDamageBody === rankTargetBodyType;
+              if (_bRaceMatch || _bBodyMatch) bowDamage += bow.baneDamage;
             }
             var rangedWeapon = {
               damage: bowDamage,
@@ -7595,13 +7605,10 @@
             var arrow = arrows.filter(function (a) { return a.id === row.arrowId; })[0];
             if (!bow || !arrow) { avgIndex++; requestAnimationFrame(runNextTop40); return; }
             var bowDamage = bow.damage;
-            if ((bow.baneDamage || 0) > 0) {
-              if (applyBane) { bowDamage += bow.baneDamage; }
-              else if (rankTargetRace != null || rankTargetBodyType != null) {
-                var _bRaceMatch = rankTargetRace != null && bow.baneDamageRace != null && bow.baneDamageRace === rankTargetRace;
-                var _bBodyMatch = rankTargetBodyType != null && bow.baneDamageBody != null && bow.baneDamageBody === rankTargetBodyType;
-                if (_bRaceMatch || _bBodyMatch) bowDamage += bow.baneDamage;
-              }
+            if ((bow.baneDamage || 0) > 0 && (rankTargetRace != null || rankTargetBodyType != null)) {
+              var _bRaceMatch = rankTargetRace != null && bow.baneDamageRace != null && bow.baneDamageRace === rankTargetRace;
+              var _bBodyMatch = rankTargetBodyType != null && bow.baneDamageBody != null && bow.baneDamageBody === rankTargetBodyType;
+              if (_bRaceMatch || _bBodyMatch) bowDamage += bow.baneDamage;
             }
             var rangedWeapon = {
               damage: bowDamage,
@@ -8395,11 +8402,7 @@
         var RANGED_BANE_ONLY_TARGETS = { 162065: { type: 'race', value: 217 }, 162491: { type: 'race', value: 217 }, 159000: [{ type: 'body', value: 16 }, { type: 'race', value: 236 }] };
         var rangedTargetSelected = rangedTargetNpcId != null || rangedTargetRace != null || rangedTargetBodyType != null;
         var rangedNoDamageVsTarget = false;
-        var applyBaneSingle = $('ranged-apply-bane').checked;
-        if (applyBaneSingle && rangedBane > 0) {
-          // Checkbox override: always add bane regardless of target type
-          damage += rangedBane;
-        } else if (rangedTargetSelected) {
+        if (rangedTargetSelected) {
           var req = rangedTargetNpcId != null ? RANGED_BANE_ONLY_TARGETS[rangedTargetNpcId] : null;
           if (req) {
             var reqs = Array.isArray(req) ? req : [req];
@@ -9078,6 +9081,7 @@
       })();
       [$('w1-bane-body'), $('w1-bane-race')].forEach(function (el) { if (el) { el.addEventListener('input', function () { updateBaneLabels('w1'); }); el.addEventListener('change', function () { updateBaneLabels('w1'); }); } });
       [$('w2-bane-body'), $('w2-bane-race')].forEach(function (el) { if (el) { el.addEventListener('input', function () { updateBaneLabels('w2'); }); el.addEventListener('change', function () { updateBaneLabels('w2'); }); } });
+      [$('ranged-bane-body'), $('ranged-bane-race')].forEach(function (el) { if (el) { el.addEventListener('input', function () { updateBaneLabels('ranged'); }); el.addEventListener('change', function () { updateBaneLabels('ranged'); }); } });
       function onWeaponIconClick(prefix) {
         applyWeaponPreset(prefix, 'unequipped');
         updateWeaponSkillInputs();
@@ -9103,6 +9107,7 @@
         $('ranged-bane').value = '0';
         var rbr = $('ranged-bane-race'); if (rbr) rbr.value = '';
         var rbb = $('ranged-bane-body'); if (rbb) rbb.value = '';
+        updateBaneLabels('ranged');
         var rpl = $('ranged-proc-level'); if (rpl) rpl.value = '';
         var rpsi = $('ranged-proc-spell-id'); if (rpsi) rpsi.value = '';
         updateWeaponIcon('ranged-weapon', null);
@@ -9478,6 +9483,7 @@
         }
         var rangedBaneBodyEl = $('ranged-bane-body');
         if (rangedBaneBodyEl) rangedBaneBodyEl.value = (weapon.baneDamageBody != null && !isNaN(Number(weapon.baneDamageBody))) ? String(Math.floor(weapon.baneDamageBody)) : '';
+        updateBaneLabels('ranged');
         updateItemSearchDebug(null, null);
         var rangedArcheryModEl = $('ranged-archery-mod');
         if (rangedArcheryModEl) {
