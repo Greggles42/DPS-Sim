@@ -1922,7 +1922,7 @@
       <iconify-icon icon="ra:crossed-swords" class="text-2xl md:text-3xl text-[#d4af37] flex-shrink-0"></iconify-icon>
       <div class="flex flex-col min-w-0">
         <span class="font-fantasy text-base md:text-xl tracking-widest text-[#d4af37] truncate"><span class="app-title-g-small">g</span>Sim for Project Quarm</span>
-        <span class="text-[10px] text-gray-500 uppercase tracking-tighter">Everquest DPS Simulator · <span id="app-version">v1.36.1</span></span>
+        <span class="text-[10px] text-gray-500 uppercase tracking-tighter">Everquest DPS Simulator · <span id="app-version">v1.36.2</span></span>
       </div>
     </div>
     <div class="flex items-center gap-3 md:gap-8 flex-shrink-0">
@@ -2877,6 +2877,7 @@
   <section class="advanced-only" style="margin-top: 1rem;">
     <h2>Version log</h2>
     <ul style="font-size: 0.9rem; color: var(--muted); margin: 0; padding-left: 1.25rem;">
+      <li><strong>1.36.2</strong> — Fix: worn +archery% accumulating across repeated bow selections. When a user manually edited a ranged weapon field (damage, delay, etc.), the bow's archery mod was cleared from the hidden <code>ranged-archery-mod</code> tracking field but was not subtracted from the visible <code>ranged-worn-archery-mod</code> total. Re-selecting a bow from item search then added the full mod on top of the stale total, stacking it indefinitely (e.g. +31% bow mod loaded 8 times → +248% shown). Fixed by mirroring the existing clear-weapon logic: the old bow mod is now subtracted from the worn total before the tracking field is zeroed.</li>
       <li><strong>1.36.1</strong> — Fix: bane body type matching now requires <code>baneDamageBody &gt; 0</code> before comparing against a target's body type. Previously, weapons with no body bane (<code>banedmgbody = 0</code>) were incorrectly matching against mobs whose body type is also 0 (e.g. blobs, oozes, slimes), causing spurious bane damage to be applied. Affected single sim and both passes of the ranged rank weapons loop.</li>
       <li><strong>1.36</strong> — Ranged bane overhaul: bane body and bane race fields are now visible on the ranged tab (replacing hidden inputs), with inline labels showing the resolved name (e.g. "14 (Greater Akheva)") identical to the melee tab. The "Apply Bane Damage" checkbox has been removed — bane is now applied automatically based on the selected target's race and body type, matching the melee tab's behavior: bane-only NPCs (Emperor Ssraeshza, Lord Inquisitor Seru) are immune without a matching bane weapon; normal targets receive bane damage when their race or body type matches the weapon's bane fields. Rank Weapons (ranged): <code>baneDamageRace</code> and <code>baneDamageBody</code> were missing from bow objects in the ranking loop, so race/body auto-matching never fired — fixed. Rank Weapons (ranged): the 0.5 dmg/delay ratio pre-filter now correctly bypasses bows whose bane matches the selected target's race or body type (e.g. Great Bow of Slaughter — 1 base / 40 bane / body 14 — is now included and ranked when targeting a Greater Akheva mob such as Aten Ha Ra). Target race and body type are now resolved before the bow-building loop so the bane bypass has access to them.</li>
       <li><strong>1.35.3</strong> — Fix: Quarm inventory imports now always show the full gear stat summary (AC, STR, STA, DEX, AGI, WIS, INT, CHA, HP, Mana, ATK, haste breakdown). Previously the stat pills could be silently skipped if the class-change event handler threw during the explicit class auto-set that Quarm imports trigger. Stat rendering is now ordered before class/level/AA DOM updates.</li>
@@ -3349,7 +3350,7 @@
       }
 
       // When releasing: 1) Bump VERSION below. 2) Add a new <li> at the top of the Version log section above.
-      const VERSION = '1.36.1';
+      const VERSION = '1.36.2';
       const versionEl = $('app-version');
       if (versionEl) versionEl.textContent = 'v' + VERSION;
 
@@ -10213,7 +10214,13 @@
       function clearRangedArrowItemSearchOnManualEdit(kind) {
         if (kind === 'ranged') {
           rangedFromItemSearch = false;
-          var ram = $('ranged-archery-mod'); if (ram) ram.value = '0';
+          var ram = $('ranged-archery-mod');
+          if (ram) {
+            var _oldBowModMan = parseInt(ram.value, 10) || 0;
+            ram.value = '0';
+            var _wamManEl = $('ranged-worn-archery-mod');
+            if (_wamManEl && _oldBowModMan > 0) _wamManEl.value = String(Math.max(0, (parseInt(_wamManEl.value, 10) || 0) - _oldBowModMan));
+          }
           var modNote = $('ranged-archery-mod-note'); if (modNote) { modNote.textContent = ''; modNote.style.display = 'none'; }
           var rpsiMan = $('ranged-proc-spell-id'); if (rpsiMan) rpsiMan.value = '';
           updateWeaponIcon('ranged-weapon', null);
