@@ -1922,7 +1922,7 @@
       <iconify-icon icon="ra:crossed-swords" class="text-2xl md:text-3xl text-[#d4af37] flex-shrink-0"></iconify-icon>
       <div class="flex flex-col min-w-0">
         <span class="font-fantasy text-base md:text-xl tracking-widest text-[#d4af37] truncate"><span class="app-title-g-small">g</span>Sim for Project Quarm</span>
-        <span class="text-[10px] text-gray-500 uppercase tracking-tighter">Everquest DPS Simulator · <span id="app-version">v1.36.4</span></span>
+        <span class="text-[10px] text-gray-500 uppercase tracking-tighter">Everquest DPS Simulator · <span id="app-version">v1.36.7</span></span>
       </div>
     </div>
     <div class="flex items-center gap-3 md:gap-8 flex-shrink-0">
@@ -2877,6 +2877,9 @@
   <section class="advanced-only" style="margin-top: 1rem;">
     <h2>Version log</h2>
     <ul style="font-size: 0.9rem; color: var(--muted); margin: 0; padding-left: 1.25rem;">
+      <li><strong>1.36.7</strong> — Fix: offhand proc threat missing from rank weapons TPS in the top-40 averaging phase. Both the offhand-only path and the combinations+secondary path were building the weapon2 object inline, omitting <code>procSpellBonusHate</code>, <code>procSpellNonDamagingDetrimental</code>, and <code>procSpellCcAddsMobHpThreat</code>. Weapons with flat-hate procs (e.g. Blade of Carnage / Enraging Blow) or CC/stun procs showed only swing threat for the offhand TPS column in averaged results. Fixed by switching both paths to <code>normalizedToWeapon1(p2, false)</code>, matching every other rank phase.</li>
+      <li><strong>1.36.6</strong> — Fix: proc hate from non-damaging detrimental spells (e.g. stun-only procs) and the extra mob-HP hate slice from DD+stun procs were not capped at 400. Both now apply the same 400-per-event cap as direct-damage procs. Flat SE-92 hate values (<code>procSpellBonusHate</code>, e.g. Enraging Blow) are excluded from this cap and continue to apply without limit. Updated mechanics guide section 2.2 to document the cap on both affected paths.</li>
+      <li><strong>1.36.5</strong> — Fix: removed "Grats Bloodfrenzy" (item 2661, GM weapon) from the weapon database. Docs: clarified in mechanics guide sections 5 and 7 that <code>damageBonus</code> applies to <strong>mainhand swings only</strong> — offhand swings always use <code>damageBonus = 0</code>. The sim code was already correct; this is a documentation clarification.</li>
       <li><strong>1.36.4</strong> — Fix: rank weapons TPS was incorrect for the offhand weapon slot (melee) and all bows (ranged). Three locations in the melee rank loop built the offhand weapon object inline and omitted <code>procSpellBonusHate</code>, <code>procSpellNonDamagingDetrimental</code>, and <code>procSpellCcAddsMobHpThreat</code> — so any offhand weapon with a CC/stun proc or SE-92 flat hate would produce zero contribution to those threat paths. Fixed by using <code>normalizedToWeapon1(p2, false)</code> (the same helper used for the mainhand) in all three locations: the offhand-only phase, the offhand-only combinations path, and the primary+secondary combinations path. For ranged rank, the bow intermediate object was also missing those same three fields plus <code>archeryModPercent</code> — they were set on <code>norm</code> by <code>normalizeBowFromList</code> but never copied into the <code>bows.push()</code> object, so the code that tried to forward them into <code>rangedWeapon</code> always read <code>undefined</code>. Fixed by copying all four fields when present.</li>
       <li><strong>1.36.3</strong> — Docs: corrected Section 4 of the mechanics guide — offense rating for damage uses the <strong>weapon type skill</strong> (e.g. 1H Slash, 2H Slash), not the offense skill. The offense skill only contributes to to-hit. Added note explaining that warrior 1H caps at 200 vs 252 for most other classes. Updated Section 5 to remove incorrect toHit cap of 550 (the server has no cap — Eagle Eye and high skill can exceed 550 freely). Clarified in report output that swing threat is based on weapon base damage (not rolled damage) and is unaffected by target AC. Updated JSDoc and report skill label in combat.js to match.</li>
       <li><strong>1.36.2</strong> — Fix: worn +archery% accumulating across repeated bow selections. When a user manually edited a ranged weapon field (damage, delay, etc.), the bow's archery mod was cleared from the hidden <code>ranged-archery-mod</code> tracking field but was not subtracted from the visible <code>ranged-worn-archery-mod</code> total. Re-selecting a bow from item search then added the full mod on top of the stale total, stacking it indefinitely (e.g. +31% bow mod loaded 8 times → +248% shown). Fixed by mirroring the existing clear-weapon logic: the old bow mod is now subtracted from the worn total before the tracking field is zeroed.</li>
@@ -3352,7 +3355,7 @@
       }
 
       // When releasing: 1) Bump VERSION below. 2) Add a new <li> at the top of the Version log section above.
-      const VERSION = '1.36.4';
+      const VERSION = '1.36.7';
       const versionEl = $('app-version');
       if (versionEl) versionEl.textContent = 'v' + VERSION;
 
@@ -7010,19 +7013,7 @@
             var opts;
             if (row.primaryId == null) {
               var p2Only = rankWeaponMap[row.secondaryId];
-              var d2Only = p2Only.damage;
-              var w2Only = {
-                damage: d2Only,
-                delay: p2Only.delay,
-                procSpell: (p2Only.proc != null ? p2Only.proc : '') || (p2Only.procSpell != null ? p2Only.procSpell : ''),
-                procSpellDamage: p2Only.procDamage || 0,
-                procRate: (p2Only.procRate != null && !Number.isNaN(Number(p2Only.procRate))) ? Number(p2Only.procRate) : 0,
-                procLevel: (p2Only.procLevel != null && !Number.isNaN(Number(p2Only.procLevel)) && Number(p2Only.procLevel) > 0) ? Number(p2Only.procLevel) : undefined,
-                elemType: p2Only.elemType || undefined,
-                elemDamage: (p2Only.elemDamage != null ? p2Only.elemDamage : 0) || 0
-              };
-              if (p2Only.procBuffDurationTicks != null && p2Only.procBuffDurationTicks > 0)
-                w2Only.procBuffDurationTicks = p2Only.procBuffDurationTicks;
+              var w2Only = normalizedToWeapon1(p2Only, false);
               applyBaneOnlyForRankWeapon(w2Only, p2Only);
               var secSkillKeyOnly = skillKeyForCap(p2Only.type, false);
               var secWeaponSkillOnly = WeaponSkillCaps.getCapForSimClass(classId, secSkillKeyOnly, level) || 252;
@@ -7070,20 +7061,7 @@
               });
               if (row.secondaryId) {
                 var p2 = rankWeaponMap[row.secondaryId];
-                var d2 = p2.damage;
-                opts.weapon2 = {
-                  damage: d2,
-                  delay: p2.delay,
-                  is2H: false,
-                  procSpell: (p2.proc != null ? p2.proc : '') || (p2.procSpell != null ? p2.procSpell : ''),
-                  procSpellDamage: p2.procDamage || 0,
-                  procRate: (p2.procRate != null && !Number.isNaN(Number(p2.procRate))) ? Number(p2.procRate) : 0,
-                  procLevel: (p2.procLevel != null && !Number.isNaN(Number(p2.procLevel)) && Number(p2.procLevel) > 0) ? Number(p2.procLevel) : undefined,
-                  elemType: p2.elemType || undefined,
-                  elemDamage: (p2.elemDamage != null ? p2.elemDamage : 0) || 0
-                };
-                if (p2.procBuffDurationTicks != null && p2.procBuffDurationTicks > 0)
-                  opts.weapon2.procBuffDurationTicks = p2.procBuffDurationTicks;
+                opts.weapon2 = normalizedToWeapon1(p2, false);
                 applyBaneOnlyForRankWeapon(opts.weapon2, p2);
                 opts.dualWieldSkill = dualWieldSkillForm;
                 opts.wornAttack = comboWornBackstabTop.wornAttack;

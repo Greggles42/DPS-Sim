@@ -1505,13 +1505,14 @@
       const effectiveProcCap = (w && w.procThreatCap != null) ? w.procThreatCap : procThreatCap;
       if (isNonDamagingDetrimental && w && w.procSpellNonDamagingDetrimental && T.detrimentalNonDamageSpellThreat) {
         let ndThreat = T.detrimentalNonDamageSpellThreat(resolveTargetMaxHp(options));
-        if (w.procThreatCap != null) ndThreat = Math.min(ndThreat, w.procThreatCap);
+        ndThreat = Math.min(ndThreat, effectiveProcCap);
         h += ndThreat;
       } else if (baseThreatDmg > 0) {
         h += T.procSpellThreatFromDamage(baseThreatDmg, effectiveProcCap);
       }
       if (!isNonDamagingDetrimental && w && w.procSpellCcAddsMobHpThreat && baseThreatDmg > 0 && T.detrimentalNonDamageSpellThreat) {
-        h += T.detrimentalNonDamageSpellThreat(resolveTargetMaxHp(options));
+        const ccHate = T.detrimentalNonDamageSpellThreat(resolveTargetMaxHp(options));
+        h += Math.min(ccHate, effectiveProcCap);
       }
       const flat = (includeFlatHate !== false && w && w.procSpellBonusHate != null) ? (w.procSpellBonusHate | 0) : 0;
       if (flat !== 0) h += T.procFlatHate ? T.procFlatHate(flat) : flat;
