@@ -144,7 +144,7 @@
       <p>Displayed TPS uses:</p>
       <div class="formula">TPS = totalThreat / T</div>
       <p class="muted">
-        So TPS is an average rate over the whole fight. It scales with how often you generate swing hate and proc hate, not with the size of individual damage rolls (for swings).
+        So TPS is an average rate over the whole fight. It scales with how often you generate swing hate and proc hate, not with the size of individual damage rolls (for swings). Swing threat is always <code>weaponBaseDamage + damageBonus</code> — it is <strong>not</strong> affected by target AC, mitigation, or whether the swing actually hit. TPS will stay constant when you change the target AC; DPS will not.
       </p>
 
       <h3>2.2) Components of total threat (melee)</h3>
@@ -253,11 +253,14 @@
         These are different and used in different parts of the calculation:
       </p>
       <ul>
-        <li><strong>Offense skill</strong> (0-255): used in <strong>to-hit</strong> math.</li>
-        <li><strong>Offense rating</strong>: used in <strong>damage roll</strong> math.</li>
+        <li><strong>Offense skill</strong> (0-255): used in <strong>to-hit</strong> math only — it does <em>not</em> contribute to damage.</li>
+        <li><strong>Offense rating</strong>: used in <strong>damage roll</strong> math. Built from weapon type skill, STR, and ATK bonuses — <em>not</em> the offense skill.</li>
       </ul>
       <div class="formula">toHit = 7 + offenseSkill + weaponSkill + toHitBonus</div>
-      <div class="formula">offenseRating = offenseSkill + STR_bonus + wornATK + spellATK</div>
+      <div class="formula">offenseRating = weaponSkill + STR_bonus + wornATK + spellATK</div>
+      <p>
+        <strong>weaponSkill</strong> is the weapon <em>type</em> skill for whatever you're wielding (e.g. 1H Slash, 2H Slash), capped by class. A warrior using 1H Slash caps at 200, while most other melee classes cap at 252 for their primary weapon. This means warriors can have a lower offense rating for damage than other classes even at max skill — but their damage bonus, triple attack, and flurry compensate.
+      </p>
       <p>
         STR contributes through:
       </p>
@@ -277,9 +280,9 @@
         <li><strong>Mitigation</strong>: controls how hard a landed hit is reduced.</li>
       </ul>
       <h3>Avoidance (hit chance)</h3>
-      <div class="formula">effectiveToHit = min(toHit, 550)</div>
-      <div class="formula">a = effectiveToHit + 10; b = avoidance + 10</div>
-      <div class="formula">if a*1.21 &gt; b: hitChance = 1 - b / (a*1.21*2); else hitChance = (a*1.21) / (b*2)</div>
+      <div class="formula">a = toHit + 10; b = avoidance + 10</div>
+      <div class="formula">if a×1.21 &gt; b: hitChance = 1 − b / (a×1.21×2); else hitChance = (a×1.21) / (b×2)</div>
+      <p class="muted">There is no cap on toHit — Eagle Eye, high weapon skill, and accuracy AAs can push it above 550 and do so freely.</p>
       <p>
         <strong>Tactical Mastery AA</strong> (Warrior, PoP): reduces the NPC's effective avoidance by 10/20/30 at rank 1/2/3 before the hit-chance formula runs.
         A lower avoidance value shifts the hit-chance formula in the attacker's favour, increasing landed-hit rate.
@@ -327,7 +330,7 @@
         <li><strong>Low damage (min or near-min):</strong> When <strong>atkRoll</strong> is low and <strong>defRoll</strong> is high, (atkRoll − defRoll) is small or negative, so the scaled index is low (near 1). So you get min (or near-min) hits when the defender "wins" the roll contest.</li>
       </ul>
       <p class="muted">
-        Higher <strong>offense rating</strong> (STR, worn ATK, spell ATK, offense skill) increases the range of atkRoll, so you can roll higher and get more big hits. Higher <strong>mitigation</strong> (e.g. high-AC or high-level mobs) increases the range of defRoll, so the defender often "wins" more and you see more low (min) hits and fewer max hits. That is why high-mitigation targets feel like they reduce your damage spread and push hits toward the bottom of the range.
+        Higher <strong>offense rating</strong> (STR, worn ATK, spell ATK, weapon skill) increases the range of atkRoll, so you can roll higher and get more big hits. Higher <strong>mitigation</strong> (e.g. high-AC or high-level mobs) increases the range of defRoll, so the defender often "wins" more and you see more low (min) hits and fewer max hits. That is why high-mitigation targets feel like they reduce your damage spread and push hits toward the bottom of the range.
       </p>
     </div>
 

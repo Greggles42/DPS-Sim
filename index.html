@@ -1922,7 +1922,7 @@
       <iconify-icon icon="ra:crossed-swords" class="text-2xl md:text-3xl text-[#d4af37] flex-shrink-0"></iconify-icon>
       <div class="flex flex-col min-w-0">
         <span class="font-fantasy text-base md:text-xl tracking-widest text-[#d4af37] truncate"><span class="app-title-g-small">g</span>Sim for Project Quarm</span>
-        <span class="text-[10px] text-gray-500 uppercase tracking-tighter">Everquest DPS Simulator · <span id="app-version">v1.36.2</span></span>
+        <span class="text-[10px] text-gray-500 uppercase tracking-tighter">Everquest DPS Simulator · <span id="app-version">v1.36.4</span></span>
       </div>
     </div>
     <div class="flex items-center gap-3 md:gap-8 flex-shrink-0">
@@ -2877,6 +2877,8 @@
   <section class="advanced-only" style="margin-top: 1rem;">
     <h2>Version log</h2>
     <ul style="font-size: 0.9rem; color: var(--muted); margin: 0; padding-left: 1.25rem;">
+      <li><strong>1.36.4</strong> — Fix: rank weapons TPS was incorrect for the offhand weapon slot (melee) and all bows (ranged). Three locations in the melee rank loop built the offhand weapon object inline and omitted <code>procSpellBonusHate</code>, <code>procSpellNonDamagingDetrimental</code>, and <code>procSpellCcAddsMobHpThreat</code> — so any offhand weapon with a CC/stun proc or SE-92 flat hate would produce zero contribution to those threat paths. Fixed by using <code>normalizedToWeapon1(p2, false)</code> (the same helper used for the mainhand) in all three locations: the offhand-only phase, the offhand-only combinations path, and the primary+secondary combinations path. For ranged rank, the bow intermediate object was also missing those same three fields plus <code>archeryModPercent</code> — they were set on <code>norm</code> by <code>normalizeBowFromList</code> but never copied into the <code>bows.push()</code> object, so the code that tried to forward them into <code>rangedWeapon</code> always read <code>undefined</code>. Fixed by copying all four fields when present.</li>
+      <li><strong>1.36.3</strong> — Docs: corrected Section 4 of the mechanics guide — offense rating for damage uses the <strong>weapon type skill</strong> (e.g. 1H Slash, 2H Slash), not the offense skill. The offense skill only contributes to to-hit. Added note explaining that warrior 1H caps at 200 vs 252 for most other classes. Updated Section 5 to remove incorrect toHit cap of 550 (the server has no cap — Eagle Eye and high skill can exceed 550 freely). Clarified in report output that swing threat is based on weapon base damage (not rolled damage) and is unaffected by target AC. Updated JSDoc and report skill label in combat.js to match.</li>
       <li><strong>1.36.2</strong> — Fix: worn +archery% accumulating across repeated bow selections. When a user manually edited a ranged weapon field (damage, delay, etc.), the bow's archery mod was cleared from the hidden <code>ranged-archery-mod</code> tracking field but was not subtracted from the visible <code>ranged-worn-archery-mod</code> total. Re-selecting a bow from item search then added the full mod on top of the stale total, stacking it indefinitely (e.g. +31% bow mod loaded 8 times → +248% shown). Fixed by mirroring the existing clear-weapon logic: the old bow mod is now subtracted from the worn total before the tracking field is zeroed.</li>
       <li><strong>1.36.1</strong> — Fix: bane body type matching now requires <code>baneDamageBody &gt; 0</code> before comparing against a target's body type. Previously, weapons with no body bane (<code>banedmgbody = 0</code>) were incorrectly matching against mobs whose body type is also 0 (e.g. blobs, oozes, slimes), causing spurious bane damage to be applied. Affected single sim and both passes of the ranged rank weapons loop.</li>
       <li><strong>1.36</strong> — Ranged bane overhaul: bane body and bane race fields are now visible on the ranged tab (replacing hidden inputs), with inline labels showing the resolved name (e.g. "14 (Greater Akheva)") identical to the melee tab. The "Apply Bane Damage" checkbox has been removed — bane is now applied automatically based on the selected target's race and body type, matching the melee tab's behavior: bane-only NPCs (Emperor Ssraeshza, Lord Inquisitor Seru) are immune without a matching bane weapon; normal targets receive bane damage when their race or body type matches the weapon's bane fields. Rank Weapons (ranged): <code>baneDamageRace</code> and <code>baneDamageBody</code> were missing from bow objects in the ranking loop, so race/body auto-matching never fired — fixed. Rank Weapons (ranged): the 0.5 dmg/delay ratio pre-filter now correctly bypasses bows whose bane matches the selected target's race or body type (e.g. Great Bow of Slaughter — 1 base / 40 bane / body 14 — is now included and ranked when targeting a Greater Akheva mob such as Aten Ha Ra). Target race and body type are now resolved before the bow-building loop so the bane bypass has access to them.</li>
@@ -3350,7 +3352,7 @@
       }
 
       // When releasing: 1) Bump VERSION below. 2) Add a new <li> at the top of the Version log section above.
-      const VERSION = '1.36.2';
+      const VERSION = '1.36.4';
       const versionEl = $('app-version');
       if (versionEl) versionEl.textContent = 'v' + VERSION;
 
@@ -6563,20 +6565,7 @@
             for (; simIndex < end; simIndex++) {
               var secId = secondaryWeapons[simIndex];
               var p2 = rankWeaponMap[secId];
-              var d2 = p2.damage;
-              var w2 = {
-                damage: d2,
-                delay: p2.delay,
-                is2H: false,
-                procSpell: (p2.proc != null ? p2.proc : '') || (p2.procSpell != null ? p2.procSpell : ''),
-                procSpellDamage: p2.procDamage || 0,
-                procRate: (p2.procRate != null && !Number.isNaN(Number(p2.procRate))) ? Number(p2.procRate) : 0,
-                procLevel: (p2.procLevel != null && !Number.isNaN(Number(p2.procLevel)) && Number(p2.procLevel) > 0) ? Number(p2.procLevel) : undefined,
-                elemType: p2.elemType || undefined,
-                elemDamage: (p2.elemDamage != null ? p2.elemDamage : 0) || 0
-              };
-              if (p2.procBuffDurationTicks != null && p2.procBuffDurationTicks > 0)
-                w2.procBuffDurationTicks = p2.procBuffDurationTicks;
+              var w2 = normalizedToWeapon1(p2, false);
               applyBaneOnlyForRankWeapon(w2, p2);
               var secSkillKey = skillKeyForCap(p2.type, false);
               var secWeaponSkillForToHit = WeaponSkillCaps.getCapForSimClass(classId, secSkillKey, level) || 252;
@@ -6733,19 +6722,7 @@
               var comboWornBackstab = getRankComboWornAndBackstab(p1, p2);
               var opts;
               if (primId == null) {
-                var d2Only = p2.damage;
-                var w2Only = {
-                  damage: d2Only,
-                  delay: p2.delay,
-                  procSpell: (p2.proc != null ? p2.proc : '') || (p2.procSpell != null ? p2.procSpell : ''),
-                  procSpellDamage: p2.procDamage || 0,
-                  procRate: (p2.procRate != null && !Number.isNaN(Number(p2.procRate))) ? Number(p2.procRate) : 0,
-                  procLevel: (p2.procLevel != null && !Number.isNaN(Number(p2.procLevel)) && Number(p2.procLevel) > 0) ? Number(p2.procLevel) : undefined,
-                  elemType: p2.elemType || undefined,
-                  elemDamage: (p2.elemDamage != null ? p2.elemDamage : 0) || 0
-                };
-                if (p2.procBuffDurationTicks != null && p2.procBuffDurationTicks > 0)
-                  w2Only.procBuffDurationTicks = p2.procBuffDurationTicks;
+                var w2Only = normalizedToWeapon1(p2, false);
                 applyBaneOnlyForRankWeapon(w2Only, p2);
                 var secSkillKeyOnly = skillKeyForCap(p2.type, false);
                 var secWeaponSkillOnly = WeaponSkillCaps.getCapForSimClass(classId, secSkillKeyOnly, level) || 252;
@@ -6790,20 +6767,7 @@
                   fistweavingOffhandLabel: undefined
                 });
                 if (secId) {
-                  var d2 = p2.damage;
-                  opts.weapon2 = {
-                    damage: d2,
-                    delay: p2.delay,
-                    is2H: false,
-                    procSpell: (p2.proc != null ? p2.proc : '') || (p2.procSpell != null ? p2.procSpell : ''),
-                    procSpellDamage: p2.procDamage || 0,
-                    procRate: (p2.procRate != null && !Number.isNaN(Number(p2.procRate))) ? Number(p2.procRate) : 0,
-                    procLevel: (p2.procLevel != null && !Number.isNaN(Number(p2.procLevel)) && Number(p2.procLevel) > 0) ? Number(p2.procLevel) : undefined,
-                    elemType: p2.elemType || undefined,
-                    elemDamage: (p2.elemDamage != null ? p2.elemDamage : 0) || 0
-                  };
-                  if (p2.procBuffDurationTicks != null && p2.procBuffDurationTicks > 0)
-                    opts.weapon2.procBuffDurationTicks = p2.procBuffDurationTicks;
+                  opts.weapon2 = normalizedToWeapon1(p2, false);
                   applyBaneOnlyForRankWeapon(opts.weapon2, p2);
                   opts.dualWieldSkill = dualWieldSkillForm;
                   opts.weapon2Type = p2.type || undefined;
@@ -7228,7 +7192,7 @@
             }
             var baseDmg = norm.damage + (norm.baneDamage || 0);
             var score = baseDmg / Math.max(1, norm.delay || 1);
-            bows.push({
+            var bowEntry = {
               id: id,
               name: norm.name,
               damage: norm.damage,
@@ -7244,7 +7208,12 @@
               baneDamageBody: norm.baneDamageBody,
               procBuffDurationTicks: norm.procBuffDurationTicks,
               score: score
-            });
+            };
+            if (norm.procSpellBonusHate != null && norm.procSpellBonusHate !== 0) bowEntry.procSpellBonusHate = norm.procSpellBonusHate;
+            if (norm.procSpellNonDamagingDetrimental) bowEntry.procSpellNonDamagingDetrimental = true;
+            if (norm.procSpellCcAddsMobHpThreat) bowEntry.procSpellCcAddsMobHpThreat = true;
+            if (norm.archeryModPercent != null && !isNaN(Number(norm.archeryModPercent))) bowEntry.archeryModPercent = Number(norm.archeryModPercent);
+            bows.push(bowEntry);
           }
         });
         var arrows = [];

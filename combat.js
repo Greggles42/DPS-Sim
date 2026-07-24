@@ -1134,7 +1134,7 @@
       const swT = report.swingThreat != null ? report.swingThreat : 0;
       const prT = report.procThreat != null ? report.procThreat : 0;
       lines.push(padLine('  TPS (threat, approx):', tps));
-      lines.push(padLine('  Total threat:', String(Math.round(report.totalThreat)) + '  (swing + proc; not equal to damage)'));
+      lines.push(padLine('  Total threat:', String(Math.round(report.totalThreat)) + '  (weapon base, not rolled dmg; unaffected by AC)'));
       lines.push(padLine('  Swing TPS (threat, approx):', dur ? (swT / dur).toFixed(2) : '—'));
       lines.push(padLine('  Proc TPS (threat, approx):', dur ? (prT / dur).toFixed(2) : '—'));
       lines.push(padLine('  Swing threat (approx):', String(Math.round(swT))));
@@ -1305,7 +1305,7 @@
    * @param {number} options.hastePercent - total haste (e.g. 40 for 40%)
    * @param {number} [options.wornAttack=0] - worn ATK (items)
    * @param {number} [options.spellAttack=0] - spell ATK (buffs)
-   * @param {number} [options.offenseSkill=252] - offense SKILL (0–255); used in to-hit. Offense RATING (for damage) = offense skill + STR bonus + worn attack + spell attack.
+   * @param {number} [options.offenseSkill=252] - offense SKILL (0–255); used in to-hit only. Offense RATING (for damage) = weapon type skill + STR bonus + worn attack + spell attack.
    * @param {number} [options.toHitBonus=0] - e.g. class bonus (Warrior +24)
    * @param {number} [options.str=255] - STR stat; when STR >= 75 adds to offense RATING (the value used in the damage roll)
    * @param {number} options.doubleAttackSkill - double attack skill value
@@ -2756,7 +2756,7 @@
       const swT = report.swingThreat != null ? report.swingThreat : 0;
       const prT = report.procThreat != null ? report.procThreat : 0;
       lines.push(padLine('  TPS (threat, approx):', tps));
-      lines.push(padLine('  Total threat:', String(Math.round(report.totalThreat)) + '  (swing + proc; not equal to damage)'));
+      lines.push(padLine('  Total threat:', String(Math.round(report.totalThreat)) + '  (weapon base, not rolled dmg; unaffected by AC)'));
       lines.push(padLine('  Swing TPS (threat, approx):', dur ? (swT / dur).toFixed(2) : '—'));
       lines.push(padLine('  Proc TPS (threat, approx):', dur ? (prT / dur).toFixed(2) : '—'));
       lines.push(padLine('  Swing threat (approx):', String(Math.round(swT))));
@@ -2794,7 +2794,7 @@
       const wornAtkContrib = (report.offenseRatingFromWornAttack || 0);
       const spellAtkContrib = (report.offenseRatingFromSpellAttack || 0);
       const skillContrib = report.offenseRating - report.offenseRatingFromStr - wornAtkContrib - spellAtkContrib;
-      lines.push(padLine('    From skill:', `${skillContrib}  (weapon + offense skill base)`));
+      lines.push(padLine('    From skill:', `${skillContrib}  (weapon type skill)`));
     }
     if (report.displayedAttack != null) lines.push(padLine('  Displayed ATK:', String(report.displayedAttack)));
     lines.push(padLine('  ATK formula:', '(offense rating + toHit) * 1000 / 744'));
