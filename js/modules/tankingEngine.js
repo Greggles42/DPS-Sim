@@ -1,903 +1,866 @@
 /**
  * Tanking simulation engine for gSim.
- * Simulates incoming mob melee attacks against a player defender.
- * Uses EQMacEmu formulas from attack.cpp, npc.cpp, client_process.cpp.
  *
- * Key references:
- *   attack.cpp: Mob::AvoidanceCheck, Mob::AvoidDamage, Mob::CalcMeleeDamage, RollD20
- *   attack.cpp: Client::GetMitigation, Client::GetAvoidance, NPC::GetOffense, NPC::GetDamageBonus
- *   npc.cpp:    NPC skill init (weaponSkill = 250+level in PoP, else min(level*5,250))
- *   Riposte: counter-attack using player mainhand weapon + offense stats.
- *   CH chain: derived from DTPS and player HP to guide healer rotation.
+ * Simulates a mob attacking a player defender and reports how much damage per
+ * second you take, plus how tight a Complete Heal chain has to be to keep you
+ * alive.
+ *
+ * The mob does not run on a single fixed cadence. EQMacEmu drives combat from
+ * several independent timers — main hand, off hand, class attacks, spell casting
+ * — and modelling that properly is what lets flurry, rampage, dual wield, kicks,
+ * nukes and DoTs contribute at all. So this is an event scheduler, not a loop
+ * over attack rounds.
+ *
+ * Responsibilities are split:
+ *   npcCombat.js     what the mob does (rounds, specials, class attacks, procs)
+ *   playerDefense.js what you mitigate and avoid (AC, avoidance, discs, runes)
+ *   npcSpells.js     what the mob casts at you
+ *   healChain.js     the CH chain risk analysis
+ *   combat.js        shared primitives (rollD20, getHitChance, calcMeleeDamage)
  */
 (function (global) {
   'use strict';
 
-  // Standard Complete Heal cast time in seconds (Cleric, unmodified)
   var CH_CAST_TIME_SEC = 10;
+  var REGEN_TICK_MS = 6000;
 
-  // Safety multiplier for recommended CH interval: 1.5 = allow 50% spike above mean DTPS
-  var CH_SAFETY_FACTOR = 1.5;
+  function getEQCombat()   { return global.EQCombat || null; }
+  function getNpcCombat()  { return global.NpcCombat || null; }
+  function getDefense()    { return global.PlayerDefense || null; }
+  function getNpcSpells()  { return global.NpcSpells || null; }
+  function getHealChain()  { return global.HealChain || null; }
 
-  function getEQCombat() {
-    return global.EQCombat || null;
-  }
+  // ---------------------------------------------------------------------------
+  // Riposte counter-attack
+  // ---------------------------------------------------------------------------
 
-  // ---- Avoidance helpers ----
-
-  /**
-   * Player avoidance used in the mob's hit-chance check (AvoidanceCheck).
-   * Source: Client::GetAvoidance() in attack.cpp — based on a Sony developer post decompile.
-   *   defenseAvoidance = defense_skill * 400 / 225
-   *   agiAvoidance     = level+AGI-dependent table (max 53 at level 40+, AGI 200)
-   * No hard cap applies to clients (unlike NPCs which cap at 400/460).
-   */
-  function getPlayerAvoidance(level, defenseSkill, agi) {
-    var L   = level != null ? level : 60;
-    var def = defenseSkill != null ? defenseSkill : 200;
-    var agiVal = agi != null ? agi : 100;
-
-    var defenseAvoidance = def > 0 ? Math.floor(def * 400 / 225) : 0;
-
-    // AGI avoidance — decompile by Secrets (see attack.cpp Client::GetAvoidance)
-    var agiAvoidance = 0;
-    if (agiVal < 40) {
-      agiAvoidance = Math.floor(25 * (agiVal - 40) / 40);          // -25 to 0
-    } else if (agiVal >= 60 && agiVal <= 74) {
-      agiAvoidance = Math.floor(2 * (28 - Math.floor((200 - agiVal) / 5)) / 3);
-    } else if (agiVal >= 75) {
-      var bonusAdj = L < 7 ? 35 : L < 20 ? 55 : L < 40 ? 70 : 80;
-      if (agiVal < 200) {
-        agiAvoidance = Math.floor(2 * (bonusAdj - Math.floor((200 - agiVal) / 5)) / 3);
-      } else {
-        agiAvoidance = Math.floor(2 * bonusAdj / 3);
-      }
-    }
-
-    var avoidance = defenseAvoidance + agiAvoidance;
-    if (avoidance < 1) avoidance = 1;
-    return avoidance;
-  }
-
-  /**
-   * Individual per-swing probabilities for each avoidance skill (AvoidDamage, applied after hit check).
-   * Source: attack.cpp Mob::AvoidDamage — checks fire in order: Block → Parry → Riposte → Dodge.
-   *   chance = (skill + 100) / divisor;  Roll(chance) = random(0,99) < chance  → chance/100 probability.
-   *   Block divisor=25, Parry divisor=50, Riposte divisor=55, Dodge divisor=45.
-   * Note: parry/riposte require InFront and not ranged; riposte requires a weapon equipped (Client rule).
-   */
-  function getAvoidanceRates(opts) {
-    function rate(skill, divisor) {
-      if (!skill || skill <= 0) return 0;
-      return Math.min(1, Math.floor((skill + 100) / divisor) / 100);
-    }
-    return {
-      block:   rate(opts.playerBlockSkill,   25),
-      parry:   rate(opts.playerParrySkill,   50),
-      riposte: rate(opts.playerRiposteSkill, 55),
-      dodge:   rate(opts.playerDodgeSkill,   45)
-    };
-  }
-
-  /**
-   * Combined chance that at least one avoidance check succeeds on a swing that passed the hit check.
-   * Checks fire in order Block → Parry → Riposte → Dodge; each is independent.
-   */
-  function getCombinedAvoidanceChance(rates) {
-    return 1 - (1 - rates.block) * (1 - rates.parry) * (1 - rates.riposte) * (1 - rates.dodge);
-  }
-
-  // ---- Mitigation ----
-
-  /**
-   * Player mitigation fed into RollD20 for incoming NPC damage.
-   * Source: Client::GetMitigation() in attack.cpp.
-   *
-   * Inputs:
-   *   itemAC      — raw sum of AC on all equipped items (NOT displayed AC)
-   *   spellAC     — spell/buff AC bonus
-   *   classId     — player class string
-   *   defSkill    — defense skill value
-   *   agi         — AGI stat
-   *   era         — era string: 'classic','kunark','velious','luclin','pop'
-   *
-   * Key rules:
-   *   • Item AC multiplied by 4/3 for non-casters (Nec/Wiz/Mag/Enc get raw value).
-   *   • Anti-twink cap: level < 50 → min(acSum, level*6+25).
-   *   • Defense skill: /3 for non-casters, /2 for casters.
-   *   • Spell AC: /4 for non-casters, /3 for casters.
-   *   • AGI bonus: floor(agi/20) when agi > 70.
-   *   • Softcap by era/class (350 Classic; up to 430 Warrior Velious+).
-   *   • Overcap scaling in Luclin/PoP: varies by class/level (1:3 for warriors at L60 PoP).
-   */
-  function getPlayerMitigation(level, itemAC, spellAC, classId, defSkill, agi, era) {
-    var L   = level  != null ? level  : 60;
-    var cls = (classId || '').toLowerCase();
-    var isCaster = cls === 'wizard' || cls === 'magician' || cls === 'necromancer' || cls === 'enchanter';
-
-    // Item AC — multiply by 4/3 for non-casters
-    var acSum = itemAC || 0;
-    if (!isCaster) acSum = Math.floor(4 * acSum / 3);
-
-    // Anti-twink cap (level < 50)
-    if (L < 50 && acSum > L * 6 + 25) acSum = L * 6 + 25;
-
-    // Rogue AGI bonus (max 12)
-    if (cls === 'rogue' && L >= 30 && (agi || 0) > 75) {
-      var rogAgi = agi || 0;
-      var rogScale = L - 26;
-      var rogBonus = rogAgi < 80  ? Math.floor(rogScale / 4) :
-                     rogAgi < 85  ? Math.floor(rogScale * 2 / 4) :
-                     rogAgi < 90  ? Math.floor(rogScale * 3 / 4) :
-                     rogAgi < 100 ? rogScale : Math.floor(rogScale * 5 / 4);
-      acSum += Math.min(12, rogBonus);
-    }
-    // Beastlord AGI bonus (max 16)
-    if (cls === 'beastlord' && L > 10 && (agi || 0) > 75) {
-      var bstAgi = agi || 0;
-      var bstScale = L - 6;
-      var bstBonus = bstAgi < 80  ? Math.floor(bstScale / 5) :
-                     bstAgi < 85  ? Math.floor(bstScale * 2 / 5) :
-                     bstAgi < 90  ? Math.floor(bstScale * 3 / 5) :
-                     bstAgi < 100 ? Math.floor(bstScale * 4 / 5) : bstScale;
-      acSum += Math.min(16, bstBonus);
-    }
-
-    if (acSum < 0) acSum = 0;
-
-    // Defense skill contribution
-    var def = defSkill || 0;
-    if (def > 0) acSum += isCaster ? Math.floor(def / 2) : Math.floor(def / 3);
-
-    // Spell AC
-    acSum += Math.floor((spellAC || 0) / (isCaster ? 3 : 4));
-
-    // AGI bonus: +1 per 20 AGI above 70
-    if ((agi || 0) > 70) acSum += Math.floor((agi || 0) / 20);
-
-    if (acSum < 0) acSum = 0;
-
-    // Softcap by era and class
-    var isVelious = era === 'velious' || era === 'luclin' || era === 'pop';
-    var isLuclin  = era === 'luclin'  || era === 'pop';
-    var isPop     = era === 'pop';
-
-    var softcap = 350;
-    if (L > 50 && isVelious) {
-      if      (cls === 'warrior')                                             softcap = 430;
-      else if (cls === 'paladin' || cls === 'shadowknight' ||
-               cls === 'cleric'  || cls === 'bard')                          softcap = 403;
-      else if (cls === 'ranger'  || cls === 'shaman')                        softcap = 375;
-      // monk, rogue, druid, bst, wiz, enc, nec, mag → 350
-    }
-
-    if (acSum <= softcap) return acSum;
-
-    // Over softcap
-    if (L <= 50 || !isLuclin) return softcap;  // hard cap pre-Luclin
-
-    var overcap = acSum - softcap;
-    var returns = 20; // default (melee non-warrior classes in PoP, and Luclin)
-
-    if (!isPop) {
-      // Luclin era: 1:12 returns; casters get no overcap
-      if (isCaster) overcap = 0;
-      else returns = 12;
-    } else {
-      // PoP era: class-specific returns
-      if (cls === 'warrior') {
-        returns = L <= 61 ? 5 : L <= 63 ? 4 : 3;
-      } else if (cls === 'paladin' || cls === 'shadowknight') {
-        returns = L <= 61 ? 6 : L <= 63 ? 5 : 4;
-      } else if (cls === 'bard') {
-        returns = L <= 61 ? 8 : L <= 63 ? 7 : 6;
-      } else if (cls === 'monk' || cls === 'rogue') {
-        returns = L <= 61 ? 20 : L === 62 ? 18 : L === 63 ? 16 : L === 64 ? 14 : 12;
-      } else if (cls === 'ranger' || cls === 'beastlord') {
-        returns = L <= 61 ? 10 : L === 62 ? 9 : L === 63 ? 8 : 7;
-      }
-      // casters in PoP still get returns=20 (they can overcap in PoP)
-    }
-
-    return softcap + Math.floor(overcap / returns);
-  }
-
-  /**
-   * Same formula as getPlayerMitigation, but returns each component separately
-   * so the report can show a full AC breakdown.
-   */
-  function getPlayerMitigationBreakdown(level, itemAC, spellAC, classId, defSkill, agi, era) {
-    var L   = level  != null ? level  : 60;
-    var cls = (classId || '').toLowerCase();
-    var isCaster = cls === 'wizard' || cls === 'magician' || cls === 'necromancer' || cls === 'enchanter';
-
-    // Item AC after multiplier
-    var rawItem = itemAC || 0;
-    var scaledItem = !isCaster ? Math.floor(4 * rawItem / 3) : rawItem;
-    var antiTwinkCap = L < 50 ? (L * 6 + 25) : Infinity;
-    if (scaledItem > antiTwinkCap) scaledItem = antiTwinkCap;
-    if (scaledItem < 0) scaledItem = 0;
-
-    // Rogue AGI bonus
-    var rogueAgiBonus = 0;
-    if (cls === 'rogue' && L >= 30 && (agi || 0) > 75) {
-      var rogAgi = agi || 0, rogScale = L - 26;
-      rogueAgiBonus = Math.min(12, rogAgi < 80  ? Math.floor(rogScale / 4) :
-                                   rogAgi < 85  ? Math.floor(rogScale * 2 / 4) :
-                                   rogAgi < 90  ? Math.floor(rogScale * 3 / 4) :
-                                   rogAgi < 100 ? rogScale : Math.floor(rogScale * 5 / 4));
-    }
-    // Beastlord AGI bonus
-    var bstAgiBonus = 0;
-    if (cls === 'beastlord' && L > 10 && (agi || 0) > 75) {
-      var bstAgi = agi || 0, bstScale = L - 6;
-      bstAgiBonus = Math.min(16, bstAgi < 80  ? Math.floor(bstScale / 5) :
-                                 bstAgi < 85  ? Math.floor(bstScale * 2 / 5) :
-                                 bstAgi < 90  ? Math.floor(bstScale * 3 / 5) :
-                                 bstAgi < 100 ? Math.floor(bstScale * 4 / 5) : bstScale);
-    }
-
-    // Defense skill contribution
-    var def = defSkill || 0;
-    var defContrib = def > 0 ? (isCaster ? Math.floor(def / 2) : Math.floor(def / 3)) : 0;
-
-    // Spell AC contribution
-    var spellContrib = Math.floor((spellAC || 0) / (isCaster ? 3 : 4));
-
-    // AGI bonus
-    var agiContrib = (agi || 0) > 70 ? Math.floor((agi || 0) / 20) : 0;
-
-    var preCap = Math.max(0, scaledItem + rogueAgiBonus + bstAgiBonus + defContrib + spellContrib + agiContrib);
-
-    // Softcap
-    var isVelious = era === 'velious' || era === 'luclin' || era === 'pop';
-    var isLuclin  = era === 'luclin'  || era === 'pop';
-    var isPop     = era === 'pop';
-    var softcap = 350;
-    if (L > 50 && isVelious) {
-      if      (cls === 'warrior')                                             softcap = 430;
-      else if (cls === 'paladin' || cls === 'shadowknight' ||
-               cls === 'cleric'  || cls === 'bard')                          softcap = 403;
-      else if (cls === 'ranger'  || cls === 'shaman')                        softcap = 375;
-    }
-
-    var final;
-    if (preCap <= softcap) {
-      final = preCap;
-    } else if (L <= 50 || !isLuclin) {
-      final = softcap;
-    } else {
-      var overcap = preCap - softcap;
-      var returns = 20;
-      if (!isPop) {
-        if (isCaster) overcap = 0;
-        else returns = 12;
-      } else {
-        if (cls === 'warrior') {
-          returns = L <= 61 ? 5 : L <= 63 ? 4 : 3;
-        } else if (cls === 'paladin' || cls === 'shadowknight') {
-          returns = L <= 61 ? 6 : L <= 63 ? 5 : 4;
-        } else if (cls === 'bard') {
-          returns = L <= 61 ? 8 : L <= 63 ? 7 : 6;
-        } else if (cls === 'monk' || cls === 'rogue') {
-          returns = L <= 61 ? 20 : L === 62 ? 18 : L === 63 ? 16 : L === 64 ? 14 : 12;
-        } else if (cls === 'ranger' || cls === 'beastlord') {
-          returns = L <= 61 ? 10 : L === 62 ? 9 : L === 63 ? 8 : 7;
-        }
-      }
-      final = softcap + Math.floor(overcap / returns);
-    }
-
-    return {
-      isCaster:     isCaster,
-      rawItemAC:    rawItem,
-      scaledItemAC: scaledItem,    // after ×4/3 and anti-twink cap
-      antiTwinkCap: L < 50 ? antiTwinkCap : null,
-      classAgiBonus: rogueAgiBonus + bstAgiBonus,
-      defContrib:   defContrib,
-      spellContrib: spellContrib,
-      agiContrib:   agiContrib,
-      preCap:       preCap,
-      softcap:      softcap,
-      final:        final
-    };
-  }
-
-  // ---- Mob attack ----
-
-  /**
-   * Mob to-hit value (used in AvoidanceCheck hit-chance formula).
-   * Source: Mob::GetToHit() in attack.cpp = 7 + GetSkill(SkillOffense) + GetSkill(weaponSkill).
-   * NPC weapon/offense skills from npc.cpp:
-   *   PoP (PlanesEQ): weaponSkill = 250 + level  (for level > 50)
-   *   Other eras:     weaponSkill = min(level*5, 250)
-   * If mobAccuracy > 0 it overrides (maps directly to the accuracy DB field added to toHit).
-   */
-  function getMobToHit(mobLevel, mobAccuracy, isPoP) {
-    var L = mobLevel != null ? mobLevel : 60;
-    if (mobAccuracy != null && mobAccuracy > 0) {
-      // User-supplied accuracy: treat as the full toHit override
-      var baseSkill = isPoP && L > 50 ? (250 + L) : Math.min(L * 5, 250);
-      return 7 + baseSkill + baseSkill + mobAccuracy;
-    }
-    var weaponSkill = isPoP && L > 50 ? (250 + L) : Math.min(L * 5, 250);
-    return 7 + weaponSkill + weaponSkill;
-  }
-
-  /**
-   * NPC melee base damage (DI * 10) derived from min/max hit range.
-   * Source: NPC::GetBaseDamage() in attack.cpp.
-   *   di1k = floor((max-min)*1000/19), rounded to nearest 100 (i.e. nearest 0.1 DI)
-   *   baseDamage = di1k / 100 = DI * 10
-   * The D20 roll [1..20] maps this to the [min..max] hit range when combined with damageBonus.
-   */
-  function getMobBaseDamage(minDmg, maxDmg) {
-    if (maxDmg <= minDmg) return Math.max(1, minDmg);
-    var di1k = Math.floor((maxDmg - minDmg) * 1000 / 19);
-    di1k = Math.floor((di1k + 50) / 100) * 100;  // round to nearest 0.1
-    return Math.max(1, Math.floor(di1k / 100));
-  }
-
-  /**
-   * NPC offense rating (used in RollD20 damage roll).
-   * Source: Mob::GetOffense() in attack.cpp.
-   *   baseOffense = min(level*5.5 - 4, 320)  (flat cap at 320)
-   *   strOffense  = level*2 - 40  (for level >= 30; +20 in PoP zones)
-   *   offense     = baseOffense + strOffense + mob ATK bonus
-   * Note: level 46-50 NPCs use level=45 for offense (skill cap plateau); skipped here
-   *       as it only matters for non-raid trash in that narrow range.
-   */
-  function getMobOffenseRating(mobLevel, isPoP, mobATK) {
-    var L   = mobLevel != null ? mobLevel : 60;
-    var atk = mobATK || 0;
-
-    var baseOffense = Math.min(Math.floor(L * 55 / 10) - 4, 320);
-
-    var strOffense;
-    if (L < 6) {
-      baseOffense = L * 4;
-      strOffense  = L;
-    } else if (L < 30) {
-      strOffense = Math.floor(L / 2) + 1;
-    } else {
-      strOffense = L * 2 - 40;
-      if (isPoP) strOffense += 20;
-    }
-
-    return Math.max(1, baseOffense + strOffense + atk);
-  }
-
-  /**
-   * Roll a single NPC damage hit using CalcMeleeDamage / RollD20.
-   * Source: NPC::GetBaseDamage() + Mob::CalcMeleeDamage() in attack.cpp.
-   *   baseDamage = getMobBaseDamage(min,max)  — fixed DI*10, NOT a random value
-   *   damage     = floor(D20roll * baseDamage + 5) / 10 + damageBonus
-   * The D20 roll [1..20] scales base from min_dmg (roll=1) to max_dmg (roll=20).
-   */
-  function rollNPCDamage(minDmg, maxDmg, offenseRating, mitigation, damageBonus, rng) {
-    var eq = getEQCombat();
-    var baseDamage = getMobBaseDamage(minDmg, maxDmg);
-    if (eq && eq.rollD20) {
-      var roll = eq.rollD20(offenseRating, mitigation, rng);
-      var dmg  = Math.floor((roll * baseDamage + 5) / 10);
-      if (dmg < 1) dmg = 1;
-      return dmg + (damageBonus || 0);
-    }
-    // Fallback: average damage
-    return Math.floor((minDmg + maxDmg) / 2);
-  }
-
-  // ---- Riposte damage ----
-
-  /**
-   * Compute player offense rating for riposte counter-attack.
-   * Matches combat.js: offenseRating = offenseSkill + STR_bonus + wornAttack + spellAttack.
-   * STR_bonus = floor((2*STR - 150) / 3) when STR >= 75, else 0.
-   */
+  /** Player offense rating for the counter-attack, matching combat.js. */
   function getPlayerOffenseRating(offenseSkill, str, wornAttack, spellAttack) {
-    var skill   = offenseSkill != null ? Math.min(255, Math.max(0, offenseSkill)) : 200;
-    var s       = str != null ? str : 100;
+    var skill = offenseSkill != null ? Math.min(255, Math.max(0, offenseSkill)) : 200;
+    var s = str != null ? str : 100;
     var strBonus = s >= 75 ? Math.floor((2 * s - 150) / 3) : 0;
-    var atk     = (wornAttack || 0) + (spellAttack || 0);
-    return Math.max(1, skill + strBonus + atk);
+    return Math.max(1, skill + strBonus + (wornAttack || 0) + (spellAttack || 0));
   }
 
-  /**
-   * Mob mitigation for player riposte damage roll.
-   * Uses level-based formula from combat.js (same getMitigation), feeding mobAC.
-   */
   function getMobMitigation(mobLevel, mobAC) {
     var eq = getEQCombat();
-    if (eq && eq.getMitigation) {
-      return eq.getMitigation(mobLevel, mobAC || 0, 0, 0);
-    }
+    if (eq && eq.getMitigation) return eq.getMitigation(mobLevel, mobAC || 0, 0, 0);
     var L = mobLevel != null ? mobLevel : 60;
-    var mit;
-    if (L < 15) { mit = L * 3; if (L < 3) mit += 2; }
-    else { mit = Math.floor(L * 41 / 10) - 15; }
+    var mit = L < 15 ? (L * 3 + (L < 3 ? 2 : 0)) : Math.floor(L * 41 / 10) - 15;
     if (mit > 200) mit = 200;
-    var ac = mobAC || 0;
-    if (mit === 200 && ac > 200) mit = ac;
-    if (mit < 1) mit = 1;
-    return mit;
+    if (mit === 200 && (mobAC || 0) > 200) mit = mobAC;
+    return Math.max(1, mit);
   }
 
   /**
-   * Roll one riposte counter-attack.
-   * Uses calcMeleeDamage + getDamageBonusClient from combat.js.
-   * Crit chance is applied via rollMeleeCrit.
-   * @returns {number} damage dealt on riposte
+   * One riposte counter-attack. Unlike before, this goes through the mob's own
+   * defences — DoRiposte calls defender->Attack(), which is a full attack and can
+   * be blocked, parried, riposted, dodged or missed like any other swing.
    */
-  function rollRiposteDamage(opts, mobMitigation, rng) {
+  function rollRiposteHit(ctx, rng, isReturnKick) {
+    var o = ctx.options;
     var eq = getEQCombat();
+    var mobDef = ctx.mobDefense;
+
+    // The mob's avoidance chain.
+    if (mobDef.skillAvoid > 0 && rng() < mobDef.skillAvoid) return { hit: false, damage: 0 };
+    if (rng() >= mobDef.hitChance) return { hit: false, damage: 0 };
+
     if (!eq || !eq.calcMeleeDamage) {
-      // Simple fallback: random in [1, weaponDamage]
-      return 1 + Math.floor(rng() * Math.max(1, opts.playerWeaponDamage || 10));
+      return { hit: true, damage: 1 + Math.floor(rng() * Math.max(1, o.playerWeaponDamage || 10)) };
     }
-    var weaponDmg = opts.playerWeaponDamage != null ? opts.playerWeaponDamage : 10;
-    var delay     = opts.playerWeaponDelay  != null ? opts.playerWeaponDelay  : 30;
-    var is2H      = !!opts.playerWeaponIs2H;
-    var classId   = opts.playerClassId || 'warrior';
-    var level     = opts.playerLevel   != null ? opts.playerLevel : 60;
 
+    var level = o.playerLevel != null ? o.playerLevel : 60;
+    var classId = o.playerClassId || 'warrior';
     var offenseRating = getPlayerOffenseRating(
-      opts.playerOffenseSkill,
-      opts.playerStr,
-      opts.playerWornAttack,
-      opts.playerSpellAttack
-    );
-    var damageBonus = eq.getDamageBonusClient
-      ? eq.getDamageBonusClient(level, classId, delay, is2H)
-      : 0;
+      o.playerOffenseSkill, o.playerStr, o.playerWornAttack, o.playerSpellAttack);
 
-    var dmg = eq.calcMeleeDamage(weaponDmg, offenseRating, mobMitigation, rng, damageBonus);
+    var base, damageBonus;
+    if (isReturnKick) {
+      base = 29;               // flying kick skill base at capped skill
+      damageBonus = 0;
+    } else {
+      base = o.playerWeaponDamage != null ? o.playerWeaponDamage : 10;
+      damageBonus = eq.getDamageBonusClient
+        ? eq.getDamageBonusClient(level, classId,
+            o.playerWeaponDelay != null ? o.playerWeaponDelay : 30,
+            !!o.playerWeaponIs2H)
+        : 0;
+    }
 
-    // Crit check (uses rollMeleeCrit)
+    // Defensive Discipline cuts your own melee output while it is up.
+    var dmgMod = ctx.defense.damageModifierPct || 0;
+    if (dmgMod) base = Math.max(1, base + Math.floor(base * dmgMod / 100));
+
+    var dmg = eq.calcMeleeDamage(base, offenseRating, ctx.mobMitigation, rng, damageBonus);
+
+    if (isReturnKick) dmg = Math.max(dmg, Math.floor(level * 4 / 5));
+
     if (eq.rollMeleeCrit) {
-      var dex = opts.playerDex != null ? opts.playerDex : 150;
-      var critMult = opts.playerCritChanceMult || 0;
-      var critResult = eq.rollMeleeCrit(dmg, damageBonus, level, classId, dex, critMult, false, false, 0, false, rng);
-      dmg = critResult.damage;
+      var crit = eq.rollMeleeCrit(dmg, damageBonus, level, classId,
+        o.playerDex != null ? o.playerDex : 150,
+        o.playerCritChanceMult || 0, false, false, 0, false, rng);
+      dmg = crit.damage;
     }
 
-    return Math.max(1, dmg);
+    return { hit: true, damage: Math.max(1, dmg) };
   }
 
-  /**
-   * Roll Return Kick damage (monk AA): uses flying kick formula (skillBase=29, min=level*4/5).
-   */
-  function rollReturnKickDamage(opts, mobMitigation, rng) {
-    var eq = getEQCombat();
-    var level = opts.playerLevel != null ? opts.playerLevel : 60;
-    var FK_SKILL_BASE = 29;
-    if (!eq || !eq.calcMeleeDamage) {
-      return Math.max(1, Math.floor(level * 4 / 5));
-    }
-    var offenseRating = getPlayerOffenseRating(
-      opts.playerOffenseSkill,
-      opts.playerStr,
-      opts.playerWornAttack,
-      opts.playerSpellAttack
-    );
-    var dmg = eq.calcMeleeDamage(FK_SKILL_BASE, offenseRating, mobMitigation, rng, 0);
-    var fkMin = Math.floor(level * 4 / 5);
-    dmg = Math.max(1, Math.max(dmg, fkMin));
-    if (eq.rollMeleeCrit) {
-      var dex = opts.playerDex != null ? opts.playerDex : 150;
-      var critMult = opts.playerCritChanceMult || 0;
-      var critResult = eq.rollMeleeCrit(dmg, 0, level, opts.playerClassId || 'monk', dex, critMult, false, false, 0, false, rng);
-      dmg = critResult.damage;
-    }
-    return Math.max(1, dmg);
-  }
-
-  // ---- Complete Heal chain analysis ----
+  // ---------------------------------------------------------------------------
+  // Main simulation
+  // ---------------------------------------------------------------------------
 
   /**
-   * Compute Complete Heal chain metrics from DTPS and player HP.
-   *
-   * A Complete Heal fills the tank to max HP. The chain must land before the tank dies.
-   * castTimeSec: how long the spell takes to land (default 10 sec for unmodified Cleric CH).
-   *
-   * Max safe interval  = HP / DTPS
-   *   → If a CH lands every T seconds and fills HP to max, the tank can survive T seconds.
-   *
-   * Recommended interval = HP / (DTPS × safety_factor)
-   *   → Leaves headroom for incoming spike damage above the mean DTPS.
-   *
-   * Clerics needed = ceil(castTimeSec / recommendedInterval)
-   *   → Each cleric stagger-casts; they need to fire fast enough for the chain to land
-   *     at the recommended interval.
-   *
-   * CH call threshold = DTPS × castTimeSec
-   *   → The HP value at which a cleric must *start* casting so CH lands before death.
-   *     If HP is below this and no CH is in flight, the tank is in danger.
-   *
-   * @param {number} dtps - damage taken per second (post-avoidance, post-mitigation)
-   * @param {number} playerHP - player max HP
-   * @param {number} castTimeSec - CH cast time in seconds (default 10)
-   * @returns {Object}
-   */
-  function calcCHChain(dtps, playerHP, castTimeSec) {
-    var cast = castTimeSec != null ? castTimeSec : CH_CAST_TIME_SEC;
-    if (dtps <= 0) {
-      return {
-        maxIntervalSec: Infinity,
-        recommendedIntervalSec: Infinity,
-        clericsNeeded: 0,
-        chCallThresholdHP: 0,
-        castTimeSec: cast,
-        sustainable: true
-      };
-    }
-    var maxInterval  = playerHP / dtps;
-    var recInterval  = playerHP / (dtps * CH_SAFETY_FACTOR);
-    var clericsNeeded = Math.ceil(cast / recInterval);
-    var callThreshold = Math.ceil(dtps * cast);
-
-    return {
-      maxIntervalSec:         maxInterval,
-      recommendedIntervalSec: recInterval,
-      clericsNeeded:          clericsNeeded,
-      chCallThresholdHP:      callThreshold,
-      castTimeSec:            cast,
-      sustainable:            false
-    };
-  }
-
-  // ---- Main simulation ----
-
-  /**
-   * Simulate a mob attacking a player defender.
-   *
-   * New inputs vs. previous version:
-   *   options.playerWeaponDamage   {number}  Mainhand base damage (for riposte)
-   *   options.playerWeaponDelay    {number}  Mainhand delay in deciseconds (for damage bonus)
-   *   options.playerWeaponIs2H     {boolean} 2H weapon (affects damage bonus formula)
-   *   options.playerClassId        {string}  Class ID (for damage bonus formula)
-   *   options.playerOffenseSkill   {number}  Offense skill (for riposte offense rating)
-   *   options.playerStr            {number}  STR stat (for riposte offense rating)
-   *   options.playerDex            {number}  DEX stat (for riposte crit chance)
-   *   options.playerWornAttack     {number}  Worn ATK bonus (for riposte offense rating)
-   *   options.playerSpellAttack    {number}  Spell ATK bonus (for riposte offense rating)
-   *   options.playerCritChanceMult {number}  Combat Fury flat crit % (for riposte crits)
-   *   options.mobAC                {number}  Mob AC (for player riposte damage roll)
-   *   options.chCastTimeSec        {number}  CH cast time override (default 10)
-   *
-   * @param {Object} options
-   * @returns {Object} tanking report
+   * @param {Object} options  see the tanking tab handler in index.html
+   * @returns {Object} report, including a per-event damage timeline
    */
   function runTankingFight(options) {
+    var NC = getNpcCombat();
+    var PD = getDefense();
+    var NS = getNpcSpells();
     var eq = getEQCombat();
-    var rng;
-    if (eq && eq.createRng) {
-      rng = eq.createRng(options.seed);
-    } else {
-      var seed = options.seed != null ? options.seed : Date.now();
-      rng = function () {
-        seed = (seed * 1664525 + 1013904223) & 0xffffffff;
-        return ((seed >>> 0) / 0x100000000);
-      };
+
+    if (!NC || !PD) {
+      return { error: 'Tanking modules failed to load (npcCombat.js / playerDefense.js).' };
     }
 
-    // ---- Mob stats ----
-    var mobLevel          = options.mobLevel        != null ? options.mobLevel        : 60;
-    var mobMinDmg         = options.mobMinDamage    != null ? Math.max(1, options.mobMinDamage) : 10;
-    var mobMaxDmg         = options.mobMaxDamage    != null ? Math.max(mobMinDmg, options.mobMaxDamage) : 50;
-    var mobAttackDelaySec = options.mobAttackDelay  != null ? options.mobAttackDelay / 10 : 2.0;
-    var mobAttackDelayMs  = mobAttackDelaySec * 1000;
-    var mobAttackCount    = options.mobAttackCount  != null ? Math.max(1, options.mobAttackCount) : 1;
-
-    // NPC double attack (CheckDoubleAttack in EQMacEmu, fires after base attacks):
-    //   GetDoubleAttackChance(true) = skill + level (when level > 35)
-    //   Roll: chance > random(0, 499)  → probability = min(1, (skill + level) / 500)
-    // Set mobDoubleAttackSkill > 0 to enable; 0 = no double attack.
-    var mobDoubleAttackSkill  = options.mobDoubleAttackSkill != null ? options.mobDoubleAttackSkill : 0;
-    var mobDoubleAttackChance = 0;
-    if (mobDoubleAttackSkill > 0) {
-      var daLevelBonus = mobLevel > 35 ? mobLevel : 0;
-      mobDoubleAttackChance = Math.min(1, (mobDoubleAttackSkill + daLevelBonus) / 500);
-    }
-    // Triple attack: Warrior or Monk class NPCs at level 60+, 13.5% chance (135/1000).
-    var mobHasTripleAttack  = !!options.mobTripleAttack;
-    var TRIPLE_ATTACK_CHANCE = 0.135;
-    var isPoP             = options.era === 'pop';
-    var mobToHit          = getMobToHit(mobLevel, options.mobAccuracy, isPoP);
-    var mobOffenseRating  = getMobOffenseRating(mobLevel, isPoP, options.mobATK || 0);
-    var mobAC             = options.mobAC           != null ? options.mobAC           : 0;
-
-    // ---- Player stats ----
-    var playerLevel       = options.playerLevel     != null ? options.playerLevel     : 60;
-    var playerAC          = options.playerAC        != null ? options.playerAC        : 0;  // raw item AC sum
-    var playerSpellAC     = options.playerSpellAC   != null ? options.playerSpellAC   : 0;
-    var playerAGI         = options.playerAGI       != null ? options.playerAGI       : 100;
-    var playerDefSkill    = options.playerDefenseSkill != null ? options.playerDefenseSkill : 200;
-    var playerClassId     = options.playerClassId   || 'warrior';
-    var naturalDurabilityRank = (options.naturalDurabilityRank | 0) || 0;
-    var NATURAL_DURABILITY_BONUS = [0, 0.02, 0.05, 0.10];
-    var naturalDurabilityFactor = NATURAL_DURABILITY_BONUS[Math.min(naturalDurabilityRank, 3)];
-    var planarDurabilityRank = (options.planarDurabilityRank | 0) || 0;
-    var PLANAR_DURABILITY_BONUS = [0, 0.015, 0.030, 0.045];
-    var planarDurabilityFactor = PLANAR_DURABILITY_BONUS[Math.min(planarDurabilityRank, 3)];
-    var playerHPTotal     = options.playerHPTotal   != null ? options.playerHPTotal   : 4000;
-    if (naturalDurabilityFactor > 0) playerHPTotal = Math.floor(playerHPTotal * (1 + naturalDurabilityFactor));
-    if (planarDurabilityFactor > 0)  playerHPTotal = Math.floor(playerHPTotal * (1 + planarDurabilityFactor));
-    var playerHPRegen     = options.playerHPRegen   != null ? options.playerHPRegen   : 0;
-    var healerHPS         = options.healerHPS       != null ? options.healerHPS       : 0;
-    var netRegenPerSec    = playerHPRegen + healerHPS;
-    var fightDurationSec  = options.fightDurationSec != null ? options.fightDurationSec : 60;
-    var durationMs        = fightDurationSec * 1000;
-
-    // ---- Derived defense values ----
-    var playerAvoidance       = getPlayerAvoidance(playerLevel, playerDefSkill, playerAGI);
-    var playerMitigationBD    = getPlayerMitigationBreakdown(playerLevel, playerAC, playerSpellAC,
-                                  playerClassId, playerDefSkill, playerAGI, options.era || 'pop');
-    var playerMitigation      = playerMitigationBD.final;
-    var mobMitigation         = getMobMitigation(mobLevel, mobAC);
-
-    // ---- Luclin/PoP AAs: mitigation and avoidance bonuses ----
-    var combatStabilityRank  = (options.combatStabilityRank  | 0) || 0;
-    var combatAgilityRank    = (options.combatAgilityRank    | 0) || 0;
-    var innateDefenseRank    = (options.innateDefenseRank    | 0) || 0;
-    var lightningReflexesRank = (options.lightningReflexesRank | 0) || 0;
-    var COMBAT_STABILITY_BONUS = [0, 0.02, 0.05, 0.10]; // damage reduction % per rank (2/5/10%)
-    var COMBAT_AGILITY_BONUS   = [0, 0.02, 0.05, 0.10]; // avoidance rate bonus per rank (2/5/10%)
-    var combatStabilityFactor  = COMBAT_STABILITY_BONUS[Math.min(combatStabilityRank, 3)];
-    var combatAgilityFactor    = COMBAT_AGILITY_BONUS[Math.min(combatAgilityRank, 3)];
-    // Innate Defense: +2% mitigation per rank (stacks with Combat Stability)
-    var innateDefenseFactor   = Math.min(innateDefenseRank, 5) * 0.02;
-    // Lightning Reflexes: +2% avoidance per rank (stacks with Combat Agility)
-    var lightningReflexesFactor = Math.min(lightningReflexesRank, 5) * 0.02;
-    // Boost player mitigation by Combat Stability + Innate Defense
-    var totalMitigationFactor = combatStabilityFactor + innateDefenseFactor;
-    if (totalMitigationFactor > 0) {
-      playerMitigation = Math.floor(playerMitigation * (1 + totalMitigationFactor));
-    }
-
-    // Per-skill individual avoidance rates (applied to swings that pass the hit check)
-    var rates    = getAvoidanceRates(options);
-    var hitChance = (eq && eq.getHitChance)
-      ? eq.getHitChance(mobToHit, playerAvoidance)
+    var rng = (eq && eq.createRng)
+      ? eq.createRng(options.seed)
       : (function () {
-          var a = mobToHit + 10, b = playerAvoidance + 10;
-          return a * 1.21 > b ? 1.0 - b / (a * 1.21 * 2.0) : (a * 1.21) / (b * 2.0);
+          var seed = options.seed != null ? options.seed : Date.now();
+          return function () {
+            seed = (seed * 1664525 + 1013904223) & 0xffffffff;
+            return (seed >>> 0) / 0x100000000;
+          };
         })();
-    // Apply Combat Agility + Lightning Reflexes: reduce effective hit chance (more avoidance)
-    var totalAvoidanceFactor = combatAgilityFactor + lightningReflexesFactor;
-    if (totalAvoidanceFactor > 0) {
-      hitChance = Math.max(0, hitChance - totalAvoidanceFactor);
-    }
-    var missChance = Math.max(0, 1 - hitChance);
 
-    // Double Riposte: chance for a second riposte counter-attack per riposte
-    var doubleRiposteRank = (options.doubleRiposteRank | 0) || 0;
-    var DOUBLE_RIPOSTE_CHANCE = [0, 0.15, 0.35, 0.50];
-    // Flash of Steel (PoP): +10%/+20%/+30% additional double riposte chance (additive)
-    var flashOfSteelRank = (options.flashOfSteelRank | 0) || 0;
-    var FLASH_OF_STEEL_BONUS = [0, 0.10, 0.20, 0.30];
-    var doubleRiposteChance = DOUBLE_RIPOSTE_CHANCE[Math.min(doubleRiposteRank, 3)] + FLASH_OF_STEEL_BONUS[Math.min(flashOfSteelRank, 3)];
+    var era = options.era || 'pop';
+    var durationMs = (options.fightDurationSec != null ? options.fightDurationSec : 60) * 1000;
 
-    // Return Kick (monk): bonus flying kick on riposte
-    var returnKickRank = (options.returnKickRank | 0) || 0;
-    var RETURN_KICK_CHANCE = [0, 0.25, 0.35, 0.50];
-    var returnKickChance = RETURN_KICK_CHANCE[Math.min(returnKickRank, 3)];
+    // ---- Mob ----
+    var mob = NC.buildMobProfile({
+      name: options.mobName,
+      level: options.mobLevel,
+      classId: options.mobClassId,
+      minDamage: options.mobMinDamage,
+      maxDamage: options.mobMaxDamage,
+      attackDelay: options.mobAttackDelay,
+      attackCount: options.mobAttackCount,
+      ac: options.mobAC,
+      atk: options.mobATK,
+      accuracy: options.mobAccuracy,
+      hp: options.mobHP,
+      specialAbilities: options.mobSpecialAbilities,
+      hastePct: options.mobHastePct,
+      slowMitigation: options.mobSlowMitigation,
+      era: era
+    });
 
-    // NPC damage bonus (from min/max spread)
-    var npcDamageBonus = (eq && eq.getDamageBonusNPC)
-      ? eq.getDamageBonusNPC(mobMinDmg, mobMaxDmg)
-      : 0;
+    // ---- Player ----
+    var hpTotal = options.playerHPTotal != null ? options.playerHPTotal : 4000;
+    var ndRank = (options.naturalDurabilityRank | 0) || 0;
+    var pdRank = (options.planarDurabilityRank | 0) || 0;
+    var ND = [0, 0.02, 0.05, 0.10][Math.min(ndRank, 3)];
+    var PDur = [0, 0.015, 0.030, 0.045][Math.min(pdRank, 3)];
+    if (ND > 0) hpTotal = Math.floor(hpTotal * (1 + ND));
+    if (PDur > 0) hpTotal = Math.floor(hpTotal * (1 + PDur));
 
-    // ---- Report skeleton ----
-    var report = {
-      mobName:              options.mobName || ('Level ' + mobLevel + ' NPC'),
-      mobLevel:             mobLevel,
-      mobMinDamage:         mobMinDmg,
-      mobMaxDamage:         mobMaxDmg,
-      mobAttackDelayMs:     mobAttackDelayMs,
-      mobAttackCount:       mobAttackCount,
-      mobDoubleAttackChance: mobDoubleAttackChance,
-      mobHasTripleAttack:   mobHasTripleAttack,
-      mobToHit:             mobToHit,
-      mobOffenseRating:     mobOffenseRating,
-      mobDamageBonus:       npcDamageBonus,
-      mobAC:                mobAC,
+    var AA_PCT = [0, 2, 5, 10];
+    var combatStabilityPct = AA_PCT[Math.min((options.combatStabilityRank | 0) || 0, 3)];
+    var combatAgilityPct   = AA_PCT[Math.min((options.combatAgilityRank   | 0) || 0, 3)];
+    var innateDefensePct   = Math.min((options.innateDefenseRank    | 0) || 0, 5) * 2;
+    var lightningReflexPct = Math.min((options.lightningReflexesRank | 0) || 0, 5) * 2;
 
-      playerLevel:          playerLevel,
-      playerClassId:        playerClassId,
-      playerAC:             playerAC,
-      playerSpellAC:        playerSpellAC,
-      playerMitigationBD:   playerMitigationBD,   // full AC component breakdown
-      playerAvoidance:      playerAvoidance,
-      playerMitigation:     playerMitigation,
-      playerHPTotal:        playerHPTotal,
-      playerHPRegen:        playerHPRegen,
-      healerHPS:            healerHPS,
-      durationSec:          fightDurationSec,
+    var defense = PD.build({
+      level: options.playerLevel != null ? options.playerLevel : 60,
+      classId: options.playerClassId || 'warrior',
+      baseRace: options.playerRace,
+      itemAC: options.playerAC,
+      shieldAC: options.playerShieldAC,
+      spellAC: options.playerSpellAC,
+      defenseSkill: options.playerDefenseSkill,
+      dodgeSkill: options.playerDodgeSkill,
+      parrySkill: options.playerParrySkill,
+      riposteSkill: options.playerRiposteSkill,
+      blockSkill: options.playerBlockSkill,
+      agi: options.playerAGI,
+      carriedWeight: options.playerCarriedWeight,
+      era: era,
+      combatStabilityPct: combatStabilityPct,
+      combatAgilityPct: combatAgilityPct,
+      innateDefensePct: innateDefensePct,
+      lightningReflexesPct: lightningReflexPct,
+      meleeMitigationPct: options.buffMeleeMitigationPct,
+      avoidMeleePct: options.buffAvoidMeleePct,
+      runePool: options.runePool,
+      damageShield: options.playerDamageShield,
+      hpTotal: hpTotal,
+      hasWeapon: options.playerWeaponDamage != null && options.playerWeaponDamage > 0,
+      hasShield: !!options.playerShieldAC,
+      mobToHit: mob.toHit
+    });
 
-      // Computed avoidance rates (analytical, not simulated)
-      hitChance:            hitChance,
-      missChance:           missChance,
-      dodgeRate:            rates.dodge,
-      parryRate:            rates.parry,
-      riposteRate:          rates.riposte,
-      blockRate:            rates.block,
-      skillAvoidanceRate:   getCombinedAvoidanceChance(rates),
-
-      // Simulation tallies
-      rounds:               0,
-      swingAttempts:        0,
-      missedSwings:         0,
-      dodgedSwings:         0,
-      parriedSwings:        0,
-      ripostedSwings:       0,
-      blockedSwings:        0,
-      landedSwings:         0,
-      mobDoubleAttackHits:  0,
-      mobTripleAttackHits:  0,
-      totalDamageTaken:     0,
-      maxHitTaken:          0,
-      minHitTaken:          Infinity,
-      hitList:              [],
-
-      // Riposte counter-damage
-      riposteDamageTotal:   0,
-      riposteMaxHit:        0,
-      riposteCrits:         0,
-      doubleRiposteHits:    0,
-      returnKickHits:       0,
-      returnKickDamage:     0,
-
-      // Summary (computed after loop)
-      dtps:                 0,
-      effectiveDtps:        0,
-      survivalTimeSec:      null,
-      avoidanceRate:        0,
-      mitigationPercent:    0,
-      riposteDps:           0,
-
-      // CH chain (computed after loop)
-      chChain:              null
+    // ---- Mob's own defences, for the riposte counter-attack ----
+    var mobSkills = NC.getNpcDefenseSkills(mob.classId, mob.level);
+    var mobRates = PD.getAvoidanceRates({
+      blockSkill: mobSkills.block, parrySkill: mobSkills.parry,
+      riposteSkill: mobSkills.riposte, dodgeSkill: mobSkills.dodge
+    });
+    var mobAvoidance = (eq && eq.getAvoidanceNPC) ? eq.getAvoidanceNPC(mob.level) : mob.level * 9 + 5;
+    mobAvoidance += mob.avoidance || 0;
+    var playerToHit = 7 + (options.playerOffenseSkill || 200) + (options.playerWeaponSkill || 250);
+    var mobDefense = {
+      skillAvoid: PD.getCombinedAvoidanceChance(mobRates),
+      hitChance: (eq && eq.getHitChance) ? eq.getHitChance(playerToHit, mobAvoidance) : 0.7
     };
 
-    var hasRiposteWeapon = options.playerWeaponDamage != null && options.playerWeaponDamage > 0;
-    var nextAttackMs = 0;
-    var currentHP    = playerHPTotal;
-    var survivalMs   = null;
+    // ---- Mob spells ----
+    var spellList = null;
+    if (NS && options.mobSpellsId > 0 && options.enableMobSpells !== false) {
+      spellList = NS.resolveSpellList(options.mobSpellsId, mob.level, mob.classId);
+    }
+    var playerResists = {
+      mr: options.playerMR || 0, fr: options.playerFR || 0, cr: options.playerCR || 0,
+      dr: options.playerDR || 0, pr: options.playerPR || 0
+    };
+
+    // ---- Report skeleton ----
+    var report = createReport(mob, defense, options, hpTotal, era);
+    report.spellListName = spellList ? spellList.name : null;
+
+    // ---- Fight state ----
+    var ctx = {
+      options: options,
+      defense: defense,
+      mobDefense: mobDefense,
+      mobMitigation: getMobMitigation(mob.level, mob.ac),
+      stunnedUntilMs: 0,
+      mobEnraged: false,
+      stunned: false
+    };
+
+    var doubleRiposteChance =
+      [0, 0.15, 0.35, 0.50][Math.min((options.doubleRiposteRank | 0) || 0, 3)] +
+      [0, 0.10, 0.20, 0.30][Math.min((options.flashOfSteelRank | 0) || 0, 3)];
+    var returnKickChance = [0, 0.25, 0.35, 0.50][Math.min((options.returnKickRank | 0) || 0, 3)];
+
+    var hp = hpTotal;
+    var survivalMs = null;
+    var timeline = [];               // {t, damage, source} — drives the CH analysis
+    var now = 0;
+
+    // Mob HP is only tracked when the caller supplies the group's DPS; without
+    // it we have no idea when the mob would reach its enrage threshold.
+    var groupDps = options.groupDps || 0;
+    var mobHP = mob.hp || 0;
+    var trackMobHP = groupDps > 0 && mobHP > 0;
+    var enrageUsedUntilMs = -1;
+    var enrageCooldownUntilMs = 0;
+
+    // Active DoTs on the player: { damagePerTick, ticksLeft, nextTickMs, name }
+    var activeDots = [];
+    var spellRecast = {};
+
+    // ---- Disciplines ----
+    var discs = [];
+    if (options.useDisciplines !== false) {
+      var avail = PD.availableDisciplines(defense.classId, defense.level);
+      var enabled = options.enabledDisciplines || avail.map(function (d) { return d.key; });
+      avail.forEach(function (d) {
+        if (enabled.indexOf(d.key) === -1) return;
+        discs.push({ key: d.key, def: d, activeUntilMs: -1, readyAtMs: 0, uptimeMs: 0 });
+      });
+    }
+    var activeDiscKeys = [];
+
+    function refreshDiscEffects() {
+      var keys = discs
+        .filter(function (d) { return d.activeUntilMs > now; })
+        .map(function (d) { return d.key; });
+      if (keys.join(',') === activeDiscKeys.join(',')) return;
+      activeDiscKeys = keys;
+      PD.applyActiveEffects(defense, keys, {
+        meleeMitigationPct: options.buffMeleeMitigationPct || 0,
+        avoidMeleePct: options.buffAvoidMeleePct || 0
+      });
+    }
+
+    // ---- Damage application ------------------------------------------------
+
+    function takeDamage(amount, source) {
+      if (amount <= 0) return;
+
+      // Runes absorb before HP is touched (Mob::ReduceDamage inside CommonDamage).
+      var after = amount;
+      if (defense.runeRemaining > 0) {
+        var r = PD.applyRune(defense, amount);
+        after = r.damage;
+        report.runeAbsorbed += r.absorbed;
+        if (r.fullyAbsorbed) {
+          report.runedSwings++;
+          return;
+        }
+      }
+
+      report.totalDamageTaken += after;
+      report.damageBySource[source] = (report.damageBySource[source] || 0) + after;
+      timeline.push({ t: now, damage: after, source: source });
+
+      if (after > report.maxHitTaken) report.maxHitTaken = after;
+      if (after < report.minHitTaken) report.minHitTaken = after;
+
+      if (survivalMs === null) {
+        hp -= after;
+        if (hp <= 0) survivalMs = now;
+      }
+    }
+
+    /** Player's damage shield fires back at the mob on every melee hit taken. */
+    function applyDamageShield() {
+      if (!defense.damageShield) return;
+      report.damageShieldDamage += defense.damageShield;
+      if (trackMobHP) mobHP -= defense.damageShield;
+    }
+
+    // ---- Swing emission ----------------------------------------------------
 
     /**
-     * Process one NPC swing against the player (closure over all loop state).
-     * Server order (NPC::Attack): AvoidDamage() first (all swings — Block→Parry→Riposte→Dodge),
-     * then AvoidanceCheck() only for swings that survived all skill checks.
+     * Resolve and account one swing. Every damage source — main hand, off hand,
+     * flurry, rampage, class attacks — funnels through here so the breakdown and
+     * the timeline stay consistent.
      */
-    function runOneSwing() {
+    function emitSwing(opts) {
+      opts = opts || {};
+
+      // TryProcs rolls on the round regardless of whether the swing connects.
+      if (opts.proc) {
+        tryWeaponProc();
+        return;
+      }
+
+      var source = opts.source || 'mainhand';
       report.swingAttempts++;
+      report.swingsBySource[source] = (report.swingsBySource[source] || 0) + 1;
 
-      // 1. Block (AvoidDamage order: Block → Parry → Riposte → Dodge)
-      if (rates.block > 0 && rng() < rates.block) { report.blockedSwings++; return; }
+      ctx.stunned = now < ctx.stunnedUntilMs;
 
-      // 2. Parry
-      if (rates.parry > 0 && rng() < rates.parry) { report.parriedSwings++; return; }
+      var res = NC.resolveSwing(mob, defense, ctx, rng, {
+        source: source,
+        damagePct: opts.damagePct,
+        baseDamage: opts.baseDamage,
+        skill: opts.skill
+      });
 
-      // 3. Riposte — player counter-attacks if weapon equipped
-      if (rates.riposte > 0 && rng() < rates.riposte) {
-        report.ripostedSwings++;
-        if (hasRiposteWeapon) {
-          var riposteDmg = rollRiposteDamage(options, mobMitigation, rng);
-          report.riposteDamageTotal += riposteDmg;
-          if (riposteDmg > report.riposteMaxHit) report.riposteMaxHit = riposteDmg;
-          if (doubleRiposteChance > 0 && rng() < doubleRiposteChance) {
-            report.doubleRiposteHits++;
-            var riposteDmg2 = rollRiposteDamage(options, mobMitigation, rng);
-            report.riposteDamageTotal += riposteDmg2;
-            if (riposteDmg2 > report.riposteMaxHit) report.riposteMaxHit = riposteDmg2;
-          }
-          if (returnKickChance > 0 && rng() < returnKickChance) {
-            report.returnKickHits++;
-            var rkDmg = rollReturnKickDamage(options, mobMitigation, rng);
-            report.returnKickDamage += rkDmg;
-            report.riposteDamageTotal += rkDmg;
-            if (rkDmg > report.riposteMaxHit) report.riposteMaxHit = rkDmg;
-          }
-        }
-        return; // swing negated
+      switch (res.outcome) {
+        case 'block':   report.blockedSwings++;  return;
+        case 'parry':   report.parriedSwings++;  return;
+        case 'dodge':   report.dodgedSwings++;   return;
+        case 'miss':    report.missedSwings++;   return;
+        case 'riposte':
+          report.ripostedSwings++;
+          doRiposteCounter();
+          return;
       }
 
-      // 4. Dodge
-      if (rates.dodge > 0 && rng() < rates.dodge) { report.dodgedSwings++; return; }
-
-      // 5. Miss check (AvoidanceCheck) — only reached by swings that survived skill avoidance
-      if (rng() >= hitChance) { report.missedSwings++; return; }
-
-      // 6. Damage lands
-      var dmg = rollNPCDamage(mobMinDmg, mobMaxDmg, mobOffenseRating, playerMitigation, npcDamageBonus, rng);
-      if (dmg < 1) dmg = 1;
       report.landedSwings++;
-      report.totalDamageTaken += dmg;
-      report.hitList.push(dmg);
-      if (dmg > report.maxHitTaken) report.maxHitTaken = dmg;
-      if (dmg < report.minHitTaken) report.minHitTaken = dmg;
-      if (survivalMs === null) {
-        currentHP -= dmg;
-        if (currentHP <= 0) survivalMs = nextAttackMs;
+      takeDamage(res.damage, source);
+      applyDamageShield();
+
+      if (res.stun) {
+        report.stuns++;
+        ctx.stunnedUntilMs = now + NC.STUN_DURATION_MS;
       }
     }
 
-    while (nextAttackMs < durationMs) {
-      // HP regen between rounds
-      if (netRegenPerSec > 0 && nextAttackMs > 0) {
-        currentHP = Math.min(playerHPTotal, currentHP + netRegenPerSec * (mobAttackDelayMs / 1000));
+    function doRiposteCounter() {
+      if (!defense.hasWeapon) return;
+
+      var r = rollRiposteHit(ctx, rng, false);
+      report.riposteAttempts++;
+      if (r.hit) {
+        report.riposteDamageTotal += r.damage;
+        report.riposteHits++;
+        if (r.damage > report.riposteMaxHit) report.riposteMaxHit = r.damage;
+        if (trackMobHP) mobHP -= r.damage;
       }
 
-      report.rounds++;
-
-      // Base attacks (attack_count from DB: DoMainHandRound → n_atk loop)
-      for (var i = 0; i < mobAttackCount; i++) {
-        runOneSwing();
-      }
-
-      // NPC double attack (CheckDoubleAttack fires after base attacks)
-      if (mobDoubleAttackChance > 0 && rng() < mobDoubleAttackChance) {
-        report.mobDoubleAttackHits++;
-        runOneSwing();
-
-        // Triple attack: Warrior/Monk class NPCs at level 60+, 13.5% chance
-        if (mobHasTripleAttack && rng() < TRIPLE_ATTACK_CHANCE) {
-          report.mobTripleAttackHits++;
-          runOneSwing();
+      if (doubleRiposteChance > 0 && rng() < doubleRiposteChance) {
+        report.doubleRiposteHits++;
+        var r2 = rollRiposteHit(ctx, rng, false);
+        if (r2.hit) {
+          report.riposteDamageTotal += r2.damage;
+          if (r2.damage > report.riposteMaxHit) report.riposteMaxHit = r2.damage;
+          if (trackMobHP) mobHP -= r2.damage;
         }
       }
 
-      nextAttackMs += mobAttackDelayMs;
+      if (returnKickChance > 0 && rng() < returnKickChance) {
+        report.returnKickHits++;
+        var rk = rollRiposteHit(ctx, rng, true);
+        if (rk.hit) {
+          report.returnKickDamage += rk.damage;
+          report.riposteDamageTotal += rk.damage;
+          if (rk.damage > report.riposteMaxHit) report.riposteMaxHit = rk.damage;
+          if (trackMobHP) mobHP -= rk.damage;
+        }
+      }
     }
 
+    /** NPC weapon proc from npc_spells.attack_proc, rolled per round. */
+    function tryWeaponProc() {
+      if (!spellList || !spellList.attackProc) return;
+      if (rng() >= spellList.attackProcChance) return;
+
+      report.procCasts++;
+      applySpellDamage({
+        info: spellList.attackProc,
+        resistAdjust: spellList.attackProc.resistDiff
+      }, 'proc');
+    }
+
+    // ---- Spells ------------------------------------------------------------
+
+    function applySpellDamage(spell, source) {
+      var info = spell.info;
+      var pct = 100;
+      if (NS) {
+        pct = NS.checkResist(spell, playerResists, defense.level, mob.level, rng);
+      }
+      if (pct <= 0) {
+        report.spellsResisted++;
+        return;
+      }
+      if (pct < 100) report.spellsPartial++;
+
+      if (info.directDamage > 0) {
+        takeDamage(Math.max(1, Math.floor(info.directDamage * pct / 100)), source || 'spell');
+      }
+
+      if (info.dotPerTick > 0 && info.durationTicks > 0) {
+        activeDots.push({
+          name: info.name,
+          damagePerTick: Math.max(1, Math.floor(info.dotPerTick * pct / 100)),
+          ticksLeft: info.durationTicks,
+          nextTickMs: now + NS.TICK_MS
+        });
+      }
+
+      if (info.stunMs > 0 && !defense.stunImmune) {
+        report.stuns++;
+        ctx.stunnedUntilMs = Math.max(ctx.stunnedUntilMs, now + info.stunMs);
+      }
+    }
+
+    // ---- Timers ------------------------------------------------------------
+
+    var timers = {
+      attack: 0,
+      attackDW: mob.dualWield ? 0 : Infinity,
+      classAttack: mob.classAttack ? 0 : Infinity,
+      autocast: spellList ? 0 : Infinity,
+      regen: REGEN_TICK_MS,
+      dot: Infinity
+    };
+    var classAttackReadyMs = 0;
+
+    function nextDotMs() {
+      var min = Infinity;
+      for (var i = 0; i < activeDots.length; i++) {
+        if (activeDots[i].nextTickMs < min) min = activeDots[i].nextTickMs;
+      }
+      return min;
+    }
+
+    var netRegenPerSec = (options.playerHPRegen || 0) + (options.healerHPS || 0);
+
+    // ---- Event loop --------------------------------------------------------
+
+    var guard = 0;
+    while (guard++ < 2000000) {
+      timers.dot = nextDotMs();
+
+      var nextKey = null;
+      var nextT = Infinity;
+      for (var key in timers) {
+        if (timers[key] < nextT) { nextT = timers[key]; nextKey = key; }
+      }
+      if (nextKey === null || nextT >= durationMs) break;
+
+      now = nextT;
+
+      // Discipline management: fire Defensive/Evasive as soon as they are up.
+      var discChanged = false;
+      for (var di = 0; di < discs.length; di++) {
+        var d = discs[di];
+        if (d.activeUntilMs > now) continue;
+        if (d.activeUntilMs > 0 && d.activeUntilMs <= now) discChanged = true;
+        if (now >= d.readyAtMs) {
+          d.activeUntilMs = now + d.def.durationMs;
+          d.readyAtMs = now + d.def.reuseMs;
+          d.uptimeMs += d.def.durationMs;
+          report.disciplineUses[d.key] = (report.disciplineUses[d.key] || 0) + 1;
+          discChanged = true;
+        }
+      }
+      if (discChanged) refreshDiscEffects();
+
+      // Enrage: below the HP threshold the mob cannot be riposted.
+      if (trackMobHP) {
+        mobHP -= groupDps * ((now - (report._lastDpsMs || 0)) / 1000);
+        report._lastDpsMs = now;
+        var hpPct = mob.hp > 0 ? (mobHP / mob.hp) * 100 : 100;
+        if (mob.canEnrage && hpPct <= NC.ENRAGE_HP_PCT &&
+            now >= enrageCooldownUntilMs && enrageUsedUntilMs < now) {
+          enrageUsedUntilMs = now + NC.ENRAGE_DURATION_MS;
+          enrageCooldownUntilMs = now + NC.ENRAGE_COOLDOWN_MS;
+          report.enrageWindows++;
+        }
+        ctx.mobEnraged = now < enrageUsedUntilMs;
+      }
+
+      switch (nextKey) {
+        case 'attack': {
+          report.rounds++;
+          var specialed = false;
+
+          NC.doMainHandRound(mob, rng, emitSwing, 100);
+
+          if (mob.flurryChance > 0 && rng() < mob.flurryChance) {
+            report.flurries++;
+            NC.doFlurry(mob, rng, emitSwing, function () { doClassAttack(true); });
+            specialed = true;
+          }
+          if (!specialed && mob.rampageChance > 0 && rng() < mob.rampageChance) {
+            report.rampages++;
+            NC.doRampage(mob, rng, emitSwing, mob.rampageDamagePct);
+            specialed = true;
+          }
+          if (!specialed && mob.areaRampageChance > 0 && rng() < mob.areaRampageChance) {
+            report.rampages++;
+            NC.doRampage(mob, rng, emitSwing, mob.areaRampageDamagePct);
+          }
+
+          timers.attack = now + mob.attackDelayMs;
+          break;
+        }
+
+        case 'attackDW':
+          NC.doOffHandRound(mob, rng, emitSwing, 100);
+          timers.attackDW = now + mob.attackDelayMs;
+          break;
+
+        case 'classAttack':
+          doClassAttack(false);
+          break;
+
+        case 'autocast': {
+          var roll = NS ? NS.rollCast(spellList, rng, spellRecast, now) : null;
+          if (roll && roll.cast) {
+            report.spellCasts++;
+            applySpellDamage(roll.spell, 'spell');
+          }
+          timers.autocast = now + (roll ? roll.nextCheckMs : 2000);
+          break;
+        }
+
+        case 'regen':
+          if (netRegenPerSec > 0 && survivalMs === null) {
+            hp = Math.min(hpTotal, hp + netRegenPerSec * (REGEN_TICK_MS / 1000));
+          }
+          timers.regen = now + REGEN_TICK_MS;
+          break;
+
+        case 'dot': {
+          for (var k = activeDots.length - 1; k >= 0; k--) {
+            var dot = activeDots[k];
+            if (dot.nextTickMs > now) continue;
+            takeDamage(dot.damagePerTick, 'dot');
+            dot.ticksLeft--;
+            dot.nextTickMs = now + NS.TICK_MS;
+            if (dot.ticksLeft <= 0) activeDots.splice(k, 1);
+          }
+          break;
+        }
+      }
+    }
+
+    function doClassAttack(fromFlurry) {
+      var pick = NC.pickClassAttack(mob, rng);
+      if (!pick) { timers.classAttack = Infinity; return; }
+
+      report.classAttacks++;
+      emitSwing({
+        source: 'classattack',
+        baseDamage: pick.baseDamage,
+        skill: pick.skill
+      });
+
+      if (!fromFlurry) {
+        classAttackReadyMs = now + pick.reuseMs;
+        timers.classAttack = classAttackReadyMs;
+      }
+    }
+
+    // ---- Summary -----------------------------------------------------------
+
+    var durationSec = durationMs / 1000;
     if (report.minHitTaken === Infinity) report.minHitTaken = null;
 
-    // ---- Summary stats ----
-    report.dtps          = fightDurationSec > 0 ? (report.totalDamageTaken / fightDurationSec) : 0;
+    report.timeline = timeline;
+    report.durationSec = durationSec;
+    report.dtps = durationSec > 0 ? report.totalDamageTaken / durationSec : 0;
     report.effectiveDtps = Math.max(0, report.dtps - netRegenPerSec);
-    report.riposteDps    = fightDurationSec > 0 ? (report.riposteDamageTotal / fightDurationSec) : 0;
-    report.survivalTimeSec = survivalMs !== null ? (survivalMs / 1000) : null;
+    report.riposteDps = durationSec > 0 ? report.riposteDamageTotal / durationSec : 0;
+    report.damageShieldDps = durationSec > 0 ? report.damageShieldDamage / durationSec : 0;
+    report.survivalTimeSec = survivalMs !== null ? survivalMs / 1000 : null;
+    report.died = survivalMs !== null;
 
-    // Total avoidance rate from simulation
-    var totalAvoided = report.missedSwings + report.dodgedSwings + report.parriedSwings + report.ripostedSwings + report.blockedSwings;
-    report.avoidanceRate = report.swingAttempts > 0 ? totalAvoided / report.swingAttempts : 0;
+    var avoided = report.missedSwings + report.dodgedSwings + report.parriedSwings +
+                  report.ripostedSwings + report.blockedSwings;
+    report.avoidanceRate = report.swingAttempts > 0 ? avoided / report.swingAttempts : 0;
 
-    // Mitigation: % damage reduced vs theoretical max (maxDmg × landed)
-    var theoreticalMax = mobMaxDmg * report.landedSwings;
+    // Mitigation is a melee statistic — folding spell and DoT damage into it
+    // produces nonsense (readings above 100% or below 0%).
+    var meleeDamage = 0;
+    ['mainhand', 'offhand', 'double', 'triple', 'classattack'].forEach(function (s) {
+      meleeDamage += report.damageBySource[s] || 0;
+    });
+    report.meleeDamageTaken = meleeDamage;
+    report.spellDamageTaken = report.totalDamageTaken - meleeDamage;
+
+    var theoreticalMax = mob.maxDamage * report.landedSwings;
     report.mitigationPercent = theoreticalMax > 0
-      ? (1 - report.totalDamageTaken / theoreticalMax) * 100
-      : 0;
+      ? (1 - meleeDamage / theoreticalMax) * 100 : 0;
 
-    // Survival with regen/healing
     if (netRegenPerSec > 0 && report.effectiveDtps > 0) {
-      report.survivalTimeWithHealsSec = playerHPTotal / report.effectiveDtps;
+      report.survivalTimeWithHealsSec = hpTotal / report.effectiveDtps;
     } else if (report.effectiveDtps <= 0) {
       report.survivalTimeWithHealsSec = Infinity;
     } else {
-      report.survivalTimeWithHealsSec = fightDurationSec > 0 ? (playerHPTotal / report.dtps) : null;
+      report.survivalTimeWithHealsSec = hpTotal / report.dtps;
     }
 
-    // CH chain analysis
-    report.chChain = calcCHChain(report.dtps, playerHPTotal, options.chCastTimeSec);
+    discs.forEach(function (d) {
+      report.disciplineUptime[d.key] = durationMs > 0
+        ? Math.min(1, d.uptimeMs / durationMs) : 0;
+    });
 
     return report;
   }
 
-  // ---- Report formatter ----
+  function createReport(mob, defense, options, hpTotal, era) {
+    return {
+      mobName: mob.name,
+      mobLevel: mob.level,
+      mobClassId: mob.classId,
+      mobMinDamage: mob.minDamage,
+      mobMaxDamage: mob.maxDamage,
+      mobDamageBonus: mob.damageBonus,
+      mobBaseDamage: mob.baseDamage,
+      mobAttackDelayMs: mob.attackDelayMs,
+      mobAttackCount: mob.attackCount,
+      mobDoubleAttackChance: mob.doubleAttackChance,
+      mobHasTripleAttack: mob.hasTripleAttack,
+      mobDualWield: mob.dualWield,
+      mobFlurryChance: mob.flurryChance,
+      mobRampageChance: mob.rampageChance,
+      mobToHit: mob.toHit,
+      mobOffenseRating: mob.offense,
+      mobAC: mob.ac,
+      mobSpecialAbilityNames: mob.specialAbilityNames,
+      mobClassAttack: mob.classAttack ? mob.classAttack.skill : null,
+      mobHastePct: mob.hastePctTotal - 100,
+
+      playerLevel: defense.level,
+      playerClassId: defense.classId,
+      playerAC: options.playerAC,
+      playerShieldAC: options.playerShieldAC || 0,
+      playerSpellAC: options.playerSpellAC,
+      acBreakdown: defense.acBreakdown,
+      playerAvoidance: defense.avoidance,
+      playerMitigation: defense.mitigation,
+      playerHPTotal: hpTotal,
+      playerHPRegen: options.playerHPRegen || 0,
+      healerHPS: options.healerHPS || 0,
+      era: era,
+
+      hitChance: defense.hitChance,
+      missChance: Math.max(0, 1 - defense.hitChance),
+      dodgeRate: defense.rates.dodge,
+      parryRate: defense.rates.parry,
+      riposteRate: defense.rates.riposte,
+      blockRate: defense.rates.block,
+      skillAvoidanceRate: defense.skillAvoidanceRate,
+
+      rounds: 0,
+      swingAttempts: 0,
+      missedSwings: 0,
+      dodgedSwings: 0,
+      parriedSwings: 0,
+      ripostedSwings: 0,
+      blockedSwings: 0,
+      landedSwings: 0,
+      runedSwings: 0,
+      stuns: 0,
+      flurries: 0,
+      rampages: 0,
+      classAttacks: 0,
+      spellCasts: 0,
+      procCasts: 0,
+      spellsResisted: 0,
+      spellsPartial: 0,
+      enrageWindows: 0,
+
+      totalDamageTaken: 0,
+      maxHitTaken: 0,
+      minHitTaken: Infinity,
+      runeAbsorbed: 0,
+      damageBySource: {},
+      swingsBySource: {},
+
+      riposteAttempts: 0,
+      riposteHits: 0,
+      riposteDamageTotal: 0,
+      riposteMaxHit: 0,
+      doubleRiposteHits: 0,
+      returnKickHits: 0,
+      returnKickDamage: 0,
+      damageShieldDamage: 0,
+
+      disciplineUses: {},
+      disciplineUptime: {},
+
+      dtps: 0,
+      effectiveDtps: 0,
+      survivalTimeSec: null,
+      avoidanceRate: 0,
+      mitigationPercent: 0,
+      riposteDps: 0,
+      timeline: []
+    };
+  }
+
+  // ---------------------------------------------------------------------------
+  // Multi-run driver
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Run the fight N times and aggregate. Survival is reported as a death *rate*
+   * plus a distribution — averaging "time of death" over only the runs that died
+   * (as this used to) makes a character who dies once in twenty runs look as
+   * fragile as one who dies every time.
+   */
+  function runTankingAnalysis(options, runs) {
+    var n = Math.max(1, runs || 1);
+    var reports = [];
+    for (var i = 0; i < n; i++) {
+      var r = runTankingFight(Object.assign({}, options, { seed: (options.seed || 1) + i * 7919 }));
+      if (r.error) return r;
+      reports.push(r);
+    }
+
+    var agg = averageReports(reports);
+    agg.runs = n;
+
+    var HC = getHealChain();
+    if (HC) {
+      agg.chChain = HC.analyze(
+        reports.map(function (r) { return r.timeline; }),
+        {
+          hpTotal: agg.playerHPTotal,
+          castTimeSec: options.chCastTimeSec != null ? options.chCastTimeSec : CH_CAST_TIME_SEC,
+          regenPerSec: (options.playerHPRegen || 0) + (options.healerHPS || 0),
+          durationMs: agg.durationSec * 1000
+        }
+      );
+      agg.chRiskTable = HC.riskTable(agg.chChain);
+    }
+
+    return agg;
+  }
+
+  var SUM_KEYS = [
+    'rounds', 'swingAttempts', 'missedSwings', 'dodgedSwings', 'parriedSwings',
+    'ripostedSwings', 'blockedSwings', 'landedSwings', 'runedSwings', 'stuns',
+    'flurries', 'rampages', 'classAttacks', 'spellCasts', 'procCasts',
+    'spellsResisted', 'spellsPartial', 'enrageWindows', 'totalDamageTaken',
+    'runeAbsorbed', 'riposteAttempts', 'riposteHits', 'riposteDamageTotal',
+    'doubleRiposteHits', 'returnKickHits', 'returnKickDamage',
+    'damageShieldDamage', 'dtps', 'effectiveDtps', 'riposteDps',
+    'damageShieldDps', 'avoidanceRate', 'mitigationPercent',
+    'meleeDamageTaken', 'spellDamageTaken'
+  ];
+
+  function averageReports(reports) {
+    var n = reports.length;
+    var out = Object.assign({}, reports[0]);
+
+    SUM_KEYS.forEach(function (k) {
+      var total = 0;
+      for (var i = 0; i < n; i++) total += (reports[i][k] || 0);
+      out[k] = total / n;
+    });
+
+    out.maxHitTaken = Math.max.apply(null, reports.map(function (r) { return r.maxHitTaken; }));
+    out.minHitTaken = Math.min.apply(null, reports
+      .map(function (r) { return r.minHitTaken; })
+      .filter(function (v) { return v != null; }));
+    if (!isFinite(out.minHitTaken)) out.minHitTaken = null;
+    out.riposteMaxHit = Math.max.apply(null, reports.map(function (r) { return r.riposteMaxHit; }));
+
+    // Per-source totals
+    out.damageBySource = {};
+    out.swingsBySource = {};
+    reports.forEach(function (r) {
+      for (var s in r.damageBySource) {
+        out.damageBySource[s] = (out.damageBySource[s] || 0) + r.damageBySource[s] / n;
+      }
+      for (var s2 in r.swingsBySource) {
+        out.swingsBySource[s2] = (out.swingsBySource[s2] || 0) + r.swingsBySource[s2] / n;
+      }
+    });
+
+    var deaths = reports.filter(function (r) { return r.died; });
+    out.deathRate = deaths.length / n;
+    out.deaths = deaths.length;
+    if (deaths.length) {
+      var times = deaths.map(function (r) { return r.survivalTimeSec; }).sort(function (a, b) { return a - b; });
+      out.survivalTimeSec = times[Math.floor(times.length / 2)];   // median
+      out.survivalTimeMinSec = times[0];
+      out.survivalTimeMaxSec = times[times.length - 1];
+    } else {
+      out.survivalTimeSec = null;
+      out.survivalTimeMinSec = null;
+      out.survivalTimeMaxSec = null;
+    }
+
+    out.timeline = null;   // per-run timelines are not meaningful once averaged
+    return out;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Report formatting
+  // ---------------------------------------------------------------------------
+
+  var SOURCE_LABEL = {
+    mainhand: 'Main hand', offhand: 'Off hand', double: 'Double attack',
+    triple: 'Triple attack', classattack: 'Kick / Bash', spell: 'Spells',
+    dot: 'Damage over time', proc: 'Weapon procs'
+  };
 
   function formatTankingReport(report, runsAveraged) {
     if (report.error) return report.error;
-    var runs = runsAveraged != null ? runsAveraged : 1;
-    var C = 50; // value column
+    var runs = runsAveraged != null ? runsAveraged : (report.runs || 1);
+    var C = 50;
     function pad(label, value) {
       return label + ' '.repeat(Math.max(1, C - label.length)) + value;
     }
     function fmt(v, d) {
-      if (v == null || v === Infinity) return '\u2014';
-      return d != null ? Number(v).toFixed(d) : (Number.isInteger(v) ? String(v) : v.toFixed(2));
+      if (v == null || v === Infinity) return '—';
+      return d != null ? Number(v).toFixed(d) : (Number.isInteger(v) ? String(v) : Number(v).toFixed(2));
     }
     function pct(v, d) {
-      return v == null ? '\u2014' : fmt(v * 100, d != null ? d : 1) + '%';
+      return v == null ? '—' : fmt(v * 100, d != null ? d : 1) + '%';
     }
 
     var lines = [];
@@ -906,172 +869,267 @@
     lines.push('=== Mob (Attacker) ===', '');
     lines.push(pad('  Mob:', report.mobName));
     lines.push(pad('  Level:', String(report.mobLevel)));
-    lines.push(pad('  Damage range:', report.mobMinDamage + ' \u2013 ' + report.mobMaxDamage + '  (+' + report.mobDamageBonus + ' DB)'));
-    lines.push(pad('  Attack speed:', fmt(report.mobAttackDelayMs / 1000, 2) + ' sec/round'));
+    lines.push(pad('  Damage range:', report.mobMinDamage + ' – ' + report.mobMaxDamage +
+      '  (DI ' + report.mobBaseDamage + ', DB +' + report.mobDamageBonus + ')'));
+    lines.push(pad('  Attack speed:', fmt(report.mobAttackDelayMs / 1000, 2) + ' sec' +
+      (report.mobHastePct ? '  (' + (report.mobHastePct > 0 ? '+' : '') + fmt(report.mobHastePct, 0) + '% haste)' : '')));
     lines.push(pad('  Attacks per round:', String(report.mobAttackCount)));
-    if (report.mobDoubleAttackChance > 0) {
-      lines.push(pad('  Double attack chance:', pct(report.mobDoubleAttackChance, 1)
-        + (report.mobHasTripleAttack ? '  (triple attack enabled for War/Mnk L60+)' : '')));
+    lines.push(pad('  Double attack chance:', pct(report.mobDoubleAttackChance, 1) +
+      (report.mobHasTripleAttack ? '  (+13.5% triple on a double)' : '')));
+    if (report.mobDualWield) lines.push(pad('  Dual wield:', 'Yes — separate off-hand round'));
+    if (report.mobFlurryChance > 0) lines.push(pad('  Flurry chance:', pct(report.mobFlurryChance, 0) + '  (full extra round)'));
+    if (report.mobRampageChance > 0) lines.push(pad('  Rampage chance:', pct(report.mobRampageChance, 0)));
+    if (report.mobClassAttack) lines.push(pad('  Class attack:', report.mobClassAttack));
+    if (report.spellListName) lines.push(pad('  Spell list:', report.spellListName));
+    if (report.mobSpecialAbilityNames && report.mobSpecialAbilityNames.length) {
+      lines.push(pad('  Special abilities:', report.mobSpecialAbilityNames.join(', ')));
     }
     lines.push(pad('  Calculated to-hit:', String(report.mobToHit)));
-    lines.push(pad('  Mob AC (for riposte calc):', report.mobAC > 0 ? String(report.mobAC) : 'estimated from level'));
+    lines.push(pad('  Offense rating:', String(report.mobOffenseRating)));
     if (runs > 1) lines.push(pad('  Runs averaged:', String(runs)));
     lines.push('');
 
     // ---- Player Defense ----
     lines.push('=== Player Defense ===', '');
-    lines.push(pad('  Level:', String(report.playerLevel)));
-    var bd = report.playerMitigationBD;
+    lines.push(pad('  Level / class:', report.playerLevel + ' ' + report.playerClassId));
+    var bd = report.acBreakdown;
     if (bd) {
-      var acMult = bd.isCaster ? '\xd71.00 (caster)' : '\xd71.33 (non-caster)';
-      lines.push(pad('  Worn AC (raw input):', String(bd.rawItemAC)));
-      lines.push(pad('  Effective item AC (' + acMult + '):', String(bd.scaledItemAC)
-        + (bd.antiTwinkCap != null ? '  \u2190 anti-twink cap at ' + bd.antiTwinkCap : '')));
-      if (bd.classAgiBonus > 0)
-        lines.push(pad('  Class AGI AC bonus:', String(bd.classAgiBonus)));
-      lines.push(pad('  Defense skill contrib (\xf7' + (bd.isCaster ? '2' : '3') + '):', String(bd.defContrib)));
-      lines.push(pad('  Spell/buff AC contrib (\xf7' + (bd.isCaster ? '3' : '4') + '):', String(bd.spellContrib)));
-      lines.push(pad('  AGI bonus (\xf720 above 70):', String(bd.agiContrib)));
-      lines.push(pad('  Pre-cap total:', String(bd.preCap)
-        + '  (softcap: ' + bd.softcap + ')'));
-      lines.push(pad('  Final mitigation value:', String(bd.final)
-        + '  (fed into damage roll formula)'
-        + (bd.preCap > bd.softcap ? '  \u2190 overcap scaled' : '')));
-    } else {
-      lines.push(pad('  Worn AC:', String(report.playerAC)));
-      lines.push(pad('  Spell/Buff AC:', String(report.playerSpellAC)));
-      lines.push(pad('  Computed mitigation value:', String(report.playerMitigation) + '  (fed into damage roll formula)'));
+      lines.push(pad('  Worn AC (raw):', String(bd.itemACRaw)));
+      lines.push(pad('  Item AC after \xd74/3:', String(bd.itemACScaled) +
+        (bd.antiTwinkCap != null ? '  ← anti-twink cap ' + bd.antiTwinkCap : '')));
+      if (bd.classBonus) lines.push(pad('  Class AC bonus:', String(bd.classBonus)));
+      if (bd.racialBonus) lines.push(pad('  Iksar natural armour:', String(bd.racialBonus)));
+      lines.push(pad('  Defense skill contribution:', String(bd.defenseContrib)));
+      lines.push(pad('  Spell/buff AC contribution:', String(bd.spellContrib)));
+      lines.push(pad('  AGI contribution:', String(bd.agiContrib)));
+      lines.push(pad('  Pre-cap total:', String(bd.preCap)));
+      lines.push(pad('  Softcap:', String(bd.softcap) +
+        (bd.softcapAfterAA !== bd.softcapBase ? '  (base ' + bd.softcapBase + ' + Combat Stability)' : '') +
+        (bd.shieldAC ? '  + ' + bd.shieldAC + ' shield AC' : '')));
+      if (bd.overcap > 0) {
+        lines.push(pad('  Over softcap:', bd.overcap + ' at 1:' + bd.returns + ' returns'));
+      }
+      lines.push(pad('  Final mitigation value:', String(bd.final)));
     }
-    lines.push(pad('  Computed avoidance value:', String(report.playerAvoidance) + '  (fed into hit-chance formula)'));
+    lines.push(pad('  Avoidance value:', String(report.playerAvoidance)));
     lines.push(pad('  Max HP:', String(report.playerHPTotal)));
-    lines.push(pad('  HP regen/sec (self):', fmt(report.playerHPRegen, 1)));
-    lines.push(pad('  Healer HPS:', fmt(report.healerHPS, 1)));
+    if (report.playerHPRegen) lines.push(pad('  HP regen/sec:', fmt(report.playerHPRegen, 1)));
+    if (report.healerHPS) lines.push(pad('  Healer HPS:', fmt(report.healerHPS, 1)));
+    if (report.disciplineUptime && Object.keys(report.disciplineUptime).length) {
+      var PDmod = getDefense();
+      for (var dk in report.disciplineUptime) {
+        var discDef = PDmod && PDmod.DISCIPLINES[dk];
+        lines.push(pad('  ' + (discDef ? discDef.name : dk) + ' uptime:',
+          pct(report.disciplineUptime[dk], 0)));
+      }
+    }
     lines.push('');
 
-    // ---- Avoidance Breakdown ----
-    lines.push('=== Avoidance Breakdown ===', '');
-    lines.push(pad('  Miss chance (hit formula):', pct(report.missChance, 1) + '  (mob to-hit vs player avoidance value)'));
-    lines.push('  -- Per-swing skill checks (applied to swings that pass the hit check) --');
-    lines.push(pad('  Dodge chance:', pct(report.dodgeRate, 1)));
-    lines.push(pad('  Parry chance:', pct(report.parryRate, 1)));
-    lines.push(pad('  Riposte chance:', pct(report.riposteRate, 1) + '  (negates swing + counter-attacks)'));
-    lines.push(pad('  Block chance:', pct(report.blockRate, 1)));
-    lines.push(pad('  Combined skill avoidance:', pct(report.skillAvoidanceRate, 1) + '  (1 \u2212 P(all fail))'));
+    // ---- Avoidance ----
+    lines.push('=== Avoidance ===', '');
+    lines.push(pad('  Miss chance:', pct(report.missChance, 1)));
+    lines.push(pad('  Block / Parry / Riposte / Dodge:',
+      pct(report.blockRate, 1) + ' / ' + pct(report.parryRate, 1) + ' / ' +
+      pct(report.riposteRate, 1) + ' / ' + pct(report.dodgeRate, 1)));
+    lines.push(pad('  Combined skill avoidance:', pct(report.skillAvoidanceRate, 1)));
     lines.push('');
-    lines.push('  -- Simulated results --');
-    lines.push(pad('  Total swings:', String(report.swingAttempts)
-      + (report.mobDoubleAttackHits > 0 ? '  (' + fmt(report.mobDoubleAttackHits, 1) + ' double atk'
-        + (report.mobTripleAttackHits > 0 ? ', ' + fmt(report.mobTripleAttackHits, 1) + ' triple atk' : '') + ')' : '')));
-    lines.push(pad('  Missed (hit check):', report.missedSwings + '  (' + pct(report.swingAttempts ? report.missedSwings / report.swingAttempts : 0, 1) + ')'));
-    lines.push(pad('  Dodged:', report.dodgedSwings  + '  (' + pct(report.swingAttempts ? report.dodgedSwings  / report.swingAttempts : 0, 1) + ')'));
-    lines.push(pad('  Parried:', report.parriedSwings + '  (' + pct(report.swingAttempts ? report.parriedSwings / report.swingAttempts : 0, 1) + ')'));
-    lines.push(pad('  Riposted:', report.ripostedSwings + '  (' + pct(report.swingAttempts ? report.ripostedSwings / report.swingAttempts : 0, 1) + ')'));
-    lines.push(pad('  Blocked:', report.blockedSwings + '  (' + pct(report.swingAttempts ? report.blockedSwings / report.swingAttempts : 0, 1) + ')'));
-    lines.push(pad('  Landed hits:', report.landedSwings + '  (' + pct(report.swingAttempts ? report.landedSwings / report.swingAttempts : 0, 1) + ')'));
+    lines.push('  -- Simulated --');
+    lines.push(pad('  Total swings taken:', fmt(report.swingAttempts, 0)));
+    function row(label, v) {
+      return pad('  ' + label + ':', fmt(v, 0) + '  (' +
+        pct(report.swingAttempts ? v / report.swingAttempts : 0, 1) + ')');
+    }
+    lines.push(row('Missed', report.missedSwings));
+    lines.push(row('Dodged', report.dodgedSwings));
+    lines.push(row('Parried', report.parriedSwings));
+    lines.push(row('Riposted', report.ripostedSwings));
+    lines.push(row('Blocked', report.blockedSwings));
+    if (report.runedSwings > 0) lines.push(row('Fully absorbed by rune', report.runedSwings));
+    lines.push(row('Landed', report.landedSwings));
     lines.push(pad('  Overall avoidance rate:', pct(report.avoidanceRate, 1)));
     lines.push('');
 
-    // ---- Damage Taken ----
+    // ---- Damage taken ----
     lines.push('=== Damage Taken ===', '');
-    lines.push(pad('  Total damage taken:', String(report.totalDamageTaken)));
-    lines.push(pad('  DTPS (raw):', fmt(report.dtps, 2)));
-    lines.push(pad('  Effective DTPS (after self-regen/heals):', fmt(report.effectiveDtps, 2)));
-    lines.push(pad('  Mitigation (vs theoretical max dmg):', fmt(report.mitigationPercent, 1) + '%'));
-    lines.push(pad('  Max hit taken:', String(report.maxHitTaken)));
-    lines.push(pad('  Min hit taken:', report.minHitTaken != null ? String(report.minHitTaken) : '\u2014'));
-    if (report.hitList.length > 0) {
-      var sum = report.hitList.reduce(function (a, b) { return a + b; }, 0);
-      lines.push(pad('  Average hit taken:', fmt(sum / report.hitList.length, 1)));
+    lines.push(pad('  DTPS:', fmt(report.dtps, 2)));
+    if (report.healerHPS || report.playerHPRegen) {
+      lines.push(pad('  Effective DTPS (after regen/heals):', fmt(report.effectiveDtps, 2)));
     }
+    lines.push(pad('  Total damage taken:', fmt(report.totalDamageTaken, 0)));
+    lines.push(pad('  Max hit taken:', fmt(report.maxHitTaken, 0)));
+    lines.push(pad('  Min hit taken:', report.minHitTaken != null ? fmt(report.minHitTaken, 0) : '—'));
+    lines.push(pad('  Melee mitigation vs mob max hit:', fmt(report.mitigationPercent, 1) + '%'));
+    if (report.runeAbsorbed > 0) lines.push(pad('  Absorbed by runes:', fmt(report.runeAbsorbed, 0)));
     lines.push('');
+
+    var sources = Object.keys(report.damageBySource || {});
+    if (sources.length) {
+      lines.push('  -- Where the damage came from --');
+      sources.sort(function (a, b) { return report.damageBySource[b] - report.damageBySource[a]; });
+      sources.forEach(function (s) {
+        var amt = report.damageBySource[s];
+        lines.push(pad('  ' + (SOURCE_LABEL[s] || s) + ':', fmt(amt, 0) +
+          '  (' + pct(report.totalDamageTaken ? amt / report.totalDamageTaken : 0, 1) + ')'));
+      });
+      lines.push('');
+    }
+
+    if (report.spellCasts > 0 || report.procCasts > 0) {
+      lines.push('  -- Mob casting --');
+      lines.push(pad('  Spells cast:', fmt(report.spellCasts, 0)));
+      if (report.procCasts > 0) lines.push(pad('  Weapon procs:', fmt(report.procCasts, 0)));
+      lines.push(pad('  Fully resisted:', fmt(report.spellsResisted, 0)));
+      lines.push(pad('  Partially resisted:', fmt(report.spellsPartial, 0)));
+      lines.push('');
+    }
+
+    if (report.flurries > 0 || report.rampages > 0 || report.classAttacks > 0 || report.stuns > 0) {
+      lines.push('  -- Special attacks --');
+      if (report.flurries > 0) lines.push(pad('  Flurries:', fmt(report.flurries, 0)));
+      if (report.rampages > 0) lines.push(pad('  Rampages:', fmt(report.rampages, 0)));
+      if (report.classAttacks > 0) lines.push(pad('  Kicks / bashes:', fmt(report.classAttacks, 0)));
+      if (report.stuns > 0) lines.push(pad('  Times stunned:', fmt(report.stuns, 0)));
+      if (report.enrageWindows > 0) lines.push(pad('  Enrage windows:', fmt(report.enrageWindows, 0)));
+      lines.push('');
+    }
 
     // ---- Riposte ----
     lines.push('=== Riposte Counter-Damage ===', '');
-    if (report.ripostedSwings === 0) {
-      if (report.riposteRate === 0) {
-        lines.push('  No riposte skill entered — riposte counter-damage not calculated.');
-      } else {
-        lines.push('  No ripostes landed this simulation.');
-      }
+    if (report.ripostedSwings < 1) {
+      lines.push('  No ripostes landed.');
     } else {
-      lines.push(pad('  Riposte swings:', String(report.ripostedSwings)));
-      if (report.doubleRiposteHits > 0) {
-        lines.push(pad('  Double Riposte extra hits:', String(report.doubleRiposteHits)));
-      }
-      if (report.returnKickHits > 0) {
-        lines.push(pad('  Return Kick hits:', String(report.returnKickHits)));
-      }
-      lines.push(pad('  Total riposte damage:', String(report.riposteDamageTotal)));
-      lines.push(pad('  Riposte DPS:', fmt(report.riposteDps, 2) + '  (outgoing damage to mob)'));
-      lines.push(pad('  Max riposte hit:', String(report.riposteMaxHit)));
-      if (report.riposteDamageTotal > 0 && report.ripostedSwings > 0) {
-        lines.push(pad('  Average riposte hit:', fmt(report.riposteDamageTotal / report.ripostedSwings, 1)));
-      }
+      lines.push(pad('  Ripostes triggered:', fmt(report.ripostedSwings, 0)));
+      lines.push(pad('  Counter-attacks that connected:', fmt(report.riposteHits, 0) + ' of ' +
+        fmt(report.riposteAttempts, 0) + '  (the mob can avoid these too)'));
+      if (report.doubleRiposteHits > 0) lines.push(pad('  Double Riposte extra hits:', fmt(report.doubleRiposteHits, 0)));
+      if (report.returnKickHits > 0) lines.push(pad('  Return Kick hits:', fmt(report.returnKickHits, 0)));
+      lines.push(pad('  Total riposte damage:', fmt(report.riposteDamageTotal, 0)));
+      lines.push(pad('  Riposte DPS:', fmt(report.riposteDps, 2)));
+      lines.push(pad('  Max riposte hit:', fmt(report.riposteMaxHit, 0)));
+    }
+    if (report.damageShieldDamage > 0) {
+      lines.push(pad('  Damage shield damage:', fmt(report.damageShieldDamage, 0) +
+        '  (' + fmt(report.damageShieldDps, 2) + ' DPS)'));
     }
     lines.push('');
 
     // ---- Survivability ----
-    lines.push('=== Survivability ===', '');
-    if (report.survivalTimeSec != null) {
-      lines.push(pad('  Time to death (no heals):', fmt(report.survivalTimeSec, 1) + ' sec'));
-    } else {
-      lines.push(pad('  Time to death (no heals):', 'Survived full ' + report.durationSec + ' sec fight'));
+    lines.push('=== Survivability (no Complete Heals) ===', '');
+    if (report.deathRate != null) {
+      lines.push(pad('  Death rate across runs:', pct(report.deathRate, 0) +
+        '  (' + report.deaths + ' of ' + runs + ')'));
     }
-    if (report.survivalTimeWithHealsSec === Infinity) {
-      lines.push(pad('  Sustainable with current healing:', 'Yes \u2014 healing exceeds DTPS'));
-    } else if (report.survivalTimeWithHealsSec != null) {
-      lines.push(pad('  Time to death (with current healing):', fmt(report.survivalTimeWithHealsSec, 1) + ' sec'));
+    if (report.survivalTimeSec != null) {
+      lines.push(pad('  Median time to death:', fmt(report.survivalTimeSec, 1) + ' sec'));
+      if (report.survivalTimeMinSec != null && report.survivalTimeMaxSec != null) {
+        lines.push(pad('  Range:', fmt(report.survivalTimeMinSec, 1) + ' – ' +
+          fmt(report.survivalTimeMaxSec, 1) + ' sec'));
+      }
+    } else {
+      lines.push(pad('  Survived every run:', fmt(report.durationSec, 0) + ' sec, unhealed'));
     }
     lines.push('');
 
-    // ---- Complete Heal Chain ----
+    // ---- CH chain ----
+    lines.push(formatCHChain(report, fmt, pct, pad));
+
+    return lines.join('\n');
+  }
+
+  function formatCHChain(report, fmt, pct, pad) {
     var ch = report.chChain;
-    lines.push('=== Complete Heal Chain Analysis ===', '');
-    if (ch && ch.sustainable) {
-      lines.push('  DTPS is 0 or negative \u2014 no CH chain needed.');
-    } else if (ch && report.dtps > 0) {
-      lines.push(pad('  CH cast time used:', fmt(ch.castTimeSec, 0) + ' sec'));
-      lines.push(pad('  DTPS:', fmt(report.dtps, 2)));
-      lines.push('');
-      lines.push(pad('  Max CH interval (absolute):', fmt(ch.maxIntervalSec, 1) + ' sec'
-        + '  \u2190 HP / DTPS; tank dies if CH lands slower'));
-      lines.push(pad('  Recommended CH interval (\xd71.5 buffer):', fmt(ch.recommendedIntervalSec, 1) + ' sec'
-        + '  \u2190 headroom for spike hits above mean'));
-      lines.push(pad('  Clerics needed for full chain:', String(ch.clericsNeeded)
-        + '  (stagger casts every ' + fmt(ch.recommendedIntervalSec, 1) + ' sec each)'));
-      lines.push('');
-      lines.push(pad('  CH call threshold:', String(ch.chCallThresholdHP) + ' HP'
-        + '  \u2190 cleric must BEGIN casting when tank HP drops to this value'));
-      lines.push('  \u2514 If HP is below this with no CH in flight, the tank will die before CH lands.');
-      lines.push('');
-      // Stagger schedule
-      if (ch.clericsNeeded > 1) {
-        lines.push('  Stagger schedule (' + ch.clericsNeeded + ' clerics, ' + fmt(ch.castTimeSec, 0) + '-sec CH):');
-        var stagger = ch.castTimeSec / ch.clericsNeeded;
-        for (var c = 0; c < ch.clericsNeeded; c++) {
-          var startSec = stagger * c;
-          var landSec  = startSec + ch.castTimeSec;
-          lines.push('    Cleric ' + (c + 1) + ': start cast at t=' + fmt(startSec, 1)
-            + 's  \u2192  CH lands at t=' + fmt(landSec, 1) + 's');
-        }
-      } else {
-        lines.push('  Single cleric can sustain the chain at this DTPS.');
-      }
+    var lines = ['=== Complete Heal Chain ===', ''];
+
+    if (!ch || ch.noDamage) {
+      lines.push('  No damage taken — no chain needed.');
+      return lines.join('\n');
+    }
+
+    lines.push(pad('  CH cast time:', fmt(ch.castTimeSec, 0) + ' sec'));
+    lines.push(pad('  Tank max HP:', fmt(ch.hpTotal, 0)));
+    lines.push(pad('  Mean DTPS:', fmt(ch.meanDtps, 2)));
+    lines.push('');
+
+    if (ch.maxSafeIntervalSec > 0) {
+      lines.push(pad('  Max safe CH interval:', fmt(ch.maxSafeIntervalSec, 2) + ' sec' +
+        '  ← under ' + pct(ch.riskThreshold, 0) + ' chance of death'));
+      lines.push(pad('  Clerics needed:', String(ch.clericsNeeded) +
+        '  (' + fmt(ch.castTimeSec, 0) + 's cast ÷ ' + fmt(ch.maxSafeIntervalSec, 2) + 's interval)'));
     } else {
-      lines.push('  Run the simulation to generate CH chain data.');
+      lines.push('  No CH interval tested was safe — this mob out-damages a CH chain');
+      lines.push('  on this character. More mitigation, a slow, or fewer swings taken is needed.');
+    }
+    lines.push(pad('  CH call threshold:', fmt(ch.callThresholdHP, 0) + ' HP' +
+      '  ← start casting at this HP'));
+    lines.push('  └ Sized from the 99th-percentile damage over one cast, not the average.');
+    lines.push('');
+
+    var b = ch.burstAtCastTime;
+    lines.push('  -- Burst damage within one ' + fmt(ch.castTimeSec, 0) + '-second cast --');
+    lines.push(pad('  Median:', fmt(b.p50, 0)));
+    lines.push(pad('  95th percentile:', fmt(b.p95, 0)));
+    lines.push(pad('  99th percentile:', fmt(b.p99, 0)));
+    lines.push(pad('  Worst seen:', fmt(b.max, 0) +
+      (b.max >= ch.hpTotal ? '  ← exceeds your max HP' : '')));
+    lines.push('');
+
+    if (report.chRiskTable && report.chRiskTable.length) {
+      lines.push('  -- Death risk by chain interval --');
+      report.chRiskTable.forEach(function (r) {
+        lines.push(pad('  ' + pct(r.deathRate, 0) + ' risk:', 'CH every ' + fmt(r.intervalSec, 2) + ' sec or faster'));
+      });
+      lines.push('');
+    }
+
+    if (isFinite(ch.naiveIntervalSec)) {
+      lines.push(pad('  For comparison, HP ÷ mean DTPS:', fmt(ch.naiveIntervalSec, 2) + ' sec'));
+      if (ch.maxSafeIntervalSec > 0 && ch.naiveIntervalSec > ch.maxSafeIntervalSec * 1.15) {
+        lines.push('  └ The averaged figure is optimistic here: burst damage kills sooner.');
+      }
     }
 
     return lines.join('\n');
   }
 
+  // ---------------------------------------------------------------------------
+  // Public API (compatible with the previous module surface)
+  // ---------------------------------------------------------------------------
+
   global.TankingEngine = {
-    runTankingFight:     runTankingFight,
+    runTankingFight: runTankingFight,
+    runTankingAnalysis: runTankingAnalysis,
     formatTankingReport: formatTankingReport,
-    calcCHChain:         calcCHChain,
-    getPlayerAvoidance:  getPlayerAvoidance,
-    getPlayerMitigation: getPlayerMitigation,
-    getMobToHit:         getMobToHit,
-    getMobOffenseRating: getMobOffenseRating,
-    getAvoidanceRates:   getAvoidanceRates
+
+    // Kept so existing callers keep working; the maths now lives in the
+    // dedicated modules.
+    getPlayerAvoidance: function (level, defenseSkill, agi) {
+      var PD = getDefense();
+      return PD ? PD.getAvoidance(level, defenseSkill, agi, 0, 0) : 0;
+    },
+    getPlayerMitigation: function (level, itemAC, spellAC, classId, defSkill, agi, era) {
+      var PD = getDefense();
+      return PD ? PD.getMitigation({
+        level: level, itemAC: itemAC, spellAC: spellAC, classId: classId,
+        defenseSkill: defSkill, agi: agi, era: era
+      }) : 0;
+    },
+    getMobToHit: function (mobLevel, mobAccuracy, isPoP) {
+      var NC = getNpcCombat();
+      return NC ? NC.getToHit(mobLevel, isPoP, mobAccuracy) : 0;
+    },
+    getMobOffenseRating: function (mobLevel, isPoP, mobATK) {
+      var NC = getNpcCombat();
+      return NC ? NC.getOffense(mobLevel, isPoP, mobATK, false) : 0;
+    },
+    getAvoidanceRates: function (opts) {
+      var PD = getDefense();
+      return PD ? PD.getAvoidanceRates({
+        blockSkill: opts.playerBlockSkill,
+        parrySkill: opts.playerParrySkill,
+        riposteSkill: opts.playerRiposteSkill,
+        dodgeSkill: opts.playerDodgeSkill
+      }) : { block: 0, parry: 0, riposte: 0, dodge: 0 };
+    }
   };
+
 })(typeof self !== 'undefined' ? self : this);

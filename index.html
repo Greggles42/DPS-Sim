@@ -1922,7 +1922,7 @@
       <iconify-icon icon="ra:crossed-swords" class="text-2xl md:text-3xl text-[#d4af37] flex-shrink-0"></iconify-icon>
       <div class="flex flex-col min-w-0">
         <span class="font-fantasy text-base md:text-xl tracking-widest text-[#d4af37] truncate"><span class="app-title-g-small">g</span>Sim for Project Quarm</span>
-        <span class="text-[10px] text-gray-500 uppercase tracking-tighter">Everquest DPS Simulator · <span id="app-version">v1.36.7</span></span>
+        <span class="text-[10px] text-gray-500 uppercase tracking-tighter">Everquest DPS Simulator · <span id="app-version">v1.37</span></span>
       </div>
     </div>
     <div class="flex items-center gap-3 md:gap-8 flex-shrink-0">
@@ -2082,7 +2082,7 @@
   <div class="tab-bar" style="align-items:center;">
     <button type="button" class="tab-btn active" id="tab-melee" aria-selected="true">Melee</button>
     <button type="button" class="tab-btn" id="tab-ranged" aria-selected="false">Ranged</button>
-    <button type="button" class="tab-btn" id="tab-tanking" aria-selected="false" title="Work in Progress — results may be incomplete or inaccurate">Tanking <span style="font-size:0.65em;opacity:0.7;vertical-align:middle;">(WIP)</span></button>
+    <button type="button" class="tab-btn" id="tab-tanking" aria-selected="false" title="Simulate how much damage you would take from a mob, and how tight a Complete Heal chain needs to be">Tanking</button>
   </div>
 
   <!-- Shared inventory display — shown for all tabs when inventory is loaded -->
@@ -2691,9 +2691,9 @@
 
   <div id="tanking-tab" class="tab-panel hidden">
   <div class="tab-content-wrapper">
-  <div style="margin:0.75rem 0 1rem;padding:0.65rem 1rem;background:rgba(251,191,36,0.08);border:1px solid rgba(251,191,36,0.35);border-radius:5px;font-size:0.82rem;color:#fbbf24;display:flex;align-items:center;gap:0.5rem;">
-    <span style="font-size:1rem;">⚠</span>
-    <span><strong>Work in Progress</strong> — The tanking simulator is under active development. Results may be incomplete or inaccurate. Use figures as rough estimates only.</span>
+  <div style="margin:0.75rem 0 1rem;padding:0.65rem 1rem;background:rgba(96,165,250,0.08);border:1px solid rgba(96,165,250,0.35);border-radius:5px;font-size:0.82rem;color:#93c5fd;display:flex;align-items:flex-start;gap:0.5rem;">
+    <span style="font-size:1rem;line-height:1.4;">ℹ</span>
+    <span>Models the mob's full attack sequence — main hand and off hand on separate timers, double and triple attacks, flurry, rampage, kicks and bashes with stuns, weapon procs, and spell casting — against your avoidance, AC and defensive AAs. The Complete Heal chain is measured by replaying the fight against candidate heal intervals, so it accounts for burst damage rather than averages. <strong>Longer fights and more runs give a better chain estimate.</strong></span>
   </div>
   <div class="grid" style="grid-template-columns:1fr;">
 
@@ -2737,8 +2737,47 @@
           <input type="number" id="tank-player-ac" value="1200" min="0" style="width:5.5rem;">
         </div>
         <div>
-          <label for="tank-player-spell-ac" class="small-label">Spell AC</label>
-          <input type="number" id="tank-player-spell-ac" value="0" min="0" style="width:5rem;">
+          <label for="tank-player-shield-ac" class="small-label">Shield AC <span class="hint" style="margin:0;">(uncapped)</span></label>
+          <input type="number" id="tank-player-shield-ac" value="0" min="0" style="width:5rem;" title="AC from a shield in the secondary slot. From Luclin on this is added to the AC softcap and is never capped — auto-filled by Import Inventory.">
+        </div>
+        <div>
+          <label for="tank-player-spell-ac" class="small-label">Spell AC <span class="hint" style="margin:0;">(buffs)</span></label>
+          <input type="number" id="tank-player-spell-ac" value="0" min="0" style="width:5rem;" title="AC from spells and buffs. Divided by 4 rather than multiplied by 4/3 — keep it out of Worn AC.">
+        </div>
+      </div>
+
+      <!-- Resists — used against mob spell casting -->
+      <p class="hint" style="margin:0.75rem 0 0.3rem;font-weight:600;color:var(--text);">Resists <span class="hint" style="margin:0;font-weight:400;">(vs mob spells)</span></p>
+      <div class="target-fight-row">
+        <div><label for="tank-player-mr" class="small-label">MR</label><input type="number" id="tank-player-mr" value="0" min="0" style="width:4rem;"></div>
+        <div><label for="tank-player-fr" class="small-label">FR</label><input type="number" id="tank-player-fr" value="0" min="0" style="width:4rem;"></div>
+        <div><label for="tank-player-cr" class="small-label">CR</label><input type="number" id="tank-player-cr" value="0" min="0" style="width:4rem;"></div>
+        <div><label for="tank-player-dr" class="small-label">DR</label><input type="number" id="tank-player-dr" value="0" min="0" style="width:4rem;"></div>
+        <div><label for="tank-player-pr" class="small-label">PR</label><input type="number" id="tank-player-pr" value="0" min="0" style="width:4rem;"></div>
+      </div>
+
+      <!-- Defensive effects -->
+      <p class="hint" style="margin:0.75rem 0 0.3rem;font-weight:600;color:var(--text);">Defensive Effects</p>
+      <div class="target-fight-row">
+        <div>
+          <label for="tank-rune-pool" class="small-label">Rune absorb</label>
+          <input type="number" id="tank-rune-pool" value="0" min="0" style="width:5.5rem;" title="Flat damage pool absorbed 1:1 before HP is touched.">
+        </div>
+        <div>
+          <label for="tank-damage-shield" class="small-label">Damage shield</label>
+          <input type="number" id="tank-damage-shield" value="0" min="0" style="width:5.5rem;" title="Damage reflected back at the mob on every melee hit you take.">
+        </div>
+        <div>
+          <label for="tank-buff-mitigation" class="small-label">Melee mitigation % <span class="hint" style="margin:0;">(buff)</span></label>
+          <input type="number" id="tank-buff-mitigation" value="0" min="-100" max="100" style="width:5.5rem;" title="Negative reduces incoming melee damage before the damage roll.">
+        </div>
+        <!-- Monk AC scales off carried weight; filled by Import Inventory. -->
+        <input type="hidden" id="tank-carried-weight" value="0">
+        <div style="display:flex;flex-direction:column;justify-content:center;gap:0.2rem;">
+          <label for="tank-use-discs" class="small-label" style="cursor:pointer;">
+            <input type="checkbox" id="tank-use-discs" checked style="margin-right:0.3rem;">Use disciplines
+          </label>
+          <span class="hint" style="margin:0;">Warrior Defensive / Evasive on cooldown</span>
         </div>
       </div>
     </section>
@@ -2784,17 +2823,52 @@
           <input type="number" id="tank-mob-attacks" value="1" min="1" max="20" style="width:4rem;">
         </div>
         <div>
-          <label for="tank-mob-double-atk-skill" class="small-label">Dbl Atk Skill <span class="hint" style="margin:0;">(0=off)</span></label>
-          <input type="number" id="tank-mob-double-atk-skill" value="0" min="0" max="250" style="width:5rem;">
-        </div>
-        <div style="display:flex;flex-direction:column;justify-content:center;gap:0.2rem;">
-          <label for="tank-mob-triple-atk" class="small-label" style="cursor:pointer;">
-            <input type="checkbox" id="tank-mob-triple-atk" style="margin-right:0.3rem;">Triple Atk <span class="hint" style="margin:0;">(War/Mnk L60+)</span>
-          </label>
-        </div>
-        <div>
           <label for="tank-mob-accuracy" class="small-label">Accuracy <span class="hint" style="margin:0;">(0=auto)</span></label>
           <input type="number" id="tank-mob-accuracy" value="0" min="0" style="width:5rem;">
+        </div>
+        <div>
+          <label for="tank-mob-atk" class="small-label">ATK <span class="hint" style="margin:0;">(0=auto)</span></label>
+          <input type="number" id="tank-mob-atk" value="0" min="0" style="width:5rem;">
+        </div>
+        <div>
+          <label for="tank-mob-class" class="small-label">Mob Class</label>
+          <select id="tank-mob-class" style="width:8rem;">
+            <option value="1">Warrior</option><option value="2">Cleric</option>
+            <option value="3">Paladin</option><option value="4">Ranger</option>
+            <option value="5">Shadow Knight</option><option value="6">Druid</option>
+            <option value="7">Monk</option><option value="8">Bard</option>
+            <option value="9">Rogue</option><option value="10">Shaman</option>
+            <option value="11">Necromancer</option><option value="12">Wizard</option>
+            <option value="13">Magician</option><option value="14">Enchanter</option>
+            <option value="15">Beastlord</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Auto-detected from the NPC database; drives flurry, rampage, dual wield, enrage -->
+      <p class="hint" style="margin:0.75rem 0 0.3rem;font-weight:600;color:var(--text);">Special Abilities <span class="hint" style="margin:0;font-weight:400;">(from NPC database)</span></p>
+      <div id="tank-mob-specials" class="hint" style="margin:0 0 0.5rem;">Select a target NPC to load its special abilities.</div>
+      <input type="hidden" id="tank-mob-special-abilities" value="">
+      <input type="hidden" id="tank-mob-spells-id" value="0">
+      <input type="hidden" id="tank-mob-hp" value="0">
+      <input type="hidden" id="tank-mob-slow-mitigation" value="0">
+
+      <!-- Fight context -->
+      <p class="hint" style="margin:0.75rem 0 0.3rem;font-weight:600;color:var(--text);">Fight Context</p>
+      <div class="target-fight-row">
+        <div>
+          <label for="tank-mob-haste" class="small-label">Mob haste % <span class="hint" style="margin:0;">(negative = slow)</span></label>
+          <input type="number" id="tank-mob-haste" value="0" min="-99" max="250" style="width:6rem;" title="Enter -60 for a 60% slow. The mob's slow mitigation gives some of it back.">
+        </div>
+        <div>
+          <label for="tank-group-dps" class="small-label">Group DPS on mob <span class="hint" style="margin:0;">(0=off)</span></label>
+          <input type="number" id="tank-group-dps" value="0" min="0" style="width:6rem;" title="Used only to track the mob's HP so enrage windows can be modelled. Leave 0 to skip.">
+        </div>
+        <div style="display:flex;flex-direction:column;justify-content:center;gap:0.2rem;">
+          <label for="tank-enable-mob-spells" class="small-label" style="cursor:pointer;">
+            <input type="checkbox" id="tank-enable-mob-spells" checked style="margin-right:0.3rem;">Mob casts spells
+          </label>
+          <span class="hint" style="margin:0;">Nukes, DoTs and weapon procs</span>
         </div>
       </div>
     </section>
@@ -2877,6 +2951,7 @@
   <section class="advanced-only" style="margin-top: 1rem;">
     <h2>Version log</h2>
     <ul style="font-size: 0.9rem; color: var(--muted); margin: 0; padding-left: 1.25rem;">
+      <li><strong>1.37</strong> — <strong>Tanking mode overhauled.</strong> The mob's attack sequence previously ran on a single fixed cadence; it now runs the independent timers the server uses (<code>mob_ai.cpp</code> <code>AI_Process</code>), so everything on the other timers finally contributes. <strong>New mob mechanics:</strong> <code>special_abilities</code> is parsed (<code>emu_constants.h</code> <code>SpecialAbility</code>) giving dual wield (a separate off-hand round with its own double attack), flurry (a full extra round plus a doubled class attack), rampage/area rampage, and enrage (no ripostes below 10% mob HP, modelled only when a Group DPS figure is supplied); NPC class attacks (kick/bash/backstab/monk specials) on their own haste-scaled 8s timer, running the full hit/avoidance/damage chain and rolling a 2-second stun during which the player avoids nothing; NPC spell casting via <code>AI_EngagedCastCheck</code> with nukes, DoTs and stuns resolved against player resists, plus NPC weapon procs. <strong>Double attack fix:</strong> was gated by a hardcoded 6-class table leaving most mobs at 0% — the server gives it to <em>every</em> NPC above level 7 at <code>(skill + level) / 500</code>, so a level 60 mob double attacks ~62% of the time. <strong>Mob slow/haste</strong> is now modelled, honouring the mob's <code>slow_mitigation</code>. <strong>AC and avoidance corrections</strong> (<code>Client::GetMitigation</code>, <code>Client::GetAvoidance</code>): Combat Stability raises the AC <em>softcap</em> rather than multiplying final mitigation, so it correctly does nothing below the cap; Combat Agility multiplies avoidance instead of subtracting from hit chance; shield AC is a new bucket added uncapped to the softcap from Luclin on; buff AC was being fed into the worn-AC bucket (×4/3) instead of the spell-AC bucket (÷4), overstating it roughly fivefold; added the Iksar racial bonus, the monk carried-weight curve, the Kunark warrior 405 cap, and the %-bonus step that applies before each avoidance divisor. <strong>Riposte counter-attacks</strong> now go through the mob's own block/parry/riposte/dodge and hit roll (<code>DoRiposte</code> calls a full <code>Attack</code>), so they can be avoided. <strong>New effects:</strong> Warrior Defensive (−50% melee mitigation) and Evasive (+50% avoidance) disciplines on their real 180s/900s timers, rune absorb pools, and player damage shields. <strong>Complete Heal chain rewritten:</strong> the old <code>HP ÷ DTPS × 1.5</code> guess is replaced by replaying each run's recorded damage timeline against candidate heal intervals and measuring actual death rate — reporting max safe interval at &lt;1% risk, a death-risk curve, burst percentiles within one cast, clerics needed, and a call threshold sized from 99th-percentile burst. <strong>Fix (affects the melee tab too):</strong> the inventory AA import mapped ranks to the wrong AAs entirely — <code>AAIndex</code> numbers are the client's <code>eqmacid</code>, so 13/17/97/120/211 are Innate Run Speed, First Aid, Critical Mend, Physical Enhancement and Fleet of Foot, not Combat Fury/Combat Stability/Return Kick/Double Riposte/Master Wu. Map corrected and extended to Innate Defense, Lightning Reflexes, Planar Durability and Flash of Steel, which previously could not be imported. Import now also fills shield AC, resists, carried weight, and defensive skills defaulted to class/level caps. <strong>Target picker:</strong> NPC rows that share a name and are identical in every simulated stat are collapsed to one entry (18,127 → 16,803), keeping the lowest id; mobs that genuinely differ still list separately. New data file <code>resources/npc_spells.json</code> (915 lists) built by <code>tools/extract-npc-spells.js</code> from the Quarm DB dump. Engine split into <code>npcCombat.js</code>, <code>playerDefense.js</code>, <code>npcSpells.js</code> and <code>healChain.js</code>; <code>combat.js</code> is unchanged. Mechanics guide sections 12.5–16 rewritten, including a correction: the avoidance skill checks resolve <em>before</em> the hit roll, not after.</li>
       <li><strong>1.36.8</strong> — Self-rune weapon procs (EQEmu SE 55 in effect slot 0, e.g. Rune III, Steelskin, Silver Skin) now generate hate instead of being silently skipped. Hate = <code>runeValue × 2</code>, modified by worn/spell/AA hate mod percent (no UI field yet; defaults to 0), capped at 400 if the player's class cannot natively cast the proc spell. Subject to a witness check: 50% chance per NPC that hate does NOT register (one roll per proc fire against the single sim target). Mezzed/stunned targets would receive ¼ hate; the sim assumes the target is never mezzed. Fix: <code>procSpellIsSelfRune</code>, <code>procSpellRuneValue</code>, and <code>procThreatCap</code> were being set on the weapon object after <code>getWeapon()</code> but were never included in the explicit property copy used to build <code>options.weapon1</code> / <code>options.weapon2</code> passed into <code>runFight</code> — rune hate was silently zero. Fixed by adding all three to <code>w1ProcResist</code> / <code>w2ProcResist</code>. Also propagated through the DB-load inline block (<code>normalizeRawItemFromList</code>) and <code>normalizedToWeapon1</code> for the rank weapons path. Mechanics guide updated (section 2.2).</li>
       <li><strong>1.36.7</strong> — Fix: offhand proc threat missing from rank weapons TPS in the top-40 averaging phase. Both the offhand-only path and the combinations+secondary path were building the weapon2 object inline, omitting <code>procSpellBonusHate</code>, <code>procSpellNonDamagingDetrimental</code>, and <code>procSpellCcAddsMobHpThreat</code>. Weapons with flat-hate procs (e.g. Blade of Carnage / Enraging Blow) or CC/stun procs showed only swing threat for the offhand TPS column in averaged results. Fixed by switching both paths to <code>normalizedToWeapon1(p2, false)</code>, matching every other rank phase.</li>
       <li><strong>1.36.6</strong> — Fix: proc hate from non-damaging detrimental spells (e.g. stun-only procs) and the extra mob-HP hate slice from DD+stun procs were not capped at 400. Both now apply the same 400-per-event cap as direct-damage procs. Flat SE-92 hate values (<code>procSpellBonusHate</code>, e.g. Enraging Blow) are excluded from this cap and continue to apply without limit. Updated mechanics guide section 2.2 to document the cap on both affected paths.</li>
@@ -3028,6 +3103,10 @@
   <script src="js/modules/bisAdvisor.js"></script>
   <script src="js/modules/abilityRegistry.js"></script>
   <script src="js/modules/buffs.js"></script>
+  <script src="js/modules/npcCombat.js"></script>
+  <script src="js/modules/playerDefense.js"></script>
+  <script src="js/modules/npcSpells.js"></script>
+  <script src="js/modules/healChain.js"></script>
   <script src="js/modules/tankingEngine.js"></script>
   <script src="js/ui/usageLog.js"></script>
   <script src="combat.js"></script>
@@ -3038,6 +3117,7 @@
   <script src="resources/items-data.js"></script>
   <script src="resources/procrates-data.js"></script>
   <script src="resources/npc_types-data.js"></script>
+  <script src="resources/npc_spells-data.js"></script>
   <script src="resources/spells-data.js"></script>
   <script src="resources/weapon_shortlist-data.js"></script>
   <!-- Load itemSearchConfig.js only locally (file is gitignored; on Vercel we use /api/item-search with env key) -->
@@ -3099,15 +3179,57 @@
         var name = EQEMU_BODY_TYPE_NAMES[n];
         return name != null ? (n + ' (' + name + ')') : (n + ' (Unknown)');
       }
+      /**
+       * The NPC database ships several rows per mob — one per zone it appears in,
+       * plus orphans that spawn nowhere. Lord Nagafen, for instance, has three.
+       * Where those rows are identical in every stat the simulation reads, they
+       * are pure noise in the target picker, so collapse them to one entry.
+       *
+       * Rows that share a name but genuinely differ (about two thirds of the
+       * duplicate names) are all kept — the search list prints level, AC and
+       * damage on each result, so those remain distinguishable.
+       *
+       * The lowest id wins, which reliably picks the original rather than a
+       * later copy.
+       */
+      var NPC_DEDUPE_FIELDS = [
+        'level', 'class', 'race', 'bodytype', 'hp', 'AC', 'ATK', 'Accuracy',
+        'mindmg', 'maxdmg', 'attack_delay', 'attack_count', 'npc_spells_id',
+        'special_abilities', 'avoidance', 'slow_mitigation',
+        'MR', 'CR', 'DR', 'FR', 'PR'
+      ];
+
+      function dedupeNpcTypes(list) {
+        if (!Array.isArray(list) || !list.length) return list || [];
+        var seen = Object.create(null);
+        var out = [];
+        for (var i = 0; i < list.length; i++) {
+          var npc = list[i];
+          if (npc == null) continue;
+          var key = String(npc.name);
+          for (var f = 0; f < NPC_DEDUPE_FIELDS.length; f++) {
+            key += '' + npc[NPC_DEDUPE_FIELDS[f]];
+          }
+          var prev = seen[key];
+          if (prev === undefined) {
+            seen[key] = out.length;
+            out.push(npc);
+          } else if (Number(npc.id) < Number(out[prev].id)) {
+            out[prev] = npc;
+          }
+        }
+        return out;
+      }
+
       var npcTypesList = [];
       (function initNpcTypesFromBundle() {
         var b = typeof window !== 'undefined' ? window.__DPS_NPC_TYPES__ : null;
-        if (Array.isArray(b) && b.length > 0) npcTypesList = b;
+        if (Array.isArray(b) && b.length > 0) npcTypesList = dedupeNpcTypes(b);
       })();
       if (!npcTypesList.length) {
         fetch('resources/npc_types.json')
           .then(function (r) { return r.ok ? r.json() : null; })
-          .then(function (data) { npcTypesList = Array.isArray(data) ? data : []; })
+          .then(function (data) { npcTypesList = dedupeNpcTypes(Array.isArray(data) ? data : []); })
           .catch(function () {});
       }
       /** Item ID -> { procrate, ... } from resources/procrates.json; used to override proc rate when weapon is selected from search. */
@@ -3356,7 +3478,7 @@
       }
 
       // When releasing: 1) Bump VERSION below. 2) Add a new <li> at the top of the Version log section above.
-      const VERSION = '1.36.8';
+      const VERSION = '1.37';
       const versionEl = $('app-version');
       if (versionEl) versionEl.textContent = 'v' + VERSION;
 
@@ -9973,21 +10095,55 @@
         set('tank-mob-min-dmg', npc.mindmg);
         set('tank-mob-max-dmg', npc.maxdmg);
         set('tank-mob-delay',   npc.attack_delay);
-        if (npc.attack_count > 0) set('tank-mob-attacks', npc.attack_count);
-        if (npc.Accuracy > 0)     set('tank-mob-accuracy', npc.Accuracy);
-        // Auto-fill double attack skill from NPC class (uses same caps as CombatSkillCaps.doubleAttack).
-        // Classes with double attack: WAR=1(245), PAL=3(235), RNG=4(245), SHD=5(235), MNK=7(250), ROG=9(245).
-        (function () {
-          var cls = npc['class'] || 0;
-          var lvl = npc.level || 1;
-          var daCap = { 1: 245, 3: 235, 4: 245, 5: 235, 7: 250, 9: 245 }[cls];
-          var daSkill = daCap != null ? Math.min(daCap, lvl * 5) : 0;
-          set('tank-mob-double-atk-skill', daSkill);
-          var tripleAtk = (cls === 1 || cls === 7) && lvl >= 60;
-          var chk = document.getElementById('tank-mob-triple-atk');
-          if (chk) chk.checked = tripleAtk;
-        })();
+        // attack_count of -1 (and 0) is the DB's "one swing" sentinel.
+        set('tank-mob-attacks', npc.attack_count > 1 ? npc.attack_count : 1);
+        set('tank-mob-accuracy', npc.Accuracy > 0 ? npc.Accuracy : 0);
+        set('tank-mob-atk', npc.ATK > 0 ? npc.ATK : 0);
+        set('tank-mob-class', npc['class'] || 1);
+        // Double and triple attack are derived from level and class inside the
+        // engine now, matching npc.cpp — every NPC above level 7 double attacks.
+        set('tank-mob-special-abilities', npc.special_abilities || '');
+        set('tank-mob-spells-id', npc.npc_spells_id || 0);
+        set('tank-mob-hp', npc.hp || 0);
+        set('tank-mob-slow-mitigation', npc.slow_mitigation || 0);
+        renderMobSpecials(npc);
         updateTargetNpcNameDisplay();
+      }
+
+      /** Show what the mob's DB flags actually mean for the fight. */
+      function renderMobSpecials(npc) {
+        var el = document.getElementById('tank-mob-specials');
+        if (!el) return;
+        var NC = window.NpcCombat;
+        if (!NC) { el.textContent = ''; return; }
+
+        var parsed = NC.parseSpecialAbilities(npc.special_abilities || '');
+        var names = NC.describeSpecialAbilities(parsed);
+        var bits = [];
+
+        if (names.length) bits.push(names.join(', '));
+
+        var lvl = npc.level || 1;
+        var daSkill = lvl > 7 ? NC.getNpcSkillLevel(lvl) : 0;
+        if (daSkill > 0) {
+          var daPct = Math.min(100, (daSkill + (lvl > 35 ? lvl : 0)) / 5);
+          bits.push('Double attack ' + daPct.toFixed(0) + '%');
+        }
+        if ((npc['class'] === 1 || npc['class'] === 7) && lvl >= 60) bits.push('Triple attack');
+
+        var ca = NC.getNpcClassAttack(npc['class'] || 1, lvl);
+        if (ca) bits.push('Class attack: ' + (ca.altSkill ? ca.skill + '/' + ca.altSkill : ca.skill));
+
+        if (npc.npc_spells_id > 0) {
+          var NS = window.NpcSpells;
+          var list = NS ? NS.resolveSpellList(npc.npc_spells_id, lvl, npc['class']) : null;
+          if (list) {
+            bits.push('Casts: ' + list.spells.length + ' spell' + (list.spells.length === 1 ? '' : 's') +
+              (list.attackProc ? ' + weapon proc' : ''));
+          }
+        }
+
+        el.textContent = bits.length ? bits.join('  •  ') : 'No special abilities.';
       }
       (function initTargetNpcSearch() {
         var inputEl = $('target-npc-search');
@@ -10485,16 +10641,30 @@
   var _rangedWornArcheryModUserSet = false;
 
   // EQ numeric AA ID (from inventory export) → sim aaConfig string key
+  // AAIndex numbers in the /outputfile inventory export are the Mac client's AA
+  // ids — the `eqmacid` column of the server's altadv_vars table. Verified
+  // against resources/Gabbiz-Quarmy.txt, whose indices (13 Innate Run Speed,
+  // 17 First Aid, 97 Critical Mend, 120 Physical Enhancement, 211 Fleet of Foot)
+  // all decode to real level-60 monk AAs under this numbering.
   var EQ_AA_ID_TO_SIM = {
-    13: 'combatFury',
-    17: 'combatStability',
-    28: 'combatAgility',
-    30: 'naturalDurability',
-    34: 'spellCastingFury',
-    81: 'ambidexterity',
-    97: 'returnKick',
-    120: 'doubleRiposte',
-    211: 'masterWu'
+    23:  'spellCastingFury',
+    28:  'naturalDurability',
+    30:  'combatFury',
+    33:  'combatStability',
+    34:  'combatAgility',
+    75:  'slayUndead',
+    79:  'twoHandBash',
+    81:  'ambidexterity',
+    82:  'archeryMastery',
+    89:  'soulAbrasion',
+    101: 'returnKick',
+    104: 'doubleRiposte',
+    108: 'flurry',
+    143: 'planarDurability',
+    151: 'lightningReflexes',
+    152: 'innateDefense',
+    168: 'flashOfSteel',
+    206: 'masterWu'
   };
 
   // EQ numeric class ID (from inventory export) → sim class string
@@ -10567,7 +10737,8 @@
 
   function _applyInventoryFromEquippedSlots(equippedSlots, charInfo, aaRanks) {
     // ---- Aggregate stats across all equipped items ----
-    var totals = { ac: 0, str: 0, dex: 0, agi: 0, sta: 0, wis: 0, int: 0, cha: 0, hp: 0, mana: 0, atk: 0, mr: 0, fr: 0, cr: 0, dr: 0, pr: 0, regen: 0, ft: 0, archeryMod: 0 };
+    var totals = { ac: 0, str: 0, dex: 0, agi: 0, sta: 0, wis: 0, int: 0, cha: 0, hp: 0, mana: 0, atk: 0, mr: 0, fr: 0, cr: 0, dr: 0, pr: 0, regen: 0, ft: 0, archeryMod: 0, shieldAc: 0, weight: 0 };
+    var ITEM_TYPE_SHIELD = 8;   // EQ::item::ItemTypeShield
     var hasteItems  = [];   // { name, haste, spellName }
     var atkItems    = [];   // { name, atk, spellName }
     var archeryModItems = []; // { name, mod }
@@ -10618,6 +10789,14 @@
         totals.cr   += cr;
         totals.dr   += dr;
         totals.pr   += pr;
+        totals.weight += parseInt(item.weight) || 0;   // monk AC curve reads this
+
+        // Shield AC is tracked apart from worn AC: from Luclin on the server
+        // adds it straight to the AC softcap and never caps it.
+        if (slot === 'Secondary' && (parseInt(item.itemtype) || 0) === ITEM_TYPE_SHIELD) {
+          totals.shieldAc += ac;
+          notes.push('shield');
+        }
 
         // Weapon damage/delay
         var dmg = parseInt(item.damage) || 0;
@@ -10864,6 +11043,23 @@
     // --- Worn stats: shared character module + tanking-specific ---
     if (totals.ac)  setEl('tank-player-ac',    totals.ac);
     if (totals.hp != null) setEl('tank-worn-hp', totals.hp);
+    // The shield's AC counts twice on the server: once inside worn AC, and
+    // again as an uncapped addition to the softcap. Do not subtract it above.
+    setEl('tank-player-shield-ac', totals.shieldAc || 0);
+    setEl('tank-carried-weight', Math.floor((totals.weight || 0) / 10));
+
+    // Resists feed the mob's spell casting — previously aggregated and dropped.
+    setEl('tank-player-mr', totals.mr || 0);
+    setEl('tank-player-fr', totals.fr || 0);
+    setEl('tank-player-cr', totals.cr || 0);
+    setEl('tank-player-dr', totals.dr || 0);
+    setEl('tank-player-pr', totals.pr || 0);
+
+    // Defensive skills are not carried on items, so default them to the
+    // class/level cap. They stay editable.
+    if (typeof window.applyDefensiveSkillDefaults === 'function') {
+      window.applyDefensiveSkillDefaults();
+    }
 
     // Shared stats via stat distributor (updates str/dex/agi/sta hidden inputs)
     if (typeof window.applyGearStats === 'function') {
@@ -11135,8 +11331,44 @@
   // Expose for cross-IIFE access (e.g. syncHiddenStats in melee tab)
   window.updateTankHP = updateTankHP;
 
+  // ---- Defensive skill defaults ----
+  // Defence, dodge, parry, riposte and block are not granted by items, so an
+  // imported character has no way to fill them. Default each to the class/level
+  // cap — a maxed tank is the sensible starting assumption — and leave them
+  // editable for anyone who has not capped a skill yet.
+  var DEF_SKILL_INPUTS = {
+    defense: 'defense-skill', dodge: 'dodge-skill', parry: 'parry-skill',
+    riposte: 'riposte-skill', block: 'block-skill'
+  };
+
+  function applyDefensiveSkillDefaults(force) {
+    if (!window.WeaponSkillCaps || !WeaponSkillCaps.getDefensiveSkillCap) return;
+    var gel = function (id) { return document.getElementById(id); };
+    var classId = (gel('class') && gel('class').value) || 'warrior';
+    var level = parseInt((gel('level') && gel('level').value) || '60', 10) || 60;
+
+    Object.keys(DEF_SKILL_INPUTS).forEach(function (key) {
+      var el = gel(DEF_SKILL_INPUTS[key]);
+      if (!el) return;
+      // Don't stomp a value the user typed unless explicitly asked to.
+      var current = parseInt(el.value, 10);
+      if (!force && current > 0) return;
+      var cap = WeaponSkillCaps.getDefensiveSkillCap(key, classId, level);
+      el.value = cap > 0 ? cap : 0;
+    });
+  }
+
+  window.applyDefensiveSkillDefaults = applyDefensiveSkillDefaults;
+
+  // A class or level change invalidates the previous caps outright.
+  ['class', 'level'].forEach(function (id) {
+    var el = document.getElementById(id);
+    if (el) el.addEventListener('change', function () { applyDefensiveSkillDefaults(true); });
+  });
+
   // Initial calculation on page load
   updateTankHP();
+  applyDefensiveSkillDefaults();
 
   // ---- Simulation click handler ----
   btnRunTanking.addEventListener('click', function () {
@@ -11169,24 +11401,44 @@
     }
 
     var weaponDamage = v('w1-damage', 0);
+    function str(id, fallback) {
+      var el = document.getElementById(id);
+      return el ? (el.value || fallback) : fallback;
+    }
+
     var options = {
       // Mob
+      mobName:         (window.selectedTargetNpc && window.selectedTargetNpc.name)
+                         ? String(window.selectedTargetNpc.name).replace(/_/g, ' ') : undefined,
       mobLevel:        v('tank-mob-level', 60),
+      mobClassId:      v('tank-mob-class', 1),
       mobMinDamage:    v('tank-mob-min-dmg', 50),
       mobMaxDamage:    v('tank-mob-max-dmg', 250),
       mobAttackDelay:  v('tank-mob-delay', 20),
-      mobAttackCount:         v('tank-mob-attacks', 1),
-      mobDoubleAttackSkill:   v('tank-mob-double-atk-skill', 0),
-      mobTripleAttack:        (document.getElementById('tank-mob-triple-atk') || {}).checked || false,
-      mobAccuracy:            v('tank-mob-accuracy', 0) || undefined,
+      mobAttackCount:  v('tank-mob-attacks', 1),
+      mobAccuracy:     v('tank-mob-accuracy', 0),
+      mobATK:          v('tank-mob-atk', 0),
       mobAC:           v('tank-mob-ac', 0),
+      mobHP:           v('tank-mob-hp', 0),
+      // Drives dual wield, flurry, rampage and enrage.
+      mobSpecialAbilities: str('tank-mob-special-abilities', ''),
+      mobSpellsId:     v('tank-mob-spells-id', 0),
+      mobSlowMitigation: v('tank-mob-slow-mitigation', 0),
+      mobHastePct:     v('tank-mob-haste', 0),
+      enableMobSpells: chk('tank-enable-mob-spells'),
+      groupDps:        v('tank-group-dps', 0),
 
       // Player defense — all stats read from the shared character module inputs.
       playerLevel:          v('level', 60),
       playerClassId:        sel('class', 'warrior'),
-      playerAC:             v('tank-player-ac', 1200) + (buffFx ? buffFx.ac || 0 : 0),
-      playerSpellAC:        v('tank-player-spell-ac', 0),
+      playerRace:           sel('char-race', ''),
+      // Worn AC only. Buff AC belongs in the spell-AC bucket, where it is
+      // divided by 4 rather than multiplied by 4/3.
+      playerAC:             v('tank-player-ac', 1200),
+      playerShieldAC:       v('tank-player-shield-ac', 0),
+      playerSpellAC:        v('tank-player-spell-ac', 0) + (buffFx ? buffFx.ac || 0 : 0),
       playerAGI:            statWithBuff('agi', 'agi', 100, 255),
+      playerCarriedWeight:  v('tank-carried-weight', 0),
       playerDefenseSkill:   v('defense-skill', 0),
       playerDodgeSkill:     v('dodge-skill', 0),
       playerParrySkill:     v('parry-skill', 0),
@@ -11196,11 +11448,34 @@
       playerHPRegen:        v('tank-player-hp-regen', 0),
       healerHPS:            v('tank-healer-hps', 0),
 
+      // Resists — used against the mob's spells
+      playerMR: v('tank-player-mr', 0), playerFR: v('tank-player-fr', 0),
+      playerCR: v('tank-player-cr', 0), playerDR: v('tank-player-dr', 0),
+      playerPR: v('tank-player-pr', 0),
+
+      // Defensive effects
+      runePool:                v('tank-rune-pool', 0),
+      playerDamageShield:      v('tank-damage-shield', 0),
+      buffMeleeMitigationPct:  v('tank-buff-mitigation', 0),
+      useDisciplines:          chk('tank-use-discs'),
+
       // Player offense (riposte)
       playerWeaponDamage:   weaponDamage > 0 ? weaponDamage : undefined,
       playerWeaponDelay:    v('w1-delay', 30),
       playerWeaponIs2H:     v('w1-is2h-override', 0) > 0,
       playerOffenseSkill:   v('offense-skill', 252),
+      // Weapon skill only feeds the riposte counter-attack's hit chance.
+      playerWeaponSkill:    (function () {
+        var lvl = v('level', 60);
+        var cls = sel('class', 'warrior');
+        if (window.WeaponSkillCaps && WeaponSkillCaps.getCombatSkillCap) {
+          try {
+            var cap = WeaponSkillCaps.getCombatSkillCap('offense', cls, lvl);
+            if (cap > 0) return cap;
+          } catch (e) { /* fall through to the level default */ }
+        }
+        return Math.min(250, lvl * 5);
+      })(),
       playerStr:            statWithBuff('str', 'str', 200, 255),
       playerDex:            statWithBuff('dex', 'dex', 150, 255),
       playerWornAttack:     v('worn-attack', 0) + (buffFx ? (buffFx.wornAtk || 0) + (buffFx.atk || 0) : 0),
@@ -11225,38 +11500,18 @@
     options.flashOfSteelRank        = tankAaOpts.flashOfSteelRank;
     options.planarDurabilityRank    = tankAaOpts.planarDurabilityRank;
 
+    // The engine now owns multi-run aggregation and the CH chain analysis: the
+    // chain is measured by replaying every run's damage timeline against a
+    // candidate heal cadence, so it needs the individual runs, not an average.
     var runs = v('tank-runs', 5);
-    var allReports = [];
-    for (var i = 0; i < runs; i++) {
-      var r = TankingEngine.runTankingFight(Object.assign({}, options, { seed: options.seed + i }));
-      allReports.push(r);
-    }
+    var report = TankingEngine.runTankingAnalysis(options, runs);
 
-    var report = allReports[0];
-
-    // Average numeric fields across runs
-    if (runs > 1) {
-      var keys = [
-        'dtps', 'effectiveDtps', 'riposteDps',
-        'totalDamageTaken', 'riposteDamageTotal',
-        'avoidanceRate', 'mitigationPercent',
-        'maxHitTaken', 'riposteMaxHit',
-        'landedSwings', 'missedSwings', 'dodgedSwings',
-        'parriedSwings', 'ripostedSwings', 'blockedSwings',
-        'swingAttempts', 'rounds',
-        'mobDoubleAttackHits', 'mobTripleAttackHits'
-      ];
-      keys.forEach(function (k) {
-        var sum = allReports.reduce(function (a, r) { return a + (r[k] || 0); }, 0);
-        report[k] = sum / runs;
-      });
-      // Average survival time (only over runs where tank died)
-      var survTimes = allReports.map(function (r) { return r.survivalTimeSec; }).filter(function (t) { return t != null; });
-      report.survivalTimeSec = survTimes.length > 0 ? survTimes.reduce(function (a, b) { return a + b; }, 0) / survTimes.length : null;
-      // Recompute CH chain from averaged DTPS
-      if (window.TankingEngine && TankingEngine.calcCHChain) {
-        report.chChain = TankingEngine.calcCHChain(report.dtps, options.playerHPTotal, options.chCastTimeSec);
-      }
+    if (report.error) {
+      var errEl = document.getElementById('tanking-report');
+      var errWrap = document.getElementById('tanking-report-wrap');
+      if (errEl) errEl.textContent = report.error;
+      if (errWrap) errWrap.style.display = '';
+      return;
     }
 
     var text = TankingEngine.formatTankingReport(report, runs);

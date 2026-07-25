@@ -921,194 +921,232 @@
     </div>
 
     <div class="card">
-      <h2>12.5) Tanking Simulation — NPC Attack Mechanics <span class="badge badge-game">In-Game Mechanic</span></h2>
+      <h2>12.5) Tanking Simulation — The Mob's Attack Sequence <span class="badge badge-game">In-Game Mechanic</span></h2>
       <p>
-        The tanking tab models the number of times a mob swings per attack round, matching EQMacEmu's <code>DoMainHandRound</code>.
+        A mob does not attack on one steady rhythm. The server runs several independent timers at once, and
+        everything below fires on its own schedule — which is why a mob's real damage output is much higher than
+        "swings per round × damage per swing" would suggest. The tanking tab simulates each timer separately.
       </p>
 
-      <h3>Base attack count</h3>
-      <p>
-        Mobs can have more than one base attack per round. This is set from the NPC database and entered in the <strong>Mob attacks/round</strong> field.
-        Each attack rolls through the full hit/avoidance/mitigation chain independently.
-      </p>
-
-      <h3>NPC double attack</h3>
-      <p>
-        After the base attack loop, the mob makes one double-attack check:
-      </p>
-      <div class="formula">chance = (doubleAttackSkill + level) / 500  [when level > 35, else skill / 500]</div>
-      <p>
-        If the check succeeds, one additional swing is made. Double-attack skill scales with class and level, capped per class:
-      </p>
       <table>
-        <thead><tr><th>NPC class</th><th>Skill cap</th></tr></thead>
+        <thead><tr><th>Timer</th><th>How often</th><th>What happens</th></tr></thead>
         <tbody>
-          <tr><td>Warrior, Ranger, Rogue</td><td>245</td></tr>
-          <tr><td>Paladin, Shadow Knight</td><td>235</td></tr>
-          <tr><td>Monk</td><td>250</td></tr>
+          <tr><td>Main hand</td><td>The mob's attack delay, adjusted for haste or slow</td><td>A full main-hand round (see below)</td></tr>
+          <tr><td>Off hand</td><td>Same delay, only if the mob dual wields</td><td>One off-hand swing, plus its own double attack</td></tr>
+          <tr><td>Class attack</td><td>Every 8 seconds (10 for backstab), scaled by haste</td><td>Kick, bash, backstab or a monk special</td></tr>
+          <tr><td>Spell casting</td><td>Rechecked every 0.75–2 seconds</td><td>A nuke, DoT or stun from the mob's spell list</td></tr>
         </tbody>
       </table>
+
+      <h3>The main-hand round</h3>
+      <p>Each time the main-hand timer fires, in this order:</p>
+      <ol>
+        <li>The mob's <strong>attacks per round</strong> swings (usually 1; a database value of −1 means one swing).</li>
+        <li>A weapon proc check — this rolls whether or not the swing connected.</li>
+        <li>One <strong>double attack</strong> check. <em>Every</em> NPC above level 7 gets this, not just melee classes:</li>
+      </ol>
+      <div class="formula">P(double) = (skill + level) / 500, where skill = 250 above level 50, otherwise min(level × 5, 210)</div>
       <p>
-        When you pick an NPC from the search, the double-attack skill and triple-attack checkbox are filled in automatically based on the NPC's class and level
-        (<code>skill = min(cap, level × 5)</code>).
+        In practice that means a level 60 mob double attacks about <strong>62%</strong> of the time. Only if the
+        double succeeds does a Warrior or Monk mob at level 60+ roll a further 13.5% for a triple attack.
       </p>
 
-      <h3>NPC triple attack</h3>
+      <h3>Flurry, rampage and enrage</h3>
       <p>
-        Only Warrior (class 1) and Monk (class 7) NPCs at level 60+ have triple attack. It is only checked on rounds where double attack already succeeded:
+        These come from the mob's <code>special_abilities</code> database field, shown on the Target Mob card once
+        you pick an NPC. A mob may only perform <strong>one</strong> special per round, checked in this order:
       </p>
-      <div class="formula">P(triple | double succeeds) = 13.5%</div>
-      <div class="formula">P(triple on round) ≈ P(double) × 0.135</div>
+      <ul>
+        <li><strong>Flurry</strong> — a complete extra round: another main-hand round, another off-hand round if it
+          dual wields, and its class attack fired twice. Default 20% chance, though many mobs override it.</li>
+        <li><strong>Rampage / Area Rampage</strong> — another full round against everyone in range. With only the
+          tank present it simply lands on the tank. Default 20%.</li>
+        <li><strong>Enrage</strong> — below 10% health the mob <em>cannot be riposted</em> for 10 seconds. This is
+          only modelled if you enter a Group DPS figure, since otherwise the sim has no way to know when the mob
+          would reach that health.</li>
+      </ul>
+
+      <h3>Kicks and bashes</h3>
+      <p>
+        Class attacks run the same hit, avoidance and damage chain as an ordinary swing, and they receive the mob's
+        full flat damage bonus, so they are not trivial. Bash, kick and dragon punch also roll a stun:
+      </p>
+      <div class="formula">stun chance = (mob level &gt; 60 ? 40 : 45) ± (level difference)² / 2, minimum 2%</div>
+      <p>A stun lasts exactly 2 seconds, during which <strong>you avoid nothing</strong> — no dodge, parry, riposte or block.</p>
+
+      <h3>Haste and slow</h3>
+      <p>
+        Enter a negative <strong>mob haste %</strong> to model a slow (−60 for a 60% slow). Mobs receive spell haste
+        only, never item haste, and the mob's own <em>slow mitigation</em> gives part of a slow back:
+      </p>
+      <div class="formula">effective delay = attack delay ÷ (1 + haste%), floored at 0.4 seconds</div>
+      <p class="muted">Slow is the single most effective thing a group can do for a tank, and it now shows up directly in DTPS.</p>
     </div>
 
     <div class="card">
       <h2>13) Tanking Simulation — Avoidance Chain <span class="badge badge-game">In-Game Mechanic</span></h2>
       <p>
-        The tanking sim models each mob swing as a sequential set of independent checks mirroring EQMacEmu's <code>Mob::AvoidDamage</code>. Checks fire in this order; the first one that succeeds negates the swing:
+        Each incoming swing is resolved in the order the server uses (<code>NPC::Attack</code> in <code>attack.cpp</code>):
+        the four <strong>skill checks come first</strong>, and only a swing that survives all of them rolls to hit.
       </p>
       <ol>
-        <li><strong>Hit check</strong> — does the mob's swing even connect? Uses mob to-hit vs player avoidance (same formula as Section 5). If it misses, the swing is discarded entirely (no avoidance skill roll needed).</li>
-        <li><strong>Block</strong> — <code>rate(blockSkill, divisor=25)</code>. Monk only (no shield required).</li>
-        <li><strong>Parry</strong> — <code>rate(parrySkill, divisor=50)</code>. Only valid in-front, not ranged.</li>
-        <li><strong>Riposte</strong> — <code>rate(riposteSkill, divisor=55)</code>. Requires a weapon equipped; only in-front.</li>
-        <li><strong>Dodge</strong> — <code>rate(dodgeSkill, divisor=45)</code>.</li>
+        <li><strong>Block</strong> — <code>divisor 25</code>. Monks and beastlords only; it is a skill, not a shield property.</li>
+        <li><strong>Parry</strong> — <code>divisor 50</code>. Front only, melee only.</li>
+        <li><strong>Riposte</strong> — <code>divisor 55</code>. Requires a weapon; negates the swing and counter-attacks.</li>
+        <li><strong>Dodge</strong> — <code>divisor 45</code>.</li>
+        <li><strong>Hit roll</strong> — mob to-hit versus your avoidance value. A failure here is a plain miss.</li>
       </ol>
-      <p>
-        The per-skill rate formula (source: <code>attack.cpp Mob::AvoidDamage</code>):
+      <p>The first check that succeeds negates the swing. Each skill's chance is:</p>
+      <div class="formula">chance% = floor( (skill + 100) × (1 + bonuses%) ÷ divisor )</div>
+      <p class="muted">
+        Percentage bonuses from AAs and buffs apply <em>before</em> the divisor, which makes them worth more than
+        they appear.
       </p>
-      <div class="formula">rate(skill, divisor) = min(1, floor((skill + 100) / divisor) / 100)</div>
-      <p>
-        Each check is independent (not exclusive with others except that the loop stops at the first success). The combined avoidance probability across all four skills for swings that pass the hit check is:
-      </p>
-      <div class="formula">skillAvoidanceRate = 1 − (1−block) × (1−parry) × (1−riposte) × (1−dodge)</div>
 
-      <h3>AA modifiers to avoidance</h3>
-      <ul>
-        <li><strong>Combat Agility</strong> (Luclin archetype, ranks 1–3): reduces effective hit chance by 2%/5%/10%.</li>
-        <li><strong>Lightning Reflexes</strong> (PoP, ranks 1–5): reduces effective hit chance by an additional 2% per rank (stacks with Combat Agility).</li>
-      </ul>
-      <div class="formula">hitChance = hitChance − (combatAgilityFactor + lightningReflexesFactor)</div>
+      <h3>Your avoidance value</h3>
+      <div class="formula">avoidance = floor(defense skill × 400 / 225) + AGI bonus</div>
+      <p>
+        <strong>Combat Agility</strong> and <strong>Lightning Reflexes</strong> multiply this value — they are not a
+        flat reduction of the mob's hit chance. Warrior <strong>Evasive Discipline</strong> adds a further +50%
+        while it is running.
+      </p>
+      <div class="formula">avoidance = avoidance × (1 + CombatAgility% + LightningReflexes%) × (1 + AvoidMelee%)</div>
     </div>
 
     <div class="card">
-      <h2>14) Tanking Simulation — Mitigation and AC Breakdown <span class="badge badge-game">In-Game Mechanic</span></h2>
+      <h2>14) Tanking Simulation — Mitigation and AC <span class="badge badge-game">In-Game Mechanic</span></h2>
       <p>
-        When a swing lands (passes hit check and all avoidance checks), the damage roll uses the same <strong>RollD20</strong> contest from Section 5 — mob offense rating vs player mitigation. Player mitigation is built from several components derived from your worn AC, skills, spells, and AGI.
+        The AC number your client displays is cosmetic. Combat uses two separate hidden values: <em>avoidance</em>
+        (above) decides whether you are hit, and <em>mitigation</em> decides how hard. The report shows every
+        component so you can see how yours was built.
       </p>
 
-      <h3>Player AC breakdown (how mitigation is computed)</h3>
-      <p>
-        The tanking report shows a full per-component breakdown:
-      </p>
       <table>
         <thead><tr><th>Component</th><th>Formula</th><th>Notes</th></tr></thead>
         <tbody>
-          <tr>
-            <td>Item AC (scaled)</td>
-            <td><code>floor(wornAC × 4/3)</code></td>
-            <td>Non-casters. Casters use a smaller multiplier. Capped at the anti-twink limit for low-level items.</td>
-          </tr>
-          <tr>
-            <td>Defense skill</td>
-            <td><code>floor(defenseSkill / 3)</code></td>
-            <td>Divided by 2 for casters. Defense skill scales with level and class.</td>
-          </tr>
-          <tr>
-            <td>Spell / buff AC</td>
-            <td><code>floor(spellAC / 4)</code></td>
-            <td>Divided by 3 for casters. Buffs like Skin spells and Aegolism contribute here.</td>
-          </tr>
-          <tr>
-            <td>AGI bonus</td>
-            <td><code>floor((AGI − 70) / 20)</code></td>
-            <td>Only AGI above 70 contributes. Maximum contribution capped by era/class softcap.</td>
-          </tr>
-          <tr>
-            <td>Softcap</td>
-            <td>Era- and class-dependent</td>
-            <td>Pre-cap total is clamped to the softcap before AA mitigation modifiers are applied.</td>
-          </tr>
+          <tr><td>Worn AC</td><td><code>floor(wornAC × 4/3)</code></td><td>Pure casters get the raw value. Capped at <code>level × 6 + 25</code> below level 50.</td></tr>
+          <tr><td>Class bonus</td><td>Varies</td><td>Monk (scales off carried weight), Rogue (max 12), Beastlord (max 16).</td></tr>
+          <tr><td>Iksar natural armour</td><td>+10 / +level / +35</td><td>Below level 10, levels 10–35, above 35.</td></tr>
+          <tr><td>Defense skill</td><td><code>floor(skill / 3)</code></td><td>Divided by 2 for pure casters.</td></tr>
+          <tr><td>Spell &amp; buff AC</td><td><code>floor(spellAC / 4)</code></td><td>Divided by 3 for pure casters.</td></tr>
+          <tr><td>AGI</td><td><code>floor(AGI / 20)</code></td><td>Only above 70 AGI.</td></tr>
         </tbody>
       </table>
-      <p>
-        The sim report's <em>Player AC</em> section shows each of these intermediate values so you can see exactly how your inputs produce the final mitigation number fed into the RollD20 contest.
+
+      <p class="muted">
+        Buff AC belongs in the <strong>Spell AC</strong> field, not Worn AC. The two are treated very differently —
+        worn AC is multiplied by 4/3, buff AC is divided by 4 — so putting buffs in the wrong box overstates their
+        contribution by roughly five times.
       </p>
 
-      <h3>AA modifiers to mitigation</h3>
+      <h3>The softcap</h3>
+      <p>Everything above is summed, then clamped against a softcap that depends on class, level and era:</p>
+      <table>
+        <thead><tr><th>Class</th><th>Softcap above level 50</th></tr></thead>
+        <tbody>
+          <tr><td>Warrior</td><td>430 (405 in Kunark)</td></tr>
+          <tr><td>Paladin, Shadow Knight, Cleric, Bard</td><td>403</td></tr>
+          <tr><td>Ranger, Shaman</td><td>375</td></tr>
+          <tr><td>Everyone else, and all classes at level 50 or below</td><td>350</td></tr>
+        </tbody>
+      </table>
+
+      <p>Two things raise the cap rather than adding mitigation directly:</p>
+      <div class="formula">softcap = base × (1 + CombatStability% + InnateDefense%) + shield AC</div>
       <ul>
-        <li><strong>Combat Stability</strong> (Luclin archetype, ranks 1–3): multiplies base player mitigation by 1.02 / 1.05 / 1.10.</li>
-        <li><strong>Innate Defense</strong> (PoP, ranks 1–5): adds +2% per rank on top of Combat Stability (stacks).</li>
+        <li><strong>Combat Stability</strong> and <strong>Innate Defense</strong> raise the softcap by 2/5/10% and
+          2% per rank respectively. If your AC is already <em>below</em> the cap these AAs do nothing at all —
+          worth knowing before spending points on them.</li>
+        <li><strong>Shield AC</strong> is added to the softcap uncapped from Luclin onward, and still counts inside
+          worn AC as well. This is why a shield is worth considerably more to a tank than its AC number suggests.</li>
       </ul>
-      <div class="formula">totalMitigationFactor = combatStabilityFactor + innateDefenseFactor</div>
-      <div class="formula">playerMitigation = floor(playerMitigation × (1 + totalMitigationFactor))</div>
 
-      <h3>Natural Durability AA (Luclin archetype, ranks 1–3)</h3>
-      <p>
-        Increases player max HP by 2%/5%/10% of the entered HP value before the fight begins.
+      <p>Above the cap, extra AC returns at a steep discount:</p>
+      <div class="formula">mitigation = softcap + floor(overcap / returns)</div>
+      <p class="muted">
+        Returns are 1:12 in Luclin. In PoP they depend on class and level — a Warrior gets 1:5 at level 60 and 1:3
+        at 64+, while a Monk or Rogue gets 1:20. Before Luclin the cap is hard and excess AC is simply discarded.
       </p>
-      <div class="formula">playerHPTotal = floor(playerHPTotal × (1 + naturalDurabilityFactor))</div>
 
-      <h3>Planar Durability AA (War/Pal/SHD, PoP, ranks 1–3)</h3>
-      <p>
-        Increases player max HP by an additional 1.5%/3%/4.5% on top of Natural Durability (applied multiplicatively, after Natural Durability).
-      </p>
-      <div class="formula">playerHPTotal = floor(playerHPTotal × (1 + planarDurabilityFactor))</div>
-      <p class="muted">Only applies in the tanking simulation. Only available to Warrior, Paladin, and Shadow Knight.</p>
+      <h3>Damage reduction, runes and damage shields</h3>
+      <ul>
+        <li><strong>Warrior Defensive Discipline</strong> applies −50% melee mitigation for 180 seconds on a 15
+          minute reuse, from level 55. It scales the damage band <em>before</em> the damage roll, so it never
+          touches the mob's flat damage bonus — meaning it is worth somewhat less than a flat 50% against
+          high-damage-bonus mobs.</li>
+        <li><strong>Runes</strong> absorb damage 1:1 from a flat pool before your HP is touched. A swing entirely
+          eaten by a rune counts as absorbed, not as a hit.</li>
+        <li><strong>Damage shields</strong> fire back at the mob on every melee hit you take.</li>
+      </ul>
+
+      <h3>Natural and Planar Durability</h3>
+      <div class="formula">maxHP = maxHP × (1 + NaturalDurability%) × (1 + PlanarDurability%)</div>
+      <p class="muted">Natural Durability gives 2/5/10%; Planar Durability adds 1.5/3/4.5% on top (Warrior, Paladin, Shadow Knight).</p>
     </div>
 
     <div class="card">
       <h2>15) Tanking Simulation — Riposte Counter-Damage <span class="badge badge-game">In-Game Mechanic</span></h2>
       <p>
-        When a riposte succeeds, the mob's swing is negated <em>and</em> the player deals counter-damage using their mainhand weapon and offense stats. The counter-damage uses the same RollD20 / damage roll logic as a player melee swing, but against mob mitigation (derived from mob AC).
+        A successful riposte negates the swing <em>and</em> counter-attacks with your main hand. The counter-attack
+        is a full attack in its own right, so <strong>the mob can dodge, parry, riposte, block or simply avoid it</strong>
+        — the report shows how many of your counters actually connected.
       </p>
+      <p>A mob that is enraged, or flagged riposte-immune, cannot be riposted at all.</p>
 
-      <h3>Double Riposte AA (Luclin class — War/Pal/Rng/SK/Monk/Rog/Bst)</h3>
-      <p>
-        After a successful riposte counter-attack is rolled, there is an additional chance to perform a <em>second</em> counter-attack on the same swing:
-      </p>
-      <div class="formula">P(double riposte extra hit) = 15% / 35% / 50% at rank 1/2/3</div>
-      <p>
-        <strong>Flash of Steel AA</strong> (War/Pal/Rng/SHD/Monk/Rog/Bst, PoP, ranks 1–3): adds +10%/+20%/+30% to the double-riposte chance, stacking additively with Double Riposte.
-      </p>
-      <div class="formula">totalDoubleRiposteChance = doubleRiposteBaseChance + flashOfSteelBonus</div>
-      <p class="muted">The second hit is a full independent riposte damage roll — it does not affect whether the swing was negated (riposte always negates). Both hits are credited to <code>riposteDamageTotal</code>.</p>
+      <h3>Double Riposte and Flash of Steel</h3>
+      <div class="formula">P(second counter-attack) = DoubleRiposte(15/35/50%) + FlashOfSteel(10/20/30%)</div>
 
-      <h3>Return Kick AA (Luclin class — Monk only)</h3>
-      <p>
-        After a successful riposte, the monk has a chance to automatically perform a bonus Flying Kick as a counter-attack:
-      </p>
-      <div class="formula">P(return kick fires) = 25% / 35% / 50% at rank 1/2/3</div>
+      <h3>Return Kick (Monk)</h3>
+      <div class="formula">P(bonus flying kick after a riposte) = 25% / 35% / 50%</div>
       <p class="muted">
-        Return Kick damage is approximated using the same riposte damage formula (player weapon stats vs mob AC). In the report, Return Kick hits are counted separately under the Riposte section.
+        While Defensive Discipline is running your own damage output is cut by 55%, which applies to these
+        counter-attacks too.
       </p>
     </div>
 
     <div class="card">
-      <h2>16) Tanking Simulation — Survivability <span class="badge badge-game">In-Game Mechanic</span></h2>
+      <h2>16) Tanking Simulation — Survivability and the CH Chain <span class="badge badge-sim">Sim Feature</span></h2>
       <p>
-        The sim tracks HP across the fight. Each mob swing that lands reduces HP by its rolled damage. Between rounds, HP recovers from regen:
-      </p>
-      <div class="formula">HPgained = netRegenPerSec × (mobAttackDelayMs / 1000)</div>
-      <div class="formula">netRegenPerSec = (playerHPRegen + healerHPS) − 0  (no drain modeled)</div>
-      <p>
-        When HP hits 0, the sim records the time of death as <strong>survival time</strong>. If HP never drops to 0, survival time is reported as "survived full fight."
-      </p>
-      <p>
-        <strong>CH chain simulation <span class="badge badge-sim">Sim Feature</span>:</strong> The report always computes a Complete Heal chain estimate. Complete Heal fills the tank to full HP (player's total HP). The CH cast time is configurable (default 10s for an unmodified Cleric CH). The estimate shows max safe interval (HP ÷ DTPS), recommended interval (with 1.5× safety factor), clerics needed, and the HP threshold at which a cleric must begin casting.
+        The simulation records every point of damage along with the time it landed. That timeline is what drives
+        the Complete Heal chain analysis, and it is the reason the answer can be trusted.
       </p>
 
-      <h3>Key survivability metrics in the report</h3>
+      <h3>Why averages are not enough</h3>
+      <p>
+        The obvious approach is <code>maxInterval = HP ÷ DTPS</code>. It is also wrong, because tanks do not die to
+        average damage — they die to a flurry landing on top of a double attack and a nuke. Two mobs with identical
+        DTPS can need very different chains.
+      </p>
+      <p>
+        So instead of dividing and applying a guessed safety factor, the sim <strong>replays each recorded fight</strong>
+        with a Complete Heal landing every <em>T</em> seconds and counts how often you actually die. Sweeping <em>T</em>
+        produces a measured risk curve.
+      </p>
+
       <table>
-        <thead><tr><th>Metric</th><th>What it means</th></tr></thead>
+        <thead><tr><th>Reported figure</th><th>What it means</th></tr></thead>
         <tbody>
-          <tr><td>DTPS</td><td>Damage taken per second (before regen/heals).</td></tr>
-          <tr><td>Effective DTPS</td><td>DTPS minus net regen/healer HPS.</td></tr>
-          <tr><td>Survival time</td><td>Seconds until death with no heals (from HP / DTPS).</td></tr>
-          <tr><td>Avoidance rate</td><td>% of swings negated by miss + block + parry + riposte + dodge.</td></tr>
-          <tr><td>Mitigation %</td><td>Average reduction on landed hits vs the mob's theoretical max hit.</td></tr>
-          <tr><td>Riposte DPS</td><td>Outgoing counter-damage per second from all riposte hits (including Double Riposte and Return Kick).</td></tr>
+          <tr><td>Max safe CH interval</td><td>The longest gap between heals that still keeps death risk under 1%.</td></tr>
+          <tr><td>Death risk by interval</td><td>How quickly survival falls apart as the chain slips.</td></tr>
+          <tr><td>Burst damage in one cast</td><td>Median, 95th, 99th percentile and worst observed damage inside a single CH cast.</td></tr>
+          <tr><td>Clerics needed</td><td><code>ceil(cast time ÷ safe interval)</code> — how many healers must rotate.</td></tr>
+          <tr><td>CH call threshold</td><td>The HP at which a cleric must <em>begin</em> casting, sized from 99th-percentile burst rather than the mean.</td></tr>
+          <tr><td>Death rate</td><td>Share of runs in which you died unhealed, with the spread of death times.</td></tr>
         </tbody>
       </table>
+
+      <p class="muted">
+        The report also prints the naive <code>HP ÷ DTPS</code> figure for comparison. On a spiky mob it is
+        noticeably optimistic, and the gap between the two numbers is exactly the burst risk the average hides.
+        More runs and longer fights sharpen the estimate.
+      </p>
+
+      <h3>Damage source breakdown</h3>
+      <p>
+        The report splits damage taken by where it came from — main hand, off hand, double attacks, flurries,
+        kicks and bashes, spells, DoTs and procs — so you can tell whether you need more mitigation, a slow, or
+        resistance gear.
+      </p>
     </div>
 
     <div class="card">
