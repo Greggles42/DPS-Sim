@@ -197,6 +197,20 @@
       if (realEffectIds[si] === SE_STUN) { hasStun = true; break; }
     }
     var hasHpDamage = damage != null && damage > 0;
+    /** EQEmu SE 55: Rune (absorb incoming damage up to runeValue HP). Generates hate when proc'd from a weapon. */
+    var SE_RUNE = 55;
+    var runeValue = 0;
+    var eid1Raw = spell['effectid1'];
+    if (eid1Raw !== undefined && eid1Raw !== null) {
+      var eff1 = typeof eid1Raw === 'number' ? eid1Raw : parseInt(String(eid1Raw), 10);
+      if (eff1 === SE_RUNE) {
+        var rv1 = spell['effect_base_value1'];
+        if (rv1 !== undefined && rv1 !== null) {
+          var rvn = typeof rv1 === 'number' ? rv1 : parseInt(String(rv1), 10);
+          if (!isNaN(rvn) && rvn > 0) runeValue = rvn;
+        }
+      }
+    }
     var out = {
       name: name,
       damage: damage,
@@ -209,6 +223,7 @@
     if (bonusHate !== 0) out.bonusHate = bonusHate;
     if (targettype != null) out.targettype = targettype;
     if (!isDetrimentalSpell) out.beneficial = true;
+    if (runeValue > 0) out.runeValue = runeValue;
     if (isDetrimentalSpell && (damage == null || damage <= 0) && !isSe92OnlyHateSpell) out.nonDamagingDetrimental = true;
     if (isDetrimentalSpell && hasHpDamage && hasStun) out.ccAddsMobHpThreat = true;
     // Build class bitmask: classesN field = min level to cast (255 = cannot cast). Matches CLASS_BITMASK bit order.

@@ -1495,6 +1495,26 @@
       if (report.fistweaving) report.fistweaving.swingThreat += h;
     }
     /**
+     * Self-rune proc hate: hate = runeValue * 2, modified by spellHateModPercent, capped at 400 if the player
+     * cannot natively cast the spell (procThreatCap === 400). Subject to a 50% witness check (per EQMacEmu:
+     * beneficial self-cast spells have a 50% chance NOT to register hate on any given NPC). The sim has one
+     * NPC target so one witness roll is made. Mez/stun divide hate by 4, but the sim assumes target is unmezzed.
+     */
+    function addRuneHate(runeValue, weaponSlot, rng) {
+      if (!T || !T.selfCastRuneHate) return;
+      const w = weaponSlot === 1 ? w1 : weaponSlot === 2 ? w2 : null;
+      const hateModPercent = (options.spellHateModPercent != null && !isNaN(options.spellHateModPercent)) ? options.spellHateModPercent : 0;
+      const cap = (w && w.procThreatCap != null) ? w.procThreatCap : null;
+      const hate = T.selfCastRuneHate(runeValue, hateModPercent, cap);
+      if (hate <= 0) return;
+      // Witness check: 50% chance hate does NOT register on the NPC.
+      if (rng() < 0.5) return;
+      procThreatAcc += hate;
+      totalThreatAcc += hate;
+      if (weaponSlot === 1) report.weapon1.procThreat += hate;
+      else if (weaponSlot === 2) report.weapon2.procThreat += hate;
+    }
+    /**
      * includeFlatHate: false for DoT ticks (flat hate applies once on instant proc, not each tick).
      * baseThreatDmg: spell base damage (before resists/crits). isNonDamagingDetrimental: detrimental CC/no-DD proc uses maxHP/15 hate.
      */
@@ -2319,6 +2339,9 @@
               report.weapon1.procResists++;
             }
             if (effectiveness > 0) addProcThreatAmt(0, 1, true, true);
+          } else if (w1.procSpellIsSelfRune && w1.procSpellRuneValue > 0) {
+            // Self-rune: no mob damage; generates hate with 50% witness check.
+            addRuneHate(w1.procSpellRuneValue, 1, procRng);
           } else {
             let actualDmg = Math.floor(procDmg * effectiveness / 100);
             const scfResult1 = applySpellCastingFuryProc(actualDmg, options, procRng);
@@ -2415,6 +2438,9 @@
                     report.weapon2.procResists++;
                   }
                   if (effectiveness > 0) addProcThreatAmt(0, 2, true, true);
+                } else if (w2.procSpellIsSelfRune && w2.procSpellRuneValue > 0) {
+                  // Self-rune: no mob damage; generates hate with 50% witness check.
+                  addRuneHate(w2.procSpellRuneValue, 2, procRng);
                 } else {
                   let actualDmg = Math.floor(procDmg * effectiveness / 100);
                   const scfResult2 = applySpellCastingFuryProc(actualDmg, options, procRng);
@@ -2553,6 +2579,9 @@
                 report.weapon2.procResists++;
               }
               if (effectiveness > 0) addProcThreatAmt(0, 2, true, true);
+            } else if (w2.procSpellIsSelfRune && w2.procSpellRuneValue > 0) {
+              // Self-rune: no mob damage; generates hate with 50% witness check.
+              addRuneHate(w2.procSpellRuneValue, 2, procRng);
             } else {
               let actualDmg = Math.floor(procDmg * effectiveness / 100);
               const scfResult2 = applySpellCastingFuryProc(actualDmg, options, procRng);

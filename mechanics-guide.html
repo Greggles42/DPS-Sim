@@ -175,6 +175,16 @@
         <li>
           <strong>Flat proc hate (SE 92)</strong> — <code>effect_base_value</code> on SE 92 is applied once per instant proc (not each DoT tick), signed: positive adds hate, negative reduces it (e.g. Khalshazar's Deceit). Spells that are <strong>only</strong> SE 92 (no HP damage) do not use the max-HP/15 non-DD bucket—they use this flat value only.
         </li>
+        <li>
+          <strong>Proc threat (self-rune)</strong> — Some weapons proc a rune effect (EQEmu SE 55) that absorbs incoming damage for the player. When detected as the <strong>first effect in slot 0</strong> of the proc spell, the sim generates hate on the target equal to <code>runeValue &times; 2</code>, where <code>runeValue</code> is the HP absorb amount from that first effect slot (e.g. Rune III absorbs 168, generating base hate 336). This hate is:
+          <ul>
+            <li>Modified by worn/spell/AA hate mod percent (SPA 179; currently no UI field — defaults to 0).</li>
+            <li>Capped at <strong>400</strong> if the player's class cannot natively cast the proc spell; otherwise uncapped.</li>
+            <li>Subject to a <strong>witness check</strong>: each NPC that is already on the player's hate list has a <strong>50% chance to NOT register</strong> the hate from this proc. The sim has a single NPC target, so one roll is made per proc fire.</li>
+            <li>Mezzed or stunned NPCs would receive only ¼ the hate; the sim assumes the target is never mezzed (stun has no hate reduction in the sim).</li>
+          </ul>
+          Rune procs deal no damage to the mob and appear only in the proc count and proc threat totals, not in DPS. Examples: Runed Blade (Rune III), Sword of Rile (Steelskin), Silver Whip of Rage (Silver Skin).
+        </li>
       </ol>
 
       <h3>2.3) Components of total threat (ranged)</h3>
@@ -187,7 +197,7 @@
       <ul>
         <li>Threat from casting player spells, heals, buffs, or non-weapon abilities (not simulated).</li>
         <li>Separate "damage-based" hate for specials (the sim does not add threat equal to special hit damage).</li>
-        <li>Rune absorb, mez/root flat hate tables, etc., unless modeled elsewhere in the future.</li>
+        <li>Mez/root flat hate tables and other non-proc beneficial spell hate (not simulated).</li>
       </ul>
 
       <h3>2.5) Practical example (melee, rounded)</h3>

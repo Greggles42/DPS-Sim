@@ -2877,6 +2877,7 @@
   <section class="advanced-only" style="margin-top: 1rem;">
     <h2>Version log</h2>
     <ul style="font-size: 0.9rem; color: var(--muted); margin: 0; padding-left: 1.25rem;">
+      <li><strong>1.36.8</strong> — Self-rune weapon procs (EQEmu SE 55 in effect slot 0, e.g. Rune III, Steelskin, Silver Skin) now generate hate instead of being silently skipped. Hate = <code>runeValue × 2</code>, modified by worn/spell/AA hate mod percent (no UI field yet; defaults to 0), capped at 400 if the player's class cannot natively cast the proc spell. Subject to a witness check: 50% chance per NPC that hate does NOT register (one roll per proc fire against the single sim target). Mezzed/stunned targets would receive ¼ hate; the sim assumes the target is never mezzed. Fix: <code>procSpellIsSelfRune</code>, <code>procSpellRuneValue</code>, and <code>procThreatCap</code> were being set on the weapon object after <code>getWeapon()</code> but were never included in the explicit property copy used to build <code>options.weapon1</code> / <code>options.weapon2</code> passed into <code>runFight</code> — rune hate was silently zero. Fixed by adding all three to <code>w1ProcResist</code> / <code>w2ProcResist</code>. Also propagated through the DB-load inline block (<code>normalizeRawItemFromList</code>) and <code>normalizedToWeapon1</code> for the rank weapons path. Mechanics guide updated (section 2.2).</li>
       <li><strong>1.36.7</strong> — Fix: offhand proc threat missing from rank weapons TPS in the top-40 averaging phase. Both the offhand-only path and the combinations+secondary path were building the weapon2 object inline, omitting <code>procSpellBonusHate</code>, <code>procSpellNonDamagingDetrimental</code>, and <code>procSpellCcAddsMobHpThreat</code>. Weapons with flat-hate procs (e.g. Blade of Carnage / Enraging Blow) or CC/stun procs showed only swing threat for the offhand TPS column in averaged results. Fixed by switching both paths to <code>normalizedToWeapon1(p2, false)</code>, matching every other rank phase.</li>
       <li><strong>1.36.6</strong> — Fix: proc hate from non-damaging detrimental spells (e.g. stun-only procs) and the extra mob-HP hate slice from DD+stun procs were not capped at 400. Both now apply the same 400-per-event cap as direct-damage procs. Flat SE-92 hate values (<code>procSpellBonusHate</code>, e.g. Enraging Blow) are excluded from this cap and continue to apply without limit. Updated mechanics guide section 2.2 to document the cap on both affected paths.</li>
       <li><strong>1.36.5</strong> — Fix: removed "Grats Bloodfrenzy" (item 2661, GM weapon) from the weapon database. Docs: clarified in mechanics guide sections 5 and 7 that <code>damageBonus</code> applies to <strong>mainhand swings only</strong> — offhand swings always use <code>damageBonus = 0</code>. The sim code was already correct; this is a documentation clarification.</li>
@@ -3355,7 +3356,7 @@
       }
 
       // When releasing: 1) Bump VERSION below. 2) Add a new <li> at the top of the Version log section above.
-      const VERSION = '1.36.7';
+      const VERSION = '1.36.8';
       const versionEl = $('app-version');
       if (versionEl) versionEl.textContent = 'v' + VERSION;
 
@@ -4881,10 +4882,18 @@
             else delete weapon1.procSpellNonDamagingDetrimental;
             if (sd1.ccAddsMobHpThreat) weapon1.procSpellCcAddsMobHpThreat = true;
             else delete weapon1.procSpellCcAddsMobHpThreat;
-            // Beneficial non-damaging procs (buffs/runes/shielding) have no DPS impact — skip proc simulation
-            if (sd1.beneficial && (sd1.damage == null || sd1.damage <= 0)) {
-              weapon1.procSpell = null;
-              weapon1.procSpellId = undefined;
+            // Self-rune procs (SE_Rune in effect slot 0): no DPS, but generate hate — keep proc active.
+            if (sd1.runeValue != null && sd1.runeValue > 0) {
+              weapon1.procSpellIsSelfRune = true;
+              weapon1.procSpellRuneValue = sd1.runeValue;
+            } else {
+              delete weapon1.procSpellIsSelfRune;
+              delete weapon1.procSpellRuneValue;
+              // Other beneficial non-damaging procs (buffs, shielding): skip proc simulation entirely.
+              if (sd1.beneficial && (sd1.damage == null || sd1.damage <= 0)) {
+                weapon1.procSpell = null;
+                weapon1.procSpellId = undefined;
+              }
             }
             // Threat cap: if player class cannot cast this proc, cap at 400; if they can cast it, no cap.
             if (sd1.classesMask != null && typeof ItemSearch !== 'undefined' && ItemSearch.CLASS_BITMASK) {
@@ -4908,10 +4917,18 @@
             else delete weapon2.procSpellNonDamagingDetrimental;
             if (sd2.ccAddsMobHpThreat) weapon2.procSpellCcAddsMobHpThreat = true;
             else delete weapon2.procSpellCcAddsMobHpThreat;
-            // Beneficial non-damaging procs (buffs/runes/shielding) have no DPS impact — skip proc simulation
-            if (sd2.beneficial && (sd2.damage == null || sd2.damage <= 0)) {
-              weapon2.procSpell = null;
-              weapon2.procSpellId = undefined;
+            // Self-rune procs (SE_Rune in effect slot 0): no DPS, but generate hate — keep proc active.
+            if (sd2.runeValue != null && sd2.runeValue > 0) {
+              weapon2.procSpellIsSelfRune = true;
+              weapon2.procSpellRuneValue = sd2.runeValue;
+            } else {
+              delete weapon2.procSpellIsSelfRune;
+              delete weapon2.procSpellRuneValue;
+              // Other beneficial non-damaging procs (buffs, shielding): skip proc simulation entirely.
+              if (sd2.beneficial && (sd2.damage == null || sd2.damage <= 0)) {
+                weapon2.procSpell = null;
+                weapon2.procSpellId = undefined;
+              }
             }
             // Threat cap: if player class cannot cast this proc, cap at 400; if they can cast it, no cap.
             if (sd2.classesMask != null && typeof ItemSearch !== 'undefined' && ItemSearch.CLASS_BITMASK) {
@@ -5042,14 +5059,20 @@
           procSpellResistModifier: weapon1.procSpellResistModifier,
           procSpellNoPartialResist: weapon1.procSpellNoPartialResist,
           procSpellMovementEffect: weapon1.procSpellMovementEffect,
-          procSpellTargetType: weapon1.procSpellTargetType
+          procSpellTargetType: weapon1.procSpellTargetType,
+          procThreatCap: weapon1.procThreatCap,
+          procSpellIsSelfRune: weapon1.procSpellIsSelfRune,
+          procSpellRuneValue: weapon1.procSpellRuneValue
         } : {};
         const w2ProcResist = useWeapon2 && weapon2 ? {
           procSpellResistType: weapon2.procSpellResistType,
           procSpellResistModifier: weapon2.procSpellResistModifier,
           procSpellNoPartialResist: weapon2.procSpellNoPartialResist,
           procSpellMovementEffect: weapon2.procSpellMovementEffect,
-          procSpellTargetType: weapon2.procSpellTargetType
+          procSpellTargetType: weapon2.procSpellTargetType,
+          procThreatCap: weapon2.procThreatCap,
+          procSpellIsSelfRune: weapon2.procSpellIsSelfRune,
+          procSpellRuneValue: weapon2.procSpellRuneValue
         } : {};
         var equippedBackstabModPercent = classId === 'rogue' ? Math.max(
           (w1BackstabModPercent != null && !isNaN(Number(w1BackstabModPercent))) ? Number(w1BackstabModPercent) : 0,
@@ -5847,6 +5870,10 @@
               if (spellData.bonusHate != null && spellData.bonusHate !== 0) result.procSpellBonusHate = spellData.bonusHate;
               if (spellData.nonDamagingDetrimental) result.procSpellNonDamagingDetrimental = true;
               if (spellData.ccAddsMobHpThreat) result.procSpellCcAddsMobHpThreat = true;
+              if (spellData.runeValue != null && spellData.runeValue > 0) {
+                result.procSpellIsSelfRune = true;
+                result.procSpellRuneValue = spellData.runeValue;
+              }
             }
           }
         }
@@ -5961,6 +5988,10 @@
               if (spellData.bonusHate != null && spellData.bonusHate !== 0) result.procSpellBonusHate = spellData.bonusHate;
               if (spellData.nonDamagingDetrimental) result.procSpellNonDamagingDetrimental = true;
               if (spellData.ccAddsMobHpThreat) result.procSpellCcAddsMobHpThreat = true;
+              if (spellData.runeValue != null && spellData.runeValue > 0) {
+                result.procSpellIsSelfRune = true;
+                result.procSpellRuneValue = spellData.runeValue;
+              }
             }
           }
         }
@@ -5987,6 +6018,7 @@
         if (norm.procSpellBonusHate != null && norm.procSpellBonusHate !== 0) w.procSpellBonusHate = norm.procSpellBonusHate;
         if (norm.procSpellNonDamagingDetrimental) w.procSpellNonDamagingDetrimental = true;
         if (norm.procSpellCcAddsMobHpThreat) w.procSpellCcAddsMobHpThreat = true;
+        if (norm.procSpellIsSelfRune) { w.procSpellIsSelfRune = true; w.procSpellRuneValue = norm.procSpellRuneValue; }
         return w;
       }
       async function rankWeapons() {

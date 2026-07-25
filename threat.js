@@ -51,6 +51,23 @@
     return amount != null ? amount | 0 : 0;
   }
 
+  /**
+   * Self-cast rune proc hate (EQMacEmu: beneficial absorb proc generates hate = runeValue * 2).
+   * Modified by hate mod focus effects/AAs (hateModPercent), then capped if player cannot natively cast the spell.
+   * Witness check (50% chance NOT to register) is applied by the caller, not here.
+   * @param {number} runeValue - Absorb amount from effect slot 0 (effectid1 base value).
+   * @param {number} [hateModPercent=0] - Worn/spell/AA hate modifier percentage (e.g. 20 = +20%).
+   * @param {number|null} [cap=null] - Max hate (400 if player cannot cast the spell; null = no cap).
+   */
+  function selfCastRuneHate(runeValue, hateModPercent, cap) {
+    const rv = runeValue != null ? runeValue | 0 : 0;
+    if (rv <= 0) return 0;
+    const mod = (hateModPercent != null && !isNaN(hateModPercent)) ? hateModPercent : 0;
+    let hate = Math.floor(rv * 2 * (100 + mod) / 100);
+    if (cap != null && cap > 0 && hate > cap) hate = cap;
+    return hate;
+  }
+
   /** Bow shot: approximate swing hate from weapon + ammo displayed base damage. */
   function rangedSwingThreat(bowDamage, arrowDamage) {
     const b = bowDamage != null ? bowDamage | 0 : 0;
@@ -65,6 +82,7 @@
     procFlatHate: procFlatHate,
     rangedSwingThreat: rangedSwingThreat,
     detrimentalNonDamageSpellThreat: detrimentalNonDamageSpellThreat,
-    genericMobMaxHpForLevel: genericMobMaxHpForLevel
+    genericMobMaxHpForLevel: genericMobMaxHpForLevel,
+    selfCastRuneHate: selfCastRuneHate
   };
 })(typeof self !== 'undefined' ? self : this);
