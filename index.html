@@ -1590,7 +1590,7 @@
     }
 
     /* ── AA Configurator ─────────────────────────────────────── */
-    #aa-configurator {
+    #aa-configurator, #pet-configurator {
       margin: 0.4rem 0 var(--section-gap);
       border: 1px solid rgba(212, 175, 55, 0.18);
       border-radius: 6px;
@@ -1639,7 +1639,7 @@
     #shared-inventory-display.has-inventory #shared-inventory-body {
       display: block;
     }
-    #aa-configurator summary {
+    #aa-configurator summary, #pet-configurator summary {
       list-style: none;
       display: flex;
       align-items: center;
@@ -1653,14 +1653,14 @@
       text-transform: uppercase;
       user-select: none;
     }
-    #aa-configurator summary::-webkit-details-marker { display: none; }
-    #aa-configurator summary::before {
+    #aa-configurator summary::-webkit-details-marker, #pet-configurator summary::-webkit-details-marker { display: none; }
+    #aa-configurator summary::before, #pet-configurator summary::before {
       content: '▶';
       font-size: 0.6rem;
       color: var(--muted);
       transition: transform 0.15s;
     }
-    #aa-configurator[open] summary::before { transform: rotate(90deg); }
+    #aa-configurator[open] summary::before, #pet-configurator[open] summary::before { transform: rotate(90deg); }
     .aa-config-body {
       padding: 0.5rem 0.75rem 0.75rem;
       display: flex;
@@ -2464,6 +2464,19 @@
       </details>
     </section>
 
+    <!-- Pet DPS Configurator — shared across Melee &amp; Rotation tabs, shown
+         only when the selected class can summon a pet (Magician, Necromancer,
+         Shaman, Shadowknight, Beastlord). Populated by buildPetPanelUI() in
+         JS, which also relocates this single node between the two tabs'
+         anchor points (placePetPanelForActiveTab(), called on tab switch) so
+         its state (checkboxes, selected spell, etc.) persists no matter
+         which tab it's currently displayed under. -->
+    <div id="pet-configurator-anchor-melee" style="display:none;"></div>
+    <details id="pet-configurator" class="grid-full-width" style="display:none;">
+      <summary>Pet</summary>
+      <div class="aa-config-body" id="pet-config-body"></div>
+    </details>
+
     <section class="section--core">
       <h2>Target & Fight</h2>
       <div class="target-npc-name-row">
@@ -2928,6 +2941,8 @@
   </div>
   <div class="grid" style="grid-template-columns:1fr;">
 
+    <div id="pet-configurator-anchor-rotation" style="display:none;"></div>
+
     <!-- ═══════════════════════════════════════════════════════
          CARD 1 — TARGET MOB (RESIST CHECK)
          ═══════════════════════════════════════════════════════ -->
@@ -3094,6 +3109,7 @@
     <details id="version-log-details">
     <summary style="cursor:pointer; font-size:1.17em; font-weight:bold; margin:0; list-style:revert;">Version log</summary>
     <ul style="font-size: 0.9rem; color: var(--muted); margin: 0.5rem 0 0; padding-left: 1.25rem;">
+      <li><strong>1.40</strong> — Added a <strong>Pet DPS</strong> simulation for Magician, Necromancer, Shaman, Shadowknight, and Beastlord: a shared <strong>Pet</strong> panel (positioned below the weapon cards on the Melee tab, at the top of the Spells tab) lets you pick a pet-summon spell from a dropdown — resolved to the pet's real combat stats by joining the spell's <code>teleport_zone</code> field against the NPC database, the same one Target NPC search uses, not an estimate. Simulates the pet's melee output against the same target using the same NPC-style attack engine the Tanking sim uses for the mob's side of a fight (pet as attacker, target mob as defender), and appends <strong>Pet DPS</strong> / <strong>Combined DPS (Player + Pet)</strong> to whichever tab's report was just run. New <strong>Always Dual Wield</strong> toggle models handing the pet a second weapon (real pets are excluded from the native dual-wield ability path server-side and need an actual offhand weapon item) by unlocking a second attack round using the pet's own innate damage. Shadowknight needed no special-casing — SK shares the same skeleton-pet spell line as Necromancer, just unlocked much later, so it resolves through the same class/level pool logic as the other classes. Beastlord adds a <strong>Pet proc buff (optional)</strong> dropdown for the "Spirit of X" line (Lightning/Blizzard/Inferno/...), which grants the pet a chance to proc elemental damage on its own swings — modeled with the same per-swing proc-chance formula already used for player weapon procs, scaled by the 375%-of-baseline rate EQMacEmu hardcodes for exactly those ten spells (<code>Pet::LoadPetPets</code>) rather than each spell's own unused/misleading data field. The single shared Pet panel node is relocated between two anchor points on tab switch so its state persists no matter which tab it's displayed under. New files <code>js/modules/petSpells.js</code> (data pipeline) and <code>js/modules/petCombat.js</code> (combat engine); one-line fix in <code>npcCombat.js</code> so pets correctly skip the 46-50 offense plateau real NPCs get. Out of scope for now: other pet AAs, pet incoming damage/death, and pet flurry/rampage/class-attacks (real pets have no attack AI script). Mechanics guide updated (new section 20).</li>
       <li><strong>1.39</strong> — Tanking tab: added a <strong>DTPS Over Time</strong> line chart above the report, showing damage-taken-per-second across one representative simulated run (bucketed instantaneous line plus a trailing 15s average, with a dashed reference line for the averaged DTPS across all runs and a marker on the single largest hit) so burst/spike shape is visible instead of hidden inside the averaged headline DTPS figure. <code>runTankingAnalysis</code> now keeps the first run's full damage timeline (<code>sampleTimeline</code>) for this purpose since averaging across runs discards it. Mechanics guide updated (section 16).</li>
       <li><strong>1.38</strong> — Spells (rotation) tab: added <strong>Spell Casting Fury Mastery</strong> and <strong>Quick Damage</strong> AAs (both require Spell Casting Fury rank 3). Mastery adds another 2/4/7% spell crit chance per rank, stacking additively with Spell Casting Fury's own chance (no extra damage bonus — that's fixed by Spell Casting Fury's rank alone, per <code>Client::GetActSpellDamage</code>). Quick Damage cuts cast time 2/5/10% per rank on direct-damage nukes/rains over 4s (DoTs unaffected), matching <code>Client::GetActSpellCastingTime</code>'s gate in <code>effects.cpp</code>. Both wired into the AA Configurator, inventory-import AA mapping (eqmacid 114 and 44), and the rotation report/gear-summary cards. Version log is now a collapsible section. Report bug/feature form now opens a pre-filled GitHub "new issue" page directly instead of depending on a serverless proxy, and has a Discord/in-game character name field instead of email.</li>
       <li><strong>1.37</strong> — <strong>Tanking mode overhauled.</strong> The mob's attack sequence previously ran on a single fixed cadence; it now runs the independent timers the server uses (<code>mob_ai.cpp</code> <code>AI_Process</code>), so everything on the other timers finally contributes. <strong>New mob mechanics:</strong> <code>special_abilities</code> is parsed (<code>emu_constants.h</code> <code>SpecialAbility</code>) giving dual wield (a separate off-hand round with its own double attack), flurry (a full extra round plus a doubled class attack), rampage/area rampage, and enrage (no ripostes below 10% mob HP, modelled only when a Group DPS figure is supplied); NPC class attacks (kick/bash/backstab/monk specials) on their own haste-scaled 8s timer, running the full hit/avoidance/damage chain and rolling a 2-second stun during which the player avoids nothing; NPC spell casting via <code>AI_EngagedCastCheck</code> with nukes, DoTs and stuns resolved against player resists, plus NPC weapon procs. <strong>Double attack fix:</strong> was gated by a hardcoded 6-class table leaving most mobs at 0% — the server gives it to <em>every</em> NPC above level 7 at <code>(skill + level) / 500</code>, so a level 60 mob double attacks ~62% of the time. <strong>Mob slow/haste</strong> is now modelled, honouring the mob's <code>slow_mitigation</code>. <strong>AC and avoidance corrections</strong> (<code>Client::GetMitigation</code>, <code>Client::GetAvoidance</code>): Combat Stability raises the AC <em>softcap</em> rather than multiplying final mitigation, so it correctly does nothing below the cap; Combat Agility multiplies avoidance instead of subtracting from hit chance; shield AC is a new bucket added uncapped to the softcap from Luclin on; buff AC was being fed into the worn-AC bucket (×4/3) instead of the spell-AC bucket (÷4), overstating it roughly fivefold; added the Iksar racial bonus, the monk carried-weight curve, the Kunark warrior 405 cap, and the %-bonus step that applies before each avoidance divisor. <strong>Riposte counter-attacks</strong> now go through the mob's own block/parry/riposte/dodge and hit roll (<code>DoRiposte</code> calls a full <code>Attack</code>), so they can be avoided. <strong>New effects:</strong> Warrior Defensive (−50% melee mitigation) and Evasive (+50% avoidance) disciplines on their real 180s/900s timers, rune absorb pools, and player damage shields. <strong>Complete Heal chain rewritten:</strong> the old <code>HP ÷ DTPS × 1.5</code> guess is replaced by replaying each run's recorded damage timeline against candidate heal intervals and measuring actual death rate — reporting max safe interval at &lt;1% risk, a death-risk curve, burst percentiles within one cast, clerics needed, and a call threshold sized from 99th-percentile burst. <strong>Fix (affects the melee tab too):</strong> the inventory AA import mapped ranks to the wrong AAs entirely — <code>AAIndex</code> numbers are the client's <code>eqmacid</code>, so 13/17/97/120/211 are Innate Run Speed, First Aid, Critical Mend, Physical Enhancement and Fleet of Foot, not Combat Fury/Combat Stability/Return Kick/Double Riposte/Master Wu. Map corrected and extended to Innate Defense, Lightning Reflexes, Planar Durability and Flash of Steel, which previously could not be imported. Import now also fills shield AC, resists, carried weight, and defensive skills defaulted to class/level caps. <strong>Target picker:</strong> NPC rows that share a name and are identical in every simulated stat are collapsed to one entry (18,127 → 16,803), keeping the lowest id; mobs that genuinely differ still list separately. New data file <code>resources/npc_spells.json</code> (915 lists) built by <code>tools/extract-npc-spells.js</code> from the Quarm DB dump. Engine split into <code>npcCombat.js</code>, <code>playerDefense.js</code>, <code>npcSpells.js</code> and <code>healChain.js</code>; <code>combat.js</code> is unchanged. Mechanics guide sections 12.5–16 rewritten, including a correction: the avoidance skill checks resolve <em>before</em> the hit roll, not after.</li>
@@ -3258,6 +3274,8 @@
   <script src="js/modules/rotationResist.js"></script>
   <script src="js/modules/itemFocus.js"></script>
   <script src="js/modules/rotationEngine.js"></script>
+  <script src="js/modules/petSpells.js"></script>
+  <script src="js/modules/petCombat.js"></script>
   <script src="js/ui/usageLog.js"></script>
   <script src="combat.js"></script>
   <script src="weaponSkillCaps.js"></script>
@@ -3629,7 +3647,7 @@
       }
 
       // When releasing: 1) Bump VERSION below. 2) Add a new <li> at the top of the Version log section above.
-      const VERSION = '1.39';
+      const VERSION = '1.40';
       const versionEl = $('app-version');
       if (versionEl) versionEl.textContent = 'v' + VERSION;
 
@@ -5730,6 +5748,13 @@
           const capSkillKey = skillKeyForCap(w1WeaponType, weapon1.is2H);
           const skillCap = WeaponSkillCaps.getCapForSimClass(classId, capSkillKey, level);
           reportText = '  Weapon skill cap (' + capSkillKey + '): ' + skillCap + ' (Quarm/TAKP)\n\n' + reportText;
+        }
+        if (typeof runPetSimIfEnabled === 'function') {
+          var petResult = runPetSimIfEnabled({ targetLevel: mobLevel, durationSec: durationSec });
+          if (petResult) {
+            var playerDpsForPet = report.durationSec ? (report.totalDamage / report.durationSec) : 0;
+            reportText += '\n' + formatPetReportBlock(petResult, playerDpsForPet);
+          }
         }
         $('report').textContent = reportText;
         (function () {
@@ -8238,6 +8263,8 @@
         if (tabId === 'ranged') updateRangedNonRangerWarning();
         if (tabId === 'rotation' && typeof refreshRotationSpellPool === 'function') refreshRotationSpellPool();
         if (typeof buildAAConfiguratorUI === 'function') buildAAConfiguratorUI();
+        if (typeof placePetPanelForActiveTab === 'function') placePetPanelForActiveTab();
+        if (typeof buildPetPanelUI === 'function') buildPetPanelUI();
         // INT/WIS rows in the stat table only render while the Spells tab is
         // active (see CASTER_ONLY_STAT_KEYS) — re-render on every switch.
         if (typeof renderStatDistributor === 'function') renderStatDistributor();
@@ -8435,6 +8462,7 @@
         aaConfig.spellCastingFury = (assumptions.level === 60 && easyClassHasSpellCastingFury(classId)) ? 3 : 0;
         aaConfig.slayUndead = (assumptions.level === 60 && classId === 'paladin') ? 3 : 0;
         if (typeof buildAAConfiguratorUI === 'function') buildAAConfiguratorUI();
+        if (typeof buildPetPanelUI === 'function') buildPetPanelUI();
       }
       function getEasyWeaponDisplay(prefix) {
         var d = parseInt($(prefix + '-damage').value, 10) || 0; var dl = parseInt($(prefix + '-delay').value, 10) || 0;
@@ -8994,6 +9022,7 @@
         const ambidextrousClasses = ['warrior', 'ranger', 'monk', 'bard', 'rogue', 'beastlord'];
         aaConfig.ambidexterity = (level >= 60 && ambidextrousClasses.includes(classId)) ? 1 : 0;
         if (typeof buildAAConfiguratorUI === 'function') buildAAConfiguratorUI();
+        if (typeof buildPetPanelUI === 'function') buildPetPanelUI();
       }
       function onClassOrLevelChange(opts) {
         opts = opts || {};
@@ -9117,6 +9146,7 @@
         onClassOrLevelChange({ clampOnly: false });
         lastMeleeLevel = parseInt(($('level') && $('level').value) || '60', 10) || 60;
         if (typeof buildAAConfiguratorUI === 'function') buildAAConfiguratorUI();
+        if (typeof buildPetPanelUI === 'function') buildPetPanelUI();
         updateRangedNonRangerWarning();
         if (typeof window.refreshRotationSpellPool === 'function') window.refreshRotationSpellPool();
       });
@@ -10721,9 +10751,228 @@
         });
       })();
 
+      // ============================================================
+      // Pet DPS panel — shared across the Melee and Rotation tabs.
+      // Magician/Necromancer/Shaman/Shadowknight summon a pet that fights
+      // alongside the player; this panel lets the user pick which pet-summon
+      // spell to simulate and folds the pet's own DPS into whichever tab's
+      // report was just run. See js/modules/petSpells.js (data) and
+      // js/modules/petCombat.js (combat engine) for the actual sim.
+      // ============================================================
+      var PET_CLASSES = ['shadowknight', 'necromancer', 'shaman', 'magician', 'beastlord'];
+      function isPetClass(classId) {
+        return PET_CLASSES.indexOf((classId || '').toLowerCase()) >= 0;
+      }
+
+      // Cache of the last-rendered pool, keyed by class+level, so
+      // getSelectedPetPoolEntry() can resolve the <select>'s value without
+      // re-deriving it (same convention as _rotationCurrentPool).
+      var _petCurrentPool = [];
+      var _petCurrentProcPool = [];
+
+      /**
+       * The Pet panel is a single shared DOM node (one set of control ids,
+       * one piece of state) rather than a per-tab copy, so a checkbox set on
+       * one tab is still checked when you switch to the other. But the user
+       * wants it to sit below the weapon cards on the Melee tab specifically
+       * — which has no equivalent on the Rotation tab (casters have no
+       * weapons) — so instead of a fixed position in the HTML, this moves
+       * the actual node between two anchor points on every tab switch.
+       * Moving a DOM node does not reset its state (checkbox/select values
+       * are node properties, not tied to document position).
+       */
+      function placePetPanelForActiveTab() {
+        var panel = $('pet-configurator');
+        if (!panel) return;
+        var tab = (typeof _activeTab !== 'undefined') ? _activeTab : 'melee';
+        var anchorId = tab === 'rotation' ? 'pet-configurator-anchor-rotation' : 'pet-configurator-anchor-melee';
+        var anchor = $(anchorId);
+        if (!anchor || !anchor.parentNode) return;
+        if (panel.previousSibling !== anchor) {
+          anchor.parentNode.insertBefore(panel, anchor.nextSibling);
+        }
+      }
+
+      function buildPetPanelUI() {
+        var panel = $('pet-configurator');
+        var body = $('pet-config-body');
+        if (!panel || !body || !window.PetSpells) return;
+
+        var classId = ($('class') && $('class').value || '').toLowerCase();
+        if (!isPetClass(classId)) {
+          panel.style.display = 'none';
+          panel.open = false;
+          return;
+        }
+        panel.style.display = '';
+
+        var level = parseInt(($('level') || {}).value, 10) || 1;
+        var pool = window.PetSpells.getPetSummonPool(classId, level);
+        _petCurrentPool = pool;
+
+        // This panel is shared across tabs and re-rendered on every tab
+        // switch/class/level/era change (same trigger list as the AA
+        // Configurator) — not just when the pool itself changes. So every
+        // control's prior value must be read back off the DOM before the
+        // innerHTML rebuild, or switching tabs would silently reset the
+        // user's checkboxes/inputs on every visit.
+        var prevSelect = $('pet-spell-select');
+        var prevSpellId = prevSelect ? prevSelect.value : '';
+        var prevEnabled = $('pet-enabled');
+        var wasEnabled = prevEnabled ? prevEnabled.checked : false;
+        var prevDualWield = $('pet-always-dual-wield');
+        var wasDualWield = prevDualWield ? prevDualWield.checked : false;
+        var prevHaste = $('pet-haste-pct');
+        var prevHasteVal = prevHaste ? prevHaste.value : '0';
+        var prevAc = $('pet-target-ac');
+        var prevAcVal = prevAc ? prevAc.value :
+          (window.selectedTargetNpc && window.selectedTargetNpc.AC != null ? window.selectedTargetNpc.AC : 550);
+        var prevProcSelect = $('pet-proc-buff-select');
+        var prevProcSpellId = prevProcSelect ? prevProcSelect.value : '';
+
+        if (!pool.length) {
+          body.innerHTML = '<p class="hint" style="margin:0;">No pet-summon spell found for this class/level yet.</p>';
+          return;
+        }
+
+        var options = pool.map(function (p, i) {
+          return '<option value="' + p.spellId + '"' + (p.spellId === prevSpellId ? ' selected' : '') + '>' +
+            String(p.spellName).replace(/</g, '&lt;') + ' (pet: ' + String(p.petName).replace(/</g, '&lt;') +
+            ', lvl ' + p.level + ')</option>';
+        }).join('');
+
+        // Only Beastlord has a pet proc buff ("Spirit of X") in this era's
+        // data — everyone else just sees the pet-summon controls above.
+        var procPool = classId === 'beastlord' ? window.PetSpells.getPetProcBuffPool(classId, level) : [];
+        _petCurrentProcPool = procPool;
+        var procRowHtml = '';
+        if (procPool.length) {
+          var procOptions = '<option value="">None</option>' + procPool.map(function (p) {
+            return '<option value="' + p.spellId + '"' + (p.spellId === prevProcSpellId ? ' selected' : '') + '>' +
+              String(p.spellName).replace(/</g, '&lt;') + ' (' + p.procDamage + ' dmg proc)</option>';
+          }).join('');
+          procRowHtml =
+            '<div>' +
+            '<label for="pet-proc-buff-select" class="small-label">Pet proc buff (optional)</label>' +
+            '<select id="pet-proc-buff-select" style="width:100%;">' + procOptions + '</select>' +
+            '</div>';
+        }
+
+        body.innerHTML =
+          '<label style="display:flex;align-items:center;gap:0.4rem;font-size:0.85rem;">' +
+          '<input type="checkbox" id="pet-enabled"' + (wasEnabled ? ' checked' : '') + '> Simulate pet DPS (adds to the report below)</label>' +
+          '<div>' +
+          '<label for="pet-spell-select" class="small-label">Pet summon spell</label>' +
+          '<select id="pet-spell-select" style="width:100%;">' + options + '</select>' +
+          '</div>' +
+          procRowHtml +
+          '<div class="target-fight-row">' +
+          '<div><label style="display:flex;align-items:center;gap:0.4rem;font-size:0.85rem;">' +
+          '<input type="checkbox" id="pet-always-dual-wield"' + (wasDualWield ? ' checked' : '') + '> Always Dual Wield</label></div>' +
+          '<div><label for="pet-haste-pct" class="small-label">Pet Haste %</label>' +
+          '<input type="number" id="pet-haste-pct" value="' + prevHasteVal + '" min="0" style="width:6rem;"></div>' +
+          '<div><label for="pet-target-ac" class="small-label">Pet Target AC</label>' +
+          '<input type="number" id="pet-target-ac" value="' + prevAcVal + '" min="0" style="width:6rem;"></div>' +
+          '</div>' +
+          '<div id="pet-stats-preview" class="hint" style="margin:0;"></div>';
+
+        var selectEl = $('pet-spell-select');
+        function updatePreview() {
+          var previewEl = $('pet-stats-preview');
+          var entry = getSelectedPetPoolEntry();
+          if (!previewEl || !entry) return;
+          previewEl.textContent = entry.petName + ' — level ' + entry.level + ', ' + entry.hp + ' hp, ' +
+            entry.minDamage + '-' + entry.maxDamage + ' dmg, ' + (entry.attackDelayMs / 1000).toFixed(1) + 's delay.';
+        }
+        if (selectEl) selectEl.addEventListener('change', updatePreview);
+        updatePreview();
+      }
+
+      function getSelectedPetPoolEntry() {
+        var selectEl = $('pet-spell-select');
+        if (!selectEl || !selectEl.value) return null;
+        for (var i = 0; i < _petCurrentPool.length; i++) {
+          if (_petCurrentPool[i].spellId === selectEl.value) return _petCurrentPool[i];
+        }
+        return null;
+      }
+
+      /** Beastlord only — the selected "Spirit of X" pet proc buff, or null. */
+      function getSelectedPetProcBuff() {
+        var selectEl = $('pet-proc-buff-select');
+        if (!selectEl || !selectEl.value) return null;
+        for (var i = 0; i < _petCurrentProcPool.length; i++) {
+          if (_petCurrentProcPool[i].spellId === selectEl.value) return _petCurrentProcPool[i];
+        }
+        return null;
+      }
+
+      /**
+       * Runs the pet sim against the same target/duration as whichever tab's
+       * main sim just ran, if the pet panel is enabled and a pet is
+       * selected. Returns null (a true no-op) otherwise, so the two report
+       * hooks that call this stay byte-identical to today's output when the
+       * feature is off.
+       */
+      function runPetSimIfEnabled(o) {
+        var enabledEl = $('pet-enabled');
+        if (!enabledEl || !enabledEl.checked) return null;
+        if (!window.PetCombat) return null;
+        var entry = getSelectedPetPoolEntry();
+        if (!entry) return null;
+
+        var npc = window.selectedTargetNpc;
+        var targetAcEl = $('pet-target-ac');
+        var targetAc = targetAcEl && targetAcEl.value !== '' ? Number(targetAcEl.value)
+          : (npc && npc.AC != null ? Number(npc.AC) : 550);
+        var hasteEl = $('pet-haste-pct');
+        var dwEl = $('pet-always-dual-wield');
+        var procBuff = getSelectedPetProcBuff();
+
+        var result = window.PetCombat.simulatePetFight({
+          petLevel: entry.level, petClassId: entry.npcClassId,
+          petMinDamage: entry.minDamage, petMaxDamage: entry.maxDamage,
+          petAttackDelayMs: entry.attackDelayMs, petAttackCount: entry.attackCount,
+          petAc: entry.ac, petAtk: entry.atk, petAccuracy: entry.accuracy, petDex: entry.dex,
+          petHastePct: hasteEl ? Number(hasteEl.value) || 0 : 0,
+          forceDualWield: !!(dwEl && dwEl.checked),
+          procDamage: procBuff ? procBuff.procDamage : 0,
+          procRatePct: procBuff ? procBuff.procRatePct : 0,
+          targetLevel: o.targetLevel, targetAc: targetAc,
+          targetAvoidance: npc && npc.avoidance != null ? Number(npc.avoidance) : 0,
+          targetClassId: npc && npc.class != null ? Number(npc.class) : 1,
+          fightDurationSec: o.durationSec
+        });
+        if (result.error) return null;
+        result.petName = entry.petName;
+        result.procBuffName = procBuff ? procBuff.spellName : null;
+        return result;
+      }
+
+      /** Formats the "Pet DPS / Combined DPS" block appended to a report. */
+      function formatPetReportBlock(petResult, playerDps) {
+        var combined = playerDps + petResult.dps;
+        var lines = [];
+        lines.push('');
+        lines.push('  Pet DPS (' + petResult.petName + '): ' + Math.round(petResult.dps) +
+          '  (' + petResult.mainhandHits + '/' + petResult.mainhandSwings + ' MH hits' +
+          (petResult.dualWieldActive ? ', ' + petResult.offhandHits + '/' + petResult.offhandSwings + ' OH hits' : '') + ')');
+        if (petResult.procBuffName && petResult.procCount) {
+          lines.push('  └ ' + petResult.procBuffName + ' procs: ' + petResult.procCount +
+            ' (' + Math.round(petResult.procDamageTotal) + ' dmg, ' +
+            (petResult.procDamageTotal / petResult.durationSec).toFixed(2) + ' dps)');
+        }
+        lines.push('  Combined DPS (Player + Pet): ' + Math.round(combined));
+        return lines.join('\n');
+      }
+
       // Expose AA functions for other IIFEs (era-toggle, tanking sim)
       window.buildAAConfiguratorUI = buildAAConfiguratorUI;
       window.buildAASimOptions = buildAASimOptions;
+      window.buildPetPanelUI = buildPetPanelUI;
+      window.placePetPanelForActiveTab = placePetPanelForActiveTab;
+      window.runPetSimIfEnabled = runPetSimIfEnabled;
+      window.formatPetReportBlock = formatPetReportBlock;
 
       // Expose weapon name setter for inventory import (different scope)
       window.setInventoryWeaponNames = function (w1Name, w2Name) {
@@ -10829,6 +11078,7 @@
 
     // Rebuild AA configurator so PoP section shows/hides and dim states update
     if (typeof window.buildAAConfiguratorUI === 'function') window.buildAAConfiguratorUI();
+    if (typeof window.buildPetPanelUI === 'function') window.buildPetPanelUI();
 
     // Notify listeners (e.g. Vah Shir race option visibility)
     document.dispatchEvent(new CustomEvent('gsim:erachange', { detail: { eraId: eraId } }));
@@ -11613,6 +11863,7 @@
         aaConfig[id] = aaRanks[id];
       });
       if (typeof buildAAConfiguratorUI === 'function') buildAAConfiguratorUI();
+      if (typeof buildPetPanelUI === 'function') buildPetPanelUI();
     }
 
     // Update easy-mode weapon summaries to reflect the newly imported proc/weapon info
@@ -12431,6 +12682,10 @@
       var wrapEl = document.getElementById('rotation-report-wrap');
       var timelineEl = document.getElementById('rotation-timeline');
       var dpsChartEl = document.getElementById('rotation-dps-chart');
+      if (typeof runPetSimIfEnabled === 'function') {
+        var rotPetResult = runPetSimIfEnabled({ targetLevel: v('rotation-mob-level', 60), durationSec: config.fightDurationSec });
+        if (rotPetResult) text += '\n' + formatPetReportBlock(rotPetResult, result.dps);
+      }
       if (reportEl) reportEl.textContent = text;
       if (timelineEl) timelineEl.innerHTML = RotationEngine.buildRotationTimelineHtml(result);
       if (dpsChartEl) dpsChartEl.innerHTML = RotationEngine.buildRotationDpsOverTimeHtml(result);

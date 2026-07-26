@@ -305,7 +305,10 @@
    * @param {Object} o
    *   level, classId, minDamage, maxDamage, attackDelay, attackCount, ac, atk,
    *   accuracy, hp, specialAbilities (raw string or parsed object),
-   *   hastePct, slowMitigation, era, npcAvoidance
+   *   hastePct, slowMitigation, era, npcAvoidance, forceDualWield (used by
+   *   the pet DPS sim's "Always Dual Wield" toggle — see petCombat.js),
+   *   isPet (skips the level 46-50 offense plateau real NPCs get; pets are
+   *   exempt from it server-side, same as the existing getOffense param)
    */
   function buildMobProfile(o) {
     var level = o.level != null ? o.level : 60;
@@ -346,7 +349,7 @@
       baseDamage: getBaseDamage(minDmg, maxDmg),
       damageBonus: getDamageBonus(minDmg, maxDmg),
 
-      offense: getOffense(level, isPoP, o.atk || 0, false),
+      offense: getOffense(level, isPoP, o.atk || 0, !!o.isPet),
       toHit: getToHit(level, isPoP, o.accuracy),
       ac: o.ac || 0,
       hp: o.hp || 0,

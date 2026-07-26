@@ -1481,6 +1481,76 @@
       </p>
     </div>
 
+    <div class="card">
+      <h2>20) Pet DPS Simulation <span class="badge badge-sim">Sim Feature</span></h2>
+      <p>
+        Magician, Necromancer, Shaman, Shadowknight, and Beastlord all summon a pet that fights alongside the
+        player. The <strong>Pet</strong> panel (Melee and Spells tabs, shown only for these five classes, positioned
+        below the weapon cards on Melee and at the top of the Spells tab) simulates the pet's own melee output
+        against the same target and adds it to whichever tab's report was just run, so you can see <strong>Pet
+        DPS</strong> and <strong>Combined DPS (Player + Pet)</strong> next to your own number.
+      </p>
+
+      <h3>Where a pet's stats come from</h3>
+      <p>
+        There is no dedicated "pet stats" table in the client data — pet-summon spells are ordinary spells that
+        happen to carry a summon effect, and the specific pet they create is looked up the same way the server does
+        it: the spell's <code>teleport_zone</code> field is repurposed to hold the exact name of the pet's NPC
+        template, which is then resolved against the same NPC database (<code>npc_types</code>) the Target NPC
+        search elsewhere in the sim uses. That gives the pet's real level, HP, min/max melee damage, AC, ATK, DEX,
+        and attack delay — not an estimate. Shadowknight needs no special handling: SK shares the same skeleton-pet
+        spell line as Necromancer in this era, just unlocked at a much higher level, so it falls out of the same
+        class/level scan as the other four.
+      </p>
+      <p class="muted">
+        The <strong>Pet summon spell</strong> dropdown lists every pet-summon spell the selected class can cast by
+        the selected level (a Magician has up to four parallel entries per tier — Earth/Water/Fire/Air — since
+        they're separate spells with identical stats). Pick the one you'd actually memorize.
+      </p>
+
+      <h3>How the pet fights</h3>
+      <p>
+        A summoned pet is coded server-side as an NPC, not a player — it rolls flat min/max melee damage the same
+        way a mob does, not the weapon-rating formula the Melee tab uses for the player's own swings. So the pet sim
+        reuses the same NPC attack engine the Tanking sim uses to simulate a mob attacking the player, just aimed
+        the other way: the pet is the attacker, and the target mob's AC/level/avoidance (from the <strong>Pet Target
+        AC</strong> field, defaulting from a selected Target NPC) stand in for what it's swinging at.
+      </p>
+      <p class="muted">
+        This is a one-directional simulation: it only measures the pet's outgoing damage, not damage the pet takes.
+        The pet is assumed to survive the whole fight — there's no pet death, avoidance-of-incoming-damage, or HP
+        tracking modeled. Flurry, rampage, and class-attacks are also not modeled, since real summoned pets have no
+        attack AI script (every pet's <code>npc_types.npc_spells_id</code> is 0).
+      </p>
+
+      <h3>Always Dual Wield</h3>
+      <p>
+        In-game, a summoned pet only dual-wields if it's physically handed a second weapon — pets are explicitly
+        excluded from the "innate ability" dual-wield path that some regular mobs have (<code>Mob::IsDualWielding</code>
+        skips that check specifically for summoned client pets). The <strong>Always Dual Wield</strong> toggle
+        models the effect of handing the pet a weapon: checking it unlocks a second attack round every swing cycle,
+        using the pet's own innate damage (not a separate weapon item's stats) — matching the in-game payoff of
+        roughly doubling the pet's swing count without needing a weapon-item picker for a pet's off hand.
+      </p>
+
+      <h3>Beastlord pet proc buff ("Spirit of X")</h3>
+      <p>
+        Pets normally have no weapon item and therefore nothing to proc from — with one documented exception.
+        Beastlords can cast a buff directly on their pet (Spirit of Lightning, Spirit of the Blizzard, Spirit of
+        Inferno, ...) that grants it a chance to proc a direct-damage spell on its own melee swings, via the same
+        underlying mechanism as a weapon item proc. If the selected class is Beastlord, the <strong>Pet proc buff
+        (optional)</strong> dropdown lists every one of these your level qualifies for; picking one adds a
+        per-swing proc chance to the pet's simulated damage and shows it as its own line under Pet DPS.
+      </p>
+      <p class="muted">
+        The proc-chance formula is the exact same one this sim already uses for a player's own weapon item procs
+        (<code>Mob::GetProcChance</code> — a function of attack delay and DEX), scaled by the buff's own rate
+        multiplier. That multiplier is hardcoded server-side to 375% of baseline for exactly these ten spells
+        (<code>Pet::LoadPetPets</code>) rather than trusting each spell's own listed rate field, which the sim
+        matches rather than reading the (unused, misleading) data value directly.
+      </p>
+    </div>
+
     <p class="muted">
       Reference implementation: <a href="https://github.com/SecretsOTheP/EQMacEmu/blob/main/zone/attack.cpp" target="_blank" rel="noopener">EQMacEmu attack.cpp</a>.
       Return to <a href="index.html">main simulator</a>.
