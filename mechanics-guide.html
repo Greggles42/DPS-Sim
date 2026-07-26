@@ -1147,6 +1147,19 @@
         kicks and bashes, spells, DoTs and procs — so you can tell whether you need more mitigation, a slow, or
         resistance gear.
       </p>
+
+      <h3>DTPS over time chart</h3>
+      <p>
+        Above the text report is a <strong>DTPS Over Time</strong> line chart. The headline DTPS figure is an
+        average across every simulated run, which is exactly what makes burst damage invisible in a single
+        number — so the chart draws one representative run's actual hit-by-hit timeline instead (fixed seed, the
+        same run every time you re-run identical inputs), bucketed into a jagged instantaneous-DTPS line plus a
+        smoother trailing 15-second average on top. A dashed line marks the averaged DTPS across all runs, so you
+        can see how far this one run's peaks overshoot the mean; the amber dot marks the single largest hit taken
+        in that run, with its source and timestamp on hover. With more than one run configured, a note reminds you
+        this is one run's shape, not the average — re-running will land on a different (but reproducible) spike
+        pattern depending on the seed.
+      </p>
     </div>
 
     <div class="card">

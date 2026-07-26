@@ -2906,7 +2906,9 @@
     </section>
 
     <div class="report-section" id="tanking-report-wrap" style="display:none;">
-      <h2>Tanking Report</h2>
+      <h2>DTPS Over Time</h2>
+      <div id="tanking-dtps-chart"></div>
+      <h2 style="margin-top:1.25rem;">Tanking Report</h2>
       <pre id="tanking-report" style="white-space:pre-wrap;font-family:ui-monospace,'Cascadia Code',monospace;font-size:0.85rem;background:var(--input-bg);border:1px solid var(--border);border-radius:4px;padding:1rem;margin-top:1rem;min-height:120px;"></pre>
     </div>
 
@@ -3092,6 +3094,7 @@
     <details id="version-log-details">
     <summary style="cursor:pointer; font-size:1.17em; font-weight:bold; margin:0; list-style:revert;">Version log</summary>
     <ul style="font-size: 0.9rem; color: var(--muted); margin: 0.5rem 0 0; padding-left: 1.25rem;">
+      <li><strong>1.39</strong> — Tanking tab: added a <strong>DTPS Over Time</strong> line chart above the report, showing damage-taken-per-second across one representative simulated run (bucketed instantaneous line plus a trailing 15s average, with a dashed reference line for the averaged DTPS across all runs and a marker on the single largest hit) so burst/spike shape is visible instead of hidden inside the averaged headline DTPS figure. <code>runTankingAnalysis</code> now keeps the first run's full damage timeline (<code>sampleTimeline</code>) for this purpose since averaging across runs discards it. Mechanics guide updated (section 16).</li>
       <li><strong>1.38</strong> — Spells (rotation) tab: added <strong>Spell Casting Fury Mastery</strong> and <strong>Quick Damage</strong> AAs (both require Spell Casting Fury rank 3). Mastery adds another 2/4/7% spell crit chance per rank, stacking additively with Spell Casting Fury's own chance (no extra damage bonus — that's fixed by Spell Casting Fury's rank alone, per <code>Client::GetActSpellDamage</code>). Quick Damage cuts cast time 2/5/10% per rank on direct-damage nukes/rains over 4s (DoTs unaffected), matching <code>Client::GetActSpellCastingTime</code>'s gate in <code>effects.cpp</code>. Both wired into the AA Configurator, inventory-import AA mapping (eqmacid 114 and 44), and the rotation report/gear-summary cards. Version log is now a collapsible section. Report bug/feature form now opens a pre-filled GitHub "new issue" page directly instead of depending on a serverless proxy, and has a Discord/in-game character name field instead of email.</li>
       <li><strong>1.37</strong> — <strong>Tanking mode overhauled.</strong> The mob's attack sequence previously ran on a single fixed cadence; it now runs the independent timers the server uses (<code>mob_ai.cpp</code> <code>AI_Process</code>), so everything on the other timers finally contributes. <strong>New mob mechanics:</strong> <code>special_abilities</code> is parsed (<code>emu_constants.h</code> <code>SpecialAbility</code>) giving dual wield (a separate off-hand round with its own double attack), flurry (a full extra round plus a doubled class attack), rampage/area rampage, and enrage (no ripostes below 10% mob HP, modelled only when a Group DPS figure is supplied); NPC class attacks (kick/bash/backstab/monk specials) on their own haste-scaled 8s timer, running the full hit/avoidance/damage chain and rolling a 2-second stun during which the player avoids nothing; NPC spell casting via <code>AI_EngagedCastCheck</code> with nukes, DoTs and stuns resolved against player resists, plus NPC weapon procs. <strong>Double attack fix:</strong> was gated by a hardcoded 6-class table leaving most mobs at 0% — the server gives it to <em>every</em> NPC above level 7 at <code>(skill + level) / 500</code>, so a level 60 mob double attacks ~62% of the time. <strong>Mob slow/haste</strong> is now modelled, honouring the mob's <code>slow_mitigation</code>. <strong>AC and avoidance corrections</strong> (<code>Client::GetMitigation</code>, <code>Client::GetAvoidance</code>): Combat Stability raises the AC <em>softcap</em> rather than multiplying final mitigation, so it correctly does nothing below the cap; Combat Agility multiplies avoidance instead of subtracting from hit chance; shield AC is a new bucket added uncapped to the softcap from Luclin on; buff AC was being fed into the worn-AC bucket (×4/3) instead of the spell-AC bucket (÷4), overstating it roughly fivefold; added the Iksar racial bonus, the monk carried-weight curve, the Kunark warrior 405 cap, and the %-bonus step that applies before each avoidance divisor. <strong>Riposte counter-attacks</strong> now go through the mob's own block/parry/riposte/dodge and hit roll (<code>DoRiposte</code> calls a full <code>Attack</code>), so they can be avoided. <strong>New effects:</strong> Warrior Defensive (−50% melee mitigation) and Evasive (+50% avoidance) disciplines on their real 180s/900s timers, rune absorb pools, and player damage shields. <strong>Complete Heal chain rewritten:</strong> the old <code>HP ÷ DTPS × 1.5</code> guess is replaced by replaying each run's recorded damage timeline against candidate heal intervals and measuring actual death rate — reporting max safe interval at &lt;1% risk, a death-risk curve, burst percentiles within one cast, clerics needed, and a call threshold sized from 99th-percentile burst. <strong>Fix (affects the melee tab too):</strong> the inventory AA import mapped ranks to the wrong AAs entirely — <code>AAIndex</code> numbers are the client's <code>eqmacid</code>, so 13/17/97/120/211 are Innate Run Speed, First Aid, Critical Mend, Physical Enhancement and Fleet of Foot, not Combat Fury/Combat Stability/Return Kick/Double Riposte/Master Wu. Map corrected and extended to Innate Defense, Lightning Reflexes, Planar Durability and Flash of Steel, which previously could not be imported. Import now also fills shield AC, resists, carried weight, and defensive skills defaulted to class/level caps. <strong>Target picker:</strong> NPC rows that share a name and are identical in every simulated stat are collapsed to one entry (18,127 → 16,803), keeping the lowest id; mobs that genuinely differ still list separately. New data file <code>resources/npc_spells.json</code> (915 lists) built by <code>tools/extract-npc-spells.js</code> from the Quarm DB dump. Engine split into <code>npcCombat.js</code>, <code>playerDefense.js</code>, <code>npcSpells.js</code> and <code>healChain.js</code>; <code>combat.js</code> is unchanged. Mechanics guide sections 12.5–16 rewritten, including a correction: the avoidance skill checks resolve <em>before</em> the hit roll, not after.</li>
       <li><strong>1.36.8</strong> — Self-rune weapon procs (EQEmu SE 55 in effect slot 0, e.g. Rune III, Steelskin, Silver Skin) now generate hate instead of being silently skipped. Hate = <code>runeValue × 2</code>, modified by worn/spell/AA hate mod percent (no UI field yet; defaults to 0), capped at 400 if the player's class cannot natively cast the proc spell. Subject to a witness check: 50% chance per NPC that hate does NOT register (one roll per proc fire against the single sim target). Mezzed/stunned targets would receive ¼ hate; the sim assumes the target is never mezzed. Fix: <code>procSpellIsSelfRune</code>, <code>procSpellRuneValue</code>, and <code>procThreatCap</code> were being set on the weapon object after <code>getWeapon()</code> but were never included in the explicit property copy used to build <code>options.weapon1</code> / <code>options.weapon2</code> passed into <code>runFight</code> — rune hate was silently zero. Fixed by adding all three to <code>w1ProcResist</code> / <code>w2ProcResist</code>. Also propagated through the DB-load inline block (<code>normalizeRawItemFromList</code>) and <code>normalizedToWeapon1</code> for the rank weapons path. Mechanics guide updated (section 2.2).</li>
@@ -3626,7 +3629,7 @@
       }
 
       // When releasing: 1) Bump VERSION below. 2) Add a new <li> at the top of the Version log section above.
-      const VERSION = '1.38';
+      const VERSION = '1.39';
       const versionEl = $('app-version');
       if (versionEl) versionEl.textContent = 'v' + VERSION;
 
@@ -11880,7 +11883,9 @@
     if (report.error) {
       var errEl = document.getElementById('tanking-report');
       var errWrap = document.getElementById('tanking-report-wrap');
+      var errChartEl = document.getElementById('tanking-dtps-chart');
       if (errEl) errEl.textContent = report.error;
+      if (errChartEl) errChartEl.innerHTML = '';
       if (errWrap) errWrap.style.display = '';
       return;
     }
@@ -11890,6 +11895,9 @@
     var wrapEl = document.getElementById('tanking-report-wrap');
     if (reportEl) reportEl.textContent = text;
     if (wrapEl) wrapEl.style.display = '';
+
+    var dtpsChartEl = document.getElementById('tanking-dtps-chart');
+    if (dtpsChartEl) dtpsChartEl.innerHTML = TankingEngine.buildDtpsOverTimeHtml(report);
 
     // Log tanking run (USAGE_LOG_URL is defined in the main script closure;
     // access via a globally-exposed reference if available)

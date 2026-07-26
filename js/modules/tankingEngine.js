@@ -761,6 +761,12 @@
 
     var agg = averageReports(reports);
     agg.runs = n;
+    // Averaging smooths spikes away by design (that's the whole point of an
+    // average), so a "how spikey can this get" chart needs one real run's
+    // actual hit-by-hit timeline, not the aggregate. The first run (fixed
+    // seed = options.seed) is picked for reproducibility — re-running the
+    // same inputs shows the same chart.
+    agg.sampleTimeline = reports[0].timeline;
 
     var HC = getHealChain();
     if (HC) {
@@ -1092,6 +1098,185 @@
   }
 
   // ---------------------------------------------------------------------------
+  // DTPS-over-time line chart
+  // ---------------------------------------------------------------------------
+  // Same bucketed-line-plus-rolling-average approach as rotationEngine.js's
+  // buildRotationDpsOverTimeHtml, duplicated rather than shared since the two
+  // modules have no other coupling and the inputs differ (a single damage-
+  // taken timeline here vs. a cast log there).
+
+  var DTPS_LINE_COLOR = '#3987e5';      // categorical slot 1 — bucketed (instantaneous) DTPS
+  var DTPS_ROLLING_COLOR = '#d95926';   // categorical slot 2 — rolling window average
+  var DTPS_SPIKE_COLOR = '#fab219';     // status palette: marks the single largest hit
+  var DTPS_MUTED_INK = '#898781';
+  var DTPS_GRID_COLOR = '#2c2c2a';
+  var DTPS_ROLL_WINDOW_SEC = 15;
+
+  function dtpsEscapeXml(s) {
+    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  /** Trailing N-second average DTPS at each of a sorted list of times, from a sorted-by-time timeline. */
+  function dtpsRollingAverageSeries(events, times, windowSec) {
+    var qStart = 0, qEnd = 0, windowSum = 0;
+    return times.map(function (t) {
+      while (qEnd < events.length && events[qEnd].t <= t) { windowSum += events[qEnd].damage; qEnd++; }
+      var windowStart = t - windowSec;
+      while (qStart < qEnd && events[qStart].t <= windowStart) { windowSum -= events[qStart].damage; qStart++; }
+      var elapsed = Math.min(windowSec, t) || 1;
+      return windowSum / elapsed;
+    });
+  }
+
+  /**
+   * Bucketed damage-taken-per-second across one representative simulated run
+   * (report.sampleTimeline — see runTankingAnalysis), so burst/spike shape is
+   * visible instead of buried in the averaged headline DTPS figure. The
+   * averaged DTPS across all N runs is drawn as a dashed reference line for
+   * comparison against this one run's actual shape.
+   */
+  function buildDtpsOverTimeHtml(report) {
+    if (!report || !report.sampleTimeline || !report.sampleTimeline.length || !(report.durationSec > 0)) {
+      return '<p class="hint" style="margin:0;">No damage timeline to chart.</p>';
+    }
+
+    // timeline entries carry `t` in milliseconds (the engine's internal event
+    // clock — see runTankingFight's `now`); convert to seconds up front so
+    // the rest of this function can work in the same units as durationSec.
+    var events = report.sampleTimeline
+      .map(function (e) { return { t: e.t / 1000, damage: e.damage, source: e.source }; })
+      .sort(function (a, b) { return a.t - b.t; });
+    var durationSec = report.durationSec;
+
+    var TARGET_BUCKETS = 120;
+    var bucketWidth = Math.max(0.25, durationSec / TARGET_BUCKETS);
+    var bucketCount = Math.ceil(durationSec / bucketWidth);
+
+    var buckets = new Array(bucketCount).fill(0);
+    events.forEach(function (e) {
+      var idx = Math.min(bucketCount - 1, Math.max(0, Math.floor(e.t / bucketWidth)));
+      buckets[idx] += e.damage;
+    });
+
+    var points = buckets.map(function (dmg, i) {
+      var start = i * bucketWidth;
+      var end = Math.min(durationSec, start + bucketWidth);
+      var w = Math.max(0.001, end - start);
+      return { t: start + w / 2, dtps: dmg / w, start: start, end: end };
+    });
+
+    var rollingDtps = dtpsRollingAverageSeries(events, points.map(function (p) { return p.t; }), DTPS_ROLL_WINDOW_SEC);
+
+    var maxDtps = 0;
+    points.forEach(function (p) { if (p.dtps > maxDtps) maxDtps = p.dtps; });
+    rollingDtps.forEach(function (v) { if (v > maxDtps) maxDtps = v; });
+    maxDtps = maxDtps > 0 ? maxDtps * 1.15 : 1;
+
+    var W = 780, H = 200;
+    var marginLeft = 48, marginRight = 12, marginTop = 12, marginBottom = 22;
+    var plotW = W - marginLeft - marginRight;
+    var plotH = H - marginTop - marginBottom;
+
+    function xFor(t) { return marginLeft + (t / durationSec) * plotW; }
+    function yFor(dtps) { return marginTop + plotH - (dtps / maxDtps) * plotH; }
+
+    var svg = [];
+
+    var yTicks = 4;
+    for (var gi = 0; gi <= yTicks; gi++) {
+      var val = (maxDtps / yTicks) * gi;
+      var gy = yFor(val);
+      svg.push('<line x1="' + marginLeft + '" y1="' + gy.toFixed(1) + '" x2="' + (W - marginRight) +
+        '" y2="' + gy.toFixed(1) + '" stroke="' + DTPS_GRID_COLOR + '" stroke-width="1"/>');
+      svg.push('<text x="' + (marginLeft - 6) + '" y="' + (gy + 3).toFixed(1) +
+        '" font-size="10" fill="' + DTPS_MUTED_INK + '" text-anchor="end">' + Math.round(val) + '</text>');
+    }
+
+    var xTickCount = 6;
+    for (var xi = 0; xi <= xTickCount; xi++) {
+      var xt = (durationSec / xTickCount) * xi;
+      svg.push('<text x="' + xFor(xt).toFixed(1) + '" y="' + (H - 6) +
+        '" font-size="10" fill="' + DTPS_MUTED_INK + '" text-anchor="middle">' + Math.round(xt) + 's</text>');
+    }
+
+    var areaPath = 'M' + xFor(0).toFixed(1) + ',' + yFor(0).toFixed(1) + ' ';
+    points.forEach(function (p) { areaPath += 'L' + xFor(p.t).toFixed(1) + ',' + yFor(p.dtps).toFixed(1) + ' '; });
+    areaPath += 'L' + xFor(durationSec).toFixed(1) + ',' + yFor(0).toFixed(1) + ' Z';
+    svg.push('<path d="' + areaPath + '" fill="' + DTPS_LINE_COLOR + '" fill-opacity="0.12" stroke="none"/>');
+
+    var linePoints = points.map(function (p) { return xFor(p.t).toFixed(1) + ',' + yFor(p.dtps).toFixed(1); }).join(' ');
+    svg.push('<polyline points="' + linePoints + '" fill="none" stroke="' + DTPS_LINE_COLOR +
+      '" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>');
+
+    points.forEach(function (p) {
+      var tip = 't=' + Math.round(p.start) + '–' + Math.round(p.end) + 's: ' + p.dtps.toFixed(1) + ' dtps';
+      svg.push('<circle cx="' + xFor(p.t).toFixed(1) + '" cy="' + yFor(p.dtps).toFixed(1) +
+        '" r="7" fill="transparent"><title>' + dtpsEscapeXml(tip) + '</title></circle>');
+    });
+
+    var rollingLinePoints = points.map(function (p, i) {
+      return xFor(p.t).toFixed(1) + ',' + yFor(rollingDtps[i]).toFixed(1);
+    }).join(' ');
+    svg.push('<polyline points="' + rollingLinePoints + '" fill="none" stroke="' + DTPS_ROLLING_COLOR +
+      '" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>');
+    points.forEach(function (p, i) {
+      var tip = 't=' + p.t.toFixed(1) + 's, trailing ' + DTPS_ROLL_WINDOW_SEC + 's avg: ' + rollingDtps[i].toFixed(1) + ' dtps';
+      svg.push('<circle cx="' + xFor(p.t).toFixed(1) + '" cy="' + yFor(rollingDtps[i]).toFixed(1) +
+        '" r="7" fill="transparent"><title>' + dtpsEscapeXml(tip) + '</title></circle>');
+    });
+
+    // Dashed reference line at the averaged DTPS across all N runs — shows
+    // how much this one run's peaks overshoot the headline average figure.
+    if (report.dtps > 0) {
+      var avgY = yFor(report.dtps);
+      svg.push('<line x1="' + marginLeft + '" y1="' + avgY.toFixed(1) + '" x2="' + (W - marginRight) +
+        '" y2="' + avgY.toFixed(1) + '" stroke="' + DTPS_MUTED_INK + '" stroke-width="1" stroke-dasharray="3,3"/>');
+      svg.push('<text x="' + (W - marginRight) + '" y="' + (avgY - 4).toFixed(1) +
+        '" font-size="10" fill="' + DTPS_MUTED_INK + '" text-anchor="end">avg ' + report.dtps.toFixed(1) + '</text>');
+    }
+
+    // Mark the single largest hit in this run so it's visually tied to the
+    // spike it caused, not just a number in the text report above.
+    var spikeNote = '';
+    if (report.maxHitTaken > 0) {
+      var spikeEvent = null;
+      events.forEach(function (e) {
+        if (!spikeEvent || e.damage > spikeEvent.damage) spikeEvent = e;
+      });
+      if (spikeEvent) {
+        var sx = xFor(spikeEvent.t);
+        var sy = yFor(Math.min(maxDtps, spikeEvent.damage));
+        svg.push('<circle cx="' + sx.toFixed(1) + '" cy="' + sy.toFixed(1) + '" r="5" fill="' + DTPS_SPIKE_COLOR +
+          '" stroke="#121216" stroke-width="1.5"><title>' + dtpsEscapeXml('Largest single hit: ' +
+          Math.round(spikeEvent.damage) + ' (' + (spikeEvent.source || 'unknown') + ') at ' + spikeEvent.t.toFixed(2) + 's') +
+          '</title></circle>');
+        spikeNote = ' The amber dot marks the largest single hit in this run (' + Math.round(spikeEvent.damage) +
+          (spikeEvent.source ? ', ' + spikeEvent.source : '') + ').';
+      }
+    }
+
+    var legend =
+      '<span style="display:inline-flex;align-items:center;gap:0.35rem;margin:0 0.75rem 0.3rem 0;">' +
+      '<span style="width:14px;height:2px;flex:none;background:' + DTPS_LINE_COLOR + ';"></span>' +
+      '<span style="font-size:0.8rem;color:var(--text);">DTPS per ' + bucketWidth.toFixed(1) + 's window</span></span>' +
+      '<span style="display:inline-flex;align-items:center;gap:0.35rem;">' +
+      '<span style="width:14px;height:2px;flex:none;background:' + DTPS_ROLLING_COLOR + ';"></span>' +
+      '<span style="font-size:0.8rem;color:var(--text);">Trailing ' + DTPS_ROLL_WINDOW_SEC + 's average</span></span>';
+
+    var runNote = report.runs > 1
+      ? ' One of ' + report.runs + ' simulated runs (the report above averages all of them) — spikes here show what a single unlucky stretch can look like, not the mean.'
+      : '';
+
+    return (
+      '<p class="hint" style="margin:0 0 0.4rem;">Damage taken per second over time.' + runNote + spikeNote + '</p>' +
+      '<div style="overflow-x:auto;border:1px solid var(--border);border-radius:4px;background:var(--input-bg);padding:0.5rem;">' +
+      '<svg width="' + W + '" height="' + H + '" style="display:block;">' + svg.join('') + '</svg>' +
+      '</div>' +
+      '<div style="margin-top:0.5rem;">' + legend + '</div>'
+    );
+  }
+
+  // ---------------------------------------------------------------------------
   // Public API (compatible with the previous module surface)
   // ---------------------------------------------------------------------------
 
@@ -1099,6 +1284,7 @@
     runTankingFight: runTankingFight,
     runTankingAnalysis: runTankingAnalysis,
     formatTankingReport: formatTankingReport,
+    buildDtpsOverTimeHtml: buildDtpsOverTimeHtml,
 
     // Kept so existing callers keep working; the maths now lives in the
     // dedicated modules.
