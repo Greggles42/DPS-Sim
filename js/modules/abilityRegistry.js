@@ -73,15 +73,148 @@
       era: 'luclin',
       section: 'luclin_archetype',
       ranks: 3,
-      classes: ['paladin', 'shadowknight', 'ranger', 'bard', 'beastlord'],
+      // Originally scoped to the 5 hybrid classes for the melee sim's proc-crit
+      // interaction; broadened to the rest of the spellcasting classes so the
+      // Spells (rotation) tab can apply the same AA to direct-cast nukes/DoTs,
+      // which is the ability's primary use for pure casters. Same rank/value
+      // table either way — it's one AA with two applications in this sim.
+      classes: ['paladin', 'shadowknight', 'ranger', 'bard', 'beastlord',
+        'cleric', 'druid', 'shaman', 'necromancer', 'wizard', 'magician', 'enchanter'],
       simOption: 'spellCastingFury',
       category: 'combat',
-      description: 'Gives proc spells a chance to critically hit for bonus damage.',
+      description: 'Gives proc spells and direct-cast nukes/DoTs a chance to critically hit for bonus damage.',
       rankLabels: ['Off', '1 (2% spell crit, +33% dmg)', '2 (4% spell crit, +66% dmg)', '3 (7% spell crit, +100% dmg)']
+    },
+    {
+      id: 'spellCastingFuryMastery',
+      label: 'Spell Casting Fury Mastery',
+      era: 'luclin',
+      section: 'luclin_archetype',
+      ranks: 3,
+      // Requires Spell Casting Fury maxed as an AA prereq server-side
+      // (Client::GetAA(aaSpellCastingFury) == 3 gate in effects.cpp); this
+      // sim doesn't enforce prereqs in the UI, but rotationEngine.js's
+      // applyGearAndAABonuses ignores this rank unless spellCritRank is 3.
+      classes: ['paladin', 'shadowknight', 'ranger', 'bard', 'beastlord',
+        'cleric', 'druid', 'shaman', 'necromancer', 'wizard', 'magician', 'enchanter'],
+      simOption: 'spellCastingFuryMasteryRank',
+      category: 'combat',
+      description: 'Further increases crit chance on direct-cast nukes/DoTs, stacking additively with Spell Casting Fury (no additional damage bonus — that stays fixed by Spell Casting Fury\'s own rank). Requires Spell Casting Fury rank 3.',
+      rankLabels: ['Off', '1 (+2% spell crit)', '2 (+4% spell crit)', '3 (+7% spell crit)']
+    },
+    {
+      id: 'quickDamage',
+      label: 'Quick Damage',
+      era: 'luclin',
+      section: 'luclin_archetype',
+      ranks: 3,
+      // Same Spell Casting Fury rank-3 prereq as the Mastery line above.
+      classes: ['paladin', 'shadowknight', 'ranger', 'bard', 'beastlord',
+        'cleric', 'druid', 'shaman', 'necromancer', 'wizard', 'magician', 'enchanter'],
+      simOption: 'quickDamageRank',
+      category: 'combat',
+      description: 'Reduces cast time on direct-damage spells (nukes/rains, cast time over 4s) by 2/5/10% per rank. Does not affect DoTs or buffs. Requires Spell Casting Fury rank 3.',
+      rankLabels: ['Off', '1 (-2% cast time)', '2 (-5% cast time)', '3 (-10% cast time)']
+    },
+    // Casters' other Luclin archetype AAs. Unlike Spell Casting Fury, these
+    // grant their bonus through a hardcoded server effect rather than a
+    // spell record (spellid is the DB's "none" sentinel for all of them),
+    // so — unlike everything else added for the Spells tab this session —
+    // there's no spell data to derive an exact per-rank number from. They're
+    // included here for the AA Configurator's sake (so casters see their
+    // real AA options, same as melee/hybrids do) but are NOT wired into any
+    // computed damage/mana output; the tooltip says so for each.
+    {
+      id: 'mentalClarity',
+      label: 'Mental Clarity',
+      era: 'luclin',
+      section: 'luclin_archetype',
+      ranks: 3,
+      classes: ['cleric', 'druid', 'shaman', 'necromancer', 'wizard', 'magician', 'enchanter'],
+      simOption: 'mentalClarityRank',
+      category: 'caster',
+      description: 'Increases maximum mana pool per rank. Not applied automatically anywhere in this sim — factor it into the Max Mana field on the Spells tab yourself if you want it reflected.',
+      rankLabels: ['Off', '1', '2', '3']
+    },
+    {
+      id: 'channelingFocus',
+      label: 'Channeling Focus',
+      era: 'luclin',
+      section: 'luclin_archetype',
+      ranks: 3,
+      classes: ['cleric', 'druid', 'shaman', 'necromancer', 'wizard', 'magician', 'enchanter'],
+      simOption: 'channelingFocusRank',
+      category: 'caster',
+      description: 'Reduces the chance of spell interruption from taking damage or moving while casting. Not modeled — this sim has no interrupt mechanic (every cast is assumed to land uninterrupted).',
+      rankLabels: ['Off', '1', '2', '3']
+    },
+    {
+      id: 'spellCastingReinforcement',
+      label: 'Spell Casting Reinforcement',
+      era: 'luclin',
+      section: 'luclin_archetype',
+      ranks: 3,
+      classes: ['cleric', 'druid', 'shaman', 'necromancer', 'wizard', 'magician', 'enchanter'],
+      simOption: 'spellCastingReinforcementRank',
+      category: 'caster',
+      description: 'Further reduces spell interruption chance, stacking with Channeling Focus. Not modeled — no interrupt mechanic in this sim.',
+      rankLabels: ['Off', '1', '2', '3']
     },
     // ============================================================
     // Luclin — Class AAs
     // ============================================================
+    // The "Spell Casting X" caster class-tier line — Mastery/Expertise/
+    // Deftness/Subtlety. Same story as the archetype trio above: hardcoded
+    // server effects, no spell record to read an exact value from. Included
+    // for visibility/selection; no numeric effect applied.
+    {
+      id: 'spellCastingMastery',
+      label: 'Spell Casting Mastery',
+      era: 'luclin',
+      section: 'luclin_class',
+      ranks: 3,
+      classes: ['cleric', 'druid', 'shaman', 'necromancer', 'wizard', 'magician', 'enchanter'],
+      simOption: 'spellCastingMasteryRank',
+      category: 'caster',
+      description: 'Caster class-tier AA — exact mechanic not verifiable from this server\'s spell data (hardcoded effect). Selectable for record-keeping; no effect on computed results.',
+      rankLabels: ['Off', '1', '2', '3']
+    },
+    {
+      id: 'spellCastingExpertise',
+      label: 'Spell Casting Expertise',
+      era: 'luclin',
+      section: 'luclin_class',
+      ranks: 3,
+      classes: ['cleric', 'druid', 'shaman', 'necromancer', 'wizard', 'magician', 'enchanter'],
+      simOption: 'spellCastingExpertiseRank',
+      category: 'caster',
+      description: 'Caster class-tier AA — exact mechanic not verifiable from this server\'s spell data (hardcoded effect). Selectable for record-keeping; no effect on computed results.',
+      rankLabels: ['Off', '1', '2', '3']
+    },
+    {
+      id: 'spellCastingDeftness',
+      label: 'Spell Casting Deftness',
+      era: 'luclin',
+      section: 'luclin_class',
+      ranks: 3,
+      classes: ['cleric', 'druid', 'shaman', 'necromancer', 'wizard', 'magician', 'enchanter'],
+      simOption: 'spellCastingDeftnessRank',
+      category: 'caster',
+      description: 'Reduces spell fizzle chance. Not modeled — this sim assumes every cast completes (no fizzle mechanic).',
+      rankLabels: ['Off', '1', '2', '3']
+    },
+    {
+      id: 'spellCastingSubtlety',
+      label: 'Spell Casting Subtlety',
+      era: 'luclin',
+      section: 'luclin_class',
+      ranks: 1,
+      classes: ['cleric', 'druid', 'shaman', 'necromancer', 'wizard', 'magician', 'enchanter'],
+      simOption: 'spellCastingSubtletyRank',
+      category: 'caster',
+      description: 'Reduces the hate/aggro generated by spells. Not modeled — this sim doesn\'t compute spell aggro.',
+      rankLabels: ['Off', '1 (enabled)']
+    },
     {
       id: 'ambidexterity',
       label: 'Ambidexterity',
@@ -204,6 +337,18 @@
       category: 'tanking',
       description: 'Rank 1–3: +1.5% max HP per rank (tanking sim; WAR/PAL/SHD only).',
       rankLabels: ['Off', '1 (+1.5% HP)', '2 (+3% HP)', '3 (+4.5% HP)']
+    },
+    {
+      id: 'innateEnlightenment',
+      label: 'Innate Enlightenment',
+      era: 'pop',
+      section: 'pop_advance',
+      ranks: 5,
+      classes: ['cleric', 'druid', 'shaman', 'necromancer', 'wizard', 'magician', 'enchanter'],
+      simOption: 'innateEnlightenmentRank',
+      category: 'caster',
+      description: 'Caster sibling to Planar Power — raises the INT/WIS stat cap per rank. Hardcoded server effect (no spell record), so the exact per-rank amount isn\'t verifiable here; selectable for record-keeping, no effect on computed results.',
+      rankLabels: ['Off', '1', '2', '3', '4', '5']
     },
     // ============================================================
     // PoP Ability — Class/Archetype AAs
@@ -339,6 +484,22 @@
       category: 'combat',
       description: 'Rank 1/2/3: Bypasses NPC avoidance defenses (-10/-20/-30 to NPC effective avoidance).',
       rankLabels: ['Off', '1 (-10 avoidance)', '2 (-20 avoidance)', '3 (-30 avoidance)']
+    },
+    {
+      id: 'furyOfMagic',
+      label: 'Fury of Magic',
+      era: 'pop',
+      section: 'pop_ability',
+      ranks: 3,
+      // Requires Spell Casting Fury maxed (confirmed via the AA data's
+      // prereq_skill link) — a Magician-specific upgrade to that same crit
+      // line. Kept Magician-only since that's the best-attested class for
+      // it; scoping is less certain than the rest of this file.
+      classes: ['magician'],
+      simOption: 'furyOfMagicRank',
+      category: 'caster',
+      description: 'Magician upgrade to Spell Casting Fury (requires it maxed). Hardcoded server effect — exact additional crit chance/damage isn\'t verifiable here; selectable for record-keeping, no effect on computed results.',
+      rankLabels: ['Off', '1', '2', '3']
     },
     {
       id: 'innateDefense',

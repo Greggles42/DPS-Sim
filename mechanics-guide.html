@@ -1158,7 +1158,7 @@
         <thead><tr><th>Era</th><th>AAs unlocked</th></tr></thead>
         <tbody>
           <tr><td>Classic / Kunark / Velious</td><td>None — AA system not yet available.</td></tr>
-          <tr><td>Luclin</td><td>Archetype AAs (Combat Fury, Combat Stability, Combat Agility, Natural Durability, Spell Casting Fury) and Class AAs (Ambidexterity, Flurry, Slay Undead, Archery Mastery, Double Riposte, Return Kick, Two Hand Bash [Pal/SHD], Soul Abrasion [SHD]).</td></tr>
+          <tr><td>Luclin</td><td>Archetype AAs (Combat Fury, Combat Stability, Combat Agility, Natural Durability, Spell Casting Fury, Spell Casting Fury Mastery, Quick Damage) and Class AAs (Ambidexterity, Flurry, Slay Undead, Archery Mastery, Double Riposte, Return Kick, Two Hand Bash [Pal/SHD], Soul Abrasion [SHD]).</td></tr>
           <tr><td>Planes of Power</td><td>All Luclin AAs plus: Planar Power, Planar Durability [War/Pal/SHD], Technique of Master Wu, Fury of the Ages, Ferocity, Knight's Advantage [Pal/SHD], Speed of the Knight [Pal/SHD], Raging Flurry [War], Tactical Mastery [War], Bestial Frenzy, Harmonious Attack, Flash of Steel, Innate Defense, Lightning Reflexes, Punishing Blade.</td></tr>
         </tbody>
       </table>
@@ -1236,6 +1236,235 @@
       </p>
       <p>
         Weapon labels annotate worn ATK bonuses (<code>[ATK+N]</code>) and backstab modifiers (<code>[BS+N%]</code>) directly in the combination name so you can see at a glance which items are contributing stat bonuses beyond raw damage.
+      </p>
+    </div>
+
+    <div class="card">
+      <h2>19) Rotation Planner — Caster Spell Rotations <span class="badge badge-sim">Sim Feature</span></h2>
+      <p>
+        The Rotation tab answers a different question than Melee/Ranged/Tanking: given everything a caster can
+        cast, what order maximizes damage — and what does that actually cost in mana? It simulates a real
+        cast-by-cast timeline rather than just averaging a single spell's damage over its cast time.
+      </p>
+
+      <h3>Spell pool</h3>
+      <p>
+        The pool is pulled live from the spell database for the class and level set in the Character module — every
+        spell that class can cast by that level which resolves to positive direct damage. DoTs, stuns, buffs and
+        heals are left out; this planner is nukes only. You can uncheck any spell to exclude it from consideration.
+      </p>
+      <p>
+        Some nukes only work on a specific kind of target — Expulse Undead only affects undead, Hsagra's Wrath only
+        affects certain raid giants, Porlos' Fury only affects Velious dragons, and so on. The planner detects this
+        automatically from the spell's own target-type flag and checks it against the selected Target NPC's body
+        type, so a restricted spell simply doesn't appear in the pool until a matching target is chosen — no need to
+        remember which nukes are situational.
+      </p>
+      <p>
+        <strong>Rain spells</strong> (Tears of Prexus, Pogonip, and similar) don't hit once — they land in 3 (or
+        more, depending on the spell) separate waves about 2.5 seconds apart, starting the instant the cast
+        completes. Each wave is its own independent damage instance with its own resist roll, and the planner's
+        listed damage/pool-ranking figures already account for the full total across every wave. Because those
+        waves land after the cast bar ends and don't hold the GCD open, a rain works well as a "fire and forget" —
+        you're free to start the next nuke right away while its waves keep landing in the background, exactly the
+        short-burn-DoT role rains fill in practice. The spell pool tags these with <code>(rain ×3)</code>, and both
+        the Cast Order and DPS Over Time charts (below) show where the waves actually land.
+      </p>
+      <p>
+        <strong>Damage-over-time spells</strong> are in the pool too now, alongside nukes and rains. A DoT ticks for
+        its listed damage every 6 seconds for its full duration once applied — but recasting the <em>same</em> DoT
+        while it's still active doesn't stack or extend it, it simply overwrites it, throwing away whatever ticks
+        were left. So the planner never recasts a DoT until its current application would have finished anyway
+        (modeled as its own "isn't available yet" gate, on top of its normal recast timer) — which is exactly what
+        makes a good rotation <em>cycle</em> between several DoTs (and nukes) instead of refreshing the same one
+        early. The spell pool tags these with <code>(DoT ×N ticks)</code>, showing total damage across the whole
+        duration; the Cast Order and DPS Over Time charts show the individual ticks landing every 6s, same as rain
+        waves.
+      </p>
+      <p>
+        Click <strong>Recommend top 8</strong> to auto-check the 8 highest-scoring spells in the current pool for
+        whatever priority mode and resist settings are selected — the same per-spell score the simulator's greedy
+        pick uses, just ranked once instead of scheduled. It doesn't try to reason about synergy between spells (e.g.
+        pairing a rain with fast fillers); the event-driven simulator already finds good interleaving on its own
+        once the right spells are in the pool, since a rain's low ongoing GCD "cost" is exactly what makes it score
+        well without any special-casing.
+      </p>
+      <p>
+        A character can only have <strong>8 spells memorized</strong> at once, so the rotation never draws from more
+        than 8 distinct spells regardless of how large the pool is — the spell-pool checklist defaults to the top 8
+        by raw damage, and checking a 9th requires unchecking one first. The simulator also enforces this limit
+        internally as a hard cap, independent of the checklist.
+      </p>
+
+      <h3>Alternate Advancement and item focus effects</h3>
+      <p>
+        The planner reuses the shared <strong>Alternate Advancement</strong> panel and <strong>Import Inventory</strong>
+        feature above rather than duplicating those inputs — set them once and every tab, including this one, sees
+        them.
+      </p>
+      <ul>
+        <li><strong>Spell Casting Fury</strong> (Luclin archetype AA) gives direct-cast nukes, DoTs and rains a
+          chance to critically hit for bonus damage — rank 1/2/3 is 2%/4%/7% chance for +33%/+66%/+100% damage.
+          Originally modeled here only for the 5 hybrid classes' weapon-proc crits (Melee tab), it's the same AA for
+          pure casters applied to their direct casts instead, so the class list was broadened rather than adding a
+          second copy of the ability.</li>
+        <li><strong>Spell Casting Fury Mastery</strong> (Luclin archetype AA, requires Spell Casting Fury rank 3)
+          adds another 2%/4%/7% crit chance per rank on top of Spell Casting Fury's own — the server sums the two
+          AAs' crit-chance bonuses additively, so both maxed gives 14% total. It's chance only: the crit damage
+          bonus (+33/66/100%) stays fixed by Spell Casting Fury's rank alone, Mastery doesn't add to it.</li>
+        <li><strong>Quick Damage</strong> (Luclin archetype AA, requires Spell Casting Fury rank 3) shortens cast
+          time by 2%/5%/10% per rank on direct-damage nukes and rains whose cast time is still over 4 seconds
+          after other haste is applied. It has no effect on DoTs (which tick rather than resolve as one hit) or on
+          spells already under the 4-second threshold.</li>
+        <li><strong>Item focus effects</strong> — passive, spell-only bonuses on equipped gear (spell damage %, mana
+          cost reduction %, spell haste %) — are read from every item in your imported inventory. Each focus effect
+          carries its own restrictions (only certain resist types, only instant nukes vs. only DoTs, a spell level
+          range, a cast-time range, detrimental-only) exactly as the game enforces them, so a fire-only focus item
+          only boosts fire nukes, a DoT-only focus only boosts DoTs, and so on — checked per spell, not applied
+          blanket. Where two equipped items would both boost the same category on the same spell, only the better
+          of the two applies (focus effects of the same kind don't stack in EQ). After a run, the report quantifies
+          what your focus effects actually contributed — <strong>extra damage from focus</strong> and
+          <strong>mana saved from focus</strong>, isolated to just the casts that had one applied (a damage-%
+          focus's share of that cast's damage, or the flat mana a mana-cost-% focus shaved off). This is the
+          marginal value of the focus on the casts it touched, not a with/without comparison of the whole
+          rotation — removing the item could also change which spells the optimizer prefers, so the two numbers
+          won't necessarily match a naive before/after DPS subtraction.</li>
+        <li><strong>Wizard innate crit</strong> — Wizards have a separate, always-on direct-damage crit chance that
+          costs no AA points: <code>((min(INT,255) + min(DEX,255)) / 2 + 32) / 10000</code>, starting at level 12,
+          landing for a random +1-50% damage (not a fixed step like the AA). It only gets a chance to fire on a cast
+          where Spell Casting Fury's own roll didn't already crit — the two aren't independent/additive, matching
+          how the server resolves it (Spell Casting Fury is checked first; the wizard's innate crit is the
+          fallback). INT and WIS fields appear in the Character module above when this tab is active (DEX and level
+          are already there for every tab) — WIS isn't used by anything yet, but is there alongside INT since both
+          are the two casting stats. Every class other than Wizard has no innate crit chance at all.</li>
+      </ul>
+      <p class="muted">
+        Both AA and focus effects are era-filtered — an AA rank beyond what the selected era allows is ignored, and
+        a focus item's min-expansion tag (the same field BIS Advisor uses) is checked against the era selector the
+        same way gear already is elsewhere in the sim. The <strong>AA &amp; Gear</strong> card on this tab shows
+        exactly what was detected after era filtering, so nothing is applied silently.
+      </p>
+      <p class="muted">
+        Crits are rolled per cast now, not blended into an averaged rate, so the report can show what actually
+        happened: <strong>max hit</strong> (the single largest cast, headline stats), and — whenever a crit source
+        is active — <strong>crits landed</strong> (count and %, split by AA vs. innate when both apply) and
+        <strong>DPS from crits</strong> (the extra damage the crit chance itself contributed, isolating its value
+        from the base damage under it). Results are reproducible run to run for the same inputs — the crit rolls
+        use a fixed seed rather than true randomness, so tweaking a build and re-running isn't confounded by RNG
+        noise. Only the crit outcome is rolled per cast; resist and mana regen stay the deterministic expected-value
+        model described above.
+      </p>
+      <p class="muted">
+        The rest of the Luclin/PoP caster AA line — Mental Clarity, Channeling Focus, Spell Casting Reinforcement,
+        the Spell Casting Mastery/Expertise/Deftness/Subtlety class-tier line, Innate Enlightenment, and the
+        Magician-only Fury of Magic — are all selectable in the AA Configurator too, so casters see the same
+        breadth of options melee/hybrid classes do. Their numeric effects aren't applied anywhere, though: unlike
+        Spell Casting Fury, none of them grant their bonus through an actual spell record, so there's no data to
+        derive an exact per-rank number from (mana pool size, interrupt/fizzle/aggro reduction, stat caps —
+        several of these mechanics also aren't simulated here at all, e.g. there's no interrupt or fizzle
+        mechanic). They're there for completeness and record-keeping, not because they move any computed number.
+      </p>
+      <p class="muted">
+        Also not modeled: the handful of AA-granted "spells" whose damage depends on the caster's own current HP or
+        mana rather than a fixed amount (Wizard Lifeburn, Magician Mana Burn) — the planner doesn't track a caster
+        HP/mana-drain-to-zero state, so these aren't in the spell pool. Item focus effects that only affect buff
+        duration, healing, or non-damage utility (not spell damage, mana cost, or cast time) also aren't modeled,
+        since they have nothing to contribute to a DPS rotation.
+      </p>
+
+      <h3>The global cooldown and the off-global spell</h3>
+      <p>
+        After a normal spell finishes casting, there is a <strong>2.25 second lockout</strong> (the GCD) before the
+        next normal spell can begin. This is on top of that spell's own recast timer, not instead of it. You may
+        designate <strong>one</strong> spell in the pool as an "off-global filler" — it still takes its full cast
+        time on the bar (only one spell can be mid-cast at any moment), but starting it is never blocked by the GCD
+        lock, and casting it never imposes a GCD lock on what comes next. It is limited only by its own recast
+        timer. This models the small set of spells that behave this way rather than a general assumption that
+        every spell is off-global.
+      </p>
+
+      <h3>How the rotation is chosen</h3>
+      <p>
+        At every point the caster is free to start a cast, the sim picks the highest-scoring spell that is
+        currently castable (off recast, and — for normal spells — off the GCD lock). Three scoring modes are
+        available:
+      </p>
+      <table>
+        <thead><tr><th>Mode</th><th>Maximizes</th><th>Use when</th></tr></thead>
+        <tbody>
+          <tr><td>DPS</td><td>damage ÷ (cast time + GCD, or just cast time for the off-global spell)</td><td>Mana isn't a concern — burn phases, short fights.</td></tr>
+          <tr><td>Sustain</td><td>damage ÷ mana</td><td>The fight will outlast your mana pool.</td></tr>
+          <tr><td>Balanced</td><td>an even 50/50 blend of the two, each normalized against the pool's best-in-slot</td><td>You want a reasonable rotation without picking one extreme.</td></tr>
+        </tbody>
+      </table>
+      <p>
+        Once the caster hits the mana wall — the same "ran out of mana" moment described below — the scoring
+        switches to pure damage-per-mana for the rest of the fight, no matter which mode was selected. Spending the
+        last of the pool on the DPS mode's ideal (but mana-hungry) nuke would just run the caster dry faster;
+        efficiency is what stretches output once the pool can't keep up.
+      </p>
+      <p>
+        Switch <strong>Rotation Mode</strong> to <strong>Custom order</strong> to bypass the greedy optimizer
+        entirely and try your own priority list instead. Add checked spells to an ordered list (reorder or remove
+        them freely); at every decision point the sim casts the first entry in that list that's currently castable
+        — off recast, affordable, off the GCD unless it's your off-global pick — skipping over anything on
+        cooldown and re-checking from the top next time, the same way a player working down a fixed cast-priority
+        list would. It isn't "consumed": the same list is re-evaluated at every decision point, so it naturally
+        forms a repeating rotation on its own — a good way to answer "is the optimizer's pick actually better than
+        my gut instinct?" by comparing the two DPS numbers directly.
+      </p>
+      <p>
+        With a fixed 8-spell pool and a greedy pick, the rotation settles into a repeating cycle once recast timers
+        reach steady state — the <strong>Rotation</strong> line in the report spells it out explicitly (e.g.
+        "Fire Bolt → Ice Comet → Fire Bolt ...") and separately shows the mana-starved cycle if the two differ.
+      </p>
+      <p>
+        After a run, the <strong>Cast Order</strong> chart shows the same timeline visually — one bar per cast,
+        labeled with the spell name where it fits, positioned and sized by actual cast time, colored by spell, on a
+        GCD-chain lane and (if one is set) a separate off-global lane so you can see the two interleave. Hover a bar
+        for its exact time, damage and mana cost; the legend below shows each spell's share of total damage. It
+        renders up to the first 5 minutes of the fight (long fights beyond that repeat the same pattern anyway).
+      </p>
+      <p>
+        The <strong>DPS Over Time</strong> chart covers the whole fight instead, bucketing damage into windows
+        (sized to the fight's length) and plotting the resulting DPS as a line, with a dashed reference line at the
+        overall average. This is where the mana wall actually shows up: a dashed amber marker at the moment mana
+        first ran out, and — since scoring switches to damage-per-mana casting from that point on (see above) — a
+        visible step down to a new, lower steady-state DPS for the rest of the fight, rather than that transition
+        being hidden inside a single averaged number.
+      </p>
+      <p>
+        A second line tracks a <strong>trailing 30-second average DPS</strong> at every point in the fight —
+        smoothing out the bucket-to-bucket jitter a single big rain wave or DoT tick can cause, so the underlying
+        trend (and exactly how sharp the mana-wall drop is) reads clearly even on a noisy bucketed line.
+      </p>
+      <p>
+        A third line tracks <strong>TPS</strong> (threat per second), using the same direct-damage spell hate
+        formula the Melee tab uses for weapon-proc spells: each discrete damage instance generates hate equal to
+        its own damage, capped at 400 — a rain wave or DoT tick is its own hate-generating instance, so a big total
+        gets capped per-hit, not per-cast. TPS usually tracks well below DPS once individual hits start exceeding
+        the 400 cap, which is normal — it isn't a scaled-down DPS line, it's a genuinely different, capped number.
+      </p>
+
+      <h3>Resist checks</h3>
+      <p>
+        Two modes decide how much of a nuke's listed damage actually lands:
+      </p>
+      <ul>
+        <li><strong>Stat-based (default):</strong> rolls each spell's real resist chance against a selected mob's actual resist stats (MR/FR/CR/PR/DR), using the same resist formula the Tanking sim uses for mob spells — just aimed the other direction, at a mob resisting the player's nuke instead of the player resisting a mob's. The sim computes this as an expected value (averaged over every possible resist roll) rather than rolling random numbers, so the result is deterministic and repeatable.</li>
+        <li><strong>Flat %:</strong> you supply a full-resist and partial-resist chance directly and every cast uses the same expected-value multiplier — useful when you don't want to look up a specific mob's resist stats.</li>
+      </ul>
+      <p class="muted">
+        A partial resist is treated as landing for 25% of listed damage; a full resist lands for 0%.
+      </p>
+
+      <h3>Mana and sustain</h3>
+      <p>
+        Set a max mana pool and a regen-per-tick figure (include buffs and Meditation — the sim just takes a flat
+        number per 6-second tick). With unlimited mana (max mana = 0) the pool never gates spell choice. Otherwise,
+        the report notes the exact moment the caster first had a spell ready to go (off recast and off the GCD) but
+        couldn't afford it — the simulation keeps running after that point on whatever regen allows, rather than
+        stopping.
       </p>
     </div>
 

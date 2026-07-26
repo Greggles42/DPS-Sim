@@ -2082,7 +2082,8 @@
   <div class="tab-bar" style="align-items:center;">
     <button type="button" class="tab-btn active" id="tab-melee" aria-selected="true">Melee</button>
     <button type="button" class="tab-btn" id="tab-ranged" aria-selected="false">Ranged</button>
-    <button type="button" class="tab-btn" id="tab-tanking" aria-selected="false" title="Simulate how much damage you would take from a mob, and how tight a Complete Heal chain needs to be">Tanking</button>
+    <button type="button" class="tab-btn" id="tab-tanking" aria-selected="false" title="In development — may be buggy or inaccurate. Simulate how much damage you would take from a mob, and how tight a Complete Heal chain needs to be">Tanking <span style="opacity:0.65;font-size:0.75em;">(beta)</span></button>
+    <button type="button" class="tab-btn" id="tab-rotation" aria-selected="false" title="In development — may be buggy or inaccurate. Plan a caster's nuke rotation against the GCD, recast timers and mana, and see the resulting DPS">Spells <span style="opacity:0.65;font-size:0.75em;">(beta)</span></button>
   </div>
 
   <!-- Shared inventory display — shown for all tabs when inventory is loaded -->
@@ -2196,6 +2197,11 @@
       <input type="hidden" id="agi" value="255">
       <input type="hidden" id="sta" value="200">
       <input type="hidden" id="cha" value="0">
+      <!-- INT/WIS: same point-buy table as STR/AGI/DEX/STA (see STAT_KEYS /
+           CASTER_ONLY_STAT_KEYS) — rows only render while the Spells tab is
+           active, but the hidden final values always exist. -->
+      <input type="hidden" id="int" value="255">
+      <input type="hidden" id="wis" value="255">
 
       <!-- Haste / ATK — below stats -->
       <div class="char-primary-row char-primary-grid char-primary-grid--hasteatk">
@@ -2691,7 +2697,11 @@
 
   <div id="tanking-tab" class="tab-panel hidden">
   <div class="tab-content-wrapper">
-  <div style="margin:0.75rem 0 1rem;padding:0.65rem 1rem;background:rgba(96,165,250,0.08);border:1px solid rgba(96,165,250,0.35);border-radius:5px;font-size:0.82rem;color:#93c5fd;display:flex;align-items:flex-start;gap:0.5rem;">
+  <div style="margin:0.75rem 0 0.5rem;padding:0.6rem 1rem;background:rgba(251,191,36,0.10);border:1px solid rgba(251,191,36,0.4);border-radius:5px;font-size:0.82rem;color:#fbbf24;display:flex;align-items:flex-start;gap:0.5rem;">
+    <span style="font-size:1rem;line-height:1.4;">⚠</span>
+    <span><strong>In development.</strong> The tanking simulation is newer and less battle-tested than Melee/Ranged — treat results as a rough guide, not a guarantee, and expect some mechanics to still be inaccurate or buggy.</span>
+  </div>
+  <div style="margin:0 0 1rem;padding:0.65rem 1rem;background:rgba(96,165,250,0.08);border:1px solid rgba(96,165,250,0.35);border-radius:5px;font-size:0.82rem;color:#93c5fd;display:flex;align-items:flex-start;gap:0.5rem;">
     <span style="font-size:1rem;line-height:1.4;">ℹ</span>
     <span>Models the mob's full attack sequence — main hand and off hand on separate timers, double and triple attacks, flurry, rampage, kicks and bashes with stuns, weapon procs, and spell casting — against your avoidance, AC and defensive AAs. The Complete Heal chain is measured by replaying the fight against candidate heal intervals, so it accounts for burst damage rather than averages. <strong>Longer fights and more runs give a better chain estimate.</strong></span>
   </div>
@@ -2904,6 +2914,136 @@
   </div><!-- /.tab-content-wrapper -->
   </div><!-- /#tanking-tab -->
 
+  <div id="rotation-tab" class="tab-panel hidden">
+  <div class="tab-content-wrapper">
+  <div style="margin:0.75rem 0 0.5rem;padding:0.6rem 1rem;background:rgba(251,191,36,0.10);border:1px solid rgba(251,191,36,0.4);border-radius:5px;font-size:0.82rem;color:#fbbf24;display:flex;align-items:flex-start;gap:0.5rem;">
+    <span style="font-size:1rem;line-height:1.4;">⚠</span>
+    <span><strong>In development.</strong> The spell rotation planner is new and hasn't been broadly validated — treat results as a rough guide, not a guarantee, and expect some mechanics (especially rain/DoT timing and resist math) to still be inaccurate or buggy.</span>
+  </div>
+  <div style="margin:0 0 1rem;padding:0.65rem 1rem;background:rgba(96,165,250,0.08);border:1px solid rgba(96,165,250,0.35);border-radius:5px;font-size:0.82rem;color:#93c5fd;display:flex;align-items:flex-start;gap:0.5rem;">
+    <span style="font-size:1rem;line-height:1.4;">ℹ</span>
+    <span>Simulates the actual cast-by-cast timeline for a caster's nuke pool against the 2.25s global cooldown, each spell's own recast timer, and (optionally) one off-global filler spell — picking the highest-scoring castable spell at every decision point. Damage is run through a mob resist check. Uses the class and level from the <strong>Character</strong> module above.</span>
+  </div>
+  <div class="grid" style="grid-template-columns:1fr;">
+
+    <!-- ═══════════════════════════════════════════════════════
+         CARD 1 — TARGET MOB (RESIST CHECK)
+         ═══════════════════════════════════════════════════════ -->
+    <section class="section--core">
+      <h2>Target Mob</h2>
+      <div class="target-npc-name-row">
+        <div id="rotation-target-npc-name" class="weapon-name" aria-live="polite"></div>
+        <button type="button" id="rotation-target-npc-clear" class="target-npc-clear-btn" title="Click to clear target" aria-label="Clear target" style="display:none">×</button>
+      </div>
+      <div class="item-search-wrap target-npc-wrap">
+        <label for="rotation-target-npc-search">Target NPC</label>
+        <input type="text" id="rotation-target-npc-search" placeholder="Search by name (e.g. grimling, dragon)..." autocomplete="off">
+        <div id="rotation-target-npc-search-list" class="item-search-list" role="listbox"></div>
+      </div>
+      <p class="hint">Used for the stat-based resist mode below. If no target is selected, a generic level-matched target is used.</p>
+      <div class="target-fight-row">
+        <div><label for="rotation-mob-level" class="small-label">Mob level</label><input type="number" id="rotation-mob-level" min="1" max="70" value="60" style="width:5rem;"></div>
+        <div><label for="rotation-mob-mr" class="small-label">MR</label><input type="number" id="rotation-mob-mr" min="0" value="35" style="width:5rem;"></div>
+        <div><label for="rotation-mob-fr" class="small-label">FR</label><input type="number" id="rotation-mob-fr" min="0" value="35" style="width:5rem;"></div>
+        <div><label for="rotation-mob-cr" class="small-label">CR</label><input type="number" id="rotation-mob-cr" min="0" value="35" style="width:5rem;"></div>
+        <div><label for="rotation-mob-pr" class="small-label">PR</label><input type="number" id="rotation-mob-pr" min="0" value="35" style="width:5rem;"></div>
+        <div><label for="rotation-mob-dr" class="small-label">DR</label><input type="number" id="rotation-mob-dr" min="0" value="35" style="width:5rem;"></div>
+      </div>
+      <input type="hidden" id="rotation-mob-bodytype" value="">
+      <p class="hint" style="margin:0.5rem 0 0;">Some nukes only affect a specific target type (undead, certain giants/dragons, etc.) — those are automatically hidden from the spell pool below unless a matching target is selected here.</p>
+
+      <p class="hint" style="margin:0.75rem 0 0.3rem;font-weight:600;color:var(--text);">Resist mode</p>
+      <div class="radio-group">
+        <label><input type="radio" name="rotation-resist-mode" value="statBased" checked><span class="radio-option-main">Stat-based</span> <span class="radio-option-note">(roll each spell's real resist chance vs the mob above)</span></label>
+        <label><input type="radio" name="rotation-resist-mode" value="flat"><span class="radio-option-main">Flat %</span> <span class="radio-option-note">(ignore mob stats, use fixed resist chances)</span></label>
+      </div>
+      <div class="target-fight-row" style="margin-top:0.4rem;">
+        <div><label for="rotation-full-resist-pct" class="small-label">Full resist %</label><input type="number" id="rotation-full-resist-pct" min="0" max="100" value="5" style="width:5rem;" disabled></div>
+        <div><label for="rotation-partial-resist-pct" class="small-label">Partial resist %</label><input type="number" id="rotation-partial-resist-pct" min="0" max="100" value="12" style="width:5rem;" disabled></div>
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════════
+         CARD 2 — AA & GEAR
+         ═══════════════════════════════════════════════════════ -->
+    <section class="section--core">
+      <h2>AA &amp; Gear</h2>
+      <p class="hint" style="margin:0 0 0.5rem;">Reuses the shared <strong>Alternate Advancement</strong> panel, <strong>Import Inventory</strong>, and the <strong>INT/WIS</strong> fields in the Character module above — nothing to set here directly. Spell Casting Fury (crit chance on direct-cast nukes/DoTs/rains) and any equipped item's spell-damage/mana-cost/haste focus effect are detected automatically and era-filtered against the era selector, the same way BIS Advisor era-filters gear.</p>
+      <div id="rotation-gear-summary" class="hint">Click Refresh spell pool to detect AA/gear.</div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════════
+         CARD 3 — SPELL POOL
+         ═══════════════════════════════════════════════════════ -->
+    <section class="section--core">
+      <h2>Spell Pool</h2>
+      <p class="hint" style="margin:0 0 0.5rem;">Every nuke and damage-over-time spell the class/level from the Character module above can cast, pulled live from the spell database. Uncheck spells to exclude them from the rotation; pick at most one as the off-global filler (it ignores the GCD but still gates on its own recast). Rain spells (e.g. Tears of Prexus) and DoTs show their total damage across all waves/ticks; DoTs are only recast once the previous application has fully worn off, since recasting early overwrites it.</p>
+      <button type="button" id="rotation-refresh-pool" class="magic-btn" style="margin-bottom:0.5rem;">Refresh spell pool</button>
+      <button type="button" id="rotation-recommend-pool" class="magic-btn" style="margin-bottom:0.5rem;margin-left:0.5rem;" title="Check the 8 highest-scoring spells for the current resist settings and priority mode">Recommend top 8</button>
+      <div id="rotation-spell-pool" class="hint">Select a caster class and level, then click Refresh spell pool.</div>
+      <div class="target-fight-row" style="margin-top:0.6rem;">
+        <div style="display:flex;flex-direction:column;">
+          <label for="rotation-off-global-select" class="small-label">Off-global filler spell</label>
+          <select id="rotation-off-global-select" style="width:18rem;"><option value="">None (pure GCD chain)</option></select>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════════
+         CARD — ROTATION MODE / BUILD YOUR OWN ORDER
+         ═══════════════════════════════════════════════════════ -->
+    <section class="section--core">
+      <h2>Rotation Mode</h2>
+      <div class="radio-group">
+        <label><input type="radio" name="rotation-mode" value="auto" checked><span class="radio-option-main">Optimized</span> <span class="radio-option-note">(greedy pick by priority mode above)</span></label>
+        <label><input type="radio" name="rotation-mode" value="manual"><span class="radio-option-main">Custom order</span> <span class="radio-option-note">(you choose the priority — try out different orders)</span></label>
+      </div>
+      <div id="rotation-manual-builder" style="display:none;margin-top:0.6rem;">
+        <p class="hint" style="margin:0 0 0.5rem;">At every decision point the sim casts the first spell below (top to bottom) that's currently castable — off recast, affordable, and off the GCD unless it's your off-global pick — skipping over anything on cooldown and trying again next time, same as a real player working down a priority list. Only checked spells from the pool above are eligible.</p>
+        <div class="target-fight-row" style="margin-bottom:0.5rem;">
+          <div style="display:flex;flex-direction:column;flex:1;">
+            <label for="rotation-manual-add-select" class="small-label">Add spell to order</label>
+            <select id="rotation-manual-add-select" style="width:100%;max-width:20rem;"></select>
+          </div>
+          <button type="button" id="rotation-manual-add-btn" class="magic-btn" style="align-self:flex-end;">Add</button>
+          <button type="button" id="rotation-manual-reset-btn" class="magic-btn" style="align-self:flex-end;" title="Refill the order from the checked pool, top to bottom">Reset to pool order</button>
+        </div>
+        <ol id="rotation-manual-order-list" style="margin:0;padding-left:1.4rem;"></ol>
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════════
+         CARD 4 — SIMULATION
+         ═══════════════════════════════════════════════════════ -->
+    <section class="section--core">
+      <h2>Simulation</h2>
+      <div class="target-fight-row">
+        <div><label for="rotation-duration" class="small-label">Duration (sec)</label><input type="number" id="rotation-duration" value="600" min="1" style="width:6rem;"></div>
+        <div><label for="rotation-max-mana" class="small-label">Max mana <span class="hint" style="margin:0;">(0=unlimited)</span></label><input type="number" id="rotation-max-mana" value="0" min="0" style="width:6rem;"></div>
+        <div><label for="rotation-mana-regen" class="small-label">Mana regen/tick <span class="hint" style="margin:0;">(6s, incl. buffs/meditation)</span></label><input type="number" id="rotation-mana-regen" value="0" min="0" style="width:6rem;"></div>
+      </div>
+      <p class="hint" style="margin:0.75rem 0 0.3rem;font-weight:600;color:var(--text);">Priority mode</p>
+      <div class="radio-group">
+        <label><input type="radio" name="rotation-priority-mode" value="dps" checked><span class="radio-option-main">DPS</span> <span class="radio-option-note">(maximize damage/time)</span></label>
+        <label><input type="radio" name="rotation-priority-mode" value="sustain"><span class="radio-option-main">Sustain</span> <span class="radio-option-note">(maximize damage/mana)</span></label>
+        <label><input type="radio" name="rotation-priority-mode" value="balanced"><span class="radio-option-main">Balanced</span> <span class="radio-option-note">(50/50 of both)</span></label>
+      </div>
+      <button id="btn-run-rotation" class="magic-btn" style="width:100%;margin-top:0.75rem;padding:0.9rem 1.75rem;font-size:1.1rem;">Simulate Rotation</button>
+    </section>
+
+    <div class="report-section" id="rotation-report-wrap" style="display:none;">
+      <h2>DPS Over Time</h2>
+      <div id="rotation-dps-chart"></div>
+      <h2 style="margin-top:1.25rem;">Cast Order</h2>
+      <div id="rotation-timeline"></div>
+      <h2 style="margin-top:1.25rem;">Rotation Report</h2>
+      <pre id="rotation-report" style="white-space:pre-wrap;font-family:ui-monospace,'Cascadia Code',monospace;font-size:0.85rem;background:var(--input-bg);border:1px solid var(--border);border-radius:4px;padding:1rem;margin-top:1rem;min-height:120px;"></pre>
+    </div>
+
+  </div><!-- /.grid -->
+  </div><!-- /.tab-content-wrapper -->
+  </div><!-- /#rotation-tab -->
+
   <section class="report-section">
     <div class="report-header-row" style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.75rem;">
       <div style="display: flex; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
@@ -2949,8 +3089,10 @@
   </div>
 
   <section class="advanced-only" style="margin-top: 1rem;">
-    <h2>Version log</h2>
-    <ul style="font-size: 0.9rem; color: var(--muted); margin: 0; padding-left: 1.25rem;">
+    <details id="version-log-details">
+    <summary style="cursor:pointer; font-size:1.17em; font-weight:bold; margin:0; list-style:revert;">Version log</summary>
+    <ul style="font-size: 0.9rem; color: var(--muted); margin: 0.5rem 0 0; padding-left: 1.25rem;">
+      <li><strong>1.38</strong> — Spells (rotation) tab: added <strong>Spell Casting Fury Mastery</strong> and <strong>Quick Damage</strong> AAs (both require Spell Casting Fury rank 3). Mastery adds another 2/4/7% spell crit chance per rank, stacking additively with Spell Casting Fury's own chance (no extra damage bonus — that's fixed by Spell Casting Fury's rank alone, per <code>Client::GetActSpellDamage</code>). Quick Damage cuts cast time 2/5/10% per rank on direct-damage nukes/rains over 4s (DoTs unaffected), matching <code>Client::GetActSpellCastingTime</code>'s gate in <code>effects.cpp</code>. Both wired into the AA Configurator, inventory-import AA mapping (eqmacid 114 and 44), and the rotation report/gear-summary cards. Version log is now a collapsible section. Report bug/feature form now opens a pre-filled GitHub "new issue" page directly instead of depending on a serverless proxy, and has a Discord/in-game character name field instead of email.</li>
       <li><strong>1.37</strong> — <strong>Tanking mode overhauled.</strong> The mob's attack sequence previously ran on a single fixed cadence; it now runs the independent timers the server uses (<code>mob_ai.cpp</code> <code>AI_Process</code>), so everything on the other timers finally contributes. <strong>New mob mechanics:</strong> <code>special_abilities</code> is parsed (<code>emu_constants.h</code> <code>SpecialAbility</code>) giving dual wield (a separate off-hand round with its own double attack), flurry (a full extra round plus a doubled class attack), rampage/area rampage, and enrage (no ripostes below 10% mob HP, modelled only when a Group DPS figure is supplied); NPC class attacks (kick/bash/backstab/monk specials) on their own haste-scaled 8s timer, running the full hit/avoidance/damage chain and rolling a 2-second stun during which the player avoids nothing; NPC spell casting via <code>AI_EngagedCastCheck</code> with nukes, DoTs and stuns resolved against player resists, plus NPC weapon procs. <strong>Double attack fix:</strong> was gated by a hardcoded 6-class table leaving most mobs at 0% — the server gives it to <em>every</em> NPC above level 7 at <code>(skill + level) / 500</code>, so a level 60 mob double attacks ~62% of the time. <strong>Mob slow/haste</strong> is now modelled, honouring the mob's <code>slow_mitigation</code>. <strong>AC and avoidance corrections</strong> (<code>Client::GetMitigation</code>, <code>Client::GetAvoidance</code>): Combat Stability raises the AC <em>softcap</em> rather than multiplying final mitigation, so it correctly does nothing below the cap; Combat Agility multiplies avoidance instead of subtracting from hit chance; shield AC is a new bucket added uncapped to the softcap from Luclin on; buff AC was being fed into the worn-AC bucket (×4/3) instead of the spell-AC bucket (÷4), overstating it roughly fivefold; added the Iksar racial bonus, the monk carried-weight curve, the Kunark warrior 405 cap, and the %-bonus step that applies before each avoidance divisor. <strong>Riposte counter-attacks</strong> now go through the mob's own block/parry/riposte/dodge and hit roll (<code>DoRiposte</code> calls a full <code>Attack</code>), so they can be avoided. <strong>New effects:</strong> Warrior Defensive (−50% melee mitigation) and Evasive (+50% avoidance) disciplines on their real 180s/900s timers, rune absorb pools, and player damage shields. <strong>Complete Heal chain rewritten:</strong> the old <code>HP ÷ DTPS × 1.5</code> guess is replaced by replaying each run's recorded damage timeline against candidate heal intervals and measuring actual death rate — reporting max safe interval at &lt;1% risk, a death-risk curve, burst percentiles within one cast, clerics needed, and a call threshold sized from 99th-percentile burst. <strong>Fix (affects the melee tab too):</strong> the inventory AA import mapped ranks to the wrong AAs entirely — <code>AAIndex</code> numbers are the client's <code>eqmacid</code>, so 13/17/97/120/211 are Innate Run Speed, First Aid, Critical Mend, Physical Enhancement and Fleet of Foot, not Combat Fury/Combat Stability/Return Kick/Double Riposte/Master Wu. Map corrected and extended to Innate Defense, Lightning Reflexes, Planar Durability and Flash of Steel, which previously could not be imported. Import now also fills shield AC, resists, carried weight, and defensive skills defaulted to class/level caps. <strong>Target picker:</strong> NPC rows that share a name and are identical in every simulated stat are collapsed to one entry (18,127 → 16,803), keeping the lowest id; mobs that genuinely differ still list separately. New data file <code>resources/npc_spells.json</code> (915 lists) built by <code>tools/extract-npc-spells.js</code> from the Quarm DB dump. Engine split into <code>npcCombat.js</code>, <code>playerDefense.js</code>, <code>npcSpells.js</code> and <code>healChain.js</code>; <code>combat.js</code> is unchanged. Mechanics guide sections 12.5–16 rewritten, including a correction: the avoidance skill checks resolve <em>before</em> the hit roll, not after.</li>
       <li><strong>1.36.8</strong> — Self-rune weapon procs (EQEmu SE 55 in effect slot 0, e.g. Rune III, Steelskin, Silver Skin) now generate hate instead of being silently skipped. Hate = <code>runeValue × 2</code>, modified by worn/spell/AA hate mod percent (no UI field yet; defaults to 0), capped at 400 if the player's class cannot natively cast the proc spell. Subject to a witness check: 50% chance per NPC that hate does NOT register (one roll per proc fire against the single sim target). Mezzed/stunned targets would receive ¼ hate; the sim assumes the target is never mezzed. Fix: <code>procSpellIsSelfRune</code>, <code>procSpellRuneValue</code>, and <code>procThreatCap</code> were being set on the weapon object after <code>getWeapon()</code> but were never included in the explicit property copy used to build <code>options.weapon1</code> / <code>options.weapon2</code> passed into <code>runFight</code> — rune hate was silently zero. Fixed by adding all three to <code>w1ProcResist</code> / <code>w2ProcResist</code>. Also propagated through the DB-load inline block (<code>normalizeRawItemFromList</code>) and <code>normalizedToWeapon1</code> for the rank weapons path. Mechanics guide updated (section 2.2).</li>
       <li><strong>1.36.7</strong> — Fix: offhand proc threat missing from rank weapons TPS in the top-40 averaging phase. Both the offhand-only path and the combinations+secondary path were building the weapon2 object inline, omitting <code>procSpellBonusHate</code>, <code>procSpellNonDamagingDetrimental</code>, and <code>procSpellCcAddsMobHpThreat</code>. Weapons with flat-hate procs (e.g. Blade of Carnage / Enraging Blow) or CC/stun procs showed only swing threat for the offhand TPS column in averaged results. Fixed by switching both paths to <code>normalizedToWeapon1(p2, false)</code>, matching every other rank phase.</li>
@@ -3010,6 +3152,7 @@
       <li><strong>0.2</strong> — Worn/spell attack inputs; toHit excludes worn/spell; offense skill 252 for toHit; removed Offense override; default duration 2400s; histogram always shown; displayed attack &amp; stat contribution in report.</li>
       <li><strong>0.1</strong> — Initial release. Melee combat sim with DA/DW, damage bonus, crits, procs, histogram.</li>
     </ul>
+    </details>
   </section>
   </div>
 
@@ -3029,10 +3172,10 @@
         <input type="text" id="submit-issue-title-input" required placeholder="Short summary" maxlength="200">
         <label for="submit-issue-body">Description</label>
         <textarea id="submit-issue-body" placeholder="What happened or what would you like to see?" rows="4"></textarea>
-        <label for="submit-issue-email">Email (optional, for follow-up)</label>
-        <input type="email" id="submit-issue-email" placeholder="you@example.com">
+        <label for="submit-issue-contact">Discord or in-game character name (optional, in case I need to ask a follow-up)</label>
+        <input type="text" id="submit-issue-contact" placeholder="e.g. Gabbiz#1234 or Gabbiz">
         <div class="submit-issue-actions">
-          <button type="submit" id="submit-issue-btn">Submit</button>
+          <button type="submit" id="submit-issue-btn">Open on GitHub</button>
           <button type="button" id="submit-issue-close">Close</button>
         </div>
       </form>
@@ -3108,6 +3251,10 @@
   <script src="js/modules/npcSpells.js"></script>
   <script src="js/modules/healChain.js"></script>
   <script src="js/modules/tankingEngine.js"></script>
+  <script src="js/modules/rotationSpells.js"></script>
+  <script src="js/modules/rotationResist.js"></script>
+  <script src="js/modules/itemFocus.js"></script>
+  <script src="js/modules/rotationEngine.js"></script>
   <script src="js/ui/usageLog.js"></script>
   <script src="combat.js"></script>
   <script src="weaponSkillCaps.js"></script>
@@ -3120,6 +3267,7 @@
   <script src="resources/npc_spells-data.js"></script>
   <script src="resources/spells-data.js"></script>
   <script src="resources/weapon_shortlist-data.js"></script>
+  <script src="resources/altadv-names-data.js"></script>
   <!-- Load itemSearchConfig.js only locally (file is gitignored; on Vercel we use /api/item-search with env key) -->
   <script>
     if (location.hostname === 'localhost' || location.protocol === 'file:') {
@@ -3478,7 +3626,7 @@
       }
 
       // When releasing: 1) Bump VERSION below. 2) Add a new <li> at the top of the Version log section above.
-      const VERSION = '1.37';
+      const VERSION = '1.38';
       const versionEl = $('app-version');
       if (versionEl) versionEl.textContent = 'v' + VERSION;
 
@@ -4452,6 +4600,8 @@
         combatAgility: 0,
         naturalDurability: 0,
         spellCastingFury: 0,
+        spellCastingFuryMastery: 0,
+        quickDamage: 0,
         ambidexterity: 1,
         flurry: 0,
         slayUndead: 0,
@@ -4506,6 +4656,8 @@
           slayUndead: aaVal('slayUndead'),
           archeryMastery: amRank || 1,
           spellCastingFury: aaVal('spellCastingFury'),
+          spellCastingFuryMasteryRank: aaVal('spellCastingFuryMastery'),
+          quickDamageRank: aaVal('quickDamage'),
           furyOfTheAgesRank: aaVal('furyOfTheAges'),
           ferocityRank: aaVal('ferocity'),
           bestialFrenzyRank: aaVal('bestialFrenzy'),
@@ -4528,6 +4680,18 @@
           tacticalMasteryRank: aaVal('tacticalMastery'),
           planarPowerRank: ppRank,
           _planarPowerStatCap: 255 + ppRank * 5,
+          // Selectable for the caster classes but not consumed by any sim
+          // output yet — see abilityRegistry.js's comments on each for why
+          // (hardcoded server effects with no verifiable per-rank number).
+          mentalClarityRank: aaVal('mentalClarity'),
+          channelingFocusRank: aaVal('channelingFocus'),
+          spellCastingReinforcementRank: aaVal('spellCastingReinforcement'),
+          spellCastingMasteryRank: aaVal('spellCastingMastery'),
+          spellCastingExpertiseRank: aaVal('spellCastingExpertise'),
+          spellCastingDeftnessRank: aaVal('spellCastingDeftness'),
+          spellCastingSubtletyRank: aaVal('spellCastingSubtlety'),
+          innateEnlightenmentRank: aaVal('innateEnlightenment'),
+          furyOfMagicRank: aaVal('furyOfMagic'),
         };
       }
 
@@ -4552,6 +4716,8 @@
           combatAgility:    'Increases your melee damage avoidance by 2, 5 and 10 percent.',
           naturalDurability:'Increases your maximum hitpoints by 2, 5, and 10 percent (based on base HP including stamina effects).',
           spellCastingFury: 'Gives you a chance to land critical hits with direct damage spells. Ranks increase crit chance by 2, 4, and 7 percent.',
+          spellCastingFuryMastery: 'Requires Spell Casting Fury rank 3. Adds another 2, 4, or 7 percent spell crit chance on top of Spell Casting Fury (chance only — no extra damage bonus).',
+          quickDamage:      'Requires Spell Casting Fury rank 3. Reduces cast time by 2, 5, or 10 percent on direct-damage spells (nukes/rains) with a base cast time over 4 seconds. No effect on DoTs.',
           ambidexterity:    'Increases your chance to use dual wield successfully.',
           flurry:           'Allows you to perform up to 2 additional attacks from your primary hand per round.',
           slayUndead:       'Causes your criticals to inflict greatly improved damage versus the undead.',
@@ -4575,6 +4741,15 @@
           tacticalMastery:  'Studying your opponent for weaknesses allows you to pierce through advanced defenses. Each rank grants an increasing chance of bypassing dodge, block, parry, and riposte.',
           innateDefense:    'Further increases your mitigation of incoming melee damage (stacks with Combat Stability).',
           lightningReflexes:'Further increases your chance of completely avoiding incoming melee damage (stacks with Combat Agility).',
+          mentalClarity:            'Increases your maximum mana pool per rank. Not applied automatically by this sim.',
+          channelingFocus:          'Reduces your chance of spell interruption from damage or movement while casting. Not modeled — no interrupt mechanic in this sim.',
+          spellCastingReinforcement:'Further reduces spell interruption chance, stacking with Channeling Focus. Not modeled here.',
+          spellCastingMastery:      'Caster class-tier AA. Exact mechanic not verifiable from this server\'s data; shown for reference only.',
+          spellCastingExpertise:    'Caster class-tier AA. Exact mechanic not verifiable from this server\'s data; shown for reference only.',
+          spellCastingDeftness:     'Reduces spell fizzle chance. Not modeled — this sim assumes every cast completes.',
+          spellCastingSubtlety:     'Reduces the hate/aggro generated by your spells. Not modeled — no spell aggro calculation in this sim.',
+          innateEnlightenment:      'Caster sibling to Planar Power — raises the INT/WIS stat cap per rank. Exact amount not verifiable from this server\'s data.',
+          furyOfMagic:              'Magician upgrade to Spell Casting Fury (requires it maxed). Exact bonus not verifiable from this server\'s data.',
         };
 
         function rowHtml(aa, classId2) {
@@ -4658,32 +4833,39 @@
       // ============================================================
       // Race base stats + 25-point character creation system
       // ============================================================
+      // int/wis/maxInt/maxWis follow the same "cap = base + 25 creation points"
+      // pattern already used by str/agi/dex/sta for every race here.
       var RACE_DATA = {
-        human:     { str: 75,  sta: 75,  agi: 75,  dex: 75,  maxStr: 100, maxSta: 100, maxAgi: 100, maxDex: 100 },
-        barbarian: { str: 103, sta: 95,  agi: 82,  dex: 70,  maxStr: 128, maxSta: 120, maxAgi: 107, maxDex: 95 },
-        dark_elf:  { str: 60,  sta: 65,  agi: 90,  dex: 75,  maxStr: 85,  maxSta: 90,  maxAgi: 115, maxDex: 100 },
-        dwarf:     { str: 90,  sta: 90,  agi: 70,  dex: 90,  maxStr: 115, maxSta: 115, maxAgi: 90,  maxDex: 115 },
-        erudite:   { str: 60,  sta: 70,  agi: 70,  dex: 70,  maxStr: 85,  maxSta: 95,  maxAgi: 90,  maxDex: 95 },
-        gnome:     { str: 60,  sta: 67,  agi: 85,  dex: 85,  maxStr: 85,  maxSta: 92,  maxAgi: 110, maxDex: 110 },
-        half_elf:  { str: 70,  sta: 70,  agi: 90,  dex: 75,  maxStr: 95,  maxSta: 95,  maxAgi: 115, maxDex: 100 },
-        halfling:  { str: 70,  sta: 75,  agi: 95,  dex: 90,  maxStr: 95,  maxSta: 100, maxAgi: 120, maxDex: 115 },
-        high_elf:  { str: 55,  sta: 65,  agi: 85,  dex: 75,  maxStr: 80,  maxSta: 90,  maxAgi: 110, maxDex: 100 },
-        iksar:     { str: 70,  sta: 70,  agi: 90,  dex: 85,  maxStr: 95,  maxSta: 95,  maxAgi: 115, maxDex: 110 },
-        ogre:      { str: 130, sta: 122, agi: 70,  dex: 70,  maxStr: 155, maxSta: 147, maxAgi: 95,  maxDex: 95 },
-        troll:     { str: 108, sta: 109, agi: 83,  dex: 75,  maxStr: 133, maxSta: 134, maxAgi: 108, maxDex: 100 },
-        wood_elf:  { str: 65,  sta: 65,  agi: 95,  dex: 80,  maxStr: 90,  maxSta: 90,  maxAgi: 120, maxDex: 105 },
-        vah_shir:  { str: 90,  sta: 75,  agi: 90,  dex: 70,  maxStr: 115, maxSta: 100, maxAgi: 115, maxDex: 95 },
+        human:     { str: 75,  sta: 75,  agi: 75,  dex: 75,  int: 75,  wis: 75,  maxStr: 100, maxSta: 100, maxAgi: 100, maxDex: 100, maxInt: 100, maxWis: 100 },
+        barbarian: { str: 103, sta: 95,  agi: 82,  dex: 70,  int: 60,  wis: 55,  maxStr: 128, maxSta: 120, maxAgi: 107, maxDex: 95,  maxInt: 85,  maxWis: 80 },
+        dark_elf:  { str: 60,  sta: 65,  agi: 90,  dex: 75,  int: 98,  wis: 83,  maxStr: 85,  maxSta: 90,  maxAgi: 115, maxDex: 100, maxInt: 123, maxWis: 108 },
+        dwarf:     { str: 90,  sta: 90,  agi: 70,  dex: 90,  int: 60,  wis: 90,  maxStr: 115, maxSta: 115, maxAgi: 90,  maxDex: 115, maxInt: 85,  maxWis: 115 },
+        erudite:   { str: 60,  sta: 70,  agi: 70,  dex: 70,  int: 103, wis: 83,  maxStr: 85,  maxSta: 95,  maxAgi: 90,  maxDex: 95,  maxInt: 128, maxWis: 108 },
+        gnome:     { str: 60,  sta: 67,  agi: 85,  dex: 85,  int: 95,  wis: 60,  maxStr: 85,  maxSta: 92,  maxAgi: 110, maxDex: 110, maxInt: 120, maxWis: 85 },
+        half_elf:  { str: 70,  sta: 70,  agi: 90,  dex: 75,  int: 80,  wis: 75,  maxStr: 95,  maxSta: 95,  maxAgi: 115, maxDex: 100, maxInt: 105, maxWis: 100 },
+        halfling:  { str: 70,  sta: 75,  agi: 95,  dex: 90,  int: 60,  wis: 85,  maxStr: 95,  maxSta: 100, maxAgi: 120, maxDex: 115, maxInt: 85,  maxWis: 110 },
+        high_elf:  { str: 55,  sta: 65,  agi: 85,  dex: 75,  int: 90,  wis: 95,  maxStr: 80,  maxSta: 90,  maxAgi: 110, maxDex: 100, maxInt: 115, maxWis: 120 },
+        iksar:     { str: 70,  sta: 70,  agi: 90,  dex: 85,  int: 80,  wis: 85,  maxStr: 95,  maxSta: 95,  maxAgi: 115, maxDex: 110, maxInt: 105, maxWis: 110 },
+        ogre:      { str: 130, sta: 122, agi: 70,  dex: 70,  int: 62,  wis: 60,  maxStr: 155, maxSta: 147, maxAgi: 95,  maxDex: 95,  maxInt: 87,  maxWis: 85 },
+        troll:     { str: 108, sta: 109, agi: 83,  dex: 75,  int: 62,  wis: 60,  maxStr: 133, maxSta: 134, maxAgi: 108, maxDex: 100, maxInt: 87,  maxWis: 85 },
+        wood_elf:  { str: 65,  sta: 65,  agi: 95,  dex: 80,  int: 80,  wis: 90,  maxStr: 90,  maxSta: 90,  maxAgi: 120, maxDex: 105, maxInt: 105, maxWis: 115 },
+        vah_shir:  { str: 90,  sta: 75,  agi: 90,  dex: 70,  int: 79,  wis: 75,  maxStr: 115, maxSta: 100, maxAgi: 115, maxDex: 95,  maxInt: 104, maxWis: 100 },
       };
-      var STAT_KEYS = ['str', 'agi', 'dex', 'sta'];
-      var STAT_LABELS = { str: 'STR', agi: 'AGI', dex: 'DEX', sta: 'STA' };
+      var STAT_KEYS = ['str', 'agi', 'dex', 'sta', 'int', 'wis'];
+      var STAT_LABELS = { str: 'STR', agi: 'AGI', dex: 'DEX', sta: 'STA', int: 'INT', wis: 'WIS' };
+      // INT/WIS are only shown as table rows on the Spells tab — melee/ranged/
+      // tanking don't use them — but they still draw from the same 25-point
+      // creation pool as the other stats regardless of which tab is active
+      // (matches real EQ character creation, where all 7 stats share one pool).
+      var CASTER_ONLY_STAT_KEYS = ['int', 'wis'];
       // Secondary stats — gear-only, no creation point allocation (CHA excluded: not used in offensive sims)
       var SECONDARY_STAT_KEYS = [];
       var SECONDARY_STAT_LABELS = { cha: 'CHA' };
 
       var charCreation = {
         race: 'human',
-        pts: { str: 0, agi: 0, dex: 0, sta: 0 },
-        gear: { str: 0, agi: 0, dex: 0, sta: 0, cha: 0 },
+        pts: { str: 0, agi: 0, dex: 0, sta: 0, int: 0, wis: 0 },
+        gear: { str: 0, agi: 0, dex: 0, sta: 0, int: 0, wis: 0, cha: 0 },
       };
       window.inventoryLoaded = false;
       var CREATION_POINTS = 25;
@@ -4720,7 +4902,9 @@
 
         var html = '';
         var buffFxForStat = (typeof getBuffEffects === 'function') ? getBuffEffects() : null;
+        var showCasterStats = (typeof _activeTab !== 'undefined') && _activeTab === 'rotation';
         STAT_KEYS.forEach(function (sk) {
+          if (CASTER_ONLY_STAT_KEYS.indexOf(sk) !== -1 && !showCasterStats) return;
           var baseVal = rd[sk] || 75;
           var ptsVal = charCreation.pts[sk] || 0;
           var gearVal = charCreation.gear[sk] || 0;
@@ -4835,10 +5019,14 @@
         var finalDex = getFinalStat(raceId, 'dex', charCreation.pts.dex, charCreation.gear.dex, ppRank);
         var finalAgi = getFinalStat(raceId, 'agi', charCreation.pts.agi, charCreation.gear.agi, ppRank);
         var finalSta = getFinalStat(raceId, 'sta', charCreation.pts.sta, charCreation.gear.sta, ppRank);
+        var finalInt = getFinalStat(raceId, 'int', charCreation.pts.int, charCreation.gear.int, ppRank);
+        var finalWis = getFinalStat(raceId, 'wis', charCreation.pts.wis, charCreation.gear.wis, ppRank);
         var strEl = $('str'); if (strEl) strEl.value = finalStr;
         var dexEl = $('dex'); if (dexEl) dexEl.value = finalDex;
         var agiEl = $('agi'); if (agiEl) agiEl.value = finalAgi;
         var staEl = $('sta'); if (staEl) staEl.value = finalSta;
+        var intEl = $('int'); if (intEl) intEl.value = finalInt;
+        var wisEl = $('wis'); if (wisEl) wisEl.value = finalWis;
         var chaEl = $('cha'); if (chaEl) chaEl.value = charCreation.gear.cha || 0;
         if (typeof window.updateTankHP === 'function') window.updateTankHP();
       }
@@ -4854,7 +5042,9 @@
           str: (rd.str || 75) + (pts.str || 0),
           dex: (rd.dex || 75) + (pts.dex || 0),
           agi: (rd.agi || 75) + (pts.agi || 0),
-          sta: (rd.sta || 75) + (pts.sta || 0)
+          sta: (rd.sta || 75) + (pts.sta || 0),
+          int: (rd.int || 75) + (pts.int || 0),
+          wis: (rd.wis || 75) + (pts.wis || 0)
         };
       };
 
@@ -4863,7 +5053,7 @@
         if (!raceEl) return;
         raceEl.addEventListener('change', function () {
           charCreation.race = raceEl.value;
-          charCreation.pts = { str: 0, agi: 0, dex: 0, sta: 0 };
+          charCreation.pts = { str: 0, agi: 0, dex: 0, sta: 0, int: 0, wis: 0 };
           renderStatDistributor();
           syncHiddenStats();
           var lvl = parseInt(($('level') && $('level').value) || '60', 10) || 60;
@@ -4879,7 +5069,7 @@
             if (!isLuclin && raceEl.value === 'vah_shir') {
               raceEl.value = 'human';
               charCreation.race = 'human';
-              charCreation.pts = { str: 0, agi: 0, dex: 0, sta: 0 };
+              charCreation.pts = { str: 0, agi: 0, dex: 0, sta: 0, int: 0, wis: 0 };
               renderStatDistributor();
               syncHiddenStats();
               var lvl2 = parseInt(($('level') && $('level').value) || '60', 10) || 60;
@@ -8032,7 +8222,7 @@
       }
       function showTab(tabId) {
         _activeTab = tabId;
-        var tabs = ['melee', 'ranged', 'tanking'];
+        var tabs = ['melee', 'ranged', 'tanking', 'rotation'];
         tabs.forEach(function (t) {
           var panelEl = $(t + '-tab');
           var btnEl = $('tab-' + t);
@@ -8043,11 +8233,16 @@
           }
         });
         if (tabId === 'ranged') updateRangedNonRangerWarning();
+        if (tabId === 'rotation' && typeof refreshRotationSpellPool === 'function') refreshRotationSpellPool();
         if (typeof buildAAConfiguratorUI === 'function') buildAAConfiguratorUI();
+        // INT/WIS rows in the stat table only render while the Spells tab is
+        // active (see CASTER_ONLY_STAT_KEYS) — re-render on every switch.
+        if (typeof renderStatDistributor === 'function') renderStatDistributor();
       }
       $('tab-melee').addEventListener('click', function () { showTab('melee'); });
       $('tab-ranged').addEventListener('click', function () { showTab('ranged'); });
       if ($('tab-tanking')) $('tab-tanking').addEventListener('click', function () { showTab('tanking'); });
+      if ($('tab-rotation')) $('tab-rotation').addEventListener('click', function () { showTab('rotation'); });
       var UI_MODES = { EASY: 'easy', ADVANCED: 'advanced' };
       function setUiMode(mode) {
         var normalized = mode === UI_MODES.ADVANCED ? UI_MODES.ADVANCED : UI_MODES.EASY;
@@ -8920,6 +9115,7 @@
         lastMeleeLevel = parseInt(($('level') && $('level').value) || '60', 10) || 60;
         if (typeof buildAAConfiguratorUI === 'function') buildAAConfiguratorUI();
         updateRangedNonRangerWarning();
+        if (typeof window.refreshRotationSpellPool === 'function') window.refreshRotationSpellPool();
       });
       function applyDefaultStatsByLevel(level) {
         if (window.inventoryLoaded) return;
@@ -8940,6 +9136,7 @@
         onClassOrLevelChange({ clampOnly: reduced });
         applyDefaultStatsByLevel(newLevel);
         lastMeleeLevel = newLevel;
+        if (typeof window.refreshRotationSpellPool === 'function') window.refreshRotationSpellPool();
       }
       $('level').addEventListener('change', onMeleeLevelEdited);
       $('level').addEventListener('input', onMeleeLevelEdited);
@@ -9992,6 +10189,7 @@
         set('target-ac', getGenericTargetAcFromLevel(level));
         set('ranged-mob-level', level);
         set('ranged-target-ac', getGenericTargetAcFromLevel(level));
+        set('rotation-mob-level', level);
       }
       function attachTargetNpcButtons(listEl, npcTypesList, npcNameForDisplay, inputEl, closeDropdown) {
         if (!listEl) return;
@@ -10033,40 +10231,59 @@
         var listEl = $('tank-target-npc-search-list');
         if (listEl) listEl.classList.add('is-open');
       }
+      function closeRotationTargetNpcDropdown() {
+        var listEl = $('rotation-target-npc-search-list');
+        if (listEl) listEl.classList.remove('is-open');
+      }
+      function openRotationTargetNpcDropdown() {
+        var listEl = $('rotation-target-npc-search-list');
+        if (listEl) listEl.classList.add('is-open');
+      }
       function updateTargetNpcNameDisplay() {
         var npc = window.selectedTargetNpc;
         var name = (npc && npc.name != null) ? String(npc.name).replace(/_/g, ' ') : '';
         var el = $('target-npc-name');
         var elRanged = $('ranged-target-npc-name');
         var elTanking = $('tank-target-npc-name');
+        var elRotation = $('rotation-target-npc-name');
         if (el) el.textContent = name;
         if (elRanged) elRanged.textContent = name;
         if (elTanking) elTanking.textContent = name;
+        if (elRotation) elRotation.textContent = name;
         var clearBtn = $('target-npc-clear');
         var clearBtnRanged = $('ranged-target-npc-clear');
         var clearBtnTanking = $('tank-target-npc-clear');
+        var clearBtnRotation = $('rotation-target-npc-clear');
         if (clearBtn) clearBtn.style.display = name ? '' : 'none';
         if (clearBtnRanged) clearBtnRanged.style.display = name ? '' : 'none';
         if (clearBtnTanking) clearBtnTanking.style.display = name ? '' : 'none';
+        if (clearBtnRotation) clearBtnRotation.style.display = name ? '' : 'none';
       }
       function clearTargetNpc() {
         window.selectedTargetNpc = null;
         var targetSearch = $('target-npc-search');
         var rangedTargetSearch = $('ranged-target-npc-search');
         var tankTargetSearch = $('tank-target-npc-search');
+        var rotationTargetSearch = $('rotation-target-npc-search');
         if (targetSearch) targetSearch.value = '';
         if (rangedTargetSearch) rangedTargetSearch.value = '';
         if (tankTargetSearch) tankTargetSearch.value = '';
+        if (rotationTargetSearch) rotationTargetSearch.value = '';
+        var bodytypeEl = $('rotation-mob-bodytype');
+        if (bodytypeEl) bodytypeEl.value = '';
         updateTargetNpcNameDisplay();
         applyGenericTargetIfNoneSelected();
+        if (typeof window.refreshRotationSpellPool === 'function') window.refreshRotationSpellPool();
       }
       (function initTargetNpcClearButtons() {
         var btn = $('target-npc-clear');
         var btnRanged = $('ranged-target-npc-clear');
         var btnTanking = $('tank-target-npc-clear');
+        var btnRotation = $('rotation-target-npc-clear');
         if (btn) btn.addEventListener('click', clearTargetNpc);
         if (btnRanged) btnRanged.addEventListener('click', clearTargetNpc);
         if (btnTanking) btnTanking.addEventListener('click', clearTargetNpc);
+        if (btnRotation) btnRotation.addEventListener('click', clearTargetNpc);
       })();
       function applyTargetNpc(npc) {
         if (!npc || typeof npc !== 'object') return;
@@ -10106,8 +10323,17 @@
         set('tank-mob-spells-id', npc.npc_spells_id || 0);
         set('tank-mob-hp', npc.hp || 0);
         set('tank-mob-slow-mitigation', npc.slow_mitigation || 0);
+        // Rotation tab mob (resist check target + target-restricted spells)
+        set('rotation-mob-level', npc.level);
+        set('rotation-mob-mr', npc.MR);
+        set('rotation-mob-fr', npc.FR);
+        set('rotation-mob-cr', npc.CR);
+        set('rotation-mob-pr', npc.PR);
+        set('rotation-mob-dr', npc.DR);
+        set('rotation-mob-bodytype', npc.bodytype != null ? npc.bodytype : '');
         renderMobSpecials(npc);
         updateTargetNpcNameDisplay();
+        if (typeof window.refreshRotationSpellPool === 'function') window.refreshRotationSpellPool();
       }
 
       /** Show what the mob's DB flags actually mean for the fight. */
@@ -10320,6 +10546,66 @@
         });
       })();
 
+      (function initRotationTargetNpcSearch() {
+        var inputEl = $('rotation-target-npc-search');
+        var listEl = $('rotation-target-npc-search-list');
+        if (!inputEl || !listEl) return;
+        var minChars = 2;
+        function npcNameForSearch(name) {
+          return (name != null ? String(name) : '').replace(/_/g, ' ').toLowerCase();
+        }
+        function npcNameForDisplay(name) {
+          return (name != null ? String(name) : '').replace(/_/g, ' ');
+        }
+        inputEl.addEventListener('input', function () {
+          if ((inputEl.value || '').trim() === '') {
+            window.selectedTargetNpc = null;
+            updateTargetNpcNameDisplay();
+          }
+          var q = (inputEl.value || '').trim().replace(/_/g, ' ').toLowerCase();
+          if (q.length < minChars) {
+            var recentHtml = renderTargetNpcRecentSection(npcTypesList, npcNameForDisplay);
+            listEl.innerHTML = recentHtml + '<div class="item-search-msg">Type at least ' + minChars + ' characters to search</div>';
+            attachTargetNpcButtons(listEl, npcTypesList, npcNameForDisplay, inputEl, closeRotationTargetNpcDropdown);
+            openRotationTargetNpcDropdown();
+            return;
+          }
+          var filtered = npcTypesList.filter(function (n) {
+            return npcNameForSearch(n.name).indexOf(q) >= 0;
+          }).slice(0, 80);
+          var dmgDetail = function(npc) {
+            return 'Lvl ' + (npc.level != null ? npc.level : '?') +
+              ' · MR ' + (npc.MR != null ? npc.MR : '?') + ' · FR ' + (npc.FR != null ? npc.FR : '?');
+          };
+          var html = '<div class="item-search-section">Targets</div>';
+          if (filtered.length === 0) {
+            html += '<div class="item-search-msg">No matching NPCs</div>';
+          } else {
+            filtered.forEach(function (npc) {
+              var displayName = npcNameForDisplay(npc.name).replace(/</g, '&lt;').replace(/"/g, '&quot;');
+              var detail = dmgDetail(npc);
+              html += '<button type="button" class="item-search-item" data-npc-id="' + (npc.id != null ? String(npc.id) : '') + '"><span>' + displayName + '</span><div class="item-search-item-detail">' + detail.replace(/</g, '&lt;') + '</div></button>';
+            });
+          }
+          html += renderTargetNpcRecentSection(npcTypesList, npcNameForDisplay);
+          listEl.innerHTML = html;
+          attachTargetNpcButtons(listEl, npcTypesList, npcNameForDisplay, inputEl, closeRotationTargetNpcDropdown);
+          openRotationTargetNpcDropdown();
+        });
+        inputEl.addEventListener('focus', function () {
+          var q = (inputEl.value || '').trim();
+          if (q.length < minChars) {
+            var recentHtml = renderTargetNpcRecentSection(npcTypesList, npcNameForDisplay);
+            listEl.innerHTML = recentHtml + '<div class="item-search-msg">Type at least ' + minChars + ' characters to search</div>';
+            attachTargetNpcButtons(listEl, npcTypesList, npcNameForDisplay, inputEl, closeRotationTargetNpcDropdown);
+            openRotationTargetNpcDropdown();
+          }
+        });
+        inputEl.addEventListener('keydown', function (e) {
+          if (e.key === 'Escape') { closeRotationTargetNpcDropdown(); inputEl.blur(); }
+        });
+      })();
+
       applyGenericTargetIfNoneSelected();
 
       document.addEventListener('click', function (e) {
@@ -10335,6 +10621,7 @@
         closeTargetNpcDropdown();
         closeRangedTargetNpcDropdown();
         closeTankingTargetNpcDropdown();
+        closeRotationTargetNpcDropdown();
       });
 
       setupItemSearch('w1');
@@ -10402,38 +10689,32 @@
         overlay.addEventListener('click', function (e) {
           if (e.target === overlay) closeModal();
         });
+        // Submits directly to GitHub's "new issue" form (no serverless proxy / token
+        // required) — pre-fills title, body, and label via query params and opens it
+        // in a new tab. The user still has to be signed into GitHub and click GitHub's
+        // own Submit button; this just saves them typing it all out.
+        var GITHUB_REPO = 'Greggles42/DPS-Sim';
         form.addEventListener('submit', function (e) {
           e.preventDefault();
           var typeEl = $('submit-issue-type');
           var titleEl = $('submit-issue-title-input');
           var bodyEl = $('submit-issue-body');
-          var emailEl = $('submit-issue-email');
+          var contactEl = $('submit-issue-contact');
           var type = (typeEl && typeEl.value === 'feature') ? 'feature' : 'bug';
           var title = titleEl ? titleEl.value.trim() : '';
           var body = bodyEl ? bodyEl.value.trim() : '';
-          var email = emailEl ? emailEl.value.trim() : '';
+          var contact = contactEl ? contactEl.value.trim() : '';
           if (!title) { showMsg('Please enter a title.', true); return; }
-          submitBtn.disabled = true;
-          var base = window.location.origin || '';
-          var url = (base ? base : '') + '/api/submit-issue';
-          fetch(url, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ type: type, title: title, body: body, email: email || undefined })
-          })
-            .then(function (r) { return r.json().then(function (data) { return { status: r.status, data: data }; }); })
-            .then(function (result) {
-              if (result.status >= 200 && result.status < 300) {
-                showMsg(result.data.message || 'Thank you. Your report has been submitted.');
-                form.reset();
-              } else {
-                showMsg(result.data && result.data.error ? result.data.error : 'Something went wrong. Try again.', true);
-              }
-            })
-            .catch(function () {
-              showMsg('Could not submit. If you are viewing the app locally, use the hosted version to report bugs.', true);
-            })
-            .then(function () { submitBtn.disabled = false; });
+          var fullBody = body +
+            (contact ? '\n\n---\nContact (Discord / in-game name): ' + contact : '');
+          var label = type === 'feature' ? 'enhancement' : 'bug';
+          var url = 'https://github.com/' + GITHUB_REPO + '/issues/new' +
+            '?title=' + encodeURIComponent(title) +
+            '&body=' + encodeURIComponent(fullBody) +
+            '&labels=' + encodeURIComponent(label);
+          window.open(url, '_blank', 'noopener');
+          showMsg('Opened GitHub in a new tab — sign in and click Submit new issue there to finish.');
+          form.reset();
         });
       })();
 
@@ -10448,12 +10729,14 @@
       };
 
       // Expose gear-stat updater for inventory system (different IIFE scope)
-      window.applyGearStats = function (str, dex, agi, sta, cha) {
+      window.applyGearStats = function (str, dex, agi, sta, cha, intStat, wis) {
         charCreation.gear.str = str || 0;
         charCreation.gear.dex = dex || 0;
         charCreation.gear.agi = agi || 0;
         charCreation.gear.sta = sta || 0;
         charCreation.gear.cha = cha || 0;
+        charCreation.gear.int = intStat || 0;
+        charCreation.gear.wis = wis || 0;
         renderStatDistributor();
         syncHiddenStats();
       };
@@ -10640,18 +10923,37 @@
 
   var _rangedWornArcheryModUserSet = false;
 
-  // EQ numeric AA ID (from inventory export) → sim aaConfig string key
-  // AAIndex numbers in the /outputfile inventory export are the Mac client's AA
-  // ids — the `eqmacid` column of the server's altadv_vars table. Verified
-  // against resources/Gabbiz-Quarmy.txt, whose indices (13 Innate Run Speed,
-  // 17 First Aid, 97 Critical Mend, 120 Physical Enhancement, 211 Fleet of Foot)
-  // all decode to real level-60 monk AAs under this numbering.
+  // EQ numeric AA ID (from inventory export) → sim aaConfig string key.
+  // AAIndex numbers in the /outputfile inventory export are the Mac client's
+  // AA ids — the `eqmacid` column of the server's altadv_vars table. Cross-
+  // checked two ways: (1) resources/Gabbiz-Quarmy.txt (a level-60 monk),
+  // whose indices 13/17/97/120/211 decode to real, unmodeled monk AAs
+  // (Innate Run Speed, First Aid, Critical Mend, Physical Enhancement,
+  // Fleet of Foot) exactly as expected; (2) resources/altadv_vars.csv, a
+  // full export of the live table (name + eqmacid columns) — every one of
+  // this map's original 18 entries matched its CSV row exactly, and it's
+  // the source for every entry added since (mostly the Luclin/PoP caster
+  // line, verified against two real Wizard exports — Razko-Quarmy.txt and
+  // Sunstrike-Quarmy.txt — that both actually carry these ids).
+  //
+  // Note: altadv_vars.csv has two differently-skill_id'd rows both named
+  // "Mental Clarity" (eqmacid 22 and 224) — only 224 shows up in either real
+  // Wizard export, so that's the one mapped; 22 looks like a stale/unused
+  // duplicate row but is included too in case a different character has it.
   var EQ_AA_ID_TO_SIM = {
+    20:  'spellCastingMastery',
+    21:  'spellCastingReinforcement',
+    22:  'mentalClarity',
     23:  'spellCastingFury',
+    24:  'channelingFocus',
+    25:  'spellCastingSubtlety',
+    26:  'spellCastingExpertise',
+    27:  'spellCastingDeftness',
     28:  'naturalDurability',
     30:  'combatFury',
     33:  'combatStability',
     34:  'combatAgility',
+    44:  'quickDamage',
     75:  'slayUndead',
     79:  'twoHandBash',
     81:  'ambidexterity',
@@ -10660,11 +10962,25 @@
     101: 'returnKick',
     104: 'doubleRiposte',
     108: 'flurry',
+    114: 'spellCastingFuryMastery',
+    142: 'planarPower',
     143: 'planarDurability',
+    144: 'innateEnlightenment',
+    149: 'furyOfTheAges',
     151: 'lightningReflexes',
     152: 'innateDefense',
     168: 'flashOfSteel',
-    206: 'masterWu'
+    183: 'ragingFlurry',
+    186: 'bestialFrenzy',
+    187: 'harmoniousAttack',
+    188: 'knightsAdvantage',
+    189: 'ferocity',
+    202: 'punishingBlade',
+    203: 'speedOfTheKnight',
+    206: 'masterWu',
+    213: 'tacticalMastery',
+    215: 'furyOfMagic',
+    224: 'mentalClarity'
   };
 
   // EQ numeric class ID (from inventory export) → sim class string
@@ -10679,6 +10995,7 @@
     var slots = {};
     var charInfo = null;   // { name, level, classStr } from Character row
     var aaRanks  = {};     // simAaId → rank, from AAIndex section
+    var unrecognizedAA = [];   // { id, rank } — AAIndex entries with no EQ_AA_ID_TO_SIM match
     var inAASection = false;
 
     lines.forEach(function (line) {
@@ -10697,7 +11014,18 @@
         var aaRank = parseInt(cols[1].trim(), 10);
         if (!isNaN(aaId) && !isNaN(aaRank) && aaRank > 0) {
           var simId = EQ_AA_ID_TO_SIM[aaId];
-          if (simId) aaRanks[simId] = aaRank;
+          if (simId) {
+            aaRanks[simId] = aaRank;
+          } else {
+            // Not every unmapped id is a bug — plenty of real AAs (First Aid,
+            // Innate stats, Mnemonic Retention, etc.) aren't modeled in this
+            // sim on purpose. But EQ_AA_ID_TO_SIM is also known-incomplete
+            // for AAs that ARE modeled (see its comment) — surfacing every
+            // skipped id here is what makes that gap visible instead of a
+            // silent drop, and is exactly the data needed to fill it in from
+            // a real export once the id maps back to a specific ability.
+            unrecognizedAA.push({ id: aaId, rank: aaRank });
+          }
         }
         return;
       }
@@ -10732,10 +11060,10 @@
       }
     });
 
-    return { slots: slots, charInfo: charInfo, aaRanks: aaRanks };
+    return { slots: slots, charInfo: charInfo, aaRanks: aaRanks, unrecognizedAA: unrecognizedAA };
   }
 
-  function _applyInventoryFromEquippedSlots(equippedSlots, charInfo, aaRanks) {
+  function _applyInventoryFromEquippedSlots(equippedSlots, charInfo, aaRanks, unrecognizedAA) {
     // ---- Aggregate stats across all equipped items ----
     var totals = { ac: 0, str: 0, dex: 0, agi: 0, sta: 0, wis: 0, int: 0, cha: 0, hp: 0, mana: 0, atk: 0, mr: 0, fr: 0, cr: 0, dr: 0, pr: 0, regen: 0, ft: 0, archeryMod: 0, shieldAc: 0, weight: 0 };
     var ITEM_TYPE_SHIELD = 8;   // EQ::item::ItemTypeShield
@@ -11063,7 +11391,7 @@
 
     // Shared stats via stat distributor (updates str/dex/agi/sta hidden inputs)
     if (typeof window.applyGearStats === 'function') {
-      window.applyGearStats(totals.str || 0, totals.dex || 0, totals.agi || 0, totals.sta || 0, totals.cha || 0);
+      window.applyGearStats(totals.str || 0, totals.dex || 0, totals.agi || 0, totals.sta || 0, totals.cha || 0, totals.int || 0, totals.wis || 0);
     } else {
       if (totals.str) setEl('str', totals.str);
       if (totals.dex) setEl('dex', totals.dex);
@@ -11089,16 +11417,28 @@
     var detectedClass = null;
     var detectedClassName = null;
     var classSource = null;  // 'explicit' | 'items' | null
+    var ambiguousClassNames = null;  // set when gear narrows to >1 candidate (common for cloth casters, who mostly share identical class-restricted gear — e.g. necro/wiz/mag/enc robes are usually the same 4-class bitmask, so gear alone can't tell them apart)
     if (charInfo && charInfo.classStr) {
       detectedClass     = charInfo.classStr;
       detectedClassName = detectedClass.charAt(0).toUpperCase() + detectedClass.slice(1);
       classSource       = 'explicit';
     } else if (hasClassConstraint && classMask > 0) {
-      // Fall back to bitmask intersection — only works when exactly one class bit remains
       if ((classMask & (classMask - 1)) === 0) {
+        // Exactly one class bit remains — unambiguous.
         detectedClass     = CLASS_MAP[classMask] || null;
         detectedClassName = detectedClass ? (detectedClass.charAt(0).toUpperCase() + detectedClass.slice(1)) : null;
         classSource       = 'items';
+      } else {
+        // Narrowed, but more than one class remains possible — surface the
+        // candidates instead of silently detecting nothing, and keep
+        // whatever class is already selected if it's one of them.
+        var candidates = [];
+        for (var bit = 1; bit <= 0x4000; bit <<= 1) {
+          if ((classMask & bit) && CLASS_MAP[bit]) candidates.push(CLASS_MAP[bit]);
+        }
+        if (candidates.length > 1) {
+          ambiguousClassNames = candidates.map(function (c) { return c.charAt(0).toUpperCase() + c.slice(1); });
+        }
       }
     }
     // ---- Inventory summary (below equipment list) ----
@@ -11193,6 +11533,16 @@
         summLines.push('<span style="color:#7eb8c9;">' + detectedClassName + '</span>');
         if (classSource !== 'explicit') summLines.push(' <span>(auto-filled from class-restricted items)</span>');
         summLines.push('</div>');
+      } else if (ambiguousClassNames) {
+        // Gear narrowed to a shared set but not a single class — very common for
+        // cloth casters (necro/wiz/mag/enc, or cleric/druid/shaman) since they
+        // usually wear identically class-restricted robes/caps/etc. Nothing more
+        // to infer from gear alone, so ask rather than silently picking wrong.
+        summLines.push('<div style="margin-top:0.35rem;font-size:0.8rem;color:var(--muted);">');
+        summLines.push('<strong style="color:#d4af37;">Class:</strong> ');
+        summLines.push('<span style="color:#7eb8c9;">could be ' + ambiguousClassNames.join(' / ') + '</span>');
+        summLines.push(' <span>— gear is shared by all of these, so it can\'t narrow further. Set the Character module\'s Class dropdown manually.</span>');
+        summLines.push('</div>');
       }
       if (aaRanks && Object.keys(aaRanks).length > 0) {
         var aaNames = Object.keys(aaRanks).map(function (id) {
@@ -11202,6 +11552,27 @@
         summLines.push('<div style="margin-top:0.35rem;font-size:0.8rem;color:var(--muted);">');
         summLines.push('<strong style="color:#d4af37;">AAs imported:</strong> ');
         summLines.push('<span style="color:#7eb8c9;">' + aaNames.join(', ') + '</span>');
+        summLines.push('</div>');
+      }
+      if (unrecognizedAA && unrecognizedAA.length > 0) {
+        // Not necessarily a bug per entry (see the comment in parseInventoryTsv)
+        // but EQ_AA_ID_TO_SIM is known-incomplete, so surface exactly which
+        // ids were skipped rather than silently dropping them. Named via
+        // resources/altadv-names-data.js (display only — not used for sim
+        // logic) so this reads as "these are AAs the sim doesn't model" at a
+        // glance instead of a wall of bare numbers that looks like a bug.
+        var aaNameLookup = window.__DPS_AA_NAMES__ || {};
+        var unrecTally = {};
+        unrecognizedAA.forEach(function (u) { unrecTally[u.id] = u.rank; });
+        var unrecList = Object.keys(unrecTally).sort(function (a, b) { return a - b; })
+          .map(function (id) {
+            var name = aaNameLookup[id];
+            return (name ? String(name).replace(/</g, '&lt;') : 'id ' + id) + ' (rank ' + unrecTally[id] + ')';
+          });
+        summLines.push('<div style="margin-top:0.35rem;font-size:0.8rem;color:var(--muted);">');
+        summLines.push('<strong style="color:#d4af37;">AA ids not recognized:</strong> ');
+        summLines.push('<span style="color:#7eb8c9;">' + unrecList.join(', ') + '</span>');
+        summLines.push(' <span>— not modeled in this sim (utility/stat AAs, pet AAs, etc.), or a genuine gap in EQ_AA_ID_TO_SIM if a name above looks like it should be modeled.</span>');
         summLines.push('</div>');
       }
 
@@ -11264,7 +11635,7 @@
         ? { id: entry.id, name: entry.name, item: lookupItem(entry.id) }
         : null;
     });
-    _applyInventoryFromEquippedSlots(equippedSlots, parsed.charInfo, parsed.aaRanks);
+    _applyInventoryFromEquippedSlots(equippedSlots, parsed.charInfo, parsed.aaRanks, parsed.unrecognizedAA);
   }
 
   var fileInput = document.getElementById('shared-inventory-file');
@@ -11543,6 +11914,536 @@
       UsageLog.sendLog(payload, tankLogUrl);
     }
   });
+
+  // ---- Rotation planner ----
+
+  (function initRotationResistModeToggle() {
+    var radios = document.getElementsByName('rotation-resist-mode');
+    var fullEl = document.getElementById('rotation-full-resist-pct');
+    var partialEl = document.getElementById('rotation-partial-resist-pct');
+    if (!radios.length || !fullEl || !partialEl) return;
+    function apply() {
+      var isFlat = false;
+      for (var i = 0; i < radios.length; i++) if (radios[i].checked) isFlat = radios[i].value === 'flat';
+      fullEl.disabled = !isFlat;
+      partialEl.disabled = !isFlat;
+    }
+    for (var i = 0; i < radios.length; i++) radios[i].addEventListener('change', apply);
+    apply();
+  })();
+
+  /**
+   * Reads the caster's Spell Casting Fury AA rank (from the shared AA
+   * Configurator panel, same helper the Melee/Tanking tabs use) and every
+   * equipped item's focus effect (from the shared inventory import) so the
+   * rotation sim can apply both without duplicating either input on this tab.
+   */
+  function getRotationGearAndAA() {
+    var classId = (document.getElementById('class') || {}).value || '';
+    var era = window.getSelectedEra ? window.getSelectedEra() : 'pop';
+    var spellCritRank = 0, spellCritMasteryRank = 0, quickDamageRank = 0;
+    if (window.buildAASimOptions) {
+      try {
+        var _aaOpts = window.buildAASimOptions(classId, era);
+        spellCritRank = _aaOpts.spellCastingFury || 0;
+        spellCritMasteryRank = _aaOpts.spellCastingFuryMasteryRank || 0;
+        quickDamageRank = _aaOpts.quickDamageRank || 0;
+      } catch (e) { /* AA configurator not initialized yet */ }
+    }
+    var focusEffects = [];
+    if (window.ItemFocus) {
+      var state = window.__invManagerState || {};
+      var items = Object.keys(state).map(function (slot) {
+        var entry = state[slot];
+        return entry && entry.item ? entry.item : null;
+      }).filter(function (it) { return !!it; });
+      focusEffects = window.ItemFocus.getEquippedFocusEffects(items, era);
+    }
+    var levelEl = document.getElementById('level');
+    var dexEl = document.getElementById('dex');
+    var intEl = document.getElementById('int');
+    var wisEl = document.getElementById('wis');
+    var caster = {
+      classId: classId,
+      level: levelEl ? parseInt(levelEl.value, 10) || 0 : 0,
+      dex: dexEl ? parseInt(dexEl.value, 10) || 0 : 0,
+      int: intEl ? parseInt(intEl.value, 10) || 0 : 255,
+      wis: wisEl ? parseInt(wisEl.value, 10) || 0 : 255
+    };
+    return {
+      spellCritRank: spellCritRank,
+      spellCritMasteryRank: spellCritMasteryRank,
+      quickDamageRank: quickDamageRank,
+      focusEffects: focusEffects,
+      caster: caster
+    };
+  }
+
+  function renderRotationGearSummary() {
+    var el = document.getElementById('rotation-gear-summary');
+    if (!el) return;
+    var gearAA = getRotationGearAndAA();
+    // Same gold-label / blue-value / white-detail convention as the shared
+    // equipment summary above (shared-inventory-summary), so this card reads
+    // the same way at a glance.
+    var LABEL = 'color:#d4af37;';
+    var VALUE = 'color:#7eb8c9;';
+    var lines = [];
+
+    if (gearAA.spellCritRank > 0) {
+      var crit = [null, { chance: 2, bonus: 33 }, { chance: 4, bonus: 66 }, { chance: 7, bonus: 100 }][gearAA.spellCritRank];
+      lines.push('<div style="margin-top:0.35rem;font-size:0.8rem;color:var(--muted);">' +
+        '<strong style="' + LABEL + '">Spell Casting Fury:</strong> ' +
+        '<span style="' + VALUE + '">rank ' + gearAA.spellCritRank + '</span> ' +
+        '<span>(' + crit.chance + '% crit chance, +' + crit.bonus + '% damage)</span>' +
+        '</div>');
+    }
+
+    if (gearAA.spellCritRank === 3 && gearAA.spellCritMasteryRank > 0) {
+      var masteryChance = [0, 2, 4, 7][gearAA.spellCritMasteryRank];
+      lines.push('<div style="margin-top:0.35rem;font-size:0.8rem;color:var(--muted);">' +
+        '<strong style="' + LABEL + '">Spell Casting Fury Mastery:</strong> ' +
+        '<span style="' + VALUE + '">rank ' + gearAA.spellCritMasteryRank + '</span> ' +
+        '<span>(+' + masteryChance + '% additional crit chance, no extra damage)</span>' +
+        '</div>');
+    }
+
+    if (gearAA.spellCritRank === 3 && gearAA.quickDamageRank > 0) {
+      var qdMod = [0, 2, 5, 10][gearAA.quickDamageRank];
+      lines.push('<div style="margin-top:0.35rem;font-size:0.8rem;color:var(--muted);">' +
+        '<strong style="' + LABEL + '">Quick Damage:</strong> ' +
+        '<span style="' + VALUE + '">rank ' + gearAA.quickDamageRank + '</span> ' +
+        '<span>(-' + qdMod + '% cast time on direct-damage nukes/rains over 4s)</span>' +
+        '</div>');
+    }
+
+    var innateChance = (window.RotationEngine && window.RotationEngine.wizardInnateCritChance)
+      ? window.RotationEngine.wizardInnateCritChance(gearAA.caster.classId, gearAA.caster.level, gearAA.caster.int, gearAA.caster.dex)
+      : 0;
+    if (innateChance > 0) {
+      lines.push('<div style="margin-top:0.35rem;font-size:0.8rem;color:var(--muted);">' +
+        '<strong style="' + LABEL + '">Wizard innate crit:</strong> ' +
+        '<span style="' + VALUE + '">' + (innateChance * 100).toFixed(2) + '% chance</span> ' +
+        '<span>(+1-50% damage on hit, from INT ' + gearAA.caster.int + ' / DEX ' + gearAA.caster.dex +
+        '; only rolls when Spell Casting Fury didn\'t already crit)</span>' +
+        '</div>');
+    }
+
+    if (gearAA.focusEffects.length) {
+      lines.push('<div style="margin-top:0.35rem;font-size:0.8rem;color:var(--muted);">' +
+        '<strong style="' + LABEL + '">Item focus effects:</strong> ' +
+        '<span style="' + VALUE + '">' + gearAA.focusEffects.length + ' detected</span>' +
+        '</div>');
+      gearAA.focusEffects.forEach(function (f) {
+        var bonusParts = [];
+        if (f.improvedDamagePct > 0) bonusParts.push('+' + f.improvedDamagePct + '% dmg');
+        if (f.reduceManaPct > 0) bonusParts.push('-' + f.reduceManaPct + '% mana');
+        if (f.spellHastePct > 0) bonusParts.push('+' + f.spellHastePct + '% haste');
+        lines.push('<div style="margin:0.15rem 0 0 1rem;font-size:0.78rem;color:var(--muted);">' +
+          '<strong style="' + LABEL + '">' + (f.itemName ? String(f.itemName).replace(/</g, '&lt;') : 'Item') + ':</strong> ' +
+          '<span style="' + VALUE + '">' + String(f.name).replace(/</g, '&lt;') + '</span>' +
+          (bonusParts.length ? ' <span>(' + bonusParts.join(', ') + ')</span>' : '') +
+          '</div>');
+      });
+    }
+
+    if (!lines.length) {
+      el.innerHTML = '<p class="hint" style="margin:0;">No caster AA or item focus effects detected yet. Set a Spell Casting Fury rank in the <strong>Alternate Advancement</strong> panel above, and/or use <strong>Import Inventory</strong> (tab bar) so equipped focus items are picked up — both are era-filtered automatically.</p>';
+    } else {
+      el.innerHTML = lines.join('');
+    }
+  }
+
+  window.refreshRotationSpellPool = function refreshRotationSpellPool() {
+    renderRotationGearSummary();
+    var poolEl = document.getElementById('rotation-spell-pool');
+    var selectEl = document.getElementById('rotation-off-global-select');
+    if (!poolEl) return;
+    if (!window.RotationSpells) { poolEl.textContent = 'Rotation engine not loaded.'; return; }
+
+    var classId = (document.getElementById('class') || {}).value || '';
+    var level = parseInt((document.getElementById('level') || {}).value, 10) || 60;
+    var bodytypeRaw = (document.getElementById('rotation-mob-bodytype') || {}).value;
+    var targetBodyType = bodytypeRaw !== '' && bodytypeRaw != null ? parseInt(bodytypeRaw, 10) : null;
+
+    var fullPool = window.RotationSpells.getCasterNukePool(classId, level);
+    var pool = window.RotationSpells.filterPoolForTarget(fullPool, targetBodyType);
+    var hiddenCount = fullPool.length - pool.length;
+    window._rotationCurrentPool = pool;
+
+    if (!pool.length) {
+      var noneMsg = fullPool.length
+        ? 'Every nuke this class/level has is target-restricted, and none matches the current target. Select a matching Target NPC above.'
+        : 'No nukes found for this class/level. Only classes with direct-damage nukes are supported.';
+      poolEl.innerHTML = '<p class="hint" style="margin:0;">' + noneMsg + '</p>';
+      if (selectEl) selectEl.innerHTML = '<option value="">None</option>';
+      return;
+    }
+
+    var maxMemorized = (window.RotationEngine && window.RotationEngine.MAX_MEMORIZED_SPELLS) || 8;
+
+    // Pool is sorted by level for display; default checkboxes should still
+    // reflect the strongest spells by damage, not whichever happen to be
+    // highest level, so rank separately for that.
+    var byDamage = pool.slice().sort(function (a, b) { return b.damage - a.damage; });
+    var defaultCheckedIds = {};
+    byDamage.slice(0, maxMemorized).forEach(function (s) { defaultCheckedIds[s.id] = true; });
+
+    var rows = pool.map(function (s) {
+      var name = String(s.name).replace(/</g, '&lt;') +
+        (s.isRain ? ' <span class="hint" style="margin:0;" title="Total across ' + s.waves + ' independently-resisted waves, 2.5s apart">(rain ×' + s.waves + ')</span>' : '') +
+        (s.isDot ? ' <span class="hint" style="margin:0;" title="Total across ' + s.waves + ' ticks, 6s apart. Recasting early overwrites the current application and loses the remaining ticks.">(DoT ×' + s.waves + ' ticks)</span>' : '');
+      var checked = defaultCheckedIds[s.id] ? ' checked' : '';
+      return '<tr>' +
+        '<td style="text-align:center;"><input type="checkbox" class="rotation-spell-include" data-spell-id="' + s.id + '"' + checked + '></td>' +
+        '<td>' + name + '</td>' +
+        '<td>' + s.level + '</td>' +
+        '<td>' + Math.round(s.damage) + '</td>' +
+        '<td>' + s.mana + '</td>' +
+        '<td>' + s.castTime.toFixed(2) + '</td>' +
+        '<td>' + s.recastTime.toFixed(2) + '</td>' +
+        '<td>' + s.resistType + '</td>' +
+        '</tr>';
+    }).join('');
+
+    poolEl.innerHTML =
+      '<div style="overflow-x:auto;">' +
+      '<table class="rotation-pool-table" style="width:100%;border-collapse:collapse;font-size:0.82rem;">' +
+      '<thead><tr><th>Use</th><th style="text-align:left;">Name</th><th>Lvl</th><th>Dmg</th><th>Mana</th><th>Cast</th><th>Recast</th><th style="text-align:left;">Resist</th></tr></thead>' +
+      '<tbody>' + rows + '</tbody></table></div>' +
+      '<p class="hint" style="margin-top:0.4rem;">' + pool.length + ' nuke(s) found for this class/level.' +
+      (hiddenCount > 0
+        ? ' ' + hiddenCount + ' more hidden — restricted to a target type (undead, giant, dragon, etc.) the current target doesn\'t match.'
+        : '') +
+      ' Only ' + maxMemorized + ' spells can be memorized at once — defaults to the top ' + maxMemorized + ' by damage; ' +
+      '<span id="rotation-pool-checked-count"></span></p>';
+
+    if (selectEl) {
+      var options = ['<option value="">None (pure GCD chain)</option>'];
+      pool.forEach(function (s) {
+        options.push('<option value="' + s.id + '">' + String(s.name).replace(/</g, '&lt;') + '</option>');
+      });
+      selectEl.innerHTML = options.join('');
+    }
+
+    function updateCheckedCount() {
+      var countEl = document.getElementById('rotation-pool-checked-count');
+      if (!countEl) return;
+      var checkedCount = poolEl.querySelectorAll('.rotation-spell-include:checked').length;
+      countEl.textContent = checkedCount + ' of ' + maxMemorized + ' memorized.';
+    }
+    updateCheckedCount();
+
+    poolEl.addEventListener('change', function (e) {
+      if (!e.target || !e.target.classList || !e.target.classList.contains('rotation-spell-include')) return;
+      var checkedBoxes = poolEl.querySelectorAll('.rotation-spell-include:checked');
+      if (checkedBoxes.length > maxMemorized) {
+        e.target.checked = false;
+        alert('Only ' + maxMemorized + ' spells can be memorized at once. Uncheck one first.');
+      }
+      updateCheckedCount();
+      syncRotationManualBuilder();
+    });
+    syncRotationManualBuilder();
+  };
+
+  // ---- Manual rotation builder ----
+
+  function getRotationCheckedPool() {
+    var poolEl = document.getElementById('rotation-spell-pool');
+    var basePool = window._rotationCurrentPool || [];
+    if (!poolEl) return [];
+    var checkedIds = {};
+    poolEl.querySelectorAll('.rotation-spell-include:checked').forEach(function (cb) {
+      checkedIds[cb.getAttribute('data-spell-id')] = true;
+    });
+    return basePool.filter(function (s) { return checkedIds[s.id]; });
+  }
+
+  function syncRotationManualBuilder() {
+    var addSelect = document.getElementById('rotation-manual-add-select');
+    var listEl = document.getElementById('rotation-manual-order-list');
+    if (!addSelect || !listEl) return;
+
+    var checkedPool = getRotationCheckedPool();
+    var checkedById = {};
+    checkedPool.forEach(function (s) { checkedById[s.id] = s; });
+
+    if (!window._rotationManualOrder) window._rotationManualOrder = [];
+    // Drop anything that fell out of the checked pool (unchecked, or pool refreshed).
+    window._rotationManualOrder = window._rotationManualOrder.filter(function (id) { return checkedById[id]; });
+
+    var inOrder = {};
+    window._rotationManualOrder.forEach(function (id) { inOrder[id] = true; });
+    var addable = checkedPool.filter(function (s) { return !inOrder[s.id]; });
+    addSelect.innerHTML = addable.length
+      ? addable.map(function (s) { return '<option value="' + s.id + '">' + String(s.name).replace(/</g, '&lt;') + '</option>'; }).join('')
+      : '<option value="">(all checked spells are already in the order)</option>';
+
+    if (!window._rotationManualOrder.length) {
+      listEl.innerHTML = '<li class="hint" style="list-style:none;margin-left:-1.4rem;">Empty — click "Reset to pool order" or add spells above.</li>';
+      return;
+    }
+    listEl.innerHTML = window._rotationManualOrder.map(function (id, i) {
+      var s = checkedById[id];
+      var name = s ? String(s.name).replace(/</g, '&lt;') : id;
+      var isFirst = i === 0, isLast = i === window._rotationManualOrder.length - 1;
+      return '<li style="margin-bottom:0.25rem;display:flex;align-items:center;gap:0.5rem;">' +
+        '<span style="flex:1;">' + name + '</span>' +
+        '<button type="button" class="magic-btn rotation-manual-up" data-id="' + id + '" style="padding:0.1rem 0.6rem;"' + (isFirst ? ' disabled' : '') + ' title="Move up">↑</button>' +
+        '<button type="button" class="magic-btn rotation-manual-down" data-id="' + id + '" style="padding:0.1rem 0.6rem;"' + (isLast ? ' disabled' : '') + ' title="Move down">↓</button>' +
+        '<button type="button" class="magic-btn rotation-manual-remove" data-id="' + id + '" style="padding:0.1rem 0.6rem;" title="Remove">×</button>' +
+        '</li>';
+    }).join('');
+  }
+
+  (function initRotationModeToggle() {
+    var radios = document.getElementsByName('rotation-mode');
+    var builderEl = document.getElementById('rotation-manual-builder');
+    if (!radios.length || !builderEl) return;
+
+    function isManual() {
+      for (var i = 0; i < radios.length; i++) if (radios[i].checked) return radios[i].value === 'manual';
+      return false;
+    }
+    function apply() {
+      var manual = isManual();
+      builderEl.style.display = manual ? 'block' : 'none';
+      if (manual && (!window._rotationManualOrder || !window._rotationManualOrder.length)) {
+        window._rotationManualOrder = getRotationCheckedPool().map(function (s) { return s.id; });
+      }
+      syncRotationManualBuilder();
+    }
+    for (var i = 0; i < radios.length; i++) radios[i].addEventListener('change', apply);
+    apply();
+  })();
+
+  var btnManualAdd = document.getElementById('rotation-manual-add-btn');
+  if (btnManualAdd) {
+    btnManualAdd.addEventListener('click', function () {
+      var sel = document.getElementById('rotation-manual-add-select');
+      var id = sel && sel.value;
+      if (!id) return;
+      if (!window._rotationManualOrder) window._rotationManualOrder = [];
+      window._rotationManualOrder.push(id);
+      syncRotationManualBuilder();
+    });
+  }
+
+  var btnManualReset = document.getElementById('rotation-manual-reset-btn');
+  if (btnManualReset) {
+    btnManualReset.addEventListener('click', function () {
+      window._rotationManualOrder = getRotationCheckedPool().map(function (s) { return s.id; });
+      syncRotationManualBuilder();
+    });
+  }
+
+  var manualOrderListEl = document.getElementById('rotation-manual-order-list');
+  if (manualOrderListEl) {
+    manualOrderListEl.addEventListener('click', function (e) {
+      var order = window._rotationManualOrder || [];
+      var upBtn = e.target.closest('.rotation-manual-up');
+      var downBtn = e.target.closest('.rotation-manual-down');
+      var removeBtn = e.target.closest('.rotation-manual-remove');
+      var btn = upBtn || downBtn || removeBtn;
+      if (!btn) return;
+      var id = btn.getAttribute('data-id');
+      var idx = order.indexOf(id);
+      if (idx === -1) return;
+      if (upBtn && idx > 0) {
+        order.splice(idx - 1, 0, order.splice(idx, 1)[0]);
+      } else if (downBtn && idx < order.length - 1) {
+        order.splice(idx + 1, 0, order.splice(idx, 1)[0]);
+      } else if (removeBtn) {
+        order.splice(idx, 1);
+      }
+      syncRotationManualBuilder();
+    });
+  }
+
+  var btnRefreshRotationPool = document.getElementById('rotation-refresh-pool');
+  if (btnRefreshRotationPool) {
+    btnRefreshRotationPool.addEventListener('click', function () { window.refreshRotationSpellPool(); });
+  }
+
+  var btnRecommendRotationPool = document.getElementById('rotation-recommend-pool');
+  if (btnRecommendRotationPool) {
+    btnRecommendRotationPool.addEventListener('click', function () {
+      if (!window.RotationEngine) { alert('Rotation engine not loaded.'); return; }
+      var basePool = window._rotationCurrentPool || [];
+      if (!basePool.length) { alert('No spell pool loaded. Click "Refresh spell pool" first.'); return; }
+
+      function v(id, fallback) {
+        var el = document.getElementById(id);
+        if (!el) return fallback;
+        var n = parseFloat(el.value);
+        return isNaN(n) ? fallback : n;
+      }
+      function radioVal(name, fallback) {
+        var els = document.getElementsByName(name);
+        for (var i = 0; i < els.length; i++) if (els[i].checked) return els[i].value;
+        return fallback;
+      }
+
+      var resistMode = radioVal('rotation-resist-mode', 'statBased');
+      var resistConfig = resistMode === 'flat'
+        ? {
+            mode: 'flat',
+            fullResistPct: v('rotation-full-resist-pct', 5),
+            partialResistPct: v('rotation-partial-resist-pct', 12)
+          }
+        : {
+            mode: 'statBased',
+            casterLevel: v('level', 60),
+            mobLevel: v('rotation-mob-level', 60),
+            mobResists: {
+              mr: v('rotation-mob-mr', 0), fr: v('rotation-mob-fr', 0),
+              cr: v('rotation-mob-cr', 0), pr: v('rotation-mob-pr', 0), dr: v('rotation-mob-dr', 0)
+            }
+          };
+      var priorityMode = radioVal('rotation-priority-mode', 'dps');
+      var gearAA = getRotationGearAndAA();
+
+      var maxMemorized = RotationEngine.MAX_MEMORIZED_SPELLS || 8;
+      var ranked = RotationEngine.rankSpellPool(basePool, resistConfig, priorityMode, gearAA.focusEffects, gearAA.spellCritRank, gearAA.caster, gearAA.spellCritMasteryRank, gearAA.quickDamageRank);
+      var topIds = {};
+      ranked.slice(0, maxMemorized).forEach(function (r) { topIds[r.spell.id] = true; });
+
+      var poolEl = document.getElementById('rotation-spell-pool');
+      if (!poolEl) return;
+      poolEl.querySelectorAll('.rotation-spell-include').forEach(function (cb) {
+        cb.checked = !!topIds[cb.getAttribute('data-spell-id')];
+      });
+      var countEl = document.getElementById('rotation-pool-checked-count');
+      if (countEl) {
+        var checkedCount = poolEl.querySelectorAll('.rotation-spell-include:checked').length;
+        countEl.textContent = checkedCount + ' of ' + maxMemorized + ' memorized (recommended).';
+      }
+
+      // If the current off-global pick fell out of the recommended set,
+      // clear it rather than leave a silently-ignored mismatch.
+      var offGlobalSelect = document.getElementById('rotation-off-global-select');
+      if (offGlobalSelect && offGlobalSelect.value && !topIds[offGlobalSelect.value]) {
+        offGlobalSelect.value = '';
+      }
+    });
+  }
+
+  var btnRunRotation = document.getElementById('btn-run-rotation');
+  if (btnRunRotation) {
+    btnRunRotation.addEventListener('click', function () {
+      if (!window.RotationEngine || !window.RotationSpells || !window.RotationResist) {
+        alert('Rotation engine not loaded.');
+        return;
+      }
+
+      function v(id, fallback) {
+        var el = document.getElementById(id);
+        if (!el) return fallback;
+        var n = parseFloat(el.value);
+        return isNaN(n) ? fallback : n;
+      }
+      function sel(id, fallback) {
+        var el = document.getElementById(id);
+        return el ? (el.value || fallback) : fallback;
+      }
+      function radioVal(name, fallback) {
+        var els = document.getElementsByName(name);
+        for (var i = 0; i < els.length; i++) if (els[i].checked) return els[i].value;
+        return fallback;
+      }
+
+      var basePool = window._rotationCurrentPool || [];
+      var poolEl = document.getElementById('rotation-spell-pool');
+      if (!basePool.length) {
+        alert('No spell pool loaded. Click "Refresh spell pool" first.');
+        return;
+      }
+
+      var includedIds = {};
+      poolEl.querySelectorAll('.rotation-spell-include').forEach(function (cb) {
+        if (cb.checked) includedIds[cb.getAttribute('data-spell-id')] = true;
+      });
+      var pool = basePool.filter(function (s) { return includedIds[s.id]; });
+      if (!pool.length) {
+        alert('No spells selected. Check at least one spell in the pool.');
+        return;
+      }
+
+      var offGlobalSpellId = sel('rotation-off-global-select', '') || null;
+      var resistMode = radioVal('rotation-resist-mode', 'statBased');
+      var resistConfig = resistMode === 'flat'
+        ? {
+            mode: 'flat',
+            fullResistPct: v('rotation-full-resist-pct', 5),
+            partialResistPct: v('rotation-partial-resist-pct', 12)
+          }
+        : {
+            mode: 'statBased',
+            casterLevel: v('level', 60),
+            mobLevel: v('rotation-mob-level', 60),
+            mobResists: {
+              mr: v('rotation-mob-mr', 0), fr: v('rotation-mob-fr', 0),
+              cr: v('rotation-mob-cr', 0), pr: v('rotation-mob-pr', 0), dr: v('rotation-mob-dr', 0)
+            }
+          };
+
+      var gearAA = getRotationGearAndAA();
+      var rotationMode = radioVal('rotation-mode', 'auto');
+      var manualOrder = null;
+      if (rotationMode === 'manual') {
+        var poolIds = {};
+        pool.forEach(function (s) { poolIds[s.id] = true; });
+        manualOrder = (window._rotationManualOrder || []).filter(function (id) { return poolIds[id]; });
+        if (!manualOrder.length) {
+          alert('Your custom order is empty (or none of it is checked in the pool). Add spells to the order, or switch back to Optimized.');
+          return;
+        }
+      }
+
+      var config = {
+        pool: pool,
+        offGlobalSpellId: offGlobalSpellId,
+        fightDurationSec: v('rotation-duration', 600),
+        maxMana: v('rotation-max-mana', 0),
+        manaRegenPerTick: v('rotation-mana-regen', 0),
+        resist: resistConfig,
+        priorityMode: radioVal('rotation-priority-mode', 'dps'),
+        manualOrder: manualOrder,
+        spellCritRank: gearAA.spellCritRank,
+        spellCritMasteryRank: gearAA.spellCritMasteryRank,
+        quickDamageRank: gearAA.quickDamageRank,
+        focusEffects: gearAA.focusEffects,
+        caster: gearAA.caster
+      };
+
+      var result = RotationEngine.simulateRotation(config);
+      var text = RotationEngine.formatRotationReport(result);
+      var reportEl = document.getElementById('rotation-report');
+      var wrapEl = document.getElementById('rotation-report-wrap');
+      var timelineEl = document.getElementById('rotation-timeline');
+      var dpsChartEl = document.getElementById('rotation-dps-chart');
+      if (reportEl) reportEl.textContent = text;
+      if (timelineEl) timelineEl.innerHTML = RotationEngine.buildRotationTimelineHtml(result);
+      if (dpsChartEl) dpsChartEl.innerHTML = RotationEngine.buildRotationDpsOverTimeHtml(result);
+      if (wrapEl) wrapEl.style.display = '';
+
+      var rotLogUrl = window._GSIM_LOG_URL || '';
+      if (window.UsageLog && rotLogUrl) {
+        var payload = UsageLog.buildPayload({
+          simMode: 'rotation',
+          eraId: window.getSelectedEra ? window.getSelectedEra() : 'pop',
+          classId: sel('class', ''),
+          level: v('level', 60),
+          mobLevel: config.resist.mobLevel,
+          durationSec: config.fightDurationSec,
+          totalDamage: Math.round(result.totalDamage),
+          dps: Math.round(result.dps)
+        });
+        UsageLog.sendLog(payload, rotLogUrl);
+      }
+    });
+  }
 
   // ---- Inventory Manager bridge ----
   window.__invManagerState   = inventoryManagerState;
