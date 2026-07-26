@@ -1484,11 +1484,18 @@
     <div class="card">
       <h2>20) Pet DPS Simulation <span class="badge badge-sim">Sim Feature</span></h2>
       <p>
-        Magician, Necromancer, Shaman, Shadowknight, and Beastlord all summon a pet that fights alongside the
-        player. The <strong>Pet</strong> panel (Melee and Spells tabs, shown only for these five classes, positioned
-        below the weapon cards on Melee and at the top of the Spells tab) simulates the pet's own melee output
-        against the same target and adds it to whichever tab's report was just run, so you can see <strong>Pet
-        DPS</strong> and <strong>Combined DPS (Player + Pet)</strong> next to your own number.
+        Magician, Necromancer, Shaman, Shadowknight, and Beastlord all summon a full-time companion pet that fights
+        alongside the player; Wizard (Flaming Sword of Xuzl) and Cleric (Unswerving Hammer of Faith) each get one
+        situational combat-pet spell instead. The <strong>Pet</strong> panel (Melee and Spells tabs, shown for all
+        seven of these classes, positioned below the weapon cards on Melee and at the top of the Spells tab)
+        simulates the pet's own melee output against the same target and adds it to whichever tab's report was
+        just run, so you can see <strong>Pet DPS</strong> and <strong>Combined DPS (Player + Pet)</strong> next to
+        your own number.
+      </p>
+      <p class="muted">
+        Wizard and Cleric's pets aren't kept up full-time in real play — the sim assumes the spell is cast at the
+        very start of the fight and the pet stays up for the whole duration, the same as every other pet here,
+        rather than modeling its actual in-game expiration (which isn't exposed anywhere in the spell data).
       </p>
 
       <h3>Where a pet's stats come from</h3>
@@ -1500,7 +1507,7 @@
         search elsewhere in the sim uses. That gives the pet's real level, HP, min/max melee damage, AC, ATK, DEX,
         and attack delay — not an estimate. Shadowknight needs no special handling: SK shares the same skeleton-pet
         spell line as Necromancer in this era, just unlocked at a much higher level, so it falls out of the same
-        class/level scan as the other four.
+        class/level scan as every other class here.
       </p>
       <p class="muted">
         The <strong>Pet summon spell</strong> dropdown lists every pet-summon spell the selected class can cast by
@@ -1552,11 +1559,12 @@
 
       <h3>Pet Damage report section</h3>
       <p>
-        When the pet sim runs, the report gets its own <strong>Pet Damage</strong> section — same
-        <code>=== Section ===</code> / padded-column layout as every other section of the report (Weapon Overview,
-        Procs &amp; Specials, ...), not a bolted-on footnote. It breaks the pet's damage down by main hand and off
-        hand (swings, hits, accuracy, damage, DPS each), the proc buff's own contribution if one is selected, and
-        closes with total pet damage, Pet DPS, and Combined DPS (Player + Pet).
+        When the pet sim runs, the report gets its own <strong>Pet Damage</strong> section, placed right after
+        Procs &amp; Specials and before Final Totals — same <code>=== Section ===</code> / padded-column layout as
+        every other section of the report (Weapon Overview, Procs &amp; Specials, ...), reading as one more section
+        of the fight rather than a trailing footnote. It breaks the pet's damage down by main hand and off hand
+        (swings, hits, accuracy, damage, DPS each), the proc buff's own contribution if one is selected, and closes
+        with total pet damage, Pet DPS, and Combined DPS (Player + Pet).
       </p>
 
       <h3>Including pet DPS in Total DPS (Melee tab)</h3>
@@ -1568,7 +1576,8 @@
         you're trying to see between weapons. Checking <strong>Include pet DPS in Total DPS</strong> in the Pet
         panel folds the pet's DPS into both of those numbers instead, for when you want the group's real combined
         output rather than an apples-to-apples weapon comparison. The report's own Pet Damage section always states
-        which mode was active for that run.
+        which mode was active for that run, and any Session History row logged with the pet folded in gets a small
+        🐾 next to its DPS value so you can tell those runs apart from player-only ones at a glance.
       </p>
     </div>
 

@@ -3109,6 +3109,7 @@
     <details id="version-log-details">
     <summary style="cursor:pointer; font-size:1.17em; font-weight:bold; margin:0; list-style:revert;">Version log</summary>
     <ul style="font-size: 0.9rem; color: var(--muted); margin: 0.5rem 0 0; padding-left: 1.25rem;">
+      <li><strong>1.42</strong> — More pet sim follow-ups: the <strong>Pet Damage</strong> report section now sits between Procs &amp; Specials and Final Totals (was appended after Final Totals). Session History rows where <strong>Include pet DPS in Total DPS</strong> was checked now show a small 🐾 next to the DPS value, in both the Advanced-mode Session History table and the Easy-mode history table, so pet-inflated runs are visually distinct from player-only ones. Added Wizard (<strong>Flaming Sword of Xuzl</strong>) and Cleric (<strong>Unswerving Hammer of Faith</strong>) to the Pet panel's supported classes — each gets one situational combat-pet spell rather than a full-time companion; the sim assumes it's cast at the very start of the fight and stays up the whole duration, same as every other pet, since no in-game expiration is exposed in the spell data to model otherwise. Both resolve through the exact same <code>js/modules/petSpells.js</code> pipeline with no special-casing needed. Mechanics guide updated (section 20).</li>
       <li><strong>1.41</strong> — Pet sim follow-ups: the report now has a full <strong>Pet Damage</strong> section (same <code>=== Section ===</code> padded-column layout as Weapon Overview/Procs &amp; Specials — main hand and off hand swings/hits/accuracy/damage/DPS, proc buff contribution, totals) instead of a two-line footnote. New <strong>Include pet DPS in Total DPS</strong> checkbox in the Pet panel: off by default, so the Melee tab's header ticker and Session History (the numbers used to compare weapons against each other) stay player-only and aren't uniformly inflated by the pet's flat baseline; check it to fold the pet into both for the group's real combined output. The report's Pet Damage section always states which mode was active. <code>js/modules/petCombat.js</code>'s <code>simulatePetFight</code> now also tracks per-hand damage totals and max hit to support the detailed section. Mechanics guide updated (section 20).</li>
       <li><strong>1.40</strong> — Added a <strong>Pet DPS</strong> simulation for Magician, Necromancer, Shaman, Shadowknight, and Beastlord: a shared <strong>Pet</strong> panel (positioned below the weapon cards on the Melee tab, at the top of the Spells tab) lets you pick a pet-summon spell from a dropdown — resolved to the pet's real combat stats by joining the spell's <code>teleport_zone</code> field against the NPC database, the same one Target NPC search uses, not an estimate. Simulates the pet's melee output against the same target using the same NPC-style attack engine the Tanking sim uses for the mob's side of a fight (pet as attacker, target mob as defender), and appends <strong>Pet DPS</strong> / <strong>Combined DPS (Player + Pet)</strong> to whichever tab's report was just run. New <strong>Always Dual Wield</strong> toggle models handing the pet a second weapon (real pets are excluded from the native dual-wield ability path server-side and need an actual offhand weapon item) by unlocking a second attack round using the pet's own innate damage. Shadowknight needed no special-casing — SK shares the same skeleton-pet spell line as Necromancer, just unlocked much later, so it resolves through the same class/level pool logic as the other classes. Beastlord adds a <strong>Pet proc buff (optional)</strong> dropdown for the "Spirit of X" line (Lightning/Blizzard/Inferno/...), which grants the pet a chance to proc elemental damage on its own swings — modeled with the same per-swing proc-chance formula already used for player weapon procs, scaled by the 375%-of-baseline rate EQMacEmu hardcodes for exactly those ten spells (<code>Pet::LoadPetPets</code>) rather than each spell's own unused/misleading data field. The single shared Pet panel node is relocated between two anchor points on tab switch so its state persists no matter which tab it's displayed under. New files <code>js/modules/petSpells.js</code> (data pipeline) and <code>js/modules/petCombat.js</code> (combat engine); one-line fix in <code>npcCombat.js</code> so pets correctly skip the 46-50 offense plateau real NPCs get. Out of scope for now: other pet AAs, pet incoming damage/death, and pet flurry/rampage/class-attacks (real pets have no attack AI script). Mechanics guide updated (new section 20).</li>
       <li><strong>1.39</strong> — Tanking tab: added a <strong>DTPS Over Time</strong> line chart above the report, showing damage-taken-per-second across one representative simulated run (bucketed instantaneous line plus a trailing 15s average, with a dashed reference line for the averaged DTPS across all runs and a marker on the single largest hit) so burst/spike shape is visible instead of hidden inside the averaged headline DTPS figure. <code>runTankingAnalysis</code> now keeps the first run's full damage timeline (<code>sampleTimeline</code>) for this purpose since averaging across runs discards it. Mechanics guide updated (section 16).</li>
@@ -3648,7 +3649,7 @@
       }
 
       // When releasing: 1) Bump VERSION below. 2) Add a new <li> at the top of the Version log section above.
-      const VERSION = '1.41';
+      const VERSION = '1.42';
       const versionEl = $('app-version');
       if (versionEl) versionEl.textContent = 'v' + VERSION;
 
@@ -5757,7 +5758,17 @@
           petResult = runPetSimIfEnabled({ targetLevel: mobLevel, durationSec: durationSec });
           if (petResult) {
             var playerDpsForPet = report.durationSec ? (report.totalDamage / report.durationSec) : 0;
-            reportText += '\n' + formatPetReportBlock(petResult, playerDpsForPet, includePetInNetDps);
+            var petBlock = formatPetReportBlock(petResult, playerDpsForPet, includePetInNetDps);
+            // Slot the Pet Damage section in after Procs & Specials but
+            // before Final Totals, so it reads as one more section of the
+            // same report rather than a trailing footnote.
+            var finalTotalsMarker = '=== Final Totals ===';
+            var finalTotalsIdx = reportText.indexOf(finalTotalsMarker);
+            if (finalTotalsIdx >= 0) {
+              reportText = reportText.slice(0, finalTotalsIdx) + petBlock.replace(/^\n+/, '') + '\n\n' + reportText.slice(finalTotalsIdx);
+            } else {
+              reportText += '\n' + petBlock;
+            }
           }
         }
         $('report').textContent = reportText;
@@ -5870,6 +5881,7 @@
           attack: totalAttack,
           mobAC: targetAC,
           dps: weaponDps,
+          petIncluded: !!(petResult && includePetInNetDps),
           fistweaving: !!report.fistweaving,
           era: ($('era-select') && $('era-select').value) || 'classic',
           mode: document.body.getAttribute('data-ui-mode') || 'easy',
@@ -8186,7 +8198,8 @@
             '<span class="sim-history-target" title="' + targetDisplay.replace(/"/g, '&quot;') + '">' + targetDisplay.replace(/</g, '&lt;') + '</span>' +
             '<span class="sim-history-atk">' + (h.attack != null ? h.attack : '—') + '</span>' +
             '<span class="sim-history-ac">' + (h.mobAC != null ? h.mobAC : '—') + '</span>' +
-            '<span class="sim-history-dps">' + (typeof h.dps === 'number' ? h.dps.toFixed(2) : '—') + '</span>' +
+            '<span class="sim-history-dps">' + (typeof h.dps === 'number' ? h.dps.toFixed(2) : '—') +
+            (h.petIncluded ? ' <span title="Includes pet DPS">🐾</span>' : '') + '</span>' +
             '</div>';
         }).join('');
         listEl.innerHTML = header + rows;
@@ -8638,7 +8651,7 @@
             '<td class="eht-dps eht-dps-first">' + mh + '</td>' +
             '<td class="eht-dps">' + oh + '</td>' +
             '<td class="eht-dps">' + proc + '</td>' +
-            '<td class="eht-dps eht-dps-last easy-history-dps">' + dps + '</td>' +
+            '<td class="eht-dps eht-dps-last easy-history-dps">' + dps + (h.petIncluded ? ' <span title="Includes pet DPS">🐾</span>' : '') + '</td>' +
             '</tr>';
         }).join('');
         listEl.innerHTML = '<div class="easy-history-table-wrap">' + header + rows + '</tbody></table></div>';
@@ -10771,7 +10784,15 @@
       // report was just run. See js/modules/petSpells.js (data) and
       // js/modules/petCombat.js (combat engine) for the actual sim.
       // ============================================================
-      var PET_CLASSES = ['shadowknight', 'necromancer', 'shaman', 'magician', 'beastlord'];
+      // Wizard (Flaming Sword of Xuzl) and Cleric (Unswerving Hammer of
+      // Faith line) don't have a full-time companion pet like the other
+      // five classes — they get one situational, cast-on-demand combat pet
+      // spell each. It resolves through the exact same pool-building
+      // pipeline (petSpells.js), and the sim assumes it's summoned at the
+      // very start of the fight and stays up the whole time (same as every
+      // other pet here) rather than modeling its real in-game expiration,
+      // which isn't exposed anywhere in the spell data.
+      var PET_CLASSES = ['shadowknight', 'necromancer', 'shaman', 'magician', 'beastlord', 'wizard', 'cleric'];
       function isPetClass(classId) {
         return PET_CLASSES.indexOf((classId || '').toLowerCase()) >= 0;
       }

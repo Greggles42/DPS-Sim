@@ -12,6 +12,15 @@
  * module's whole job is walking spells-data.js -> teleport_zone ->
  * npc_types-data.js.
  *
+ * Wizard (Flaming Sword of Xuzl) and Cleric (Unswerving Hammer of Faith)
+ * each get one situational combat-pet spell too — same effectid 33, same
+ * teleport_zone join (SumSword / SumHammer), so they fall out of this exact
+ * same scan with no special-casing. Unlike the five full-time companion
+ * classes, these are normally cast on demand rather than kept up
+ * permanently; per product decision, the sim assumes it's summoned at the
+ * very start of the fight and stays up the whole duration (no in-game
+ * expiration is exposed anywhere in the spell data to model otherwise).
+ *
  * Shadowknight needs no special-casing: SK shares the same skeleton-pet
  * spell records as Necromancer (classes5 vs classes11 on the same rows),
  * just gated to a much higher level — it falls out of the same classesN
