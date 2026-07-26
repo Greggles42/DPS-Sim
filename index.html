@@ -3109,6 +3109,7 @@
     <details id="version-log-details">
     <summary style="cursor:pointer; font-size:1.17em; font-weight:bold; margin:0; list-style:revert;">Version log</summary>
     <ul style="font-size: 0.9rem; color: var(--muted); margin: 0.5rem 0 0; padding-left: 1.25rem;">
+      <li><strong>1.41</strong> — Pet sim follow-ups: the report now has a full <strong>Pet Damage</strong> section (same <code>=== Section ===</code> padded-column layout as Weapon Overview/Procs &amp; Specials — main hand and off hand swings/hits/accuracy/damage/DPS, proc buff contribution, totals) instead of a two-line footnote. New <strong>Include pet DPS in Total DPS</strong> checkbox in the Pet panel: off by default, so the Melee tab's header ticker and Session History (the numbers used to compare weapons against each other) stay player-only and aren't uniformly inflated by the pet's flat baseline; check it to fold the pet into both for the group's real combined output. The report's Pet Damage section always states which mode was active. <code>js/modules/petCombat.js</code>'s <code>simulatePetFight</code> now also tracks per-hand damage totals and max hit to support the detailed section. Mechanics guide updated (section 20).</li>
       <li><strong>1.40</strong> — Added a <strong>Pet DPS</strong> simulation for Magician, Necromancer, Shaman, Shadowknight, and Beastlord: a shared <strong>Pet</strong> panel (positioned below the weapon cards on the Melee tab, at the top of the Spells tab) lets you pick a pet-summon spell from a dropdown — resolved to the pet's real combat stats by joining the spell's <code>teleport_zone</code> field against the NPC database, the same one Target NPC search uses, not an estimate. Simulates the pet's melee output against the same target using the same NPC-style attack engine the Tanking sim uses for the mob's side of a fight (pet as attacker, target mob as defender), and appends <strong>Pet DPS</strong> / <strong>Combined DPS (Player + Pet)</strong> to whichever tab's report was just run. New <strong>Always Dual Wield</strong> toggle models handing the pet a second weapon (real pets are excluded from the native dual-wield ability path server-side and need an actual offhand weapon item) by unlocking a second attack round using the pet's own innate damage. Shadowknight needed no special-casing — SK shares the same skeleton-pet spell line as Necromancer, just unlocked much later, so it resolves through the same class/level pool logic as the other classes. Beastlord adds a <strong>Pet proc buff (optional)</strong> dropdown for the "Spirit of X" line (Lightning/Blizzard/Inferno/...), which grants the pet a chance to proc elemental damage on its own swings — modeled with the same per-swing proc-chance formula already used for player weapon procs, scaled by the 375%-of-baseline rate EQMacEmu hardcodes for exactly those ten spells (<code>Pet::LoadPetPets</code>) rather than each spell's own unused/misleading data field. The single shared Pet panel node is relocated between two anchor points on tab switch so its state persists no matter which tab it's displayed under. New files <code>js/modules/petSpells.js</code> (data pipeline) and <code>js/modules/petCombat.js</code> (combat engine); one-line fix in <code>npcCombat.js</code> so pets correctly skip the 46-50 offense plateau real NPCs get. Out of scope for now: other pet AAs, pet incoming damage/death, and pet flurry/rampage/class-attacks (real pets have no attack AI script). Mechanics guide updated (new section 20).</li>
       <li><strong>1.39</strong> — Tanking tab: added a <strong>DTPS Over Time</strong> line chart above the report, showing damage-taken-per-second across one representative simulated run (bucketed instantaneous line plus a trailing 15s average, with a dashed reference line for the averaged DTPS across all runs and a marker on the single largest hit) so burst/spike shape is visible instead of hidden inside the averaged headline DTPS figure. <code>runTankingAnalysis</code> now keeps the first run's full damage timeline (<code>sampleTimeline</code>) for this purpose since averaging across runs discards it. Mechanics guide updated (section 16).</li>
       <li><strong>1.38</strong> — Spells (rotation) tab: added <strong>Spell Casting Fury Mastery</strong> and <strong>Quick Damage</strong> AAs (both require Spell Casting Fury rank 3). Mastery adds another 2/4/7% spell crit chance per rank, stacking additively with Spell Casting Fury's own chance (no extra damage bonus — that's fixed by Spell Casting Fury's rank alone, per <code>Client::GetActSpellDamage</code>). Quick Damage cuts cast time 2/5/10% per rank on direct-damage nukes/rains over 4s (DoTs unaffected), matching <code>Client::GetActSpellCastingTime</code>'s gate in <code>effects.cpp</code>. Both wired into the AA Configurator, inventory-import AA mapping (eqmacid 114 and 44), and the rotation report/gear-summary cards. Version log is now a collapsible section. Report bug/feature form now opens a pre-filled GitHub "new issue" page directly instead of depending on a serverless proxy, and has a Discord/in-game character name field instead of email.</li>
@@ -3647,7 +3648,7 @@
       }
 
       // When releasing: 1) Bump VERSION below. 2) Add a new <li> at the top of the Version log section above.
-      const VERSION = '1.40';
+      const VERSION = '1.41';
       const versionEl = $('app-version');
       if (versionEl) versionEl.textContent = 'v' + VERSION;
 
@@ -5749,11 +5750,14 @@
           const skillCap = WeaponSkillCaps.getCapForSimClass(classId, capSkillKey, level);
           reportText = '  Weapon skill cap (' + capSkillKey + '): ' + skillCap + ' (Quarm/TAKP)\n\n' + reportText;
         }
+        var petResult = null;
+        var includeNetEl = $('pet-include-net-dps');
+        var includePetInNetDps = !!(includeNetEl && includeNetEl.checked);
         if (typeof runPetSimIfEnabled === 'function') {
-          var petResult = runPetSimIfEnabled({ targetLevel: mobLevel, durationSec: durationSec });
+          petResult = runPetSimIfEnabled({ targetLevel: mobLevel, durationSec: durationSec });
           if (petResult) {
             var playerDpsForPet = report.durationSec ? (report.totalDamage / report.durationSec) : 0;
-            reportText += '\n' + formatPetReportBlock(petResult, playerDpsForPet);
+            reportText += '\n' + formatPetReportBlock(petResult, playerDpsForPet, includePetInNetDps);
           }
         }
         $('report').textContent = reportText;
@@ -5810,8 +5814,16 @@
           }
         })();
 
+        // "Include pet DPS in Total DPS" — off by default, so a pet's flat
+        // per-run baseline doesn't quietly inflate every weapon's number in
+        // Session History and make close comparisons harder to read. The
+        // pet's own numbers are always shown in the report's Pet Damage
+        // section either way; this checkbox only controls whether they also
+        // fold into the "score" used to compare runs against each other.
+        var petDpsForNet = (petResult && includePetInNetDps) ? petResult.dps : 0;
+
         const dpsEl = $('dps-value');
-        if (dpsEl && report.durationSec) dpsEl.textContent = (report.totalDamage / report.durationSec).toFixed(2);
+        if (dpsEl && report.durationSec) dpsEl.textContent = ((report.totalDamage / report.durationSec) + petDpsForNet).toFixed(2);
         setHeaderTpsFromReport(report);
         updateEasyDpsFromGlobal();
 
@@ -5839,7 +5851,7 @@
         }
 
         const totalAttack = report.displayedAttack != null ? report.displayedAttack : report.offenseRating;
-        const weaponDps = report.durationSec > 0 ? (report.totalDamage / report.durationSec) : 0;
+        const weaponDps = (report.durationSec > 0 ? (report.totalDamage / report.durationSec) : 0) + petDpsForNet;
         const mainhandDps = report.durationSec > 0 ? ((report.weapon1 && report.weapon1.totalDamage ? report.weapon1.totalDamage : 0) / report.durationSec) : 0;
         const offhandDps = report.durationSec > 0 ? ((report.weapon2 && report.weapon2.totalDamage ? report.weapon2.totalDamage : 0) / report.durationSec) : 0;
         const procDps = report.durationSec > 0 ? ((((report.weapon1 && report.weapon1.procDamageTotal) || 0) + (((report.weapon2 && report.weapon2.procDamageTotal) || 0))) / report.durationSec) : 0;
@@ -10829,6 +10841,8 @@
           (window.selectedTargetNpc && window.selectedTargetNpc.AC != null ? window.selectedTargetNpc.AC : 550);
         var prevProcSelect = $('pet-proc-buff-select');
         var prevProcSpellId = prevProcSelect ? prevProcSelect.value : '';
+        var prevIncludeNet = $('pet-include-net-dps');
+        var wasIncludeNet = prevIncludeNet ? prevIncludeNet.checked : false;
 
         if (!pool.length) {
           body.innerHTML = '<p class="hint" style="margin:0;">No pet-summon spell found for this class/level yet.</p>';
@@ -10874,6 +10888,10 @@
           '<div><label for="pet-target-ac" class="small-label">Pet Target AC</label>' +
           '<input type="number" id="pet-target-ac" value="' + prevAcVal + '" min="0" style="width:6rem;"></div>' +
           '</div>' +
+          '<label style="display:flex;align-items:center;gap:0.4rem;font-size:0.85rem;">' +
+          '<input type="checkbox" id="pet-include-net-dps"' + (wasIncludeNet ? ' checked' : '') + '> Include pet DPS in Total DPS ' +
+          '(Melee tab — affects the header ticker and Session History; leave off to compare weapons on their own merits, ' +
+          'unskewed by the pet\'s flat baseline)</label>' +
           '<div id="pet-stats-preview" class="hint" style="margin:0;"></div>';
 
         var selectEl = $('pet-spell-select');
@@ -10949,20 +10967,74 @@
         return result;
       }
 
-      /** Formats the "Pet DPS / Combined DPS" block appended to a report. */
-      function formatPetReportBlock(petResult, playerDps) {
+      // Same right-column convention combat.js's formatReport uses for every
+      // other section (=== Header ===, blank line, then padded label/value
+      // rows) so the Pet Damage section reads as one more section of the
+      // same report rather than a bolted-on afterthought.
+      var PET_REPORT_VALUE_COL = 48;
+      function padPetLine(prefix, value) {
+        return prefix + ' '.repeat(Math.max(0, PET_REPORT_VALUE_COL - prefix.length)) + value;
+      }
+
+      /**
+       * Formats the detailed "Pet Damage" report section, mirroring the
+       * structure of combat.js's "Procs & Specials" section.
+       * @param {Object} petResult - PetCombat.simulatePetFight() result
+       * @param {number} playerDps
+       * @param {boolean|null} includedInNetDps - true/false to print the
+       *   "included in Total DPS" line (Melee tab only, where that toggle
+       *   exists); null/undefined to omit it (Rotation tab).
+       */
+      function formatPetReportBlock(petResult, playerDps, includedInNetDps) {
         var combined = playerDps + petResult.dps;
+        var dur = petResult.durationSec;
         var lines = [];
         lines.push('');
-        lines.push('  Pet DPS (' + petResult.petName + '): ' + Math.round(petResult.dps) +
-          '  (' + petResult.mainhandHits + '/' + petResult.mainhandSwings + ' MH hits' +
-          (petResult.dualWieldActive ? ', ' + petResult.offhandHits + '/' + petResult.offhandSwings + ' OH hits' : '') + ')');
-        if (petResult.procBuffName && petResult.procCount) {
-          lines.push('  └ ' + petResult.procBuffName + ' procs: ' + petResult.procCount +
-            ' (' + Math.round(petResult.procDamageTotal) + ' dmg, ' +
-            (petResult.procDamageTotal / petResult.durationSec).toFixed(2) + ' dps)');
+        lines.push('=== Pet Damage ===', '');
+        lines.push(padPetLine('  Pet:', petResult.petName));
+        lines.push(padPetLine('  Attack delay:', (petResult.attackDelayMs / 1000).toFixed(2) + 's'));
+        lines.push(padPetLine('  Dual wield:', petResult.dualWieldActive ? 'Yes' : 'No'));
+        lines.push(padPetLine('  Max hit:', String(petResult.maxHit)));
+        lines.push('');
+
+        lines.push(padPetLine('  -- Main hand --', ''));
+        lines.push(padPetLine('    Swings:', String(petResult.mainhandSwings)));
+        lines.push(padPetLine('    Hits:', String(petResult.mainhandHits)));
+        if (petResult.mainhandSwings > 0) {
+          lines.push(padPetLine('    Accuracy:', (petResult.mainhandHits / petResult.mainhandSwings * 100).toFixed(1) + '%'));
         }
-        lines.push('  Combined DPS (Player + Pet): ' + Math.round(combined));
+        lines.push(padPetLine('    Damage:', String(Math.round(petResult.mainhandDamage))));
+        lines.push(padPetLine('    DPS:', dur ? (petResult.mainhandDamage / dur).toFixed(2) : '0.00'));
+        lines.push('');
+
+        if (petResult.dualWieldActive) {
+          lines.push(padPetLine('  -- Off hand --', ''));
+          lines.push(padPetLine('    Swings:', String(petResult.offhandSwings)));
+          lines.push(padPetLine('    Hits:', String(petResult.offhandHits)));
+          if (petResult.offhandSwings > 0) {
+            lines.push(padPetLine('    Accuracy:', (petResult.offhandHits / petResult.offhandSwings * 100).toFixed(1) + '%'));
+          }
+          lines.push(padPetLine('    Damage:', String(Math.round(petResult.offhandDamage))));
+          lines.push(padPetLine('    DPS:', dur ? (petResult.offhandDamage / dur).toFixed(2) : '0.00'));
+          lines.push('');
+        }
+
+        if (petResult.hasProc) {
+          lines.push(padPetLine('  -- ' + (petResult.procBuffName || 'Proc buff') + ' --', ''));
+          lines.push(padPetLine('    Procs:', String(petResult.procCount)));
+          lines.push(padPetLine('    Proc damage:', String(Math.round(petResult.procDamageTotal))));
+          lines.push(padPetLine('    Proc DPS:', dur ? (petResult.procDamageTotal / dur).toFixed(2) : '0.00'));
+          lines.push('');
+        }
+
+        lines.push(padPetLine('  Total pet damage:', String(Math.round(petResult.totalDamage))));
+        lines.push(padPetLine('  Pet DPS:', petResult.dps.toFixed(2)));
+        lines.push(padPetLine('  Combined DPS (Player + Pet):', combined.toFixed(2)));
+        if (includedInNetDps != null) {
+          lines.push(padPetLine('  Included in Total DPS:', includedInNetDps
+            ? 'Yes (Session History and the header ticker include the pet)'
+            : 'No (Session History and the header ticker are player-only — check "Include pet DPS in Total DPS" in the Pet panel to change this)'));
+        }
         return lines.join('\n');
       }
 

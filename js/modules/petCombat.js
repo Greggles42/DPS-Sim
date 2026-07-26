@@ -73,8 +73,9 @@
    *   fightDurationSec, seed
    * }
    * @returns {Object} { totalDamage, dps, durationSec, mainhandSwings,
-   *   mainhandHits, offhandSwings, offhandHits, dualWieldActive,
-   *   attackDelayMs, procDamageTotal, procCount, error }
+   *   mainhandHits, mainhandDamage, offhandSwings, offhandHits,
+   *   offhandDamage, maxHit, dualWieldActive, attackDelayMs,
+   *   procDamageTotal, procCount, error }
    */
   function simulatePetFight(o) {
     var NC = getNC(), eq = getEQ();
@@ -128,8 +129,10 @@
     var procChanceOff = hasProc ? eq.getProcChancePerSwing(delayDecisec, true, 100, o.petDex || 75) * procMult : 0;
 
     var totalDamage = 0;
-    var mainhandSwings = 0, mainhandHits = 0, offhandSwings = 0, offhandHits = 0;
+    var mainhandSwings = 0, mainhandHits = 0, mainhandDamage = 0;
+    var offhandSwings = 0, offhandHits = 0, offhandDamage = 0;
     var procDamageTotal = 0, procCount = 0;
+    var maxHit = 0;
 
     function emit(opts) {
       if (opts.proc) return;   // pets carry no weapon item — no item proc to model
@@ -138,7 +141,9 @@
       if (isOffhand) offhandSwings++; else mainhandSwings++;
       if (res.outcome === 'hit') {
         totalDamage += res.damage;
-        if (isOffhand) offhandHits++; else mainhandHits++;
+        if (isOffhand) { offhandHits++; offhandDamage += res.damage; }
+        else { mainhandHits++; mainhandDamage += res.damage; }
+        if (res.damage > maxHit) maxHit = res.damage;
       }
       if (hasProc) {
         var chance = isOffhand ? procChanceOff : procChanceMain;
@@ -146,6 +151,7 @@
           totalDamage += o.procDamage;
           procDamageTotal += o.procDamage;
           procCount++;
+          if (o.procDamage > maxHit) maxHit = o.procDamage;
         }
       }
     }
@@ -165,12 +171,16 @@
       durationSec: durationSec,
       mainhandSwings: mainhandSwings,
       mainhandHits: mainhandHits,
+      mainhandDamage: mainhandDamage,
       offhandSwings: offhandSwings,
       offhandHits: offhandHits,
+      offhandDamage: offhandDamage,
+      maxHit: maxHit,
       dualWieldActive: !!pet.dualWield,
       attackDelayMs: pet.attackDelayMs,
       procDamageTotal: procDamageTotal,
-      procCount: procCount
+      procCount: procCount,
+      hasProc: hasProc
     };
   }
 

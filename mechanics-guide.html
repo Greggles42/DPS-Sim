@@ -1549,6 +1549,27 @@
         (<code>Pet::LoadPetPets</code>) rather than trusting each spell's own listed rate field, which the sim
         matches rather than reading the (unused, misleading) data value directly.
       </p>
+
+      <h3>Pet Damage report section</h3>
+      <p>
+        When the pet sim runs, the report gets its own <strong>Pet Damage</strong> section — same
+        <code>=== Section ===</code> / padded-column layout as every other section of the report (Weapon Overview,
+        Procs &amp; Specials, ...), not a bolted-on footnote. It breaks the pet's damage down by main hand and off
+        hand (swings, hits, accuracy, damage, DPS each), the proc buff's own contribution if one is selected, and
+        closes with total pet damage, Pet DPS, and Combined DPS (Player + Pet).
+      </p>
+
+      <h3>Including pet DPS in Total DPS (Melee tab)</h3>
+      <p>
+        The Pet panel's own DPS is always shown in the report regardless of anything else — that's informational.
+        Separately, the Melee tab's header <strong>Total DPS</strong> ticker and <strong>Session History</strong>
+        table (the numbers you actually use to compare one weapon against another) default to <strong>player-only</strong>,
+        so a pet's flat per-run baseline doesn't uniformly inflate every entry and quietly compress the differences
+        you're trying to see between weapons. Checking <strong>Include pet DPS in Total DPS</strong> in the Pet
+        panel folds the pet's DPS into both of those numbers instead, for when you want the group's real combined
+        output rather than an apples-to-apples weapon comparison. The report's own Pet Damage section always states
+        which mode was active for that run.
+      </p>
     </div>
 
     <p class="muted">
