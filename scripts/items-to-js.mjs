@@ -29,6 +29,7 @@ const KEEP_FIELDS = new Set([
   'classes', 'races', 'reqlevel', 'slots', 'icon', 'skillmodtype', 'skillmodvalue',
   'mr', 'fr', 'cr', 'dr', 'pr', 'banedmgamt', 'banedmgbody', 'banedmgrace',
   'proceffect', 'procrate', 'proclevel',
+  'focuseffect',    // Spell id carrying the item's passive spell-only bonus (see js/modules/itemFocus.js)
   'minstatus',      // GM-only status threshold; used by BIS advisor to exclude GM items
   'min_expansion',  // Expansion era (0=Classic … 4=PoP); used by BIS advisor for era filtering
   'lore'            // Lore item tag; starts with '*' = equippable lore (only one per player)
