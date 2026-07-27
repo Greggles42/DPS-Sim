@@ -165,7 +165,7 @@
           procDamageTotal += o.procDamage;
           procCount++;
           if (o.procDamage > maxHit) maxHit = o.procDamage;
-          if (T && T.procSpellThreatFromDamage) procThreatAcc += T.procSpellThreatFromDamage(o.procDamage, 400);
+          if (T && T.procSpellThreatFromDamage) procThreatAcc += T.procSpellThreatFromDamage(o.procDamage);
         }
       }
     }

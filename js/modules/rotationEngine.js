@@ -26,13 +26,13 @@
   // rotation can never actually draw from more than this many distinct
   // spells in a single encounter, regardless of how large the pool is.
   var MAX_MEMORIZED_SPELLS = 8;
-  // Direct-damage spell hate cap per damage instance — EQThreat.procSpellThreatFromDamage's
-  // default (threat.js), same formula used for weapon-proc spell hate in the
-  // melee sim: hate = min(damage, 400). Applied per discrete damage event —
-  // once for a plain nuke, once per wave/tick for a rain/DoT (each is its
-  // own hate-generating event server-side, not one lump application to the
-  // cast's full total).
-  var THREAT_CAP = 400;
+  // EQMacEmu's proc/click hate cap (mob.h CanClassCastSpell gate) only clamps
+  // hate for spells NOT on the caster's own class list — item clicks, weapon
+  // procs, innate NPC procs. Every spell in this rotation sim is drawn from
+  // the caster's own class spell pool, so CanClassCastSpell is always true
+  // here and the 400 cap never applies; direct-damage hate is simply the
+  // damage dealt, uncapped (see threat.js / mechanics-guide.html §2 for the
+  // cap as it actually applies to weapon procs).
 
   function getResist() {
     return global.RotationResist || null;
@@ -437,11 +437,9 @@
         var castDamage = isCrit ? baseDmg * (1 + bonus) : baseDmg;
         if (best._quickDamageApplied) quickDamageCastCount += 1;
 
-        // Hate is capped per discrete damage instance, not on the cast's
-        // full total — a rain/DoT's cap applies once per wave/tick.
-        var waveCountForThreat = best.waves || 1;
-        var perEventDamage = castDamage / waveCountForThreat;
-        var castThreat = waveCountForThreat * Math.min(perEventDamage, THREAT_CAP);
+        // Direct-damage hate from the caster's own class spell is uncapped
+        // (CanClassCastSpell is true) — hate equals the damage dealt.
+        var castThreat = castDamage;
 
         totalDamage += castDamage;
         totalMana += best.mana;
@@ -641,7 +639,7 @@
     lines.push(pad('  Max hit:', fmt(result.maxHit, 0)));
     lines.push(pad('  Total threat:', fmt(result.totalThreat, 0)));
     lines.push(pad('  TPS:', fmt(result.tps, 2) +
-      '  (hate per damage instance capped at ' + THREAT_CAP + ', matching weapon-proc spell hate)'));
+      '  (direct-damage hate from your own class spells, uncapped)'));
     lines.push(pad('  Total mana spent:', fmt(result.totalMana, 0)));
     lines.push(pad('  Mana/sec:', fmt(result.manaPerSec, 2)));
     if (result.manaRemaining != null) {
@@ -808,18 +806,17 @@
     log.forEach(function (e) {
       if (e.waves > 1 && e.waveIntervalSec > 0) {
         var perWave = e.effectiveDamage / e.waves;
-        var perWaveThreat = Math.min(perWave, THREAT_CAP);
         var landAt = e.time + (e.duration || 0);
         for (var i = 0; i < e.waves; i++) {
           events.push({
             time: landAt + i * e.waveIntervalSec,
-            spellId: e.spellId, spellName: e.spellName, effectiveDamage: perWave, threat: perWaveThreat
+            spellId: e.spellId, spellName: e.spellName, effectiveDamage: perWave, threat: perWave
           });
         }
       } else {
         events.push({
           time: e.time, spellId: e.spellId, spellName: e.spellName,
-          effectiveDamage: e.effectiveDamage, threat: Math.min(e.effectiveDamage, THREAT_CAP)
+          effectiveDamage: e.effectiveDamage, threat: e.effectiveDamage
         });
       }
     });
@@ -1086,8 +1083,7 @@
     svg.push('<polyline points="' + tpsLinePoints + '" fill="none" stroke="' + TPS_LINE_COLOR +
       '" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>');
     points.forEach(function (p) {
-      var tip = 't=' + Math.round(p.start) + '–' + Math.round(p.end) + 's: ' + p.tps.toFixed(1) +
-        ' tps  (hate per damage instance capped at ' + THREAT_CAP + ')';
+      var tip = 't=' + Math.round(p.start) + '–' + Math.round(p.end) + 's: ' + p.tps.toFixed(1) + ' tps';
       svg.push('<circle cx="' + xFor(p.t).toFixed(1) + '" cy="' + yFor(p.tps).toFixed(1) +
         '" r="7" fill="transparent"><title>' + escapeXml(tip) + '</title></circle>');
     });
@@ -1118,7 +1114,7 @@
       '<span style="font-size:0.8rem;color:var(--text);">Trailing ' + ROLL_WINDOW_SEC + 's average</span></span>' +
       '<span style="display:inline-flex;align-items:center;gap:0.35rem;">' +
       '<span style="width:14px;height:2px;flex:none;background:' + TPS_LINE_COLOR + ';"></span>' +
-      '<span style="font-size:0.8rem;color:var(--text);">TPS per ' + bucketWidth + 's window (hate capped at ' + THREAT_CAP + '/hit)</span></span>';
+      '<span style="font-size:0.8rem;color:var(--text);">TPS per ' + bucketWidth + 's window</span></span>';
 
     return (
       '<p class="hint" style="margin:0 0 0.4rem;">DPS and TPS over time.' + manaNote + '</p>' +

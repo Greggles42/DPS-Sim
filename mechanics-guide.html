@@ -164,28 +164,34 @@
           <strong>Monk fistweaving</strong> — Weaved punches add swing threat as their configured fist base (epic vs non-epic), using the same "primary style" helper as other MH swing hate for those events (<code>meleeSwingThreatPrimary(fistBase, 0)</code>).
         </li>
         <li>
-          <strong>Proc threat (direct damage spells)</strong> — When a weapon proc deals instant DD, hate from damage uses the spell's <strong>base</strong> proc damage (before resists / Spell Casting Fury crit), then applies the per-event cap (default <strong>400</strong>). DoT procs accrue threat from <strong>unresisted per-tick base</strong> (total proc damage ÷ tick count), not from resisted tick damage.
+          <strong>The proc/click hate cap only clamps non-damage hate.</strong> EQMacEmu gates the 400 cap on <code>!CanClassCastSpell(spell_id)</code> (<code>mob.h</code>) — whether the spell is on the caster's <em>own</em> class spell list. Every proc, item click, or rune this sim models is <strong>not</strong> on the player's own class list (they're weapon-triggered or clicky-triggered spells), so the cap always applies here — but even then it only clamps the <strong>non-damage</strong> hate component. Direct-damage hate is added afterward, always uncapped: <code>combinedHate = min(nonDamageHate, 400) + damageHate</code>. So a capped proc that also deals a large hit can still generate well over 400 total threat.
         </li>
         <li>
-          <strong>Proc threat (DD + stun)</strong> — If spell data includes both HP damage and a stun (EQEmu SE 21), the sim adds an <strong>additional</strong> mob–max-HP detrimental slice on top of the DD-based proc hate, capped at 400: <code>min(400, min(1200, max(25, floor(targetMaxHp / 15))))</code> (e.g. Thunder Strike).
+          <strong>Proc threat (direct damage spells)</strong> — When a weapon proc deals instant DD, hate from damage is the spell's <strong>base</strong> proc damage as-is (before resists / Spell Casting Fury crit) — <strong>uncapped</strong>. DoT procs accrue threat from <strong>unresisted per-tick base</strong> (total proc damage ÷ tick count), not from resisted tick damage.
         </li>
         <li>
-          <strong>Proc threat (detrimental, no HP damage)</strong> — For procs classified as detrimental with no SE_CurrentHP damage in spell data, hate is <code>min(1200, max(25, floor(targetMaxHp / 15)))</code>, then capped at <strong>400</strong> per proc event. <code>targetMaxHp</code> comes from the selected NPC's <code>hp</code> when you pick a target from search; otherwise a generic HP curve (e.g. 22,105 at mob level 60, scaled by level).
+          <strong>Proc threat (DD + stun)</strong> — If spell data includes both HP damage and a stun (EQEmu SE 21), the sim adds an <strong>additional</strong> mob–max-HP detrimental slice on top of the (uncapped) DD-based proc hate. That additional slice is non-damage hate, so it's capped: <code>min(400, min(1200, max(25, floor(targetMaxHp / 15))))</code> (e.g. Thunder Strike) — the DD portion next to it is not reduced by this cap.
         </li>
         <li>
-          <strong>Flat proc hate (SE 92)</strong> — <code>effect_base_value</code> on SE 92 is applied once per instant proc (not each DoT tick), signed: positive adds hate, negative reduces it (e.g. Khalshazar's Deceit). Spells that are <strong>only</strong> SE 92 (no HP damage) do not use the max-HP/15 non-DD bucket—they use this flat value only.
+          <strong>Proc threat (detrimental, no HP damage)</strong> — For procs classified as detrimental with no SE_CurrentHP damage in spell data, hate is non-damage hate: <code>min(1200, max(25, floor(targetMaxHp / 15)))</code>, then capped at <strong>400</strong> per proc event. <code>targetMaxHp</code> comes from the selected NPC's <code>hp</code> when you pick a target from search; otherwise a generic HP curve (e.g. 22,105 at mob level 60, scaled by level).
         </li>
         <li>
-          <strong>Proc threat (self-rune)</strong> — Some weapons proc a rune effect (EQEmu SE 55) that absorbs incoming damage for the player. When detected as the <strong>first effect in slot 0</strong> of the proc spell, the sim generates hate on the target equal to <code>runeValue &times; 2</code>, where <code>runeValue</code> is the HP absorb amount from that first effect slot (e.g. Rune III absorbs 168, generating base hate 336). This hate is:
+          <strong>Flat proc hate (SE 92)</strong> — <code>effect_base_value</code> on SE 92 is non-damage hate, applied once per instant proc (not each DoT tick) and folded into the same capped bucket as the detrimental slice above, signed: positive adds hate, negative reduces it (e.g. Khalshazar's Deceit). Spells that are <strong>only</strong> SE 92 (no HP damage) do not use the max-HP/15 non-DD bucket—they use this flat value only.
+        </li>
+        <li>
+          <strong>Proc threat (self-rune)</strong> — Some weapons proc a rune effect (EQEmu SE 55) that absorbs incoming damage for the player. When detected as the <strong>first effect in slot 0</strong> of the proc spell, the sim generates hate on the target equal to <code>runeValue &times; 2</code>, where <code>runeValue</code> is the HP absorb amount from that first effect slot (e.g. Rune III absorbs 168, generating base hate 336). This is non-damage hate (a rune deals no damage to the mob), so it is:
           <ul>
             <li>Modified by worn/spell/AA hate mod percent (SPA 179; currently no UI field — defaults to 0).</li>
-            <li>Capped at <strong>400</strong> if the player's class cannot natively cast the proc spell; otherwise uncapped.</li>
+            <li>Capped at <strong>400</strong> — same <code>CanClassCastSpell</code>-false assumption as every other proc/click this sim models.</li>
             <li>Subject to a <strong>witness check</strong>: each NPC that is already on the player's hate list has a <strong>50% chance to NOT register</strong> the hate from this proc. The sim has a single NPC target, so one roll is made per proc fire.</li>
             <li>Mezzed or stunned NPCs would receive only ¼ the hate; the sim assumes the target is never mezzed (stun has no hate reduction in the sim).</li>
           </ul>
           Rune procs deal no damage to the mob and appear only in the proc count and proc threat totals, not in DPS. Examples: Runed Blade (Rune III), Sword of Rile (Steelskin), Silver Whip of Rage (Silver Skin).
         </li>
       </ol>
+      <p class="muted">
+        This cap-scope rule is the same reason the <strong>Rotation Sim's</strong> TPS is never capped: every spell it casts comes from the caster's own class spellbook (<code>CanClassCastSpell</code> is always true there), so its direct-damage hate is uncapped from the start — see the Rotation Sim section below.
+      </p>
 
       <h3>2.3) Components of total threat (ranged)</h3>
       <ul>
@@ -199,7 +205,7 @@
       </p>
       <p>
         The pet's <strong>own</strong> threat (shown as "Pet TPS" in the Pet Damage report section) uses a different formula than the player's weapon-rating hate: NPCs (and pets, which route through the same code) generate
-        <code>floor(baseDamage / 2)</code> hate on <strong>every swing attempt</strong> &mdash; hit, miss, or block alike &mdash; where <code>baseDamage</code> is the same pre-mitigation base damage value used for the pet's damage roll (<code>NpcCombat.getBaseDamage</code>). The main-hand damage bonus is not part of this hate formula. Any buffed pet proc (e.g. a Beastlord's "Spirit of X" line) adds proc threat using the same capped-at-400 direct-damage formula as player weapon procs.
+        <code>floor(baseDamage / 2)</code> hate on <strong>every swing attempt</strong> &mdash; hit, miss, or block alike &mdash; where <code>baseDamage</code> is the same pre-mitigation base damage value used for the pet's damage roll (<code>NpcCombat.getBaseDamage</code>). The main-hand damage bonus is not part of this hate formula. Any buffed pet proc (e.g. a Beastlord's "Spirit of X" line) adds proc threat using the same uncapped direct-damage hate as player weapon procs (see 2.2 above — the 400 cap only ever clamps non-damage hate).
       </p>
       <div class="formula">petSwingHate = floor(baseDamage / 2)  (per swing attempt, main or off hand)</div>
       <p class="muted">Implementation: <code>js/modules/petCombat.js</code>. Reference: EQMacEmu <code>NPC::Attack</code> (<code>zone/attack.cpp</code>), distinct from the client hate path used for the player's own TPS above.</p>
@@ -228,7 +234,7 @@
         <li><code>totalThreat ≈ 1,500 + 300 = 1,800</code> → <strong>TPS ≈ 30.0</strong></li>
       </ul>
       <p>
-        If the weapon then procs an instant DD with base <strong>200</strong> and default cap 400, each proc adds up to <strong>200</strong> to <code>procThreatAcc</code> (not reduced by resists in the threat math). Ten procs would add <strong>2,000</strong> proc threat on top of swing threat, pushing TPS up accordingly.
+        If the weapon then procs an instant DD with base <strong>200</strong>, each proc adds the full <strong>200</strong> to <code>procThreatAcc</code> (not reduced by resists in the threat math, and not capped — direct-damage proc hate is always uncapped). Ten procs would add <strong>2,000</strong> proc threat on top of swing threat, pushing TPS up accordingly. A proc with base damage <strong>above</strong> 400 (say, 600) would add the full 600, not 400 — the 400 cap only ever applies to a proc's non-damage hate component (see 2.2 above), never to this DD figure.
       </p>
 
       <p class="muted">
@@ -1463,11 +1469,14 @@
         trend (and exactly how sharp the mana-wall drop is) reads clearly even on a noisy bucketed line.
       </p>
       <p>
-        A third line tracks <strong>TPS</strong> (threat per second), using the same direct-damage spell hate
-        formula the Melee tab uses for weapon-proc spells: each discrete damage instance generates hate equal to
-        its own damage, capped at 400 — a rain wave or DoT tick is its own hate-generating instance, so a big total
-        gets capped per-hit, not per-cast. TPS usually tracks well below DPS once individual hits start exceeding
-        the 400 cap, which is normal — it isn't a scaled-down DPS line, it's a genuinely different, capped number.
+        A third line tracks <strong>TPS</strong> (threat per second). Every spell in a rotation comes from the
+        caster's own class spellbook, so EQMacEmu's <code>CanClassCastSpell</code> hate cap (the same 400 cap that
+        clamps weapon-proc non-damage hate on the Melee tab — see the Threat section above) never applies here:
+        each discrete damage instance generates hate equal to its own damage, <strong>uncapped</strong> — a rain
+        wave or DoT tick is its own hate-generating instance, credited its own uncapped share, not the cast's full
+        total in one lump. TPS tracks DPS closely as a result (it's the same damage number, just summed
+        per-hate-instance instead of per-cast), unlike the Melee tab's proc TPS, which is genuinely a different,
+        capped figure because weapon procs are never on your own class list.
       </p>
 
       <h3>Resist checks</h3>

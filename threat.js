@@ -20,13 +20,14 @@
 
   /**
    * Direct-damage spell / proc hate from the spell's base damage (uncapped pre-resist value; ignores resists, crits, foci).
+   * EQMacEmu's CanClassCastSpell hate cap (mob.h) only clamps the *non-damage* hate component of a proc/click
+   * event (see detrimentalNonDamageSpellThreat); direct-damage hate is added afterward and is never capped,
+   * regardless of whether the spell is on the caster's own class list.
    * @param {number} baseSpellDamage - Listed / rolled base proc damage before resists and SCF crit.
-   * @param {number} [cap=400] - Max hate from this proc event.
    */
-  function procSpellThreatFromDamage(baseSpellDamage, cap) {
-    const c = cap != null && cap > 0 ? cap : 400;
+  function procSpellThreatFromDamage(baseSpellDamage) {
     const a = baseSpellDamage != null ? baseSpellDamage | 0 : 0;
-    return Math.min(Math.max(0, a), c);
+    return Math.max(0, a);
   }
 
   /**

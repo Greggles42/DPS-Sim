@@ -938,19 +938,25 @@
       rangedSwingThreatAcc += h;
       rangedThreatAcc += h;
     }
+    // Same nonDamageHate/damageHate split as addProcThreatAmt above: the
+    // CanClassCastSpell cap only clamps non-damage hate, never the raw
+    // proc-damage hate.
     function addRangedProcThreat(baseProcDmg, isNonDamagingDetrimental) {
       if (!TR) return;
-      let h = 0;
+      let nonDamageHate = 0;
+      let damageHate = 0;
       if (isNonDamagingDetrimental && bow.procSpellNonDamagingDetrimental && TR.detrimentalNonDamageSpellThreat) {
-        h += TR.detrimentalNonDamageSpellThreat(resolveTargetMaxHpRanged(options));
+        nonDamageHate += TR.detrimentalNonDamageSpellThreat(resolveTargetMaxHpRanged(options));
       } else if (baseProcDmg > 0) {
-        h += TR.procSpellThreatFromDamage(baseProcDmg, rangedProcCap);
+        damageHate += TR.procSpellThreatFromDamage(baseProcDmg);
       }
       if (!isNonDamagingDetrimental && bow.procSpellCcAddsMobHpThreat && baseProcDmg > 0 && TR.detrimentalNonDamageSpellThreat) {
-        h += TR.detrimentalNonDamageSpellThreat(resolveTargetMaxHpRanged(options));
+        nonDamageHate += TR.detrimentalNonDamageSpellThreat(resolveTargetMaxHpRanged(options));
       }
       const flat = bow.procSpellBonusHate != null ? (bow.procSpellBonusHate | 0) : 0;
-      if (flat !== 0) h += TR.procFlatHate ? TR.procFlatHate(flat) : flat;
+      if (flat !== 0) nonDamageHate += TR.procFlatHate ? TR.procFlatHate(flat) : flat;
+      if (nonDamageHate > rangedProcCap) nonDamageHate = rangedProcCap;
+      const h = nonDamageHate + damageHate;
       if (h === 0) return;
       rangedProcThreatAcc += h;
       rangedThreatAcc += h;
@@ -1495,8 +1501,9 @@
       if (report.fistweaving) report.fistweaving.swingThreat += h;
     }
     /**
-     * Self-rune proc hate: hate = runeValue * 2, modified by spellHateModPercent, capped at 400 if the player
-     * cannot natively cast the spell (procThreatCap === 400). Subject to a 50% witness check (per EQMacEmu:
+     * Self-rune proc hate: hate = runeValue * 2, modified by spellHateModPercent, capped at 400 (CanClassCastSpell
+     * is false for a weapon-triggered rune proc, so the cap always applies here — same default-capped assumption
+     * as addProcThreatAmt/addRangedProcThreat). Subject to a 50% witness check (per EQMacEmu:
      * beneficial self-cast spells have a 50% chance NOT to register hate on any given NPC). The sim has one
      * NPC target so one witness roll is made. Mez/stun divide hate by 4, but the sim assumes target is unmezzed.
      */
@@ -1504,7 +1511,7 @@
       if (!T || !T.selfCastRuneHate) return;
       const w = weaponSlot === 1 ? w1 : weaponSlot === 2 ? w2 : null;
       const hateModPercent = (options.spellHateModPercent != null && !isNaN(options.spellHateModPercent)) ? options.spellHateModPercent : 0;
-      const cap = (w && w.procThreatCap != null) ? w.procThreatCap : null;
+      const cap = (w && w.procThreatCap != null) ? w.procThreatCap : procThreatCap;
       const hate = T.selfCastRuneHate(runeValue, hateModPercent, cap);
       if (hate <= 0) return;
       // Witness check: 50% chance hate does NOT register on the NPC.
@@ -1517,25 +1524,31 @@
     /**
      * includeFlatHate: false for DoT ticks (flat hate applies once on instant proc, not each tick).
      * baseThreatDmg: spell base damage (before resists/crits). isNonDamagingDetrimental: detrimental CC/no-DD proc uses maxHP/15 hate.
+     *
+     * EQMacEmu's CanClassCastSpell hate cap only clamps the non-damage hate
+     * component of a proc/click event (mob.h) — every weapon proc and item
+     * click modeled here is off the caster's own class list, so the cap
+     * always applies to that bucket. Direct-damage hate is added afterward,
+     * uncapped: combinedHate = min(nonDamageHate, cap) + damageHate.
      */
     function addProcThreatAmt(baseThreatDmg, weaponSlot, includeFlatHate, isNonDamagingDetrimental) {
       if (!T) return;
       const w = weaponSlot === 1 ? w1 : weaponSlot === 2 ? w2 : null;
-      let h = 0;
       const effectiveProcCap = (w && w.procThreatCap != null) ? w.procThreatCap : procThreatCap;
+      let nonDamageHate = 0;
+      let damageHate = 0;
       if (isNonDamagingDetrimental && w && w.procSpellNonDamagingDetrimental && T.detrimentalNonDamageSpellThreat) {
-        let ndThreat = T.detrimentalNonDamageSpellThreat(resolveTargetMaxHp(options));
-        ndThreat = Math.min(ndThreat, effectiveProcCap);
-        h += ndThreat;
+        nonDamageHate += T.detrimentalNonDamageSpellThreat(resolveTargetMaxHp(options));
       } else if (baseThreatDmg > 0) {
-        h += T.procSpellThreatFromDamage(baseThreatDmg, effectiveProcCap);
+        damageHate += T.procSpellThreatFromDamage(baseThreatDmg);
       }
       if (!isNonDamagingDetrimental && w && w.procSpellCcAddsMobHpThreat && baseThreatDmg > 0 && T.detrimentalNonDamageSpellThreat) {
-        const ccHate = T.detrimentalNonDamageSpellThreat(resolveTargetMaxHp(options));
-        h += Math.min(ccHate, effectiveProcCap);
+        nonDamageHate += T.detrimentalNonDamageSpellThreat(resolveTargetMaxHp(options));
       }
       const flat = (includeFlatHate !== false && w && w.procSpellBonusHate != null) ? (w.procSpellBonusHate | 0) : 0;
-      if (flat !== 0) h += T.procFlatHate ? T.procFlatHate(flat) : flat;
+      if (flat !== 0) nonDamageHate += T.procFlatHate ? T.procFlatHate(flat) : flat;
+      if (nonDamageHate > effectiveProcCap) nonDamageHate = effectiveProcCap;
+      const h = nonDamageHate + damageHate;
       if (h === 0) return;
       procThreatAcc += h;
       totalThreatAcc += h;

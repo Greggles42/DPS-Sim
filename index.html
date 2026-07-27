@@ -1914,18 +1914,72 @@
        so haste values stay on one line and ATK values start on the next line. */
     #char-effective-stats .bt-separator { width: 100%; height: 0; background: none; margin: 0; padding: 0; }
 
+    /* ── Mobile layout fixes (Easy + Advanced) ───────────────────────
+       Below this width the header, mode tab bar, and Character/Buffs
+       pair stop assuming desktop-width horizontal room — without this,
+       their flex-shrink:0 / non-wrapping rules push the page wider than
+       the viewport, causing horizontal scroll and header text overlap. */
+    @media (max-width: 640px) {
+      .app-header {
+        flex-wrap: wrap;
+        row-gap: 0.5rem;
+        padding-top: 0.5rem;
+        padding-bottom: 0.5rem;
+        min-height: 0;
+      }
+      .header-logo-block { flex-shrink: 1; }
+      .header-right-group {
+        flex-basis: 100%;
+        justify-content: flex-end;
+        flex-wrap: wrap;
+        row-gap: 0.4rem;
+        gap: 0.75rem;
+      }
+      .app-header #dps-value,
+      .app-header #tps-value {
+        font-size: 1rem;
+      }
+      .ui-mode-toggle-wrap { gap: 0.35rem; }
+
+      .tab-bar {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        flex-wrap: nowrap;
+      }
+      .tab-btn {
+        padding: 0.6rem 0.85rem;
+        font-size: 0.85rem;
+        white-space: nowrap;
+        flex-shrink: 0;
+      }
+
+      .char-buff-pair {
+        flex-direction: column;
+      }
+      .char-field {
+        flex: 1 1 auto;
+        min-width: 0;
+        max-width: 100%;
+      }
+      .char-field:has(.stat-dist-table) {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+      }
+      .stat-dist-table { width: max-content; min-width: 100%; }
+    }
+
   </style>
 </head>
 <body data-ui-mode="easy" class="app-body">
   <header class="app-header flex items-center justify-between gap-4 px-4 md:px-8 z-50">
-    <div class="flex items-center gap-3 md:gap-4 min-w-0">
+    <div class="header-logo-block flex items-center gap-3 md:gap-4 min-w-0">
       <iconify-icon icon="ra:crossed-swords" class="text-2xl md:text-3xl text-[#d4af37] flex-shrink-0"></iconify-icon>
       <div class="flex flex-col min-w-0">
         <span class="font-fantasy text-base md:text-xl tracking-widest text-[#d4af37] truncate"><span class="app-title-g-small">g</span>Sim for Project Quarm</span>
         <span class="text-[10px] text-gray-500 uppercase tracking-tighter">Everquest DPS Simulator · <span id="app-version">v1.37</span></span>
       </div>
     </div>
-    <div class="flex items-center gap-3 md:gap-8 flex-shrink-0">
+    <div class="header-right-group flex items-center gap-3 md:gap-8 flex-shrink-0">
       <div class="flex flex-col items-end flex-shrink-0">
         <span class="text-[10px] text-gray-400 uppercase tracking-widest" style="letter-spacing:0.08em;">Era</span>
         <select id="era-select" style="background:transparent;border:none;border-bottom:1px solid rgba(212,175,55,0.35);color:#d4af37;font-size:clamp(0.85rem,2vw,1.1rem);font-family:'Cinzel',serif;font-weight:700;padding:0 1.25rem 0.05rem 0;cursor:pointer;outline:none;line-height:1.1;appearance:auto;-webkit-appearance:auto;">
