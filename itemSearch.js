@@ -604,6 +604,15 @@
     }
     var elemDamage = num(get(item, ['eleDmgAmt', 'elemDamage', 'elem_damage', 'elemdmgamt', 'elementalDamage', 'ElementalDamage', 'elemental_damage']));
 
+    /* Recommended level (soft cap — item is usable below it, but AC/HP/Mana/attributes/
+       resists and, for weapons, Damage/ElemDmgAmt/BaneDmgAmt scale down; see
+       Client::CalcRecommendedLevelBonus, zone/bonuses.cpp). Distinct from reqlevel
+       (a hard block already handled elsewhere) — the caller applies the actual scaling
+       once it knows the character's level, this just carries the raw value through. */
+    var recLevelRaw = get(item, ['recLevel', 'reclevel', 'RecLevel', 'rec_level']);
+    var recLevel = (recLevelRaw != null && recLevelRaw !== '') ? parseInt(recLevelRaw, 10) : 0;
+    if (isNaN(recLevel)) recLevel = 0;
+
     var baneDamage = num(get(item, ['banedmgamt', 'baneDmgAmt', 'baneDamage', 'bane_damage', 'BaneDamage', 'bane']));
     var baneDamageRaceRaw = get(item, ['baneDamageRace', 'banedamagerace', 'banedmgrace', 'baneDmgRace', 'bane_damage_race', 'BaneDamageRace']);
     var baneDamageRace = (baneDamageRaceRaw != null && baneDamageRaceRaw !== '') ? parseInt(baneDamageRaceRaw, 10) : null;
@@ -684,6 +693,7 @@
       procSpellId: procSpellId != null ? procSpellId : undefined,
       elemType: elemType || '',
       elemDamage: elemDamage,
+      recLevel: recLevel > 0 ? recLevel : undefined,
       baneDamage: baneDamage,
       baneDamageRace: baneDamageRace,
       baneDamageBody: baneDamageBody,

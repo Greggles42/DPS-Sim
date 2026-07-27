@@ -3109,6 +3109,7 @@
     <details id="version-log-details">
     <summary style="cursor:pointer; font-size:1.17em; font-weight:bold; margin:0; list-style:revert;">Version log</summary>
     <ul style="font-size: 0.9rem; color: var(--muted); margin: 0.5rem 0 0; padding-left: 1.25rem;">
+      <li><strong>1.43</strong> — Rotation Planner (Spells tab) runs now log into the shared Session History table alongside Melee/Ranged runs, showing the spell pool, off-global spell, level, target, DPS, era and UI mode for each run. Added support for <strong>recommended-level</strong> items — items with a <code>RecLevel</code> below the current character level can now be equipped early with all stats (AC/HP/Mana/attributes/resists) and, for weapons, damage/elemental/bane damage scaled down using the server's exact <code>Client::CalcRecommendedLevelBonus</code> integer-math formula; gear stats re-scale live if you change the level field afterward. Mechanics guide updated (sections 21-22).</li>
       <li><strong>1.42</strong> — More pet sim follow-ups: the <strong>Pet Damage</strong> report section now sits between Procs &amp; Specials and Final Totals (was appended after Final Totals). Session History rows where <strong>Include pet DPS in Total DPS</strong> was checked now show a small 🐾 next to the DPS value, in both the Advanced-mode Session History table and the Easy-mode history table, so pet-inflated runs are visually distinct from player-only ones. Added Wizard (<strong>Flaming Sword of Xuzl</strong>) and Cleric (<strong>Unswerving Hammer of Faith</strong>) to the Pet panel's supported classes — each gets one situational combat-pet spell rather than a full-time companion; the sim assumes it's cast at the very start of the fight and stays up the whole duration, same as every other pet, since no in-game expiration is exposed in the spell data to model otherwise. Both resolve through the exact same <code>js/modules/petSpells.js</code> pipeline with no special-casing needed. Mechanics guide updated (section 20).</li>
       <li><strong>1.41</strong> — Pet sim follow-ups: the report now has a full <strong>Pet Damage</strong> section (same <code>=== Section ===</code> padded-column layout as Weapon Overview/Procs &amp; Specials — main hand and off hand swings/hits/accuracy/damage/DPS, proc buff contribution, totals) instead of a two-line footnote. New <strong>Include pet DPS in Total DPS</strong> checkbox in the Pet panel: off by default, so the Melee tab's header ticker and Session History (the numbers used to compare weapons against each other) stay player-only and aren't uniformly inflated by the pet's flat baseline; check it to fold the pet into both for the group's real combined output. The report's Pet Damage section always states which mode was active. <code>js/modules/petCombat.js</code>'s <code>simulatePetFight</code> now also tracks per-hand damage totals and max hit to support the detailed section. Mechanics guide updated (section 20).</li>
       <li><strong>1.40</strong> — Added a <strong>Pet DPS</strong> simulation for Magician, Necromancer, Shaman, Shadowknight, and Beastlord: a shared <strong>Pet</strong> panel (positioned below the weapon cards on the Melee tab, at the top of the Spells tab) lets you pick a pet-summon spell from a dropdown — resolved to the pet's real combat stats by joining the spell's <code>teleport_zone</code> field against the NPC database, the same one Target NPC search uses, not an estimate. Simulates the pet's melee output against the same target using the same NPC-style attack engine the Tanking sim uses for the mob's side of a fight (pet as attacker, target mob as defender), and appends <strong>Pet DPS</strong> / <strong>Combined DPS (Player + Pet)</strong> to whichever tab's report was just run. New <strong>Always Dual Wield</strong> toggle models handing the pet a second weapon (real pets are excluded from the native dual-wield ability path server-side and need an actual offhand weapon item) by unlocking a second attack round using the pet's own innate damage. Shadowknight needed no special-casing — SK shares the same skeleton-pet spell line as Necromancer, just unlocked much later, so it resolves through the same class/level pool logic as the other classes. Beastlord adds a <strong>Pet proc buff (optional)</strong> dropdown for the "Spirit of X" line (Lightning/Blizzard/Inferno/...), which grants the pet a chance to proc elemental damage on its own swings — modeled with the same per-swing proc-chance formula already used for player weapon procs, scaled by the 375%-of-baseline rate EQMacEmu hardcodes for exactly those ten spells (<code>Pet::LoadPetPets</code>) rather than each spell's own unused/misleading data field. The single shared Pet panel node is relocated between two anchor points on tab switch so its state persists no matter which tab it's displayed under. New files <code>js/modules/petSpells.js</code> (data pipeline) and <code>js/modules/petCombat.js</code> (combat engine); one-line fix in <code>npcCombat.js</code> so pets correctly skip the 46-50 offense plateau real NPCs get. Out of scope for now: other pet AAs, pet incoming damage/death, and pet flurry/rampage/class-attacks (real pets have no attack AI script). Mechanics guide updated (new section 20).</li>
@@ -3649,12 +3650,14 @@
       }
 
       // When releasing: 1) Bump VERSION below. 2) Add a new <li> at the top of the Version log section above.
-      const VERSION = '1.42';
+      const VERSION = '1.43';
       const versionEl = $('app-version');
       if (versionEl) versionEl.textContent = 'v' + VERSION;
 
       const SIM_HISTORY = [];
       const SIM_HISTORY_MAX = 50;
+      window.SIM_HISTORY = SIM_HISTORY;
+      window.SIM_HISTORY_MAX = SIM_HISTORY_MAX;
 
       const SPECIAL_BASE_REUSE_SEC = 8;
       const BACKSTAB_BASE_REUSE_SEC = 10;
@@ -8656,6 +8659,8 @@
         }).join('');
         listEl.innerHTML = '<div class="easy-history-table-wrap">' + header + rows + '</tbody></table></div>';
       }
+      window.renderSimHistory = renderSimHistory;
+      window.renderEasyHistory = renderEasyHistory;
       function initEasyModeUi() {
         var classEl = $('class');
         if (classEl && !classEl.value) classEl.value = 'monk';
@@ -9201,6 +9206,15 @@
       // Re-compute bard song effects when level changes
       $('level').addEventListener('change', updateBuffTotals);
       $('level').addEventListener('input', updateBuffTotals);
+      // Recommended-level item stats scale with character level (see
+      // calcRecLevelBonus) — re-derive the gear totals so they track it live.
+      function onLevelChangedRecomputeGear() {
+        var mgrState = window.__invManagerState;
+        var hasGear = mgrState && Object.keys(mgrState).some(function (k) { return !!mgrState[k]; });
+        if ((window.inventoryLoaded || hasGear) && typeof applyInventoryFromState === 'function') applyInventoryFromState();
+      }
+      $('level').addEventListener('change', onLevelChangedRecomputeGear);
+      $('level').addEventListener('input', onLevelChangedRecomputeGear);
       // Sync archery skill cap when level changes
       $('level').addEventListener('change', syncRangedArcheryCap);
       $('level').addEventListener('input', syncRangedArcheryCap);
@@ -9661,11 +9675,16 @@
         updateItemSearchDebug(prefix === 'w1' ? 'W1' : 'W2', weapon);
         const offhandBlockedTypes = { '2hs': 1, '2hp': 1, '2hb': 1, 'archery': 1, 'bow': 1 };
         if (prefix === 'w2' && (weapon.is2H || weapon.offhandBlocked || (weapon.type && offhandBlockedTypes[weapon.type]))) return;
-        const dmg = Number(weapon.damage);
+        // Recommended-level weapons deal reduced Damage/ElemDmgAmt/BaneDmgAmt
+        // below that level (Client::GetBaseDamage, zone/attack.cpp) — delay
+        // is not scaled. Does not gate equipping at all (no reqlevel check
+        // here either); it only reduces the damage rating actually applied.
+        const weaponCharLevel = parseInt(($('level') || {}).value, 10) || 0;
+        const dmg = window.scaleStatByRecLevel(weapon.damage, weaponCharLevel, weapon.recLevel || 0);
         const dly = Number(weapon.delay);
         const procDmg = Number(weapon.procDamage);
-        const elemDmg = Number(weapon.elemDamage);
-        const bane = Number(weapon.baneDamage);
+        const elemDmg = window.scaleStatByRecLevel(weapon.elemDamage, weaponCharLevel, weapon.recLevel || 0);
+        const bane = window.scaleStatByRecLevel(weapon.baneDamage, weaponCharLevel, weapon.recLevel || 0);
         $(prefix + '-damage').value = isNaN(dmg) ? '' : dmg;
         $(prefix + '-delay').value = isNaN(dly) ? '' : dly;
         $(prefix + '-proc').value = (weapon.proc != null ? String(weapon.proc) : '') || '';
@@ -9969,7 +9988,7 @@
           let s = '<div class="item-search-section">Recent</div>';
           recent.forEach(function (w) {
             const label = renderItemLabel(w);
-            s += '<button type="button" class="item-search-item" data-item-id="' + (w.itemId != null ? String(w.itemId) : '') + '" data-name="' + (w.name || '').replace(/"/g, '&quot;') + '" data-damage="' + (w.damage != null ? w.damage : '') + '" data-delay="' + (w.delay != null ? w.delay : '') + '" data-weapon-type="' + (w.type || '').replace(/"/g, '&quot;') + '" data-item-type-num="' + (w.itemTypeNum != null ? String(w.itemTypeNum) : '') + '" data-slots="' + (w.slots != null ? String(w.slots) : '') + '" data-classes="' + (w.classes != null ? String(w.classes) : '') + '" data-proc="' + (w.proc || '').replace(/"/g, '&quot;') + '" data-procdamage="' + (w.procDamage != null ? w.procDamage : '') + '" data-proc-rate="' + (w.procRate != null ? w.procRate : '0') + '" data-proc-level="' + (w.procLevel != null ? w.procLevel : '') + '" data-proc-spell-id="' + (w.procSpellId != null ? w.procSpellId : '') + '" data-elemtype="' + (w.elemType || '').replace(/"/g, '&quot;') + '" data-elemdamage="' + (w.elemDamage != null ? w.elemDamage : '') + '" data-bane="' + (w.baneDamage != null ? w.baneDamage : '') + '" data-bane-body="' + (w.baneDamageBody !== undefined && w.baneDamageBody !== null ? String(w.baneDamageBody) : '') + '" data-bane-race="' + (w.baneDamageRace != null ? w.baneDamageRace : '') + '" data-backstab-mod="' + (w.backstabModPercent != null ? String(w.backstabModPercent) : '') + '" data-archery-mod="' + (w.archeryModPercent != null ? String(w.archeryModPercent) : '') + '" data-worn-attack="' + (w.wornAttackBonus != null && w.wornAttackBonus > 0 ? String(w.wornAttackBonus) : '') + '" data-icon="' + (w.icon != null && w.icon > 0 ? w.icon : '') + '" data-is2h="' + (w.is2H ? '1' : '0') + '" data-offhand-blocked="' + (w.offhandBlocked ? '1' : '0') + '"><span>' + (w.name || '').replace(/</g, '&lt;') + '</span><div class="item-search-item-detail">' + label.replace(/</g, '&lt;') + '</div></button>';
+            s += '<button type="button" class="item-search-item" data-item-id="' + (w.itemId != null ? String(w.itemId) : '') + '" data-name="' + (w.name || '').replace(/"/g, '&quot;') + '" data-damage="' + (w.damage != null ? w.damage : '') + '" data-delay="' + (w.delay != null ? w.delay : '') + '" data-weapon-type="' + (w.type || '').replace(/"/g, '&quot;') + '" data-item-type-num="' + (w.itemTypeNum != null ? String(w.itemTypeNum) : '') + '" data-slots="' + (w.slots != null ? String(w.slots) : '') + '" data-classes="' + (w.classes != null ? String(w.classes) : '') + '" data-proc="' + (w.proc || '').replace(/"/g, '&quot;') + '" data-procdamage="' + (w.procDamage != null ? w.procDamage : '') + '" data-proc-rate="' + (w.procRate != null ? w.procRate : '0') + '" data-proc-level="' + (w.procLevel != null ? w.procLevel : '') + '" data-proc-spell-id="' + (w.procSpellId != null ? w.procSpellId : '') + '" data-elemtype="' + (w.elemType || '').replace(/"/g, '&quot;') + '" data-elemdamage="' + (w.elemDamage != null ? w.elemDamage : '') + '" data-bane="' + (w.baneDamage != null ? w.baneDamage : '') + '" data-bane-body="' + (w.baneDamageBody !== undefined && w.baneDamageBody !== null ? String(w.baneDamageBody) : '') + '" data-bane-race="' + (w.baneDamageRace != null ? w.baneDamageRace : '') + '" data-backstab-mod="' + (w.backstabModPercent != null ? String(w.backstabModPercent) : '') + '" data-archery-mod="' + (w.archeryModPercent != null ? String(w.archeryModPercent) : '') + '" data-worn-attack="' + (w.wornAttackBonus != null && w.wornAttackBonus > 0 ? String(w.wornAttackBonus) : '') + '" data-icon="' + (w.icon != null && w.icon > 0 ? w.icon : '') + '" data-is2h="' + (w.is2H ? '1' : '0') + '" data-offhand-blocked="' + (w.offhandBlocked ? '1' : '0') + '" data-reclevel="' + (w.recLevel != null ? String(w.recLevel) : '') + '"><span>' + (w.name || '').replace(/</g, '&lt;') + '</span><div class="item-search-item-detail">' + label.replace(/</g, '&lt;') + '</div></button>';
           });
           return s;
         }
@@ -9982,7 +10001,7 @@
           } else {
             results.forEach(function (w) {
               const label = renderItemLabel(w);
-              s += '<button type="button" class="item-search-item item-search-item-result" data-item-id="' + (w.itemId != null ? String(w.itemId) : '') + '" data-name="' + (w.name || '').replace(/"/g, '&quot;') + '" data-damage="' + (w.damage != null ? w.damage : '') + '" data-delay="' + (w.delay != null ? w.delay : '') + '" data-weapon-type="' + (w.type || '').replace(/"/g, '&quot;') + '" data-item-type-num="' + (w.itemTypeNum != null ? String(w.itemTypeNum) : '') + '" data-slots="' + (w.slots != null ? String(w.slots) : '') + '" data-classes="' + (w.classes != null ? String(w.classes) : '') + '" data-proc="' + (w.proc || '').replace(/"/g, '&quot;') + '" data-procdamage="' + (w.procDamage != null ? w.procDamage : '') + '" data-proc-rate="' + (w.procRate != null ? w.procRate : '0') + '" data-proc-level="' + (w.procLevel != null ? w.procLevel : '') + '" data-proc-spell-id="' + (w.procSpellId != null ? w.procSpellId : '') + '" data-elemtype="' + (w.elemType || '').replace(/"/g, '&quot;') + '" data-elemdamage="' + (w.elemDamage != null ? w.elemDamage : '') + '" data-bane="' + (w.baneDamage != null ? w.baneDamage : '') + '" data-bane-body="' + (w.baneDamageBody !== undefined && w.baneDamageBody !== null ? String(w.baneDamageBody) : '') + '" data-bane-race="' + (w.baneDamageRace != null ? w.baneDamageRace : '') + '" data-backstab-mod="' + (w.backstabModPercent != null ? String(w.backstabModPercent) : '') + '" data-archery-mod="' + (w.archeryModPercent != null ? String(w.archeryModPercent) : '') + '" data-worn-attack="' + (w.wornAttackBonus != null && w.wornAttackBonus > 0 ? String(w.wornAttackBonus) : '') + '" data-icon="' + (w.icon != null && w.icon > 0 ? w.icon : '') + '" data-is2h="' + (w.is2H ? '1' : '0') + '" data-offhand-blocked="' + (w.offhandBlocked ? '1' : '0') + '"><span>' + (w.name || '').replace(/</g, '&lt;') + '</span><div class="item-search-item-detail">' + label.replace(/</g, '&lt;') + '</div></button>';
+              s += '<button type="button" class="item-search-item item-search-item-result" data-item-id="' + (w.itemId != null ? String(w.itemId) : '') + '" data-name="' + (w.name || '').replace(/"/g, '&quot;') + '" data-damage="' + (w.damage != null ? w.damage : '') + '" data-delay="' + (w.delay != null ? w.delay : '') + '" data-weapon-type="' + (w.type || '').replace(/"/g, '&quot;') + '" data-item-type-num="' + (w.itemTypeNum != null ? String(w.itemTypeNum) : '') + '" data-slots="' + (w.slots != null ? String(w.slots) : '') + '" data-classes="' + (w.classes != null ? String(w.classes) : '') + '" data-proc="' + (w.proc || '').replace(/"/g, '&quot;') + '" data-procdamage="' + (w.procDamage != null ? w.procDamage : '') + '" data-proc-rate="' + (w.procRate != null ? w.procRate : '0') + '" data-proc-level="' + (w.procLevel != null ? w.procLevel : '') + '" data-proc-spell-id="' + (w.procSpellId != null ? w.procSpellId : '') + '" data-elemtype="' + (w.elemType || '').replace(/"/g, '&quot;') + '" data-elemdamage="' + (w.elemDamage != null ? w.elemDamage : '') + '" data-bane="' + (w.baneDamage != null ? w.baneDamage : '') + '" data-bane-body="' + (w.baneDamageBody !== undefined && w.baneDamageBody !== null ? String(w.baneDamageBody) : '') + '" data-bane-race="' + (w.baneDamageRace != null ? w.baneDamageRace : '') + '" data-backstab-mod="' + (w.backstabModPercent != null ? String(w.backstabModPercent) : '') + '" data-archery-mod="' + (w.archeryModPercent != null ? String(w.archeryModPercent) : '') + '" data-worn-attack="' + (w.wornAttackBonus != null && w.wornAttackBonus > 0 ? String(w.wornAttackBonus) : '') + '" data-icon="' + (w.icon != null && w.icon > 0 ? w.icon : '') + '" data-is2h="' + (w.is2H ? '1' : '0') + '" data-offhand-blocked="' + (w.offhandBlocked ? '1' : '0') + '" data-reclevel="' + (w.recLevel != null ? String(w.recLevel) : '') + '"><span>' + (w.name || '').replace(/</g, '&lt;') + '</span><div class="item-search-item-detail">' + label.replace(/</g, '&lt;') + '</div></button>';
             });
           }
           return s;
@@ -10025,6 +10044,7 @@
               icon: iconVal > 0 ? iconVal : null,
               is2H: btn.getAttribute('data-is2h') === '1' || derived2H,
               offhandBlocked: btn.getAttribute('data-offhand-blocked') === '1' || derived2H,
+              recLevel: numOrNull(btn.getAttribute('data-reclevel')),
               itemId: numOrNull(btn.getAttribute('data-item-id'))
             };
             if (w.itemId != null && procRatesByItemId[w.itemId] != null) {
@@ -11249,6 +11269,37 @@
     return { haste: haste, atk: atk, regen: regen, ft: ft, spellName: s.name || '' };
   }
 
+  /**
+   * Client::CalcRecommendedLevelBonus (zone/bonuses.cpp) — an item's
+   * "recommended level" is a soft cap, not a hard requirement like
+   * reqlevel: below it, the item is still equippable, but every numeric
+   * stat it grants (AC/HP/Mana/attributes/resists, and for weapons,
+   * Damage/ElemDmgAmt/BaneDmgAmt) scales down proportionally to how far
+   * under the recommended level the character is. Two integer divisions
+   * (matching the server's int math exactly, including the +/-5000 "round
+   * half away from zero" step) — this is NOT the same as a simple
+   * (level/reclevel)*basestat float formula, the double truncation changes
+   * the result at the margins.
+   */
+  function calcRecLevelBonus(level, reclevel, basestat) {
+    if (!(reclevel > 0) || !(level < reclevel) || !basestat) return 0;
+    var statmod = Math.trunc(level * 10000 / reclevel) * basestat;
+    statmod += statmod < 0 ? -5000 : 5000;
+    return Math.trunc(statmod / 10000);
+  }
+
+  /** Scales a single raw item-stat field by recLevel if the character is under it, else passes it through unscaled. */
+  function scaleStatByRecLevel(rawValue, level, reclevel) {
+    var v = parseInt(rawValue, 10) || 0;
+    if (v === 0 || !(reclevel > 0) || !(level < reclevel)) return v;
+    return calcRecLevelBonus(level, reclevel, v);
+  }
+  // This file has several separate top-level IIFEs, not one shared closure —
+  // applyWeaponFromSearch (an earlier, different scope) needs these too, so
+  // expose on window rather than relying on same-scope hoisting.
+  window.calcRecLevelBonus = calcRecLevelBonus;
+  window.scaleStatByRecLevel = scaleStatByRecLevel;
+
   function lookupItem(id) {
     // Prefer full items DB, fall back to weapons-only DB
     var db = window.__DPS_ITEMS__;
@@ -11411,6 +11462,14 @@
 
   function _applyInventoryFromEquippedSlots(equippedSlots, charInfo, aaRanks, unrecognizedAA) {
     // ---- Aggregate stats across all equipped items ----
+    // Prefer the about-to-be-applied import level (charInfo.level) over the
+    // sim's current level field: during import, the Class/Level DOM update
+    // happens after this stat pass (see the "Class DOM update" comment
+    // below), so document.getElementById('level') can still hold the stale
+    // pre-import value here.
+    var recLevelCharLevel = (charInfo && charInfo.level != null)
+      ? (parseInt(charInfo.level, 10) || 0)
+      : (parseInt((document.getElementById('level') || {}).value, 10) || 0);
     var totals = { ac: 0, str: 0, dex: 0, agi: 0, sta: 0, wis: 0, int: 0, cha: 0, hp: 0, mana: 0, atk: 0, mr: 0, fr: 0, cr: 0, dr: 0, pr: 0, regen: 0, ft: 0, archeryMod: 0, shieldAc: 0, weight: 0 };
     var ITEM_TYPE_SHIELD = 8;   // EQ::item::ItemTypeShield
     var hasteItems  = [];   // { name, haste, spellName }
@@ -11432,22 +11491,26 @@
       var notes = [];
 
       if (item) {
-        // Base stats
-        var ac   = parseInt(item.ac)   || 0;
-        var str  = parseInt(item.astr) || 0;
-        var dex  = parseInt(item.adex) || 0;
-        var agi  = parseInt(item.aagi) || 0;
-        var sta  = parseInt(item.asta) || 0;
-        var wis  = parseInt(item.awis) || 0;
-        var int_ = parseInt(item.aint) || 0;
-        var cha  = parseInt(item.acha) || 0;
-        var hp   = parseInt(item.hp)   || 0;
-        var mana = parseInt(item.mana) || 0;
-        var mr   = parseInt(item.mr)   || 0;
-        var fr   = parseInt(item.fr)   || 0;
-        var cr   = parseInt(item.cr)   || 0;
-        var dr   = parseInt(item.dr)   || 0;
-        var pr   = parseInt(item.pr)   || 0;
+        // Base stats — scaled down when the character is under the item's
+        // recommended level (soft cap; distinct from reqlevel, which this
+        // sim doesn't currently gate equipping on at all). See
+        // calcRecLevelBonus / Client::CalcRecommendedLevelBonus.
+        var itemRecLevel = parseInt(item.reclevel, 10) || 0;
+        var ac   = scaleStatByRecLevel(item.ac,   recLevelCharLevel, itemRecLevel);
+        var str  = scaleStatByRecLevel(item.astr, recLevelCharLevel, itemRecLevel);
+        var dex  = scaleStatByRecLevel(item.adex, recLevelCharLevel, itemRecLevel);
+        var agi  = scaleStatByRecLevel(item.aagi, recLevelCharLevel, itemRecLevel);
+        var sta  = scaleStatByRecLevel(item.asta, recLevelCharLevel, itemRecLevel);
+        var wis  = scaleStatByRecLevel(item.awis, recLevelCharLevel, itemRecLevel);
+        var int_ = scaleStatByRecLevel(item.aint, recLevelCharLevel, itemRecLevel);
+        var cha  = scaleStatByRecLevel(item.acha, recLevelCharLevel, itemRecLevel);
+        var hp   = scaleStatByRecLevel(item.hp,   recLevelCharLevel, itemRecLevel);
+        var mana = scaleStatByRecLevel(item.mana, recLevelCharLevel, itemRecLevel);
+        var mr   = scaleStatByRecLevel(item.mr,   recLevelCharLevel, itemRecLevel);
+        var fr   = scaleStatByRecLevel(item.fr,   recLevelCharLevel, itemRecLevel);
+        var cr   = scaleStatByRecLevel(item.cr,   recLevelCharLevel, itemRecLevel);
+        var dr   = scaleStatByRecLevel(item.dr,   recLevelCharLevel, itemRecLevel);
+        var pr   = scaleStatByRecLevel(item.pr,   recLevelCharLevel, itemRecLevel);
         totals.ac   += ac;
         totals.str  += str;
         totals.dex  += dex;
@@ -12783,6 +12846,29 @@
       if (timelineEl) timelineEl.innerHTML = RotationEngine.buildRotationTimelineHtml(result);
       if (dpsChartEl) dpsChartEl.innerHTML = RotationEngine.buildRotationDpsOverTimeHtml(result);
       if (wrapEl) wrapEl.style.display = '';
+
+      (function pushRotationSimHistory() {
+        var offGlobalSpell = offGlobalSpellId ? pool.filter(function (s) { return s.id === offGlobalSpellId; })[0] : null;
+        var spellNames = pool.map(function (s) { return s.name; });
+        var comboLabel = pool.length + ' spell' + (pool.length === 1 ? '' : 's') +
+          ' (' + spellNames.slice(0, 3).join(', ') + (spellNames.length > 3 ? ', …' : '') + ')';
+        window.SIM_HISTORY.unshift({
+          weaponCombo: comboLabel,
+          weapon1: comboLabel,
+          weapon2: offGlobalSpell ? (offGlobalSpell.name + ' (off-GCD)') : '—',
+          targetName: window.selectedTargetNpc && window.selectedTargetNpc.name ? String(window.selectedTargetNpc.name).replace(/_/g, ' ') : undefined,
+          level: gearAA.caster.level,
+          attack: undefined,
+          mobAC: undefined,
+          dps: result.dps,
+          fistweaving: false,
+          era: (document.getElementById('era-select') && document.getElementById('era-select').value) || 'classic',
+          mode: document.body.getAttribute('data-ui-mode') || 'easy',
+        });
+        if (window.SIM_HISTORY.length > window.SIM_HISTORY_MAX) window.SIM_HISTORY.pop();
+        if (typeof window.renderSimHistory === 'function') window.renderSimHistory();
+        if (typeof window.renderEasyHistory === 'function') window.renderEasyHistory();
+      })();
 
       var rotLogUrl = window._GSIM_LOG_URL || '';
       if (window.UsageLog && rotLogUrl) {

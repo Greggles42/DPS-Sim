@@ -1581,6 +1581,44 @@
       </p>
     </div>
 
+    <div class="section">
+      <h2>21) Rotation Planner — Session History <span class="badge badge-sim">Sim Feature</span></h2>
+      <p>
+        Every run of the Rotation Planner (Spells tab) now logs a row into the same shared
+        <strong>Session History</strong> table the Melee and Ranged tabs already use, so you can compare a spell
+        rotation's DPS against your melee/ranged runs side by side instead of losing it as soon as you run another
+        sim. The row's "weapon" column instead shows the spell pool used for that run (spell count plus the first
+        few spell names), the off-global spell if one was selected, the caster's level, target name (if a target was
+        chosen via search), the resulting DPS, and which era and UI mode (Easy/Advanced) were active — the same
+        fields every other Session History row carries, just populated from a spell rotation instead of a weapon
+        loadout.
+      </p>
+    </div>
+
+    <div class="section">
+      <h2>22) Recommended-Level Items <span class="badge badge-game">In-Game Mechanic</span></h2>
+      <p>
+        Some items list a <strong>recommended level</strong> rather than a hard required level. A required-level
+        item simply can't be equipped below that level; a recommended-level item <em>can</em> be worn early, but all
+        of its stats — AC, HP, Mana, STR/STA/DEX/AGI/WIS/INT/CHA, resists, and (for weapons) damage, elemental damage,
+        and bane damage — are scaled down in proportion to how far below the recommended level the wearer is. At or
+        above the recommended level, the item gives its full, unscaled stats.
+      </p>
+      <p>
+        The sim reproduces the server's own formula exactly (<code>Client::CalcRecommendedLevelBonus</code>): each
+        scaled stat is <code>floor(level × 10000 ÷ recLevel) × baseStat</code>, rounded to the nearest whole number
+        (half-away-from-zero), then divided back down by 10000. Because the server does this with integer math, the
+        sim replicates the same truncation behavior rather than using a plain floating-point ratio, so the numbers
+        it shows match what you'd see in-game rather than a rounded approximation.
+      </p>
+      <p>
+        This applies automatically whenever you equip an item (via item search or by importing an inventory) whose
+        recommended level is above your current character level — the gear summary's AC/stat totals reflect the
+        scaled-down values, and they re-scale live if you change the level field afterward. Weapon damage scaling
+        applies the same way when a weapon with a recommended level is selected via item search.
+      </p>
+    </div>
+
     <p class="muted">
       Reference implementation: <a href="https://github.com/SecretsOTheP/EQMacEmu/blob/main/zone/attack.cpp" target="_blank" rel="noopener">EQMacEmu attack.cpp</a>.
       Return to <a href="index.html">main simulator</a>.

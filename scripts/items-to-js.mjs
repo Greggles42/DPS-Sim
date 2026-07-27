@@ -26,7 +26,7 @@ if (!fs.existsSync(jsonPath)) {
 const KEEP_FIELDS = new Set([
   'id', 'Name', 'ac', 'astr', 'adex', 'aagi', 'awis', 'asta', 'aint', 'acha',
   'hp', 'mana', 'damage', 'delay', 'itemtype', 'worneffect', 'wornlevel',
-  'classes', 'races', 'reqlevel', 'slots', 'icon', 'skillmodtype', 'skillmodvalue',
+  'classes', 'races', 'reqlevel', 'reclevel', 'slots', 'icon', 'skillmodtype', 'skillmodvalue',
   'mr', 'fr', 'cr', 'dr', 'pr', 'banedmgamt', 'banedmgbody', 'banedmgrace',
   'proceffect', 'procrate', 'proclevel',
   'focuseffect',    // Spell id carrying the item's passive spell-only bonus (see js/modules/itemFocus.js)
