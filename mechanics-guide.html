@@ -193,14 +193,25 @@
         <li><strong>Procs:</strong> same DD base / cap / non-DD detrimental / flat hate rules as melee, on the bow object.</li>
       </ul>
 
-      <h3>2.4) What is not in this TPS</h3>
+      <h3>2.4) Pet threat is separate from the player's TPS</h3>
+      <p>
+        A pet is coded server-side as its own NPC, and it hates independently: when a pet hits the mob, the mob's hate list gets a full entry for the <strong>pet</strong>, and the owner is only added to that same hate list with <strong>zero</strong> hate and zero damage &mdash; enough for the mob to notice and potentially retarget the owner, but no share of the pet's threat is ever credited to the player. The player's Total TPS in the header therefore never includes pet damage, matching this.
+      </p>
+      <p>
+        The pet's <strong>own</strong> threat (shown as "Pet TPS" in the Pet Damage report section) uses a different formula than the player's weapon-rating hate: NPCs (and pets, which route through the same code) generate
+        <code>floor(baseDamage / 2)</code> hate on <strong>every swing attempt</strong> &mdash; hit, miss, or block alike &mdash; where <code>baseDamage</code> is the same pre-mitigation base damage value used for the pet's damage roll (<code>NpcCombat.getBaseDamage</code>). The main-hand damage bonus is not part of this hate formula. Any buffed pet proc (e.g. a Beastlord's "Spirit of X" line) adds proc threat using the same capped-at-400 direct-damage formula as player weapon procs.
+      </p>
+      <div class="formula">petSwingHate = floor(baseDamage / 2)  (per swing attempt, main or off hand)</div>
+      <p class="muted">Implementation: <code>js/modules/petCombat.js</code>. Reference: EQMacEmu <code>NPC::Attack</code> (<code>zone/attack.cpp</code>), distinct from the client hate path used for the player's own TPS above.</p>
+
+      <h3>2.5) What is not in this TPS</h3>
       <ul>
         <li>Threat from casting player spells, heals, buffs, or non-weapon abilities (not simulated).</li>
         <li>Separate "damage-based" hate for specials (the sim does not add threat equal to special hit damage).</li>
         <li>Mez/root flat hate tables and other non-proc beneficial spell hate (not simulated).</li>
       </ul>
 
-      <h3>2.5) Practical example (melee, rounded)</h3>
+      <h3>2.6) Practical example (melee, rounded)</h3>
       <p>
         Suppose a 60-second fight, main hand only, no offhand, no procs, no specials: weapon shows <strong>15</strong> damage, main-hand damage bonus <strong>35</strong>, effective delay 2.0s → about <strong>30</strong> main-hand swings. Each swing adds swing hate <code>15 + 35 = 50</code>.
       </p>

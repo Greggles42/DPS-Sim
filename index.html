@@ -11125,6 +11125,11 @@
 
         lines.push(padPetLine('  Total pet damage:', String(Math.round(petResult.totalDamage))));
         lines.push(padPetLine('  Pet DPS:', petResult.dps.toFixed(2)));
+        if (petResult.totalThreat != null) {
+          lines.push(padPetLine('  Pet TPS (threat, approx):', petResult.tps.toFixed(2)));
+          lines.push(padPetLine('  Pet total threat (approx):', String(Math.round(petResult.totalThreat))
+            + '  (own hate-list entry; owner earns 0 hate from pet damage)'));
+        }
         lines.push(padPetLine('  Combined DPS (Player + Pet):', combined.toFixed(2)));
         if (includedInNetDps != null) {
           lines.push(padPetLine('  Included in Total DPS:', includedInNetDps

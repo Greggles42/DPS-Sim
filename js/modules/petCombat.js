@@ -30,6 +30,7 @@
   function getNC() { return global.NpcCombat || null; }
   function getPD() { return global.PlayerDefense || null; }
   function getEQ() { return global.EQCombat || null; }
+  function getThreat() { return global.EQThreat || null; }
 
   /** Tiny seeded LCG — same convention as rotationEngine.js's createRng. */
   function createRng(seed) {
@@ -75,7 +76,8 @@
    * @returns {Object} { totalDamage, dps, durationSec, mainhandSwings,
    *   mainhandHits, mainhandDamage, offhandSwings, offhandHits,
    *   offhandDamage, maxHit, dualWieldActive, attackDelayMs,
-   *   procDamageTotal, procCount, error }
+   *   procDamageTotal, procCount, swingThreat, procThreat, totalThreat,
+   *   tps, error }
    */
   function simulatePetFight(o) {
     var NC = getNC(), eq = getEQ();
@@ -134,8 +136,19 @@
     var procDamageTotal = 0, procCount = 0;
     var maxHit = 0;
 
+    // Pet threat: the pet is Mob-derived just like any NPC, so it hates
+    // through NPC::Attack, not the client weapon-rating path — hate per
+    // swing attempt is floor(baseDamage / 2), added regardless of hit,
+    // miss, or block (attack.cpp:1793-1795), and independent of the pet's
+    // own owner (see mechanics-guide.html 2.6 — pet threat is entirely the
+    // pet's own hate-list entry; the owner earns 0 hate from it).
+    var T = getThreat();
+    var swingThreatAcc = 0, procThreatAcc = 0;
+    var petSwingHate = Math.floor(pet.baseDamage / 2);
+
     function emit(opts) {
       if (opts.proc) return;   // pets carry no weapon item — no item proc to model
+      swingThreatAcc += petSwingHate;
       var res = NC.resolveSwing(pet, defense, ctx, rng, opts);
       var isOffhand = opts.source === 'offhand';
       if (isOffhand) offhandSwings++; else mainhandSwings++;
@@ -152,6 +165,7 @@
           procDamageTotal += o.procDamage;
           procCount++;
           if (o.procDamage > maxHit) maxHit = o.procDamage;
+          if (T && T.procSpellThreatFromDamage) procThreatAcc += T.procSpellThreatFromDamage(o.procDamage, 400);
         }
       }
     }
@@ -180,7 +194,11 @@
       attackDelayMs: pet.attackDelayMs,
       procDamageTotal: procDamageTotal,
       procCount: procCount,
-      hasProc: hasProc
+      hasProc: hasProc,
+      swingThreat: swingThreatAcc,
+      procThreat: procThreatAcc,
+      totalThreat: swingThreatAcc + procThreatAcc,
+      tps: (swingThreatAcc + procThreatAcc) / durationSec
     };
   }
 
