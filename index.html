@@ -3109,6 +3109,7 @@
     <details id="version-log-details">
     <summary style="cursor:pointer; font-size:1.17em; font-weight:bold; margin:0; list-style:revert;">Version log</summary>
     <ul style="font-size: 0.9rem; color: var(--muted); margin: 0.5rem 0 0; padding-left: 1.25rem;">
+      <li><strong>1.45</strong> — Weapon labels (Melee tab report's "Weapon 1: ... (14d / 19 delay)" line, and the Easy mode weapon card detail line) now show a <strong>[scaled for RecLevel N: raw dmg M]</strong> note whenever a weapon's damage is currently reduced by the recommended-level mechanic, so it's clear at a glance that the number shown isn't the item's full listed damage. The note is tied to the exact item/level combo from search and clears automatically if you raise the level to/above the RecLevel, pick a different weapon, or manually type over the damage field.</li>
       <li><strong>1.44</strong> — Fixed a bug where switching class would leave the Pet panel's old selection active: because the panel preserves its checkbox/select state across re-renders (so switching tabs doesn't wipe your settings), swapping from a pet class to a non-pet class kept "Simulate pet DPS" checked and still folded in the old class's pet damage, and swapping between two pet classes (e.g. Magician → Necromancer) could carry over stale settings before the pool refreshed. The panel now detects an actual class change and force-resets all its controls (enable checkbox, spell/proc selections, dual wield, haste, target AC) instead of preserving them, so a pet never survives a class swap.</li>
       <li><strong>1.43</strong> — Rotation Planner (Spells tab) runs now log into the shared Session History table alongside Melee/Ranged runs, showing the spell pool, off-global spell, level, target, DPS, era and UI mode for each run. Added support for <strong>recommended-level</strong> items — items with a <code>RecLevel</code> below the current character level can now be equipped early with all stats (AC/HP/Mana/attributes/resists) and, for weapons, damage/elemental/bane damage scaled down using the server's exact <code>Client::CalcRecommendedLevelBonus</code> integer-math formula; gear stats re-scale live if you change the level field afterward. Mechanics guide updated (sections 21-22).</li>
       <li><strong>1.42</strong> — More pet sim follow-ups: the <strong>Pet Damage</strong> report section now sits between Procs &amp; Specials and Final Totals (was appended after Final Totals). Session History rows where <strong>Include pet DPS in Total DPS</strong> was checked now show a small 🐾 next to the DPS value, in both the Advanced-mode Session History table and the Easy-mode history table, so pet-inflated runs are visually distinct from player-only ones. Added Wizard (<strong>Flaming Sword of Xuzl</strong>) and Cleric (<strong>Unswerving Hammer of Faith</strong>) to the Pet panel's supported classes — each gets one situational combat-pet spell rather than a full-time companion; the sim assumes it's cast at the very start of the fight and stays up the whole duration, same as every other pet, since no in-game expiration is exposed in the spell data to model otherwise. Both resolve through the exact same <code>js/modules/petSpells.js</code> pipeline with no special-casing needed. Mechanics guide updated (section 20).</li>
@@ -3651,7 +3652,7 @@
       }
 
       // When releasing: 1) Bump VERSION below. 2) Add a new <li> at the top of the Version log section above.
-      const VERSION = '1.44';
+      const VERSION = '1.45';
       const versionEl = $('app-version');
       if (versionEl) versionEl.textContent = 'v' + VERSION;
 
@@ -5193,7 +5194,16 @@
         if (procSpellNoPartialResist) out.procSpellNoPartialResist = true;
         if (procSpellMovementEffect) out.procSpellMovementEffect = true;
         if (elemType && elemDamage > 0) { out.elemType = elemType; out.elemDamage = elemDamage; }
+        const dmgEl = $(prefix + '-damage');
+        if (dmgEl && dmgEl.dataset.reclevel) {
+          out.recLevel = parseInt(dmgEl.dataset.reclevel, 10) || 0;
+          out.rawDamage = parseInt(dmgEl.dataset.rawDamage, 10) || 0;
+        }
         return out;
+      }
+      /** Report-label note for a weapon whose damage is currently scaled down by RecLevel (see getWeapon). */
+      function recLevelNote(w) {
+        return (w && w.recLevel) ? (' [scaled for RecLevel ' + w.recLevel + ': raw dmg ' + w.rawDamage + ']') : '';
       }
 
       function run() {
@@ -5739,9 +5749,9 @@
         const w2BsMarker = (w2BackstabModPercent != null && w2BackstabModPercent > 0) ? (' [BS+' + w2BackstabModPercent + '%]') : '';
         const w1AtkMarker = (w1WornAttackBonus != null && w1WornAttackBonus > 0) ? (' [ATK+' + w1WornAttackBonus + ']') : '';
         const w2AtkMarker = (w2WornAttackBonus != null && w2WornAttackBonus > 0) ? (' [ATK+' + w2WornAttackBonus + ']') : '';
-        const w1LabelWithAtk = hasMainHand ? (`Weapon 1: ${w1Name}${w1BsMarker}${w1AtkMarker} (${weapon1.damage}d / ${weapon1.delay} delay${weapon1.procSpell ? ' / ' + weapon1.procSpell : ''})`) : 'Main hand (unequipped)';
+        const w1LabelWithAtk = hasMainHand ? (`Weapon 1: ${w1Name}${w1BsMarker}${w1AtkMarker} (${weapon1.damage}d / ${weapon1.delay} delay${weapon1.procSpell ? ' / ' + weapon1.procSpell : ''})${recLevelNote(weapon1)}`) : 'Main hand (unequipped)';
         const w2LabelWithAtk = useWeapon2
-          ? (`Weapon 2: ${w2Name}${w2BsMarker}${w2AtkMarker} (${weapon2.damage}d / ${weapon2.delay} delay${weapon2.procSpell ? ' / ' + weapon2.procSpell : ''})`)
+          ? (`Weapon 2: ${w2Name}${w2BsMarker}${w2AtkMarker} (${weapon2.damage}d / ${weapon2.delay} delay${weapon2.procSpell ? ' / ' + weapon2.procSpell : ''})${recLevelNote(weapon2)}`)
           : 'Weapon 2';
         let reportText = EQCombat.formatReport(report, w1LabelWithAtk, w2LabelWithAtk, runs);
         if (window.selectedTargetNpc && window.selectedTargetNpc.name) {
@@ -8509,7 +8519,11 @@
           var dmg = parseInt($(prefix + '-damage').value, 10) || 0;
           var delay = parseInt($(prefix + '-delay').value, 10) || 0;
           var proc = (($(prefix + '-proc') && $(prefix + '-proc').value) || '').trim();
-          if (dmg > 0 && delay > 0) detailEl.textContent = 'DMG: ' + dmg + ' | Delay: ' + delay + ' | Proc: ' + (proc || '-');
+          var dmgEl = $(prefix + '-damage');
+          var recNote = (dmgEl && dmgEl.dataset.reclevel)
+            ? (' | Scaled for RecLevel ' + dmgEl.dataset.reclevel + ' (raw dmg ' + dmgEl.dataset.rawDamage + ')')
+            : '';
+          if (dmg > 0 && delay > 0) detailEl.textContent = 'DMG: ' + dmg + ' | Delay: ' + delay + ' | Proc: ' + (proc || '-') + recNote;
           else detailEl.textContent = 'DMG: - | Delay: - | Proc: -';
         }
         var sourceIcon = $(prefix + '-weapon-icon'); var sourceWrap = $(prefix + '-weapon-icon-wrap');
@@ -9438,6 +9452,11 @@
       }
       function clearItemSearchOnManualEdit(prefix) {
         if (prefix === 'w1') { w1FromItemSearch = false; } else { w2FromItemSearch = false; }
+        // A manually-typed damage value is no longer "the RecLevel-scaled
+        // value from search" — drop the tag so the report stops claiming
+        // it's scaled once the user has overridden it by hand.
+        var dmgEl = $(prefix + '-damage');
+        if (dmgEl) { delete dmgEl.dataset.reclevel; delete dmgEl.dataset.rawDamage; }
         updateCustomTypeVisibility(prefix);
         refreshWornAttackFromCurrentWeapons();
         refreshBackstabModsFromCurrentWeapons();
@@ -9688,6 +9707,23 @@
         const bane = window.scaleStatByRecLevel(weapon.baneDamage, weaponCharLevel, weapon.recLevel || 0);
         $(prefix + '-damage').value = isNaN(dmg) ? '' : dmg;
         $(prefix + '-delay').value = isNaN(dly) ? '' : dly;
+        // Tag the damage field with the RecLevel context whenever scaling
+        // actually reduced the value, so the report's weapon label can note
+        // it (see w1LabelWithAtk/w2LabelWithAtk). Cleared on manual edit
+        // (clearItemSearchOnManualEdit) since a hand-typed value is no
+        // longer "the scaled search result".
+        var dmgElTag = $(prefix + '-damage');
+        if (dmgElTag) {
+          var recLvl = weapon.recLevel || 0;
+          var rawDmg = Number(weapon.damage);
+          if (recLvl > 0 && weaponCharLevel < recLvl && !isNaN(rawDmg) && rawDmg > 0 && dmg !== rawDmg) {
+            dmgElTag.dataset.reclevel = String(recLvl);
+            dmgElTag.dataset.rawDamage = String(rawDmg);
+          } else {
+            delete dmgElTag.dataset.reclevel;
+            delete dmgElTag.dataset.rawDamage;
+          }
+        }
         $(prefix + '-proc').value = (weapon.proc != null ? String(weapon.proc) : '') || '';
         const procSpellIdEl = $(prefix + '-proc-spell-id');
         if (procSpellIdEl) procSpellIdEl.value = (weapon.procSpellId != null ? String(weapon.procSpellId) : '') || '';
