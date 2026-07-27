@@ -3109,6 +3109,7 @@
     <details id="version-log-details">
     <summary style="cursor:pointer; font-size:1.17em; font-weight:bold; margin:0; list-style:revert;">Version log</summary>
     <ul style="font-size: 0.9rem; color: var(--muted); margin: 0.5rem 0 0; padding-left: 1.25rem;">
+      <li><strong>1.44</strong> — Fixed a bug where switching class would leave the Pet panel's old selection active: because the panel preserves its checkbox/select state across re-renders (so switching tabs doesn't wipe your settings), swapping from a pet class to a non-pet class kept "Simulate pet DPS" checked and still folded in the old class's pet damage, and swapping between two pet classes (e.g. Magician → Necromancer) could carry over stale settings before the pool refreshed. The panel now detects an actual class change and force-resets all its controls (enable checkbox, spell/proc selections, dual wield, haste, target AC) instead of preserving them, so a pet never survives a class swap.</li>
       <li><strong>1.43</strong> — Rotation Planner (Spells tab) runs now log into the shared Session History table alongside Melee/Ranged runs, showing the spell pool, off-global spell, level, target, DPS, era and UI mode for each run. Added support for <strong>recommended-level</strong> items — items with a <code>RecLevel</code> below the current character level can now be equipped early with all stats (AC/HP/Mana/attributes/resists) and, for weapons, damage/elemental/bane damage scaled down using the server's exact <code>Client::CalcRecommendedLevelBonus</code> integer-math formula; gear stats re-scale live if you change the level field afterward. Mechanics guide updated (sections 21-22).</li>
       <li><strong>1.42</strong> — More pet sim follow-ups: the <strong>Pet Damage</strong> report section now sits between Procs &amp; Specials and Final Totals (was appended after Final Totals). Session History rows where <strong>Include pet DPS in Total DPS</strong> was checked now show a small 🐾 next to the DPS value, in both the Advanced-mode Session History table and the Easy-mode history table, so pet-inflated runs are visually distinct from player-only ones. Added Wizard (<strong>Flaming Sword of Xuzl</strong>) and Cleric (<strong>Unswerving Hammer of Faith</strong>) to the Pet panel's supported classes — each gets one situational combat-pet spell rather than a full-time companion; the sim assumes it's cast at the very start of the fight and stays up the whole duration, same as every other pet, since no in-game expiration is exposed in the spell data to model otherwise. Both resolve through the exact same <code>js/modules/petSpells.js</code> pipeline with no special-casing needed. Mechanics guide updated (section 20).</li>
       <li><strong>1.41</strong> — Pet sim follow-ups: the report now has a full <strong>Pet Damage</strong> section (same <code>=== Section ===</code> padded-column layout as Weapon Overview/Procs &amp; Specials — main hand and off hand swings/hits/accuracy/damage/DPS, proc buff contribution, totals) instead of a two-line footnote. New <strong>Include pet DPS in Total DPS</strong> checkbox in the Pet panel: off by default, so the Melee tab's header ticker and Session History (the numbers used to compare weapons against each other) stay player-only and aren't uniformly inflated by the pet's flat baseline; check it to fold the pet into both for the group's real combined output. The report's Pet Damage section always states which mode was active. <code>js/modules/petCombat.js</code>'s <code>simulatePetFight</code> now also tracks per-hand damage totals and max hit to support the detailed section. Mechanics guide updated (section 20).</li>
@@ -3650,7 +3651,7 @@
       }
 
       // When releasing: 1) Bump VERSION below. 2) Add a new <li> at the top of the Version log section above.
-      const VERSION = '1.43';
+      const VERSION = '1.44';
       const versionEl = $('app-version');
       if (versionEl) versionEl.textContent = 'v' + VERSION;
 
@@ -10846,15 +10847,30 @@
         }
       }
 
+      // Tracks the class the panel was last built for, so a class swap can
+      // force-clear the pet selection below instead of preserving it — a
+      // pet picked under the old class is meaningless (and was silently
+      // still being simulated) once the class actually changes.
+      var _petPanelLastClassId = null;
+
       function buildPetPanelUI() {
         var panel = $('pet-configurator');
         var body = $('pet-config-body');
         if (!panel || !body || !window.PetSpells) return;
 
         var classId = ($('class') && $('class').value || '').toLowerCase();
+        var classChanged = _petPanelLastClassId !== null && _petPanelLastClassId !== classId;
+        _petPanelLastClassId = classId;
+
         if (!isPetClass(classId)) {
           panel.style.display = 'none';
           panel.open = false;
+          if (classChanged) {
+            var enabledElOff = $('pet-enabled');
+            if (enabledElOff) enabledElOff.checked = false;
+            _petCurrentPool = [];
+            _petCurrentProcPool = [];
+          }
           return;
         }
         panel.style.display = '';
@@ -10868,22 +10884,25 @@
         // Configurator) — not just when the pool itself changes. So every
         // control's prior value must be read back off the DOM before the
         // innerHTML rebuild, or switching tabs would silently reset the
-        // user's checkboxes/inputs on every visit.
+        // user's checkboxes/inputs on every visit. The one exception is an
+        // actual class swap: a pet class change invalidates the old
+        // selection entirely, so every control resets to its default
+        // instead of carrying the previous class's pet forward.
         var prevSelect = $('pet-spell-select');
-        var prevSpellId = prevSelect ? prevSelect.value : '';
+        var prevSpellId = classChanged ? '' : (prevSelect ? prevSelect.value : '');
         var prevEnabled = $('pet-enabled');
-        var wasEnabled = prevEnabled ? prevEnabled.checked : false;
+        var wasEnabled = classChanged ? false : (prevEnabled ? prevEnabled.checked : false);
         var prevDualWield = $('pet-always-dual-wield');
-        var wasDualWield = prevDualWield ? prevDualWield.checked : false;
+        var wasDualWield = classChanged ? false : (prevDualWield ? prevDualWield.checked : false);
         var prevHaste = $('pet-haste-pct');
-        var prevHasteVal = prevHaste ? prevHaste.value : '0';
+        var prevHasteVal = classChanged ? '0' : (prevHaste ? prevHaste.value : '0');
         var prevAc = $('pet-target-ac');
-        var prevAcVal = prevAc ? prevAc.value :
+        var prevAcVal = (!classChanged && prevAc) ? prevAc.value :
           (window.selectedTargetNpc && window.selectedTargetNpc.AC != null ? window.selectedTargetNpc.AC : 550);
         var prevProcSelect = $('pet-proc-buff-select');
-        var prevProcSpellId = prevProcSelect ? prevProcSelect.value : '';
+        var prevProcSpellId = classChanged ? '' : (prevProcSelect ? prevProcSelect.value : '');
         var prevIncludeNet = $('pet-include-net-dps');
-        var wasIncludeNet = prevIncludeNet ? prevIncludeNet.checked : false;
+        var wasIncludeNet = classChanged ? false : (prevIncludeNet ? prevIncludeNet.checked : false);
 
         if (!pool.length) {
           body.innerHTML = '<p class="hint" style="margin:0;">No pet-summon spell found for this class/level yet.</p>';
