@@ -338,6 +338,14 @@
     // which the DB does not expose to us).
     var dualWield = !o.disableDualWield && (hasAbility(parsed, SA.DualWield) || !!o.forceDualWield);
 
+    // Having the DualWield ability doesn't mean every off-hand tick actually
+    // swings — Mob::CheckDualWield rolls dualWieldEffective > random(0,374)
+    // each time, same shape as the double attack roll but against skill+level
+    // over 375 instead of 500 (NPCs share the same skill value for both).
+    var dualWieldChance = dualWield
+      ? Math.min(1, (daSkill + (level > 35 ? level : 0)) / 375)
+      : 0;
+
     var classAttack = getNpcClassAttack(classId, level);
 
     return {
@@ -368,6 +376,7 @@
       hasTripleAttack: (classId === CLASS.Warrior || classId === CLASS.Monk) && level >= 60,
 
       dualWield: dualWield,
+      dualWieldChance: dualWieldChance,
       // The off-hand's own double attack needs 150+ double attack skill.
       offhandDoubleAttack: daSkill >= 150,
 
@@ -533,7 +542,7 @@
     emit({ source: 'proc', proc: true, hand: 'offhand' });
     emit({ source: 'offhand', damagePct: damagePct });
     if (mob.offhandDoubleAttack && mob.doubleAttackChance > 0 && rng() < mob.doubleAttackChance) {
-      emit({ source: 'offhand', damagePct: damagePct });
+      emit({ source: 'offhandDouble', damagePct: damagePct });
     }
   }
 

@@ -558,7 +558,11 @@
         }
 
         case 'attackDW':
-          NC.doOffHandRound(mob, rng, emitSwing, 100);
+          // CheckDualWield rolls per tick — having the ability doesn't mean
+          // the off hand swings every time the timer fires.
+          if (rng() < mob.dualWieldChance) {
+            NC.doOffHandRound(mob, rng, emitSwing, 100);
+          }
           timers.attackDW = now + mob.attackDelayMs;
           break;
 
@@ -637,7 +641,7 @@
     // Mitigation is a melee statistic — folding spell and DoT damage into it
     // produces nonsense (readings above 100% or below 0%).
     var meleeDamage = 0;
-    ['mainhand', 'offhand', 'double', 'triple', 'classattack'].forEach(function (s) {
+    ['mainhand', 'offhand', 'offhandDouble', 'double', 'triple', 'classattack'].forEach(function (s) {
       meleeDamage += report.damageBySource[s] || 0;
     });
     report.meleeDamageTaken = meleeDamage;
@@ -677,6 +681,7 @@
       mobDoubleAttackChance: mob.doubleAttackChance,
       mobHasTripleAttack: mob.hasTripleAttack,
       mobDualWield: mob.dualWield,
+      mobDualWieldChance: mob.dualWieldChance,
       mobFlurryChance: mob.flurryChance,
       mobRampageChance: mob.rampageChance,
       mobToHit: mob.toHit,
@@ -871,9 +876,9 @@
   // ---------------------------------------------------------------------------
 
   var SOURCE_LABEL = {
-    mainhand: 'Main hand', offhand: 'Off hand', double: 'Double attack',
-    triple: 'Triple attack', classattack: 'Kick / Bash', spell: 'Spells',
-    dot: 'Damage over time', proc: 'Weapon procs'
+    mainhand: 'Main hand', offhand: 'Off hand', offhandDouble: 'Off-hand double attack',
+    double: 'Double attack', triple: 'Triple attack', classattack: 'Kick / Bash',
+    spell: 'Spells', dot: 'Damage over time', proc: 'Weapon procs'
   };
 
   function formatTankingReport(report, runsAveraged) {
@@ -904,7 +909,10 @@
     lines.push(pad('  Attacks per round:', String(report.mobAttackCount)));
     lines.push(pad('  Double attack chance:', pct(report.mobDoubleAttackChance, 1) +
       (report.mobHasTripleAttack ? '  (+13.5% triple on a double)' : '')));
-    if (report.mobDualWield) lines.push(pad('  Dual wield:', 'Yes — separate off-hand round'));
+    if (report.mobDualWield) {
+      lines.push(pad('  Dual wield:', 'Yes — separate off-hand round, ' +
+        fmt(report.mobDualWieldChance * 100, 1) + '% chance per tick'));
+    }
     if (report.mobFlurryChance > 0) lines.push(pad('  Flurry chance:', pct(report.mobFlurryChance, 0) + '  (full extra round)'));
     if (report.mobRampageChance > 0) lines.push(pad('  Rampage chance:', pct(report.mobRampageChance, 0)));
     if (report.mobClassAttack) lines.push(pad('  Class attack:', report.mobClassAttack));

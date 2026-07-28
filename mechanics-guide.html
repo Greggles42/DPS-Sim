@@ -949,7 +949,7 @@
         <thead><tr><th>Timer</th><th>How often</th><th>What happens</th></tr></thead>
         <tbody>
           <tr><td>Main hand</td><td>The mob's attack delay, adjusted for haste or slow</td><td>A full main-hand round (see below)</td></tr>
-          <tr><td>Off hand</td><td>Same delay, only if the mob dual wields</td><td>One off-hand swing, plus its own double attack</td></tr>
+          <tr><td>Off hand</td><td>Same delay, only if the mob dual wields</td><td>A dual-wield check first (see below); on success, one off-hand swing plus its own double attack chance</td></tr>
           <tr><td>Class attack</td><td>Every 8 seconds (10 for backstab), scaled by haste</td><td>Kick, bash, backstab or a monk special</td></tr>
           <tr><td>Spell casting</td><td>Rechecked every 0.75–2 seconds</td><td>A nuke, DoT or stun from the mob's spell list</td></tr>
         </tbody>
@@ -966,6 +966,23 @@
       <p>
         In practice that means a level 60 mob double attacks about <strong>62%</strong> of the time. Only if the
         double succeeds does a Warrior or Monk mob at level 60+ roll a further 13.5% for a triple attack.
+      </p>
+
+      <h3>The off-hand round: dual wield isn't automatic every tick</h3>
+      <p>
+        Having the DualWield special ability doesn't mean the mob swings its off hand every time the off-hand timer
+        fires. Each tick first rolls a separate <strong>dual-wield check</strong>, same shape as the double-attack
+        check above but against a smaller divisor:
+      </p>
+      <div class="formula">P(off-hand round) = (skill + level) / 375, where skill is the same NPC skill value used for double attack</div>
+      <p>
+        For a level 60+ mob with capped skill that's roughly <strong>84%</strong> per tick, not 100% — the other
+        ~16% of ticks, the off hand simply does nothing that round (no swing, no proc). If that check succeeds, the
+        off hand swings once, then rolls its <em>own</em> double-attack chance (same formula as main hand) for a
+        second off-hand swing. The report breaks these apart as <strong>"Off hand"</strong> and <strong>"Off-hand
+        double attack"</strong> so the two hands' output is directly comparable — before this split, a dual-wielding
+        mob's off hand could look like it was hitting far harder than the main hand, when in reality the main hand's
+        own double/triple attacks were just being counted separately instead of folded together.
       </p>
 
       <h3>Flurry, rampage and enrage</h3>
