@@ -982,6 +982,52 @@
           only modelled if you enter a Group DPS figure, since otherwise the sim has no way to know when the mob
           would reach that health.</li>
       </ul>
+      <p>
+        A <strong>Disable dual wield</strong> checkbox next to the spell-casting toggle lets you turn off a mob's
+        off-hand round even when its database entry grants the DualWield ability — useful for testing what the fight
+        looks like without it, or for mobs whose dual wield the sim can't otherwise detect.
+      </p>
+
+      <h3>Spell casting</h3>
+      <p>
+        A casting mob rechecks whether to cast every 0.75–2 seconds. Each check first rolls a flat
+        <strong>detrimental chance</strong> — 25% for most classes, only 3% for hybrids (Paladin, Ranger,
+        Shadow Knight, Bard, Beastlord) — before it even looks at which spell to cast. Fail that roll (or have
+        nothing off cooldown) and the mob does nothing until the next recheck.
+      </p>
+      <p>
+        Passing that roll doesn't guarantee a cast: each spell type then rolls its own success chance — 40% for
+        nukes, DoTs and roots, 50% for lifetaps and debuffs, 70% for slows (melee targets only), lower for
+        mez/charm/snare (30%) and dispel (10%). This roll shifts by how many spells the mob knows: +10% with
+        fewer than 4, −5% with 7–9, −10% with more than 9. This is why a mob with only one or two spells in its
+        list looks far more trigger-happy than one with a dozen.
+      </p>
+      <p>
+        <strong>Raid-boss spells</strong> (priority 0 in the database) are the one exception — they skip both
+        rolls entirely and fire the instant they're off cooldown, which is how dragon breath and other
+        AE-on-a-timer abilities keep to their real cadence instead of getting diluted by the normal chance checks.
+      </p>
+      <p>
+        When a mob has a spell list, the report's Damage Taken section breaks down every spell it actually cast
+        during the fight, by name, along with how many nukes/DoTs were fully or partially resisted — so you can see
+        not just the total spell DPS but which specific spells are responsible for it.
+      </p>
+      <p>
+        Not every spell on a mob's list deals damage — dragon roars and similar fear effects (Lord Nagafen's
+        Dragon Roar, for example) don't hit for anything, but they're still a real cast the mob makes on its own
+        timer. The sim tracks these too, so they show up in the spell-cast breakdown and as a <strong>"Times
+        feared"</strong> count under Special Attacks, even though they add nothing to your DTPS.
+      </p>
+      <p>
+        A mob's <strong>weapon proc</strong> (<code>npc_spells.attack_proc</code>) is rolled once per main-hand
+        round and once per off-hand round, regardless of whether the swing itself connects — separately from the
+        normal spell-casting checks above. The report names it directly (e.g. <strong>"Weapon procs (Stun
+        Breath)"</strong>) rather than lumping it in as a generic damage source, since some procs — Zlandicar's
+        Stun Breath being the standout example, a 900-damage breath with a 23% proc chance <em>and</em> a 12-second
+        stun — are a bigger part of the fight than the mob's regular spell list. Any stun a proc carries adds to
+        the same <strong>"Times stunned"</strong> count as kicks and bashes, and the total stun time applied is
+        shown alongside it so a mob that can chain-stun you off a fast proc doesn't get lost in a single count.
+      </p>
 
       <h3>Kicks and bashes</h3>
       <p>

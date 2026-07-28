@@ -153,6 +153,7 @@
       specialAbilities: options.mobSpecialAbilities,
       hastePct: options.mobHastePct,
       slowMitigation: options.mobSlowMitigation,
+      disableDualWield: options.mobDisableDualWield,
       era: era
     });
 
@@ -223,10 +224,16 @@
       mr: options.playerMR || 0, fr: options.playerFR || 0, cr: options.playerCR || 0,
       dr: options.playerDR || 0, pr: options.playerPR || 0
     };
+    // Slow only ever lands on melee classes server-side (SpellType_Slow: IsWarriorClass()).
+    var WARRIOR_CLASSES = {
+      warrior: 1, rogue: 1, monk: 1, paladin: 1, shadowknight: 1, ranger: 1, beastlord: 1, bard: 1
+    };
+    var targetIsWarriorClass = !!WARRIOR_CLASSES[options.playerClassId];
 
     // ---- Report skeleton ----
     var report = createReport(mob, defense, options, hpTotal, era);
     report.spellListName = spellList ? spellList.name : null;
+    report.attackProcName = spellList && spellList.attackProc ? spellList.attackProc.name : null;
 
     // ---- Fight state ----
     var ctx = {
@@ -368,6 +375,7 @@
 
       if (res.stun) {
         report.stuns++;
+        report.stunMsApplied += NC.STUN_DURATION_MS;
         ctx.stunnedUntilMs = now + NC.STUN_DURATION_MS;
       }
     }
@@ -447,7 +455,12 @@
 
       if (info.stunMs > 0 && !defense.stunImmune) {
         report.stuns++;
+        report.stunMsApplied += info.stunMs;
         ctx.stunnedUntilMs = Math.max(ctx.stunnedUntilMs, now + info.stunMs);
+      }
+
+      if (info.fearMs > 0) {
+        report.fears++;
       }
     }
 
@@ -554,9 +567,11 @@
           break;
 
         case 'autocast': {
-          var roll = NS ? NS.rollCast(spellList, rng, spellRecast, now) : null;
+          var roll = NS ? NS.rollCast(spellList, rng, spellRecast, now, targetIsWarriorClass) : null;
           if (roll && roll.cast) {
             report.spellCasts++;
+            var castName = roll.spell.info.name;
+            report.spellCastsByName[castName] = (report.spellCastsByName[castName] || 0) + 1;
             applySpellDamage(roll.spell, 'spell');
           }
           timers.autocast = now + (roll ? roll.nextCheckMs : 2000);
@@ -702,10 +717,13 @@
       landedSwings: 0,
       runedSwings: 0,
       stuns: 0,
+      stunMsApplied: 0,
+      fears: 0,
       flurries: 0,
       rampages: 0,
       classAttacks: 0,
       spellCasts: 0,
+      spellCastsByName: {},
       procCasts: 0,
       spellsResisted: 0,
       spellsPartial: 0,
@@ -787,7 +805,7 @@
 
   var SUM_KEYS = [
     'rounds', 'swingAttempts', 'missedSwings', 'dodgedSwings', 'parriedSwings',
-    'ripostedSwings', 'blockedSwings', 'landedSwings', 'runedSwings', 'stuns',
+    'ripostedSwings', 'blockedSwings', 'landedSwings', 'runedSwings', 'stuns', 'stunMsApplied', 'fears',
     'flurries', 'rampages', 'classAttacks', 'spellCasts', 'procCasts',
     'spellsResisted', 'spellsPartial', 'enrageWindows', 'totalDamageTaken',
     'runeAbsorbed', 'riposteAttempts', 'riposteHits', 'riposteDamageTotal',
@@ -817,12 +835,16 @@
     // Per-source totals
     out.damageBySource = {};
     out.swingsBySource = {};
+    out.spellCastsByName = {};
     reports.forEach(function (r) {
       for (var s in r.damageBySource) {
         out.damageBySource[s] = (out.damageBySource[s] || 0) + r.damageBySource[s] / n;
       }
       for (var s2 in r.swingsBySource) {
         out.swingsBySource[s2] = (out.swingsBySource[s2] || 0) + r.swingsBySource[s2] / n;
+      }
+      for (var s3 in r.spellCastsByName) {
+        out.spellCastsByName[s3] = (out.spellCastsByName[s3] || 0) + r.spellCastsByName[s3] / n;
       }
     });
 
@@ -974,7 +996,9 @@
       sources.sort(function (a, b) { return report.damageBySource[b] - report.damageBySource[a]; });
       sources.forEach(function (s) {
         var amt = report.damageBySource[s];
-        lines.push(pad('  ' + (SOURCE_LABEL[s] || s) + ':', fmt(amt, 0) +
+        var label = SOURCE_LABEL[s] || s;
+        if (s === 'proc' && report.attackProcName) label += ' (' + report.attackProcName + ')';
+        lines.push(pad('  ' + label + ':', fmt(amt, 0) +
           '  (' + pct(report.totalDamageTaken ? amt / report.totalDamageTaken : 0, 1) + ')'));
       });
       lines.push('');
@@ -983,18 +1007,37 @@
     if (report.spellCasts > 0 || report.procCasts > 0) {
       lines.push('  -- Mob casting --');
       lines.push(pad('  Spells cast:', fmt(report.spellCasts, 0)));
-      if (report.procCasts > 0) lines.push(pad('  Weapon procs:', fmt(report.procCasts, 0)));
+      if (report.procCasts > 0) {
+        var procLabel = report.attackProcName
+          ? '  Weapon procs (' + report.attackProcName + '):'
+          : '  Weapon procs:';
+        lines.push(pad(procLabel, fmt(report.procCasts, 0)));
+      }
       lines.push(pad('  Fully resisted:', fmt(report.spellsResisted, 0)));
       lines.push(pad('  Partially resisted:', fmt(report.spellsPartial, 0)));
+
+      var castNames = Object.keys(report.spellCastsByName || {});
+      if (castNames.length) {
+        lines.push('');
+        lines.push(pad('  Spells cast by name:', ''));
+        castNames.sort(function (a, b) { return report.spellCastsByName[b] - report.spellCastsByName[a]; });
+        castNames.forEach(function (name) {
+          lines.push(pad('    ' + name + ':', fmt(report.spellCastsByName[name], 0)));
+        });
+      }
       lines.push('');
     }
 
-    if (report.flurries > 0 || report.rampages > 0 || report.classAttacks > 0 || report.stuns > 0) {
+    if (report.flurries > 0 || report.rampages > 0 || report.classAttacks > 0 || report.stuns > 0 || report.fears > 0) {
       lines.push('  -- Special attacks --');
       if (report.flurries > 0) lines.push(pad('  Flurries:', fmt(report.flurries, 0)));
       if (report.rampages > 0) lines.push(pad('  Rampages:', fmt(report.rampages, 0)));
       if (report.classAttacks > 0) lines.push(pad('  Kicks / bashes:', fmt(report.classAttacks, 0)));
-      if (report.stuns > 0) lines.push(pad('  Times stunned:', fmt(report.stuns, 0)));
+      if (report.stuns > 0) {
+        lines.push(pad('  Times stunned:', fmt(report.stuns, 0) +
+          '  (' + fmt(report.stunMsApplied / 1000, 1) + 's total)'));
+      }
+      if (report.fears > 0) lines.push(pad('  Times feared:', fmt(report.fears, 0)));
       if (report.enrageWindows > 0) lines.push(pad('  Enrage windows:', fmt(report.enrageWindows, 0)));
       lines.push('');
     }

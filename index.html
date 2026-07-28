@@ -2947,6 +2947,12 @@
           </label>
           <span class="hint" style="margin:0;">Nukes, DoTs and weapon procs</span>
         </div>
+        <div style="display:flex;flex-direction:column;justify-content:center;gap:0.2rem;">
+          <label for="tank-disable-dual-wield" class="small-label" style="cursor:pointer;">
+            <input type="checkbox" id="tank-disable-dual-wield" style="margin-right:0.3rem;">Disable dual wield
+          </label>
+          <span class="hint" style="margin:0;">Overrides the mob's DualWield ability</span>
+        </div>
       </div>
     </section>
 
@@ -12321,6 +12327,7 @@
       mobSlowMitigation: v('tank-mob-slow-mitigation', 0),
       mobHastePct:     v('tank-mob-haste', 0),
       enableMobSpells: chk('tank-enable-mob-spells'),
+      mobDisableDualWield: chk('tank-disable-dual-wield'),
       groupDps:        v('tank-group-dps', 0),
 
       // Player defense — all stats read from the shared character module inputs.

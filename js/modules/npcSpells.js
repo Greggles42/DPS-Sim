@@ -28,6 +28,7 @@
   // SPA ids we care about on an incoming spell
   var SPA_CURRENT_HP = 0;
   var SPA_STUN = 21;
+  var SPA_FEAR = 23;
 
   var SPELL_TYPE = {
     Nuke: 1, Root: 4, Lifetap: 64, Snare: 128, DOT: 256,
@@ -109,6 +110,7 @@
     var directDamage = 0;
     var dotPerTick = 0;
     var stunMs = 0;
+    var isFear = false;
 
     var durationTicks = calcBuffDuration(
       casterLevel, sp.buffdurationformula, Number(sp.buffduration) || 0);
@@ -128,10 +130,17 @@
         }
       } else if (spa === SPA_STUN) {
         stunMs = Math.max(stunMs, Math.abs(base));
+      } else if (spa === SPA_FEAR) {
+        isFear = true;
       }
     }
 
-    if (!directDamage && !dotPerTick && !stunMs) return null;
+    // Fear (e.g. dragon roars) does no damage of its own, but it's still a
+    // real cast the mob makes — without this it silently disappears from
+    // resolveSpellList and never shows up in the report at all.
+    var fearMs = isFear ? durationTicks * TICK_MS : 0;
+
+    if (!directDamage && !dotPerTick && !stunMs && !fearMs) return null;
 
     return {
       id: spellId,
@@ -140,6 +149,7 @@
       dotPerTick: dotPerTick,
       durationTicks: dotPerTick > 0 ? durationTicks : 0,
       stunMs: stunMs,
+      fearMs: fearMs,
       resistType: Number(sp.resisttype) || 0,
       resistDiff: Number(sp.ResistDiff) || 0,
       castTimeMs: Number(sp.cast_time) || 0,
@@ -271,33 +281,32 @@
 
   // ---- Casting AI ------------------------------------------------------------
 
-  /**
-   * AI_EngagedCastCheck. On each autocast tick the mob rolls its detrimental
-   * chance; a success casts, a failure reschedules for a short random delay.
-   *
-   * @returns {{cast:boolean, spell:Object|null, nextCheckMs:number}}
-   */
-  function rollCast(list, rng, recastState, nowMs) {
-    var nextCheckMs = list.recastMinMs +
-      Math.floor(rng() * Math.max(1, list.recastMaxMs - list.recastMinMs + 1));
+  // Per-spell-type success roll inside AICastSpell (mob_ai.cpp), rolled
+  // *after* the list's overall detrimental-chance check already passed —
+  // this is what stops a mob from nuking every single time it decides to
+  // cast something. Types with no case in AICastSpell (or that never carry
+  // damage, so never reach describeSpell/our spells array) aren't listed.
+  var TYPE_CHANCE = {};
+  TYPE_CHANCE[SPELL_TYPE.Nuke] = 40;
+  TYPE_CHANCE[SPELL_TYPE.Root] = 40;
+  TYPE_CHANCE[SPELL_TYPE.Lifetap] = 50;
+  TYPE_CHANCE[SPELL_TYPE.Snare] = 30;
+  TYPE_CHANCE[SPELL_TYPE.DOT] = 40;
+  TYPE_CHANCE[SPELL_TYPE.Dispel] = 10;
+  TYPE_CHANCE[SPELL_TYPE.Mez] = 30;
+  TYPE_CHANCE[SPELL_TYPE.Charm] = 30;
+  TYPE_CHANCE[SPELL_TYPE.Slow] = 70;
+  TYPE_CHANCE[SPELL_TYPE.Debuff] = 50;
 
-    if (!list.spells.length) return { cast: false, spell: null, nextCheckMs: nextCheckMs };
-    if (rng() >= list.detrimentalChance) return { cast: false, spell: null, nextCheckMs: nextCheckMs };
+  /** The type roll shifts by how many spells the mob knows (mob_ai.cpp roll_mod). */
+  function typeRollMod(spellCount) {
+    if (spellCount < 4) return 10;
+    if (spellCount > 9) return -10;
+    if (spellCount > 6) return -5;
+    return 0;
+  }
 
-    // Highest priority first, skipping anything still on its own recast.
-    var candidates = [];
-    for (var i = 0; i < list.spells.length; i++) {
-      var s = list.spells[i];
-      var readyAt = recastState[s.spellId] || 0;
-      if (readyAt > nowMs) continue;
-      candidates.push(s);
-    }
-    if (!candidates.length) return { cast: false, spell: null, nextCheckMs: nextCheckMs };
-
-    var topPriority = candidates[0].priority;
-    var tier = candidates.filter(function (s) { return s.priority === topPriority; });
-    var chosen = tier[Math.floor(rng() * tier.length)];
-
+  function finishCast(chosen, rng, recastState, nowMs, nextCheckMs) {
     if (chosen.recast.ms > 0) {
       var variance = chosen.recast.variance ? Math.floor(rng() * 5) * 1000 : 0;
       recastState[chosen.spellId] = nowMs + chosen.recast.ms + variance;
@@ -309,6 +318,66 @@
     if (recovery > nextCheckMs) nextCheckMs = recovery;
 
     return { cast: true, spell: chosen, nextCheckMs: nextCheckMs };
+  }
+
+  /**
+   * AI_EngagedCastCheck + AICastSpell. On each autocast tick the mob rolls
+   * its detrimental chance, then tries its ready spells in turn, each with
+   * its own type-specific success roll, until one lands or none do.
+   *
+   * Priority-0 ("raid boss") spells are a special case: they skip both the
+   * detrimental-chance roll and their own type roll, casting the instant
+   * they come off cooldown (mob_ai.cpp AI_EngagedCastCheck, hasZeroPrioritySpells).
+   *
+   * @param {boolean} targetIsWarriorClass - Slow only ever lands on melee
+   *   classes server-side (mob_ai.cpp SpellType_Slow: debuffee->IsWarriorClass()).
+   * @returns {{cast:boolean, spell:Object|null, nextCheckMs:number}}
+   */
+  function rollCast(list, rng, recastState, nowMs, targetIsWarriorClass) {
+    var nextCheckMs = list.recastMinMs +
+      Math.floor(rng() * Math.max(1, list.recastMaxMs - list.recastMinMs + 1));
+
+    if (!list.spells.length) return { cast: false, spell: null, nextCheckMs: nextCheckMs };
+
+    var zeroPriorityReady = [];
+    for (var zi = 0; zi < list.spells.length; zi++) {
+      var zs = list.spells[zi];
+      if (zs.priority === 0 && (recastState[zs.spellId] || 0) <= nowMs) zeroPriorityReady.push(zs);
+    }
+    if (zeroPriorityReady.length) {
+      var zChosen = zeroPriorityReady[Math.floor(rng() * zeroPriorityReady.length)];
+      return finishCast(zChosen, rng, recastState, nowMs, nextCheckMs);
+    }
+
+    if (rng() >= list.detrimentalChance) return { cast: false, spell: null, nextCheckMs: nextCheckMs };
+
+    var candidates = [];
+    for (var i = 0; i < list.spells.length; i++) {
+      var s = list.spells[i];
+      var readyAt = recastState[s.spellId] || 0;
+      if (readyAt > nowMs) continue;
+      candidates.push(s);
+    }
+    if (!candidates.length) return { cast: false, spell: null, nextCheckMs: nextCheckMs };
+
+    // The server tries every ready spell in its AIspells array order, each
+    // rolling its own type chance, stopping at the first success. We try
+    // strongest (highest priority) first instead of the server's incidental
+    // array order — within one level band there's rarely more than one
+    // ready candidate of a given type anyway, so the order seldom matters.
+    candidates.sort(function (a, b) { return b.priority - a.priority; });
+    var mod = typeRollMod(list.spells.length);
+
+    for (var ci = 0; ci < candidates.length; ci++) {
+      var cand = candidates[ci];
+      if (cand.type === SPELL_TYPE.Slow && !targetIsWarriorClass) continue;
+      var chance = TYPE_CHANCE[cand.type] != null ? TYPE_CHANCE[cand.type] : 100;
+      chance = Math.max(0, Math.min(100, chance + mod));
+      if (rng() * 100 >= chance) continue;
+      return finishCast(cand, rng, recastState, nowMs, nextCheckMs);
+    }
+
+    return { cast: false, spell: null, nextCheckMs: nextCheckMs };
   }
 
   global.NpcSpells = {

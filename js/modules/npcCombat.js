@@ -307,6 +307,8 @@
    *   accuracy, hp, specialAbilities (raw string or parsed object),
    *   hastePct, slowMitigation, era, npcAvoidance, forceDualWield (used by
    *   the pet DPS sim's "Always Dual Wield" toggle — see petCombat.js),
+   *   disableDualWield (tanking sim override that forces off-hand rounds off
+   *   even when the NPC's own DualWield ability would grant them),
    *   isPet (skips the level 46-50 offense plateau real NPCs get; pets are
    *   exempt from it server-side, same as the existing getOffense param)
    */
@@ -334,7 +336,7 @@
 
     // Off-hand rounds need the DualWield ability (or an equipped secondary,
     // which the DB does not expose to us).
-    var dualWield = hasAbility(parsed, SA.DualWield) || !!o.forceDualWield;
+    var dualWield = !o.disableDualWield && (hasAbility(parsed, SA.DualWield) || !!o.forceDualWield);
 
     var classAttack = getNpcClassAttack(classId, level);
 
