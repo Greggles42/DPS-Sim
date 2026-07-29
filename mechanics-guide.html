@@ -1745,8 +1745,15 @@
         are never delayed by a spell's cast time or its GCD, and vice versa. This is the same simplification gSim
         already uses to combine a player's melee/ranged output with a summoned pet's or a weapon proc's: two
         separate timelines simulated in parallel and their totals summed, rather than one fully merged event queue.
-        The report adds a <strong>Spell Casting</strong> section (identical in format to a Rotation Planner report)
-        below the archery results, plus a <strong>Combined DPS (Ranged + Spells)</strong> line.
+        The report adds a <strong>Spell Casting</strong> section (identical in format to a Rotation Planner report),
+        positioned just above <strong>Final Totals</strong> — Executive Summary, Weapon Overview, and every other
+        section above it are still exactly the archery sim's own numbers, isolated and unchanged, so the physical
+        ranged contribution is never obscured by the spellcasting timeline. Final Totals is where the two are
+        actually combined: it shows <strong>Ranged (physical) damage</strong> and <strong>Spell damage</strong> (and
+        their TPS equivalents) as their own clearly-labeled lines, immediately followed by the headline
+        <strong>Combined total damage</strong>, <strong>Combined DPS</strong>, and <strong>Combined TPS</strong> —
+        so the ranged-only figure stays visible right next to the number it feeds into, rather than requiring a
+        second pass through Executive Summary to find it.
       </p>
     </div>
 

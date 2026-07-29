@@ -1089,7 +1089,20 @@
     return report;
   }
 
-  function formatRangedReport(report, runsAveraged) {
+  /**
+   * @param {Object} report - runRangedFight() result (averaged across runs)
+   * @param {number} [runsAveraged]
+   * @param {Object} [spellCastResult] - RotationEngine.simulateRotation() result
+   *   for the Ranged tab's "Spell Casting (between shots)" card, if enabled —
+   *   its totals are folded into Final Totals alongside (never replacing) the
+   *   physical archery totals, which stay isolated in Executive Summary and
+   *   the Weapon Overview section above regardless of whether this is passed.
+   * @param {string} [spellCastText] - pre-formatted detail block (cast log,
+   *   per-spell breakdown, rotation cycle, etc.) to insert just above Final
+   *   Totals — built by RotationEngine.formatRotationReport() in index.html,
+   *   since combat.js has no dependency on the rotation-planner modules.
+   */
+  function formatRangedReport(report, runsAveraged, spellCastResult, spellCastText) {
     if (report.error) return report.error;
     const r = report.ranged;
     const dur = report.durationSec;
@@ -1275,17 +1288,59 @@
     if (r.maxSpellProcCritDmg != null && r.maxSpellProcCritDmg > 0) lines.push(padLine('    Max spell proc crit dmg:', String(r.maxSpellProcCritDmg)));
     lines.push('');
 
+    // 6.5. Spell Casting (between shots) — the parallel spellcasting
+    // timeline's own detailed breakdown (cast log summary, per-spell tally,
+    // rotation cycle), positioned here rather than tacked on after Final
+    // Totals so Final Totals below can immediately follow up with how it
+    // combines with the archery numbers above.
+    if (spellCastText) {
+      lines.push(String(spellCastText).replace(/\n+$/, ''));
+      lines.push('');
+    }
+
     // 7. Final Totals
     lines.push('=== Final Totals ===', '');
-    lines.push(padLine('  Total damage:', String(report.totalDamage)));
-    lines.push(padLine('  Total DPS:', totalDPS));
-    if (report.totalThreat != null && report.totalThreat >= 0) {
-      lines.push(padLine('  TPS (threat, approx):', dur ? (report.totalThreat / dur).toFixed(2) : '—'));
-      const swT = report.swingThreat != null ? report.swingThreat : 0;
-      const prT = report.procThreat != null ? report.procThreat : 0;
-      lines.push(padLine('  Swing TPS (threat, approx):', dur ? (swT / dur).toFixed(2) : '—'));
-      lines.push(padLine('  Proc TPS (threat, approx):', dur ? (prT / dur).toFixed(2) : '—'));
-      lines.push(padLine('  Total threat (approx):', String(Math.round(report.totalThreat))));
+    if (spellCastResult) {
+      const rangedDmg = report.totalDamage;
+      const rangedDps = dur ? rangedDmg / dur : 0;
+      const spellDmg = spellCastResult.totalDamage || 0;
+      const spellDps = spellCastResult.dps != null ? spellCastResult.dps : (dur ? spellDmg / dur : 0);
+      const combinedDmg = rangedDmg + spellDmg;
+      const combinedDps = rangedDps + spellDps;
+      // Ranged (physical) sub-total is kept visible and clearly labeled here
+      // rather than folded silently into the combined figure, so the
+      // archery-only contribution is never lost even though this section's
+      // headline numbers are now the combined ones.
+      lines.push(padLine('  Ranged (physical) damage:', `${rangedDmg}  (${rangedDps.toFixed(2)} dps)`));
+      lines.push(padLine('  Spell damage:', `${Math.round(spellDmg)}  (${spellDps.toFixed(2)} dps)`));
+      lines.push(padLine('  Combined total damage:', String(Math.round(combinedDmg))));
+      lines.push(padLine('  Combined DPS:', combinedDps.toFixed(2)));
+      if (report.totalThreat != null && report.totalThreat >= 0) {
+        const rangedTps = dur ? report.totalThreat / dur : 0;
+        const spellTps = spellCastResult.tps != null ? spellCastResult.tps : 0;
+        const combinedThreat = report.totalThreat + (spellCastResult.totalThreat || 0);
+        const combinedTps = rangedTps + spellTps;
+        const swT = report.swingThreat != null ? report.swingThreat : 0;
+        const prT = report.procThreat != null ? report.procThreat : 0;
+        lines.push('');
+        lines.push(padLine('  Ranged TPS (threat, approx):', rangedTps.toFixed(2)));
+        lines.push(padLine('    Ranged swing TPS (threat, approx):', dur ? (swT / dur).toFixed(2) : '—'));
+        lines.push(padLine('    Ranged proc TPS (threat, approx):', dur ? (prT / dur).toFixed(2) : '—'));
+        lines.push(padLine('  Spell TPS (threat, approx):', spellTps.toFixed(2)));
+        lines.push(padLine('  Combined TPS (threat, approx):', combinedTps.toFixed(2)));
+        lines.push(padLine('  Combined total threat (approx):', String(Math.round(combinedThreat))));
+      }
+    } else {
+      lines.push(padLine('  Total damage:', String(report.totalDamage)));
+      lines.push(padLine('  Total DPS:', totalDPS));
+      if (report.totalThreat != null && report.totalThreat >= 0) {
+        lines.push(padLine('  TPS (threat, approx):', dur ? (report.totalThreat / dur).toFixed(2) : '—'));
+        const swT = report.swingThreat != null ? report.swingThreat : 0;
+        const prT = report.procThreat != null ? report.procThreat : 0;
+        lines.push(padLine('  Swing TPS (threat, approx):', dur ? (swT / dur).toFixed(2) : '—'));
+        lines.push(padLine('  Proc TPS (threat, approx):', dur ? (prT / dur).toFixed(2) : '—'));
+        lines.push(padLine('  Total threat (approx):', String(Math.round(report.totalThreat))));
+      }
     }
     return lines.join('\n');
   }

@@ -3205,6 +3205,7 @@
     <details id="version-log-details">
     <summary style="cursor:pointer; font-size:1.17em; font-weight:bold; margin:0; list-style:revert;">Version log</summary>
     <ul style="font-size: 0.9rem; color: var(--muted); margin: 0.5rem 0 0; padding-left: 1.25rem;">
+      <li><strong>1.55</strong> — Ranged tab report: the <strong>Spell Casting (between shots)</strong> section now appears just above <strong>Final Totals</strong> instead of after it, and Final Totals itself now folds the spellcasting timeline's results in — <strong>Ranged (physical) damage/TPS</strong> and <strong>Spell damage/TPS</strong> are shown as their own clearly-labeled lines immediately followed by <strong>Combined total damage/DPS/TPS</strong>, rather than the two totals sitting in separate, disconnected places in the report. Executive Summary and every section above Final Totals are untouched — the physical archery-only contribution stays isolated and visible there regardless of whether spell casting is enabled. <code>EQCombat.formatRangedReport</code> (combat.js) now takes optional <code>spellCastResult</code>/<code>spellCastText</code> params to build this; behavior is unchanged when they're omitted (e.g. no other tab is affected).</li>
       <li><strong>1.54</strong> — Rotation Planner / Ranged spell casting: item focus effects that extend a DoT's duration ("Extended Affliction"-type foci — Timeburn, Chronoburn, Chrononostrum, and similar PoP-era items) are now implemented. Previously <code>itemFocus.js</code> only recognized <code>SE_ImprovedDamage</code>, <code>SE_ReduceManaCost</code>, and <code>SE_IncreaseSpellHaste</code> — <code>SE_IncreaseSpellDuration</code> (SPA 128) was parsed nowhere, so an equipped duration-extending item silently did nothing. It now floors <code>ticks × (100 + focusPct) ÷ 100</code> onto a DoT's tick count, matching <code>Client::ApplyDurationFocus</code> exactly, correctly scales that DoT's total damage and recast-availability gate (a longer DoT is correctly worth recasting less often) to match, and only ever applies to DoTs (never instant nukes/rains, matching the server's buff-only restriction). Same-category "extra damage from focus" report line now also captures the isolated contribution of a duration extension, not just a damage-% focus. Mechanics guide updated (section 19).</li>
       <li><strong>1.53</strong> — Fix <code>rotationEngine.js</code> Custom order mode (used by both the Rotation Planner's Custom order and the new Ranged tab spell casting): a bare <code>var best;</code> inside the sim's decision loop is hoisted once for the whole run, so re-declaring it every iteration was a no-op rather than a reset — if the manual priority list's top spell was temporarily uncastable (e.g. a DoT still ticking, a nuke still on its own recast) while a lower-priority spell in the pool was legitimately ready, the loop's "no match found" fallback never ran and the sim silently kept re-"casting" whatever it had cast last, even after that spell's own recast/DoT-duration gate said it wasn't actually available yet. In practice this made a checked DoT (e.g. Drones of Doom) look like it was recast every ~6s instead of only after its full 60s duration, and starved every other checked spell of casts entirely. Fixed by explicitly resetting to <code>var best = null;</code> each decision point. Confirmed fixed: DoTs now only recast once expired, and nukes correctly fill the gaps based on their own cooldowns.</li>
       <li><strong>1.52</strong> — Ranged tab: new <strong>Spell Casting (between shots)</strong> card lets a Ranger weave Calefaction, Drones of Doom (DoT), Call of Flame, and Firestrike in between arrows, each individually checkable on/off with ↑/↓ arrows to set their cast-priority order (same idea as the Rotation tab's Custom order list). Runs through the exact same <code>RotationEngine</code>/<code>RotationSpells</code> casting engine as the Spells (Rotation) tab (GCD, recast timers, mana pool/regen, resist checks, Spell Casting Fury, item focus) as an independent parallel timeline alongside the archery sim, with results summed into a new Spell Casting report section and a Combined DPS line. Mechanics guide updated (new section 23).</li>
@@ -3757,7 +3758,7 @@
       }
 
       // When releasing: 1) Bump VERSION below. 2) Add a new <li> at the top of the Version log section above.
-      const VERSION = '1.54';
+      const VERSION = '1.55';
       const versionEl = $('app-version');
       if (versionEl) versionEl.textContent = 'v' + VERSION;
 
@@ -9104,16 +9105,13 @@
           })();
         }
         var rangedSpellCastResult = runRangedSpellCastIfEnabled(options);
-        let rangedReportText = EQCombat.formatRangedReport(report, runs);
+        var rangedSpellCastText = rangedSpellCastResult ? formatRangedSpellCastBlock(rangedSpellCastResult) : null;
+        let rangedReportText = EQCombat.formatRangedReport(report, runs, rangedSpellCastResult, rangedSpellCastText);
         if (window.selectedTargetNpc && window.selectedTargetNpc.name) {
           var npc = window.selectedTargetNpc;
           var npcLevelStr = (npc.level != null && npc.level !== '') ? String(npc.level) : '?';
           var npcACStr = (npc.AC != null && npc.AC !== '') ? String(npc.AC) : '?';
           rangedReportText = '  Target: ' + String(npc.name).replace(/_/g, ' ') + ', Level ' + npcLevelStr + ', AC ' + npcACStr + '\n\n' + rangedReportText;
-        }
-        if (rangedSpellCastResult) {
-          var rangedOnlyDps = report.durationSec ? (report.totalDamage / report.durationSec) : 0;
-          rangedReportText += '\n' + formatRangedSpellCastBlock(rangedSpellCastResult, rangedOnlyDps);
         }
         $('report').textContent = rangedReportText;
         const dpsEl = $('dps-value');
@@ -9333,14 +9331,15 @@
         return RotationEngine.simulateRotation(config);
       }
 
-      /** Renders the spell-casting result as one more report section, same
-       * padded-column convention as the Pet Damage block, plus a combined
-       * DPS line summing it with the ranged-only DPS passed in. */
-      function formatRangedSpellCastBlock(spellResult, rangedOnlyDps) {
+      /** Renders the spell-casting result as one more report section (cast
+       * log summary, per-spell tally, rotation cycle), same detail level as
+       * the Rotation Planner's own report. EQCombat.formatRangedReport()
+       * inserts this ahead of Final Totals and folds the numeric totals
+       * (spellResult.totalDamage/dps/tps) into that section itself, so this
+       * doesn't need to compute or print a combined figure of its own. */
+      function formatRangedSpellCastBlock(spellResult) {
         var text = RotationEngine.formatRotationReport(spellResult);
-        text = text.replace(/=== Rotation Result[^=]*===/, '=== Spell Casting (between shots) ===');
-        var combined = rangedOnlyDps + spellResult.dps;
-        return '\n' + text + '\n  Combined DPS (Ranged + Spells): ' + combined.toFixed(2) + '\n';
+        return text.replace(/=== Rotation Result[^=]*===/, '=== Spell Casting (between shots) ===');
       }
 
       function applyAmbidexterityDefault() {
