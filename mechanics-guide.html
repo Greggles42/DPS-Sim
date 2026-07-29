@@ -1724,21 +1724,26 @@
         item focus effects all work identically — rather than a separate, simplified model.
       </p>
       <p>
-        Only four spells are offered, matching the small set of nukes/DoTs a Ranger can actually fit into a quiver
-        rotation on Quarm: <strong>Calefaction</strong>, <strong>Drones of Doom</strong> (a damage-over-time spell,
-        not a nuke — it ticks every 6 seconds like any other DoT in the Rotation Planner rather than hitting once),
-        <strong>Call of Flame</strong>, and <strong>Firestrike</strong>. Check on whichever you have memorized;
-        <strong>Refresh spell list</strong> looks each one up against your current level (and selected target, for
-        the handful of nukes that are body-type restricted) and shows its damage, mana cost, and level requirement,
-        or disables the checkbox with a "requires level N" note if you're not high enough level to have it yet.
+        The card sits above <strong>Target &amp; Fight</strong> on the Ranged tab, right below the weapon/arrow
+        cards. Only four spells are offered, matching the small set of nukes/DoTs a Ranger can actually fit into a
+        quiver rotation on Quarm: <strong>Drones of Doom</strong> (a damage-over-time spell, not a nuke — it ticks
+        every 6 seconds like any other DoT in the Rotation Planner rather than hitting once),
+        <strong>Calefaction</strong>, <strong>Call of Flame</strong>, and <strong>Firestrike</strong>. Check on
+        whichever you have memorized; <strong>Refresh spell list</strong> looks each one up against your current
+        level (and selected target, for the handful of nukes that are body-type restricted) and shows its damage,
+        mana cost, and level requirement, or disables the checkbox with a "requires level N" note if you're not
+        high enough level to have it yet. This refresh also happens automatically whenever you change class or
+        level in the Character module above — no need to remember to click it after leveling up or switching
+        classes, though switching to a class other than Ranger will show every spell as unavailable, since these
+        four are Ranger-only.
       </p>
       <p>
         Checked spells are cast in whatever order the list is arranged in — reorder the four rows with the
-        <strong>↑/↓</strong> buttons next to each one, defaulting to Calefaction, Drones of Doom, Call of Flame,
-        Firestrike. This is the same "first castable entry in the list" logic as the Rotation Planner's Custom
-        order mode: at every decision point the sim casts the highest (topmost) checked spell that's off recast and
-        affordable, skipping anything on cooldown, until the mana pool (set below the checkboxes, 0 = unlimited)
-        runs dry.
+        <strong>↑/↓</strong> buttons next to each one, defaulting to Drones of Doom, Calefaction, Call of Flame,
+        Firestrike (DoT first, so it's prioritized onto its own cooldown before nukes fill the remaining gaps).
+        This is the same "first castable entry in the list" logic as the Rotation Planner's Custom order mode: at
+        every decision point the sim casts the highest (topmost) checked spell that's off recast and affordable,
+        skipping anything on cooldown, until the mana pool (set below the checkboxes, 0 = unlimited) runs dry.
       </p>
       <p class="muted">
         The spell-casting timeline runs independently of the archery timeline above it — ranged shots in this sim
