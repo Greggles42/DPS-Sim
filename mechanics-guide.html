@@ -1410,18 +1410,30 @@
           after other haste is applied. It has no effect on DoTs (which tick rather than resolve as one hit) or on
           spells already under the 4-second threshold.</li>
         <li><strong>Item focus effects</strong> — passive, spell-only bonuses on equipped gear (spell damage %, mana
-          cost reduction %, spell haste %) — are read from every item in your imported inventory. Each focus effect
-          carries its own restrictions (only certain resist types, only instant nukes vs. only DoTs, a spell level
-          range, a cast-time range, detrimental-only) exactly as the game enforces them, so a fire-only focus item
-          only boosts fire nukes, a DoT-only focus only boosts DoTs, and so on — checked per spell, not applied
-          blanket. Where two equipped items would both boost the same category on the same spell, only the better
-          of the two applies (focus effects of the same kind don't stack in EQ). After a run, the report quantifies
-          what your focus effects actually contributed — <strong>extra damage from focus</strong> and
-          <strong>mana saved from focus</strong>, isolated to just the casts that had one applied (a damage-%
-          focus's share of that cast's damage, or the flat mana a mana-cost-% focus shaved off). This is the
-          marginal value of the focus on the casts it touched, not a with/without comparison of the whole
-          rotation — removing the item could also change which spells the optimizer prefers, so the two numbers
-          won't necessarily match a naive before/after DPS subtraction.</li>
+          cost reduction %, spell haste %, and DoT duration extension — see below) — are read from every item in
+          your imported inventory. Each focus effect carries its own restrictions (only certain resist types, only
+          instant nukes vs. only DoTs, a spell level range, a cast-time range, detrimental-only) exactly as the game
+          enforces them, so a fire-only focus item only boosts fire nukes, a DoT-only focus only boosts DoTs, and so
+          on — checked per spell, not applied blanket. Where two equipped items would both boost the same category
+          on the same spell, only the better of the two applies (focus effects of the same kind don't stack in EQ).
+          After a run, the report quantifies what your focus effects actually contributed —
+          <strong>extra damage from focus</strong> and <strong>mana saved from focus</strong>, isolated to just the
+          casts that had one applied (a damage-% focus's share of that cast's damage — duration-extension foci fold
+          into this same number, since more ticks means more total damage on that cast — or the flat mana a
+          mana-cost-% focus shaved off). This is the marginal value of the focus on the casts it touched, not a
+          with/without comparison of the whole rotation — removing the item could also change which spells the
+          optimizer prefers, so the two numbers won't necessarily match a naive before/after DPS subtraction.</li>
+        <li><strong>DoT duration extension</strong> ("Extended Affliction"-type foci — <strong>Timeburn</strong>,
+          <strong>Chronoburn</strong>, <strong>Chrononostrum</strong>, and similar PoP-era items) add more ticks to a
+          DoT rather than more damage per tick. The server (<code>Client::ApplyDurationFocus</code>,
+          <code>spell_effects.cpp</code>) floors <code>ticksRemaining × (100 + focusPct) ÷ 100</code> onto the buff
+          the instant it lands; the planner applies the identical formula to the spell's tick count before the fight
+          starts. A longer DoT is also correctly worth less-frequent recasting — the same "never recast a DoT before
+          its current application has fully worn off" rule described below automatically extends to the new, longer
+          duration, since it's driven by the same tick count this focus grows. This only ever applies to DoTs
+          (detrimental, multi-tick spells) — the real focus effect only touches buff-type spells server-side, so it
+          has nothing to do on an instant nuke or a rain, and every real item granting one of these foci already
+          restricts itself to detrimental spells with a minimum tick count for exactly that reason.</li>
         <li><strong>Wizard innate crit</strong> — Wizards have a separate, always-on direct-damage crit chance that
           costs no AA points: <code>((min(INT,255) + min(DEX,255)) / 2 + 32) / 10000</code>, starting at level 12,
           landing for a random +1-50% damage (not a fixed step like the AA). It only gets a chance to fire on a cast
@@ -1460,9 +1472,10 @@
       <p class="muted">
         Also not modeled: the handful of AA-granted "spells" whose damage depends on the caster's own current HP or
         mana rather than a fixed amount (Wizard Lifeburn, Magician Mana Burn) — the planner doesn't track a caster
-        HP/mana-drain-to-zero state, so these aren't in the spell pool. Item focus effects that only affect buff
-        duration, healing, or non-damage utility (not spell damage, mana cost, or cast time) also aren't modeled,
-        since they have nothing to contribute to a DPS rotation.
+        HP/mana-drain-to-zero state, so these aren't in the spell pool. Item focus effects that affect
+        <em>beneficial</em>-buff duration (e.g. "Extended Enhancement," which only targets goodEffect spells — AC/
+        haste/stat buffs, not DoTs) or non-damage utility (healing, resurrection, etc.) also aren't modeled, since
+        the spell pool here is detrimental-only and they have nothing to contribute to a DPS rotation.
       </p>
 
       <h3>The global cooldown and the off-global spell</h3>
@@ -1699,6 +1712,41 @@
         recommended level is above your current character level — the gear summary's AC/stat totals reflect the
         scaled-down values, and they re-scale live if you change the level field afterward. Weapon damage scaling
         applies the same way when a weapon with a recommended level is selected via item search.
+      </p>
+    </div>
+
+    <div class="section">
+      <h2>23) Ranged Simulation — Spell Casting Between Shots <span class="badge badge-sim">Sim Feature</span></h2>
+      <p>
+        The Ranged tab's <strong>Spell Casting (between shots)</strong> card lets a Ranger weave nukes/DoTs in
+        between arrows. It reuses the exact same casting engine as the <strong>Rotation Planner</strong> (Spells
+        tab) — global cooldown, per-spell recast timers, mana pool and regen, resist checks, Spell Casting Fury and
+        item focus effects all work identically — rather than a separate, simplified model.
+      </p>
+      <p>
+        Only four spells are offered, matching the small set of nukes/DoTs a Ranger can actually fit into a quiver
+        rotation on Quarm: <strong>Calefaction</strong>, <strong>Drones of Doom</strong> (a damage-over-time spell,
+        not a nuke — it ticks every 6 seconds like any other DoT in the Rotation Planner rather than hitting once),
+        <strong>Call of Flame</strong>, and <strong>Firestrike</strong>. Check on whichever you have memorized;
+        <strong>Refresh spell list</strong> looks each one up against your current level (and selected target, for
+        the handful of nukes that are body-type restricted) and shows its damage, mana cost, and level requirement,
+        or disables the checkbox with a "requires level N" note if you're not high enough level to have it yet.
+      </p>
+      <p>
+        Checked spells are cast in whatever order the list is arranged in — reorder the four rows with the
+        <strong>↑/↓</strong> buttons next to each one, defaulting to Calefaction, Drones of Doom, Call of Flame,
+        Firestrike. This is the same "first castable entry in the list" logic as the Rotation Planner's Custom
+        order mode: at every decision point the sim casts the highest (topmost) checked spell that's off recast and
+        affordable, skipping anything on cooldown, until the mana pool (set below the checkboxes, 0 = unlimited)
+        runs dry.
+      </p>
+      <p class="muted">
+        The spell-casting timeline runs independently of the archery timeline above it — ranged shots in this sim
+        are never delayed by a spell's cast time or its GCD, and vice versa. This is the same simplification gSim
+        already uses to combine a player's melee/ranged output with a summoned pet's or a weapon proc's: two
+        separate timelines simulated in parallel and their totals summed, rather than one fully merged event queue.
+        The report adds a <strong>Spell Casting</strong> section (identical in format to a Rotation Planner report)
+        below the archery results, plus a <strong>Combined DPS (Ranged + Spells)</strong> line.
       </p>
     </div>
 

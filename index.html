@@ -2759,6 +2759,42 @@
       </div>
     </section>
   </div>
+
+  <section class="section--core" id="ranged-spellcasting-section" style="margin-top:1rem;">
+    <h2>Spell Casting (between shots)</h2>
+    <p class="hint" style="margin:0 0 0.5rem;">Simulates casting Ranger nukes/DoTs in between ranged shots — the same casting engine as the <strong>Spells (Rotation)</strong> tab, run as a parallel timeline alongside the archery sim above and added to the totals below. Check on whichever of the four spells below you have memorized; use the arrows to set their priority order. At every decision point the sim casts the first checked spell (top to bottom) that's off recast and affordable, skipping anything on cooldown, until mana runs out. Uses the class/level from the Character module, and the Spell Casting Fury / item focus effects already detected on the Rotation tab.</p>
+    <label class="checkbox-label"><input type="checkbox" id="ranged-spellcast-enabled"> Cast spells between shots</label>
+    <div style="margin-top:0.5rem;display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;">
+      <button type="button" id="ranged-spellcast-refresh" class="magic-btn">Refresh spell list</button>
+      <span id="ranged-spellcast-pool-hint" class="hint" style="margin:0;">Click Refresh to check availability/damage for the current level/target.</span>
+    </div>
+    <div style="margin-top:0.6rem;display:flex;flex-direction:column;gap:0.3rem;" id="ranged-spellcast-queue">
+      <div class="ranged-spellcast-row" data-key="calefaction" style="display:flex;align-items:center;gap:0.35rem;">
+        <button type="button" class="magic-btn ranged-spellcast-up" data-key="calefaction" style="padding:0.1rem 0.6rem;" title="Move up">↑</button>
+        <button type="button" class="magic-btn ranged-spellcast-down" data-key="calefaction" style="padding:0.1rem 0.6rem;" title="Move down">↓</button>
+        <label class="checkbox-label" style="margin:0;"><input type="checkbox" id="ranged-spellcast-calefaction"> Calefaction <span id="ranged-spellcast-calefaction-info" class="hint" style="margin:0;"></span></label>
+      </div>
+      <div class="ranged-spellcast-row" data-key="drones" style="display:flex;align-items:center;gap:0.35rem;">
+        <button type="button" class="magic-btn ranged-spellcast-up" data-key="drones" style="padding:0.1rem 0.6rem;" title="Move up">↑</button>
+        <button type="button" class="magic-btn ranged-spellcast-down" data-key="drones" style="padding:0.1rem 0.6rem;" title="Move down">↓</button>
+        <label class="checkbox-label" style="margin:0;"><input type="checkbox" id="ranged-spellcast-drones"> Drones of Doom <span class="hint" style="margin:0;">(DoT)</span> <span id="ranged-spellcast-drones-info" class="hint" style="margin:0;"></span></label>
+      </div>
+      <div class="ranged-spellcast-row" data-key="callofflame" style="display:flex;align-items:center;gap:0.35rem;">
+        <button type="button" class="magic-btn ranged-spellcast-up" data-key="callofflame" style="padding:0.1rem 0.6rem;" title="Move up">↑</button>
+        <button type="button" class="magic-btn ranged-spellcast-down" data-key="callofflame" style="padding:0.1rem 0.6rem;" title="Move down">↓</button>
+        <label class="checkbox-label" style="margin:0;"><input type="checkbox" id="ranged-spellcast-callofflame"> Call of Flame <span id="ranged-spellcast-callofflame-info" class="hint" style="margin:0;"></span></label>
+      </div>
+      <div class="ranged-spellcast-row" data-key="firestrike" style="display:flex;align-items:center;gap:0.35rem;">
+        <button type="button" class="magic-btn ranged-spellcast-up" data-key="firestrike" style="padding:0.1rem 0.6rem;" title="Move up">↑</button>
+        <button type="button" class="magic-btn ranged-spellcast-down" data-key="firestrike" style="padding:0.1rem 0.6rem;" title="Move down">↓</button>
+        <label class="checkbox-label" style="margin:0;"><input type="checkbox" id="ranged-spellcast-firestrike"> Firestrike <span id="ranged-spellcast-firestrike-info" class="hint" style="margin:0;"></span></label>
+      </div>
+    </div>
+    <div class="target-fight-row" style="margin-top:0.6rem;">
+      <div><label for="ranged-spellcast-max-mana" class="small-label">Max mana <span class="hint" style="margin:0;">(0=unlimited)</span></label><input type="number" id="ranged-spellcast-max-mana" min="0" value="0" style="width:6rem;"></div>
+      <div><label for="ranged-spellcast-mana-regen" class="small-label">Mana regen/tick <span class="hint" style="margin:0;">(6s, incl. buffs/meditation)</span></label><input type="number" id="ranged-spellcast-mana-regen" min="0" value="0" style="width:6rem;"></div>
+    </div>
+  </section>
   </div>
   </div>
 
@@ -2826,11 +2862,11 @@
       <!-- Resists — used against mob spell casting -->
       <p class="hint" style="margin:0.75rem 0 0.3rem;font-weight:600;color:var(--text);">Resists <span class="hint" style="margin:0;font-weight:400;">(vs mob spells)</span></p>
       <div class="target-fight-row">
-        <div><label for="tank-player-mr" class="small-label">MR</label><input type="number" id="tank-player-mr" value="0" min="0" style="width:4rem;"></div>
-        <div><label for="tank-player-fr" class="small-label">FR</label><input type="number" id="tank-player-fr" value="0" min="0" style="width:4rem;"></div>
-        <div><label for="tank-player-cr" class="small-label">CR</label><input type="number" id="tank-player-cr" value="0" min="0" style="width:4rem;"></div>
-        <div><label for="tank-player-dr" class="small-label">DR</label><input type="number" id="tank-player-dr" value="0" min="0" style="width:4rem;"></div>
-        <div><label for="tank-player-pr" class="small-label">PR</label><input type="number" id="tank-player-pr" value="0" min="0" style="width:4rem;"></div>
+        <div><label for="tank-player-mr" class="small-label">MR</label><input type="number" id="tank-player-mr" value="0" min="0" style="width:5rem;"></div>
+        <div><label for="tank-player-fr" class="small-label">FR</label><input type="number" id="tank-player-fr" value="0" min="0" style="width:5rem;"></div>
+        <div><label for="tank-player-cr" class="small-label">CR</label><input type="number" id="tank-player-cr" value="0" min="0" style="width:5rem;"></div>
+        <div><label for="tank-player-dr" class="small-label">DR</label><input type="number" id="tank-player-dr" value="0" min="0" style="width:5rem;"></div>
+        <div><label for="tank-player-pr" class="small-label">PR</label><input type="number" id="tank-player-pr" value="0" min="0" style="width:5rem;"></div>
       </div>
 
       <!-- Defensive effects -->
@@ -3169,6 +3205,9 @@
     <details id="version-log-details">
     <summary style="cursor:pointer; font-size:1.17em; font-weight:bold; margin:0; list-style:revert;">Version log</summary>
     <ul style="font-size: 0.9rem; color: var(--muted); margin: 0.5rem 0 0; padding-left: 1.25rem;">
+      <li><strong>1.54</strong> — Rotation Planner / Ranged spell casting: item focus effects that extend a DoT's duration ("Extended Affliction"-type foci — Timeburn, Chronoburn, Chrononostrum, and similar PoP-era items) are now implemented. Previously <code>itemFocus.js</code> only recognized <code>SE_ImprovedDamage</code>, <code>SE_ReduceManaCost</code>, and <code>SE_IncreaseSpellHaste</code> — <code>SE_IncreaseSpellDuration</code> (SPA 128) was parsed nowhere, so an equipped duration-extending item silently did nothing. It now floors <code>ticks × (100 + focusPct) ÷ 100</code> onto a DoT's tick count, matching <code>Client::ApplyDurationFocus</code> exactly, correctly scales that DoT's total damage and recast-availability gate (a longer DoT is correctly worth recasting less often) to match, and only ever applies to DoTs (never instant nukes/rains, matching the server's buff-only restriction). Same-category "extra damage from focus" report line now also captures the isolated contribution of a duration extension, not just a damage-% focus. Mechanics guide updated (section 19).</li>
+      <li><strong>1.53</strong> — Fix <code>rotationEngine.js</code> Custom order mode (used by both the Rotation Planner's Custom order and the new Ranged tab spell casting): a bare <code>var best;</code> inside the sim's decision loop is hoisted once for the whole run, so re-declaring it every iteration was a no-op rather than a reset — if the manual priority list's top spell was temporarily uncastable (e.g. a DoT still ticking, a nuke still on its own recast) while a lower-priority spell in the pool was legitimately ready, the loop's "no match found" fallback never ran and the sim silently kept re-"casting" whatever it had cast last, even after that spell's own recast/DoT-duration gate said it wasn't actually available yet. In practice this made a checked DoT (e.g. Drones of Doom) look like it was recast every ~6s instead of only after its full 60s duration, and starved every other checked spell of casts entirely. Fixed by explicitly resetting to <code>var best = null;</code> each decision point. Confirmed fixed: DoTs now only recast once expired, and nukes correctly fill the gaps based on their own cooldowns.</li>
+      <li><strong>1.52</strong> — Ranged tab: new <strong>Spell Casting (between shots)</strong> card lets a Ranger weave Calefaction, Drones of Doom (DoT), Call of Flame, and Firestrike in between arrows, each individually checkable on/off with ↑/↓ arrows to set their cast-priority order (same idea as the Rotation tab's Custom order list). Runs through the exact same <code>RotationEngine</code>/<code>RotationSpells</code> casting engine as the Spells (Rotation) tab (GCD, recast timers, mana pool/regen, resist checks, Spell Casting Fury, item focus) as an independent parallel timeline alongside the archery sim, with results summed into a new Spell Casting report section and a Combined DPS line. Mechanics guide updated (new section 23).</li>
       <li><strong>1.51</strong> — Tanking sim fix: a dual-wielding mob's off-hand round was firing on <em>every</em> off-hand timer tick instead of rolling <code>Mob::CheckDualWield</code> (<code>(skill + level) / 375</code>, same shape as the double-attack roll but a smaller divisor) — roughly 100% instead of the correct ~84% for a capped high-level mob. Off-hand's own double-attack chance is now also broken out into a separate <strong>"Off-hand double attack"</strong> report line instead of being folded into the base "Off hand" bucket, matching how main hand's double/triple are already split — together these two fixes were making a dual-wielding mob's off hand look like it hit far harder than the main hand (e.g. Rumblecrush showing 49% off hand vs 27.5% main hand) when the two hands' real output is comparable. Mob card now shows the actual per-tick dual-wield chance. Mechanics guide updated.</li>
       <li><strong>1.50</strong> — Tanking sim: mob spell-casting AI now matches <code>mob_ai.cpp AICastSpell</code> instead of a single flat detrimental-chance roll — each ready spell also rolls its own per-type success chance (40% nuke/DoT/root, 50% lifetap/debuff, 70% slow on melee targets only, lower for mez/charm/snare/dispel), shifted by how many spells the mob knows. Fixed a selection bug where the "top priority" spell tier was whatever happened to be first in DB order rather than the actual highest-priority ready spell. Priority-0 ("raid boss") spells now skip both rolls entirely and cast the instant they're off cooldown, matching <code>hasZeroPrioritySpells</code> — previously these were incorrectly throttled by the same gate as ordinary spells, drastically under-casting mobs like Lord Nagafen and Lady Vox that rely on always-cast breath/roar abilities. Fear-only casts (e.g. Dragon Roar) are now recognized and tracked (new "Times feared" stat) instead of being silently dropped for having no damage/DoT/stun component. New <strong>Disable dual wield</strong> checkbox to override an NPC's DualWield ability off for testing. Weapon procs are now labeled with their actual spell name (e.g. "Weapon procs (Stun Breath)"), and cumulative stun time applied is shown alongside the stun count so a heavy single-proc stunlock (e.g. Zlandicar) reads clearly. Mechanics guide updated.</li>
       <li><strong>1.49</strong> — Import Inventory tooltip wording update.</li>
@@ -3718,7 +3757,7 @@
       }
 
       // When releasing: 1) Bump VERSION below. 2) Add a new <li> at the top of the Version log section above.
-      const VERSION = '1.51';
+      const VERSION = '1.54';
       const versionEl = $('app-version');
       if (versionEl) versionEl.textContent = 'v' + VERSION;
 
@@ -9064,12 +9103,17 @@
             window._lastCombatLogTxtMs = formatCombatLogAsEQ(report.combatLog, report.targetName, baseTime, 'millisecond', true);
           })();
         }
+        var rangedSpellCastResult = runRangedSpellCastIfEnabled(options);
         let rangedReportText = EQCombat.formatRangedReport(report, runs);
         if (window.selectedTargetNpc && window.selectedTargetNpc.name) {
           var npc = window.selectedTargetNpc;
           var npcLevelStr = (npc.level != null && npc.level !== '') ? String(npc.level) : '?';
           var npcACStr = (npc.AC != null && npc.AC !== '') ? String(npc.AC) : '?';
           rangedReportText = '  Target: ' + String(npc.name).replace(/_/g, ' ') + ', Level ' + npcLevelStr + ', AC ' + npcACStr + '\n\n' + rangedReportText;
+        }
+        if (rangedSpellCastResult) {
+          var rangedOnlyDps = report.durationSec ? (report.totalDamage / report.durationSec) : 0;
+          rangedReportText += '\n' + formatRangedSpellCastBlock(rangedSpellCastResult, rangedOnlyDps);
         }
         $('report').textContent = rangedReportText;
         const dpsEl = $('dps-value');
@@ -9126,6 +9170,178 @@
         }
       }
       $('btn-run-ranged').addEventListener('click', runRanged);
+
+      // ---- Ranged tab: spell casting between shots (reuses the Rotation
+      // tab's RotationEngine/RotationSpells so the same GCD/recast/mana
+      // timeline logic is not duplicated) ----
+      // Fixed Ranger quiver-filler spells rather than a free-pick pool —
+      // these are the only ones a Ranger reasonably weaves in between shots
+      // on Quarm. window._rangedSpellOrder (reorderable via the ↑/↓ buttons,
+      // same idea as the Rotation tab's Custom order list) is the priority
+      // order the manual-mode engine casts them in (first checked+ready wins).
+      var RANGED_SPELL_DEFS = {
+        calefaction: { checkboxId: 'ranged-spellcast-calefaction', infoId: 'ranged-spellcast-calefaction-info', name: 'Calefaction' },
+        drones: { checkboxId: 'ranged-spellcast-drones', infoId: 'ranged-spellcast-drones-info', name: 'Drones of Doom' },
+        callofflame: { checkboxId: 'ranged-spellcast-callofflame', infoId: 'ranged-spellcast-callofflame-info', name: 'Call of Flame' },
+        firestrike: { checkboxId: 'ranged-spellcast-firestrike', infoId: 'ranged-spellcast-firestrike-info', name: 'Firestrike' }
+      };
+      window._rangedSpellOrder = window._rangedSpellOrder || ['calefaction', 'drones', 'callofflame', 'firestrike'];
+      window._rangedSpellPool = window._rangedSpellPool || [];
+
+      /** Reflows the queue rows into DOM order matching window._rangedSpellOrder
+       * (appendChild on an already-present child just moves it), and disables
+       * the up arrow on the first row / down arrow on the last. */
+      function renderRangedSpellQueueOrder() {
+        var container = $('ranged-spellcast-queue');
+        if (!container) return;
+        window._rangedSpellOrder.forEach(function (key, idx) {
+          var row = container.querySelector('.ranged-spellcast-row[data-key="' + key + '"]');
+          if (!row) return;
+          container.appendChild(row);
+          var upBtn = row.querySelector('.ranged-spellcast-up');
+          var downBtn = row.querySelector('.ranged-spellcast-down');
+          if (upBtn) upBtn.disabled = (idx === 0);
+          if (downBtn) downBtn.disabled = (idx === window._rangedSpellOrder.length - 1);
+        });
+      }
+      var rangedSpellQueueEl = $('ranged-spellcast-queue');
+      if (rangedSpellQueueEl) {
+        rangedSpellQueueEl.addEventListener('click', function (e) {
+          var upBtn = e.target.closest('.ranged-spellcast-up');
+          var downBtn = e.target.closest('.ranged-spellcast-down');
+          if (!upBtn && !downBtn) return;
+          var key = (upBtn || downBtn).getAttribute('data-key');
+          var order = window._rangedSpellOrder;
+          var idx = order.indexOf(key);
+          if (idx < 0) return;
+          var swapWith = upBtn ? idx - 1 : idx + 1;
+          if (swapWith < 0 || swapWith >= order.length) return;
+          var tmp = order[swapWith];
+          order[swapWith] = order[idx];
+          order[idx] = tmp;
+          renderRangedSpellQueueOrder();
+        });
+        renderRangedSpellQueueOrder();
+      }
+
+      function refreshRangedSpellPool() {
+        var hintEl = $('ranged-spellcast-pool-hint');
+        if (!window.RotationSpells || !window.RotationEngine) {
+          if (hintEl) hintEl.textContent = 'Rotation engine not loaded.';
+          return;
+        }
+        var level = parseInt(($('level') && $('level').value) || '60', 10) || 60;
+        var npc = window.selectedTargetNpc;
+        var targetBodyType = (npc && (npc.bodytype != null ? npc.bodytype : npc.BodyType)) != null
+          ? parseInt(npc.bodytype != null ? npc.bodytype : npc.BodyType, 10) : null;
+        var fullPool = window.RotationSpells.getCasterNukePool('ranger', level);
+        var pool = window.RotationSpells.filterPoolForTarget(fullPool, isNaN(targetBodyType) ? null : targetBodyType);
+        window._rangedSpellPool = pool;
+
+        var rawSpells = window.__DPS_SPELLS_EN__ || {};
+        var foundAny = false;
+        Object.keys(RANGED_SPELL_DEFS).forEach(function (key) {
+          var entry = RANGED_SPELL_DEFS[key];
+          var infoEl = $(entry.infoId);
+          var checkboxEl = $(entry.checkboxId);
+          var poolEntry = pool.filter(function (s) { return s.name === entry.name; })[0];
+          if (poolEntry) {
+            foundAny = true;
+            if (infoEl) {
+              infoEl.textContent = '— Lvl ' + poolEntry.level + ', ' + Math.round(poolEntry.damage) + ' dmg' +
+                (poolEntry.isDot ? ' (total over ' + poolEntry.waves + ' ticks)' : '') + ', ' + poolEntry.mana + ' mana';
+            }
+            if (checkboxEl) checkboxEl.disabled = false;
+          } else {
+            // Not in the castable pool at this level/target — look up the raw
+            // record just to report the level it requires, if found at all.
+            var minLevel = null;
+            for (var id in rawSpells) {
+              if (rawSpells[id].name === entry.name) { minLevel = Number(rawSpells[id].classes4); break; }
+            }
+            if (infoEl) {
+              infoEl.textContent = (minLevel && minLevel < 255)
+                ? '— requires level ' + minLevel + ' (currently unavailable to this Ranger)'
+                : '— not available';
+            }
+            if (checkboxEl) { checkboxEl.checked = false; checkboxEl.disabled = true; }
+          }
+        });
+        if (hintEl) {
+          hintEl.textContent = foundAny
+            ? ('Availability updated for level ' + level + '.')
+            : 'None of these four are castable yet at level ' + level + '.';
+        }
+      }
+      var btnRefreshRangedSpells = $('ranged-spellcast-refresh');
+      if (btnRefreshRangedSpells) btnRefreshRangedSpells.addEventListener('click', refreshRangedSpellPool);
+
+      /**
+       * Runs whichever of the 4 fixed Ranger spells are checked on (in their
+       * fixed priority order) through RotationEngine.simulateRotation, in
+       * parallel with the archery timeline `runRanged` already simulated —
+       * the two are independent clocks (ranged shots aren't gated on the
+       * spell GCD in this sim, same simplification the rest of gSim uses for
+       * pet/proc side-channels), so running them separately and summing
+       * totals is exact, not an approximation of a single merged timeline.
+       * @param {Object} rangedOptions - the same `options` object runRanged() built
+       * @returns {Object|null} RotationResult, or null if casting is disabled/unset
+       */
+      function runRangedSpellCastIfEnabled(rangedOptions) {
+        var enabledEl = $('ranged-spellcast-enabled');
+        if (!enabledEl || !enabledEl.checked) return null;
+        if (!window.RotationEngine || !window.RotationSpells) return null;
+
+        var pool = window._rangedSpellPool || [];
+        var chosenSpells = window._rangedSpellOrder.map(function (key) {
+          var entry = RANGED_SPELL_DEFS[key];
+          var checkboxEl = entry && $(entry.checkboxId);
+          if (!checkboxEl || !checkboxEl.checked) return null;
+          return pool.filter(function (s) { return s.name === entry.name; })[0] || null;
+        }).filter(Boolean);
+        if (!chosenSpells.length) return null;
+        var chosenIds = chosenSpells.map(function (s) { return s.id; });
+
+        var gearAA = (typeof getRotationGearAndAA === 'function') ? getRotationGearAndAA() : {
+          spellCritRank: 0, spellCritMasteryRank: 0, quickDamageRank: 0, focusEffects: [],
+          caster: { classId: 'ranger', level: rangedOptions.level, dex: rangedOptions.dex, int: 0, wis: 0 }
+        };
+
+        var config = {
+          pool: chosenSpells,
+          offGlobalSpellId: null,
+          fightDurationSec: rangedOptions.fightDurationSec,
+          maxMana: parseFloat(($('ranged-spellcast-max-mana') && $('ranged-spellcast-max-mana').value) || '0') || 0,
+          manaRegenPerTick: parseFloat(($('ranged-spellcast-mana-regen') && $('ranged-spellcast-mana-regen').value) || '0') || 0,
+          resist: {
+            mode: 'statBased',
+            casterLevel: rangedOptions.level,
+            mobLevel: rangedOptions.mobLevel,
+            mobResists: {
+              mr: rangedOptions.targetMR, fr: rangedOptions.targetFR, cr: rangedOptions.targetCR,
+              pr: rangedOptions.targetPR, dr: rangedOptions.targetDR
+            }
+          },
+          priorityMode: 'dps',
+          manualOrder: chosenIds,
+          spellCritRank: gearAA.spellCritRank,
+          spellCritMasteryRank: gearAA.spellCritMasteryRank,
+          quickDamageRank: gearAA.quickDamageRank,
+          focusEffects: gearAA.focusEffects,
+          caster: gearAA.caster
+        };
+        return RotationEngine.simulateRotation(config);
+      }
+
+      /** Renders the spell-casting result as one more report section, same
+       * padded-column convention as the Pet Damage block, plus a combined
+       * DPS line summing it with the ranged-only DPS passed in. */
+      function formatRangedSpellCastBlock(spellResult, rangedOnlyDps) {
+        var text = RotationEngine.formatRotationReport(spellResult);
+        text = text.replace(/=== Rotation Result[^=]*===/, '=== Spell Casting (between shots) ===');
+        var combined = rangedOnlyDps + spellResult.dps;
+        return '\n' + text + '\n  Combined DPS (Ranged + Spells): ' + combined.toFixed(2) + '\n';
+      }
 
       function applyAmbidexterityDefault() {
         const classId = ($('class').value || '').toLowerCase();
@@ -12581,6 +12797,7 @@
         if (f.improvedDamagePct > 0) bonusParts.push('+' + f.improvedDamagePct + '% dmg');
         if (f.reduceManaPct > 0) bonusParts.push('-' + f.reduceManaPct + '% mana');
         if (f.spellHastePct > 0) bonusParts.push('+' + f.spellHastePct + '% haste');
+        if (f.increaseDurationPct > 0) bonusParts.push('+' + f.increaseDurationPct + '% DoT duration (more ticks)');
         lines.push('<div style="margin:0.15rem 0 0 1rem;font-size:0.78rem;color:var(--muted);">' +
           '<strong style="' + LABEL + '">' + (f.itemName ? String(f.itemName).replace(/</g, '&lt;') : 'Item') + ':</strong> ' +
           '<span style="' + VALUE + '">' + String(f.name).replace(/</g, '&lt;') + '</span>' +

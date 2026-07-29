@@ -152,18 +152,37 @@
     var effects = (IF && focusEffects) ? focusEffects : [];
 
     return pool.map(function (spell) {
-      var dmgPct = 0, manaPct = 0, hastePct = 0;
+      var dmgPct = 0, manaPct = 0, hastePct = 0, durPct = 0;
       var applied = [];
       effects.forEach(function (f) {
         if (!IF.appliesToSpell(f, spell)) return;
         if (f.improvedDamagePct > dmgPct) dmgPct = f.improvedDamagePct;
         if (f.reduceManaPct > manaPct) manaPct = f.reduceManaPct;
         if (f.spellHastePct > hastePct) hastePct = f.spellHastePct;
-        if (f.improvedDamagePct > 0 || f.reduceManaPct > 0 || f.spellHastePct > 0) applied.push(f.name);
+        // DoT-duration-extending foci ("Extended Affliction"-type — Timeburn/
+        // Chronoburn/Chrononostrum in this era's item set) only ever pass
+        // appliesToSpell for isDot entries with enough ticks to begin with
+        // (its own SE_LimitSpellType=detrimental + SE_LimitMinDur gate that),
+        // but guard isDot here too since it's meaningless on an instant nuke/rain.
+        if (spell.isDot && f.increaseDurationPct > durPct) durPct = f.increaseDurationPct;
+        if (f.improvedDamagePct > 0 || f.reduceManaPct > 0 || f.spellHastePct > 0 ||
+          (spell.isDot && f.increaseDurationPct > 0)) applied.push(f.name);
       });
 
       var clone = Object.assign({}, spell);
-      clone.damage = spell.damage * (1 + dmgPct / 100);
+      // Extends tick count, not per-tick damage: Client::ApplyDurationFocus
+      // (spell_effects.cpp) floors ticksRemaining * (100+pct)/100 onto the
+      // buff. `waves` is our tick count, so growing it here also correctly
+      // extends the DoT's recast-availability gate in simulateRotation
+      // (dotDuration = waves * waveIntervalSec) — a longer-lasting DoT
+      // should take longer before recasting it is worthwhile.
+      var durationMult = 1;
+      if (spell.isDot && durPct > 0) {
+        var newWaves = Math.max(1, Math.floor(spell.waves * (100 + durPct) / 100));
+        durationMult = newWaves / spell.waves;
+        clone.waves = newWaves;
+      }
+      clone.damage = spell.damage * (1 + dmgPct / 100) * durationMult;
       clone.mana = Math.max(0, spell.mana * (1 - Math.min(100, manaPct) / 100));
       var castTime = Math.max(0.25, spell.castTime * (1 - Math.min(90, hastePct) / 100));
       // Quick Damage only touches detrimental direct-damage casts (not DoTs,
@@ -178,16 +197,20 @@
       clone._gearDmgPct = dmgPct;
       clone._gearManaPct = manaPct;
       clone._gearHastePct = hastePct;
+      clone._gearDurationPct = durPct;
       clone._quickDamageApplied = quickDamageApplies;
       clone._appliedFocusNames = applied;
       // How much of THIS spell's eventual per-cast numbers are attributable
       // to focus, so simulateRotation can isolate it per cast rather than
       // just reporting the pool's already-boosted totals. Damage is a
-      // fraction (dmgPct / (100+dmgPct)) rather than a flat amount because
-      // resist and crit still apply multiplicatively on top — the fraction
-      // stays correct however a specific cast's damage actually lands;
-      // mana is a flat per-cast amount since mana isn't resist/crit-rolled.
-      clone._focusDamageGainFraction = dmgPct > 0 ? dmgPct / (100 + dmgPct) : 0;
+      // fraction (1 - 1/totalMult) of the total (dmg% and duration% both
+      // multiply the same total, so they're combined into one multiplier)
+      // rather than a flat amount because resist and crit still apply
+      // multiplicatively on top — the fraction stays correct however a
+      // specific cast's damage actually lands; mana is a flat per-cast
+      // amount since mana isn't resist/crit-rolled.
+      var totalDamageMult = (1 + dmgPct / 100) * durationMult;
+      clone._focusDamageGainFraction = totalDamageMult > 1 ? (1 - 1 / totalDamageMult) : 0;
       clone._focusManaSaved = spell.mana - clone.mana;
       return clone;
     });
@@ -384,7 +407,14 @@
       });
 
       if (candidates.length) {
-        var best;
+        // Explicit reset (not just `var best;`) — `var` is hoisted to the
+        // top of simulateRotation, so a bare declaration here is a no-op on
+        // every iteration after the first; without the `= null` a stale
+        // `best` from a previous cast survives into an iteration where the
+        // manual-order loop below fails to find any of its entries among
+        // the current candidates, silently re-casting last cast's spell
+        // instead of correctly falling through to `candidates[0]`.
+        var best = null;
         if (manualOrder) {
           // First candidate that appears in the user's order, in their
           // order — not the highest scorer. Falls back to the first

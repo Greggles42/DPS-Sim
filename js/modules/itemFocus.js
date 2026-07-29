@@ -5,7 +5,9 @@
  * (as opposed to a worn effect, which is a permanent buff, or a proc). The
  * item references a spell id (items.json's `focuseffect` field) whose own
  * effect list carries the bonus (SE_ImprovedDamage, SE_ReduceManaCost,
- * SE_IncreaseSpellHaste) plus a set of SE_Limit* sub-effects that restrict
+ * SE_IncreaseSpellHaste, SE_IncreaseSpellDuration — e.g. "Timeburn"/
+ * "Chronoburn"/"Chrononostrum", the DoT-duration-extending foci found on
+ * some PoP-era items) plus a set of SE_Limit* sub-effects that restrict
  * which spells it actually applies to. Source: zone/spell_effects.cpp's
  * focus-effect resolution (the function handling SE_LimitResist/
  * SE_LimitSpellType/SE_LimitEffect/SE_LimitInstant/SE_LimitMinDur/
@@ -26,6 +28,7 @@
     IMPROVED_DAMAGE: 124,
     REDUCE_MANA_COST: 132,
     INCREASE_SPELL_HASTE: 127,
+    INCREASE_SPELL_DURATION: 128,
     LIMIT_MAX_LEVEL: 134,
     LIMIT_RESIST: 135,
     LIMIT_EFFECT: 137,
@@ -51,7 +54,7 @@
     var sp = all && all[spellId];
     if (!sp) return null;
 
-    var improvedDamagePct = 0, reduceManaPct = 0, spellHastePct = 0;
+    var improvedDamagePct = 0, reduceManaPct = 0, spellHastePct = 0, increaseDurationPct = 0;
     var limitResist = [];      // [{exclude, resistType}]
     var limitEffect = [];      // [{exclude, effectId}]
     var spellTypeRequired = null;
@@ -69,6 +72,15 @@
         case SPA.IMPROVED_DAMAGE: improvedDamagePct = base; found = true; break;
         case SPA.REDUCE_MANA_COST: reduceManaPct = base; found = true; break;
         case SPA.INCREASE_SPELL_HASTE: spellHastePct = base; found = true; break;
+        // "Extended Affliction" / "Timeburn" / "Chrononostrum"-type foci —
+        // extends a DoT's total tick count. Server-side this is Client::
+        // ApplyDurationFocus (spell_effects.cpp): newTicks = floor(ticks *
+        // (100+base) / 100), applied only to buff-type spells (DoTs are
+        // detrimental buffs; instant nukes/rains have no buff slot and are
+        // untouched) — SE_LimitSpellType/SE_LimitMinDur on the focus itself
+        // already restrict real items of this kind to detrimental, ≥N-tick
+        // spells (see appliesToSpell's isDot-gated minDurTicks check below).
+        case SPA.INCREASE_SPELL_DURATION: increaseDurationPct = base; found = true; break;
         case SPA.LIMIT_RESIST:
           if (base < 0) limitResist.push({ exclude: true, resistType: -base });
           else if (base > 0) limitResist.push({ exclude: false, resistType: base });
@@ -96,6 +108,7 @@
       improvedDamagePct: improvedDamagePct,
       reduceManaPct: reduceManaPct,
       spellHastePct: spellHastePct,
+      increaseDurationPct: increaseDurationPct,
       limitResist: limitResist,
       limitEffect: limitEffect,
       spellTypeRequired: spellTypeRequired,
