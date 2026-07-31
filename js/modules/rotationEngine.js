@@ -414,6 +414,11 @@
     var focusDamageGain = 0, focusManaSaved = 0;
     var maxHit = 0, critCount = 0, critDamageBonus = 0;
     var scfCritCount = 0, innateCritCount = 0;
+    // Expected crit count — the analytic average across infinitely many runs
+    // (sum of each cast's real crit probability), as opposed to critCount
+    // above, which is this one seeded run's actual roll outcomes. Reported
+    // side by side so a single run's number isn't mistaken for the average.
+    var expectedCritCount = 0;
     var quickDamageCastCount = 0;
     var ranOutOfManaAt = null;
 
@@ -491,6 +496,10 @@
           if (innateCrit) innateBonus = (Math.floor(rng() * 50) + 1) / 100;   // Int(1,50)/100, per effects.cpp
         }
         var isCrit = scfCrit || innateCrit;
+        // P(crit) = P(SCF crits) + P(SCF doesn't) * P(innate crits) — same
+        // precedence as the real roll above, just summed instead of rolled.
+        expectedCritCount += (best._critChance || 0) +
+          (1 - (best._critChance || 0)) * (best._innateCritChance || 0);
         var critSource = scfCrit ? 'scf' : (innateCrit ? 'innate' : null);
         var bonus = scfCrit ? (best._critBonus || 0) : innateBonus;
         var castDamage = isCrit ? baseDmg * (1 + bonus) : baseDmg;
@@ -591,6 +600,10 @@
       maxHit: maxHit,
       critCount: critCount,
       critRate: castCount > 0 ? critCount / castCount : 0,
+      // Analytic average crits per run (sum of each cast's real crit
+      // probability) — stable across re-runs/seeds, unlike critCount above.
+      expectedCritCount: expectedCritCount,
+      expectedCritRate: castCount > 0 ? expectedCritCount / castCount : 0,
       critDamageBonus: critDamageBonus,
       critDps: critDamageBonus / fightDurationSec,
       // Split by source: Spell Casting Fury crits vs. the wizard's own
@@ -742,6 +755,9 @@
           (gs.spellCritRank > 0 && gs.innateCritChance > 0
             ? '  — ' + fmt(result.scfCritCount, 0) + ' AA, ' + fmt(result.innateCritCount, 0) + ' innate'
             : '')));
+        lines.push(pad('  Avg crits per run:', fmt(result.expectedCritCount, 1) + ' of ' + fmt(result.castCount, 0) +
+          ' casts (' + (result.expectedCritRate * 100).toFixed(1) + '%)' +
+          '  — analytic average across runs; this run rolled ' + fmt(result.critCount, 0) + '.'));
         lines.push(pad('  DPS from crits:', fmt(result.critDps, 2) +
           '  (extra damage the crit chance itself contributed, not the full damage of crit hits)'));
       }

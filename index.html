@@ -3214,6 +3214,7 @@
     <details id="version-log-details">
     <summary style="cursor:pointer; font-size:1.17em; font-weight:bold; margin:0; list-style:revert;">Version log</summary>
     <ul style="font-size: 0.9rem; color: var(--muted); margin: 0.5rem 0 0; padding-left: 1.25rem;">
+      <li><strong>1.59</strong> — Rotation Planner report: since the sim only replays a single seeded run (unlike Melee/Tanking's multi-trial average), the existing <strong>Crits landed</strong> line was just that one run's actual roll outcome. Added a new <strong>Avg crits per run</strong> line showing the analytic expected crit count (each cast's real crit probability — Spell Casting Fury's chance, plus the wizard innate chance on casts SCF didn't already crit — summed across every cast), so the long-run average is visible alongside the single realized roll. Mechanics guide updated.</li>
       <li><strong>1.58</strong> — Wizard's default checked rotation spells changed to a fixed 8-spell set (Garrison's Superior Sundering, Elnerick's Electrical Rending, Ice Spear of Solist, Ancient: Destruction of Ice, Draught of Ice, Tears of Prexus, Tears of Solusek, Tears of Druzzil) instead of the generic top-8-by-damage pick; every other class is unaffected. New <strong>Spell Specialization</strong> control on the Rotation tab's AA &amp; Gear card discounts mana cost for spells in the chosen school (Abjuration/Alteration/Conjuration/Divination/Evocation), matching <code>Client::GetActSpellCost</code>'s <code>1 + skill/20</code> formula plus the Spell Casting Mastery AA's 2.5/5/10% bonus — the skill is assumed trained to the class/level cap (5×level+5, capped at 200), matching this server's one-specialization-past-50 rule, and the dropdown auto-picks whichever school the checked pool leans on most. Mechanics guide updated.</li>
       <li><strong>1.57</strong> — Ranged tab: removed <strong>Drones of Doom</strong> from the Spell Casting (between shots) options — no Ranger is likely to actually weave a DoT into a quiver rotation in practice. Down to three spells: Calefaction, Call of Flame, Firestrike (new default priority order). Mechanics guide updated (section 23).</li>
       <li><strong>1.56</strong> — Ranged tab: <strong>Spell Casting (between shots)</strong> card moved above <strong>Target &amp; Fight</strong> (now its own full-width section between the weapon/arrow cards and Target &amp; Fight, rather than a 2-column grid item after it). It now auto-refreshes spell availability/damage whenever class or level changes in the Character module, same as the Rotation tab's spell pool — no more forgetting to click Refresh after leveling up. Default cast-priority order changed to Drones of Doom, Calefaction, Call of Flame, Firestrike (DoT first). Mechanics guide updated (section 23).</li>
@@ -3770,7 +3771,7 @@
       }
 
       // When releasing: 1) Bump VERSION below. 2) Add a new <li> at the top of the Version log section above.
-      const VERSION = '1.58';
+      const VERSION = '1.59';
       const versionEl = $('app-version');
       if (versionEl) versionEl.textContent = 'v' + VERSION;
 
