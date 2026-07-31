@@ -23,6 +23,13 @@
 
   var RESIST_NAME = { 0: 'None', 1: 'Magic', 2: 'Fire', 3: 'Cold', 4: 'Poison', 5: 'Disease' };
 
+  // Spell specialization school, from the spell record's "skill" field
+  // (EQ::skills::SkillType in the server source) — determines which of the
+  // 5 Specialize Abjuration/Alteration/Conjuration/Divination/Evocation
+  // skills applies a mana-cost discount to this spell (see
+  // RotationEngine.applyGearAndAABonuses / GetActSpellCost in effects.cpp).
+  var SPEC_SKILL_CATEGORY = { 4: 'abjuration', 5: 'alteration', 14: 'conjuration', 18: 'divination', 24: 'evocation' };
+
   var UNUSABLE_LEVEL = 255;
 
   // Some nukes only affect specific NPC body types — e.g. Expulse Undead
@@ -166,6 +173,7 @@
         resistTypeId: info.resistType,
         resistDiff: info.resistDiff,
         mana: Number(sp.mana) || 0,
+        specCategory: SPEC_SKILL_CATEGORY[Number(sp.skill)] || null,
         castTime: info.castTimeMs / 1000,
         recastTime: info.recastMs / 1000,
         waves: waveCount,

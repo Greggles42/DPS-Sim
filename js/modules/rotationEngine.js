@@ -105,6 +105,32 @@
   var QUICK_DAMAGE_MIN_CAST_TIME = 4;
 
   /**
+   * Spell specialization mana discount — Client::GetActSpellCost (effects.cpp):
+   *   PercentManaReduction = 1 + SpecializeSkill/20
+   *   + (2.5 / 5 / 10 for Spell Casting Mastery AA rank 1/2/3)
+   *   cost -= cost * (PercentManaReduction / 100)
+   * Only applies to spells whose school (spell.specCategory, from the
+   * spell's "skill" field) matches the caster's specialized school — the
+   * server only ever discounts the one school the specialize skill was
+   * trained in (GetSpecializeSkillValue switches on spells[id].skill).
+   * `specialization.skill` is the caster's raw Specialize skill value
+   * (0-200); the UI derives it from level (5*level+5, capped at 200),
+   * matching this server's rule that only one specialization school can be
+   * trained past 50.
+   */
+  var SPELL_CASTING_MASTERY_BONUS_PCT = [0, 2.5, 5, 10];
+
+  function specializeManaReductionPct(spell, specialization) {
+    if (!specialization || !specialization.school || !spell.specCategory) return 0;
+    if (specialization.school !== spell.specCategory) return 0;
+    var skill = Number(specialization.skill) || 0;
+    if (skill <= 0) return 0;
+    var pct = 1 + skill / 20;
+    pct += SPELL_CASTING_MASTERY_BONUS_PCT[specialization.masteryRank || 0] || 0;
+    return Math.min(100, pct);
+  }
+
+  /**
    * Wizards have a separate, innate direct-damage crit chance that exists
    * with zero AA points spent — Client::TryWizardInnateCrit in effects.cpp:
    *   chance = ((min(INT,255) + min(DEX,255)) / 2 + 32) / 10000
@@ -138,7 +164,7 @@
    * value per category (damage/mana/haste) is used, matching the real
    * "highest value wins" focus stacking rule.
    */
-  function applyGearAndAABonuses(pool, focusEffects, spellCritRank, caster, spellCritMasteryRank, quickDamageRank) {
+  function applyGearAndAABonuses(pool, focusEffects, spellCritRank, caster, spellCritMasteryRank, quickDamageRank, specialization) {
     var crit = SPELL_CRIT_RANKS[spellCritRank] || SPELL_CRIT_RANKS[0];
     // Both Mastery and Quick Damage require Spell Casting Fury rank 3 as a
     // hard AA prereq server-side (Client::GetAA(aaSpellCastingFury) == 3) —
@@ -183,7 +209,10 @@
         clone.waves = newWaves;
       }
       clone.damage = spell.damage * (1 + dmgPct / 100) * durationMult;
-      clone.mana = Math.max(0, spell.mana * (1 - Math.min(100, manaPct) / 100));
+      var gearReducedMana = spell.mana * (1 - Math.min(100, manaPct) / 100);
+      var specPct = specializeManaReductionPct(spell, specialization);
+      clone.mana = Math.max(0, gearReducedMana * (1 - specPct / 100));
+      clone._specManaPct = specPct;
       var castTime = Math.max(0.25, spell.castTime * (1 - Math.min(90, hastePct) / 100));
       // Quick Damage only touches detrimental direct-damage casts (not DoTs,
       // which the server excludes via buffduration == 0) that are still over
@@ -272,10 +301,10 @@
    * @returns {Array<{spell:Object, score:number, effectiveDamage:number}>}
    *   sorted best first.
    */
-  function rankSpellPool(pool, resistConfig, priorityMode, focusEffects, spellCritRank, caster, spellCritMasteryRank, quickDamageRank) {
+  function rankSpellPool(pool, resistConfig, priorityMode, focusEffects, spellCritRank, caster, spellCritMasteryRank, quickDamageRank, specialization) {
     pool = pool || [];
     if (!pool.length) return [];
-    pool = applyGearAndAABonuses(pool, focusEffects, spellCritRank, caster, spellCritMasteryRank, quickDamageRank);
+    pool = applyGearAndAABonuses(pool, focusEffects, spellCritRank, caster, spellCritMasteryRank, quickDamageRank, specialization);
 
     var factors = computeFactors(pool, resistConfig || {});
     function edmg(spell) { return spell.damage * factors[spell.id] * critEvMultiplier(spell); }
@@ -309,7 +338,7 @@
     var truncatedPool = pool.length > MAX_MEMORIZED_SPELLS;
     if (truncatedPool) pool = pool.slice(0, MAX_MEMORIZED_SPELLS);
     pool = applyGearAndAABonuses(pool, config.focusEffects, config.spellCritRank, config.caster,
-      config.spellCritMasteryRank, config.quickDamageRank);
+      config.spellCritMasteryRank, config.quickDamageRank, config.specialization);
 
     var appliedFocusNames = {};
     pool.forEach(function (s) { (s._appliedFocusNames || []).forEach(function (n) { appliedFocusNames[n] = true; }); });
@@ -725,7 +754,7 @@
           lines.push('    comparison — removing the item could also change which spells the optimizer prefers.');
         }
         if (result.focusManaSaved > 0) {
-          lines.push(pad('  Mana saved from focus:', fmt(result.focusManaSaved, 0) +
+          lines.push(pad('  Mana saved (focus + specialization):', fmt(result.focusManaSaved, 0) +
             ' (' + fmt(result.focusManaSavedPerSec, 2) + '/sec)'));
         }
       }

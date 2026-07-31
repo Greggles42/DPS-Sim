@@ -3077,6 +3077,20 @@
     <section class="section--core">
       <h2>AA &amp; Gear</h2>
       <p class="hint" style="margin:0 0 0.5rem;">Reuses the shared <strong>Alternate Advancement</strong> panel, <strong>Import Inventory</strong>, and the <strong>INT/WIS</strong> fields in the Character module above — nothing to set here directly. Spell Casting Fury (crit chance on direct-cast nukes/DoTs/rains) and any equipped item's spell-damage/mana-cost/haste focus effect are detected automatically and era-filtered against the era selector, the same way BIS Advisor era-filters gear.</p>
+      <div class="target-fight-row" style="margin-bottom:0.5rem;">
+        <div style="display:flex;flex-direction:column;">
+          <label for="rotation-spec-school" class="small-label">Spell specialization</label>
+          <select id="rotation-spec-school" style="width:12rem;">
+            <option value="">None</option>
+            <option value="abjuration">Abjuration</option>
+            <option value="alteration">Alteration</option>
+            <option value="conjuration">Conjuration</option>
+            <option value="divination">Divination</option>
+            <option value="evocation">Evocation</option>
+          </select>
+        </div>
+      </div>
+      <p class="hint" style="margin:0 0 0.5rem;">Auto-picked from whichever school the checked pool uses most; override if needed. Only spells in the chosen school get a mana discount — this server only lets one specialization be trained past 50 skill, so the sim assumes it's trained to the class/level skill cap (5&nbsp;&times;&nbsp;level&nbsp;+&nbsp;5, capped at 200) and the rest stay unspecialized.</p>
       <div id="rotation-gear-summary" class="hint">Click Refresh spell pool to detect AA/gear.</div>
     </section>
 
@@ -3200,6 +3214,7 @@
     <details id="version-log-details">
     <summary style="cursor:pointer; font-size:1.17em; font-weight:bold; margin:0; list-style:revert;">Version log</summary>
     <ul style="font-size: 0.9rem; color: var(--muted); margin: 0.5rem 0 0; padding-left: 1.25rem;">
+      <li><strong>1.58</strong> — Wizard's default checked rotation spells changed to a fixed 8-spell set (Garrison's Superior Sundering, Elnerick's Electrical Rending, Ice Spear of Solist, Ancient: Destruction of Ice, Draught of Ice, Tears of Prexus, Tears of Solusek, Tears of Druzzil) instead of the generic top-8-by-damage pick; every other class is unaffected. New <strong>Spell Specialization</strong> control on the Rotation tab's AA &amp; Gear card discounts mana cost for spells in the chosen school (Abjuration/Alteration/Conjuration/Divination/Evocation), matching <code>Client::GetActSpellCost</code>'s <code>1 + skill/20</code> formula plus the Spell Casting Mastery AA's 2.5/5/10% bonus — the skill is assumed trained to the class/level cap (5×level+5, capped at 200), matching this server's one-specialization-past-50 rule, and the dropdown auto-picks whichever school the checked pool leans on most. Mechanics guide updated.</li>
       <li><strong>1.57</strong> — Ranged tab: removed <strong>Drones of Doom</strong> from the Spell Casting (between shots) options — no Ranger is likely to actually weave a DoT into a quiver rotation in practice. Down to three spells: Calefaction, Call of Flame, Firestrike (new default priority order). Mechanics guide updated (section 23).</li>
       <li><strong>1.56</strong> — Ranged tab: <strong>Spell Casting (between shots)</strong> card moved above <strong>Target &amp; Fight</strong> (now its own full-width section between the weapon/arrow cards and Target &amp; Fight, rather than a 2-column grid item after it). It now auto-refreshes spell availability/damage whenever class or level changes in the Character module, same as the Rotation tab's spell pool — no more forgetting to click Refresh after leveling up. Default cast-priority order changed to Drones of Doom, Calefaction, Call of Flame, Firestrike (DoT first). Mechanics guide updated (section 23).</li>
       <li><strong>1.55</strong> — Ranged tab report: the <strong>Spell Casting (between shots)</strong> section now appears just above <strong>Final Totals</strong> instead of after it, and Final Totals itself now folds the spellcasting timeline's results in — <strong>Ranged (physical) damage/TPS</strong> and <strong>Spell damage/TPS</strong> are shown as their own clearly-labeled lines immediately followed by <strong>Combined total damage/DPS/TPS</strong>, rather than the two totals sitting in separate, disconnected places in the report. Executive Summary and every section above Final Totals are untouched — the physical archery-only contribution stays isolated and visible there regardless of whether spell casting is enabled. <code>EQCombat.formatRangedReport</code> (combat.js) now takes optional <code>spellCastResult</code>/<code>spellCastText</code> params to build this; behavior is unchanged when they're omitted (e.g. no other tab is affected).</li>
@@ -3755,7 +3770,7 @@
       }
 
       // When releasing: 1) Bump VERSION below. 2) Add a new <li> at the top of the Version log section above.
-      const VERSION = '1.57';
+      const VERSION = '1.58';
       const versionEl = $('app-version');
       if (versionEl) versionEl.textContent = 'v' + VERSION;
 
@@ -4875,7 +4890,7 @@
           mentalClarity:            'Increases your maximum mana pool per rank. Not applied automatically by this sim.',
           channelingFocus:          'Reduces your chance of spell interruption from damage or movement while casting. Not modeled — no interrupt mechanic in this sim.',
           spellCastingReinforcement:'Further reduces spell interruption chance, stacking with Channeling Focus. Not modeled here.',
-          spellCastingMastery:      'Caster class-tier AA. Exact mechanic not verifiable from this server\'s data; shown for reference only.',
+          spellCastingMastery:      'Adds a flat 2.5/5/10% mana-cost reduction on top of your Spell Specialization skill\'s own discount, for spells in your specialized school. Modeled on the Rotation tab (Spell Specialization control), where it stacks with the skill-based reduction.',
           spellCastingExpertise:    'Caster class-tier AA. Exact mechanic not verifiable from this server\'s data; shown for reference only.',
           spellCastingDeftness:     'Reduces spell fizzle chance. Not modeled — this sim assumes every cast completes.',
           spellCastingSubtlety:     'Reduces the hate/aggro generated by your spells. Not modeled — no spell aggro calculation in this sim.',
@@ -9322,7 +9337,8 @@
           spellCritMasteryRank: gearAA.spellCritMasteryRank,
           quickDamageRank: gearAA.quickDamageRank,
           focusEffects: gearAA.focusEffects,
-          caster: gearAA.caster
+          caster: gearAA.caster,
+          specialization: gearAA.specialization
         };
         return RotationEngine.simulateRotation(config);
       }
@@ -12696,13 +12712,14 @@
   function getRotationGearAndAA() {
     var classId = (document.getElementById('class') || {}).value || '';
     var era = window.getSelectedEra ? window.getSelectedEra() : 'pop';
-    var spellCritRank = 0, spellCritMasteryRank = 0, quickDamageRank = 0;
+    var spellCritRank = 0, spellCritMasteryRank = 0, quickDamageRank = 0, castingMasteryRank = 0;
     if (window.buildAASimOptions) {
       try {
         var _aaOpts = window.buildAASimOptions(classId, era);
         spellCritRank = _aaOpts.spellCastingFury || 0;
         spellCritMasteryRank = _aaOpts.spellCastingFuryMasteryRank || 0;
         quickDamageRank = _aaOpts.quickDamageRank || 0;
+        castingMasteryRank = _aaOpts.spellCastingMasteryRank || 0;
       } catch (e) { /* AA configurator not initialized yet */ }
     }
     var focusEffects = [];
@@ -12725,12 +12742,19 @@
       int: intEl ? parseInt(intEl.value, 10) || 0 : 255,
       wis: wisEl ? parseInt(wisEl.value, 10) || 0 : 255
     };
+    var specSchoolEl = document.getElementById('rotation-spec-school');
+    var specSchool = specSchoolEl ? specSchoolEl.value : '';
+    // 5*level+5 capped at 200 — same level-progression rule as every other
+    // trained skill cap in the sim (weaponSkillCaps.js), applied here since
+    // this server only lets one specialization school be trained past 50.
+    var specSkill = specSchool ? Math.min(200, caster.level * 5 + 5) : 0;
     return {
       spellCritRank: spellCritRank,
       spellCritMasteryRank: spellCritMasteryRank,
       quickDamageRank: quickDamageRank,
       focusEffects: focusEffects,
-      caster: caster
+      caster: caster,
+      specialization: { school: specSchool || null, skill: specSkill, masteryRank: castingMasteryRank }
     };
   }
 
@@ -12772,6 +12796,18 @@
         '</div>');
     }
 
+    if (gearAA.specialization && gearAA.specialization.school && gearAA.specialization.skill > 0) {
+      var spec = gearAA.specialization;
+      var specPct = (1 + spec.skill / 20 + ([0, 2.5, 5, 10][spec.masteryRank] || 0)).toFixed(1);
+      var schoolLabel = spec.school.charAt(0).toUpperCase() + spec.school.slice(1);
+      lines.push('<div style="margin-top:0.35rem;font-size:0.8rem;color:var(--muted);">' +
+        '<strong style="' + LABEL + '">Spell Specialization (' + schoolLabel + '):</strong> ' +
+        '<span style="' + VALUE + '">skill ' + spec.skill + '</span> ' +
+        '<span>(-' + specPct + '% mana on ' + schoolLabel + ' spells' +
+        (spec.masteryRank > 0 ? ', includes Spell Casting Mastery rank ' + spec.masteryRank : '') + ')</span>' +
+        '</div>');
+    }
+
     var innateChance = (window.RotationEngine && window.RotationEngine.wizardInnateCritChance)
       ? window.RotationEngine.wizardInnateCritChance(gearAA.caster.classId, gearAA.caster.level, gearAA.caster.int, gearAA.caster.dex)
       : 0;
@@ -12810,6 +12846,19 @@
     }
   }
 
+  var CLASS_DEFAULT_SPELL_NAMES = {
+    wizard: [
+      "Garrison's Superior Sundering",
+      "Elnerick's Electrical Rending",
+      'Ice Spear of Solist',
+      'Ancient: Destruction of Ice',
+      'Draught of Ice',
+      'Tears of Prexus',
+      'Tears of Solusek',
+      'Tears of Druzzil'
+    ]
+  };
+
   window.refreshRotationSpellPool = function refreshRotationSpellPool() {
     renderRotationGearSummary();
     var poolEl = document.getElementById('rotation-spell-pool');
@@ -12827,6 +12876,26 @@
     var hiddenCount = fullPool.length - pool.length;
     window._rotationCurrentPool = pool;
 
+    // Auto-pick the specialization school the pool leans on most, unless the
+    // user has already touched the dropdown themselves (data-user-set) —
+    // e.g. an all-Evocation wizard pool auto-selects Evocation.
+    var specSchoolEl = document.getElementById('rotation-spec-school');
+    if (specSchoolEl && specSchoolEl.dataset.userSet !== 'true') {
+      var schoolCounts = {};
+      pool.forEach(function (s) {
+        if (s.specCategory) schoolCounts[s.specCategory] = (schoolCounts[s.specCategory] || 0) + 1;
+      });
+      var bestSchool = '', bestCount = 0;
+      Object.keys(schoolCounts).forEach(function (k) {
+        if (schoolCounts[k] > bestCount) { bestCount = schoolCounts[k]; bestSchool = k; }
+      });
+      specSchoolEl.value = bestSchool;
+    }
+    if (specSchoolEl && !specSchoolEl._rotationUserSetBound) {
+      specSchoolEl._rotationUserSetBound = true;
+      specSchoolEl.addEventListener('change', function () { specSchoolEl.dataset.userSet = 'true'; });
+    }
+
     if (!pool.length) {
       var noneMsg = fullPool.length
         ? 'Every nuke this class/level has is target-restricted, and none matches the current target. Select a matching Target NPC above.'
@@ -12843,7 +12912,18 @@
     // highest level, so rank separately for that.
     var byDamage = pool.slice().sort(function (a, b) { return b.damage - a.damage; });
     var defaultCheckedIds = {};
-    byDamage.slice(0, maxMemorized).forEach(function (s) { defaultCheckedIds[s.id] = true; });
+    var classDefaultNames = CLASS_DEFAULT_SPELL_NAMES[classId];
+    if (classDefaultNames) {
+      var byName = {};
+      pool.forEach(function (s) { byName[String(s.name).toLowerCase()] = s; });
+      classDefaultNames.forEach(function (n) {
+        var s = byName[n.toLowerCase()];
+        if (s) defaultCheckedIds[s.id] = true;
+      });
+    }
+    if (!Object.keys(defaultCheckedIds).length) {
+      byDamage.slice(0, maxMemorized).forEach(function (s) { defaultCheckedIds[s.id] = true; });
+    }
 
     var rows = pool.map(function (s) {
       var name = String(s.name).replace(/</g, '&lt;') +
@@ -13061,7 +13141,7 @@
       var gearAA = getRotationGearAndAA();
 
       var maxMemorized = RotationEngine.MAX_MEMORIZED_SPELLS || 8;
-      var ranked = RotationEngine.rankSpellPool(basePool, resistConfig, priorityMode, gearAA.focusEffects, gearAA.spellCritRank, gearAA.caster, gearAA.spellCritMasteryRank, gearAA.quickDamageRank);
+      var ranked = RotationEngine.rankSpellPool(basePool, resistConfig, priorityMode, gearAA.focusEffects, gearAA.spellCritRank, gearAA.caster, gearAA.spellCritMasteryRank, gearAA.quickDamageRank, gearAA.specialization);
       var topIds = {};
       ranked.slice(0, maxMemorized).forEach(function (r) { topIds[r.spell.id] = true; });
 
@@ -13170,7 +13250,8 @@
         spellCritMasteryRank: gearAA.spellCritMasteryRank,
         quickDamageRank: gearAA.quickDamageRank,
         focusEffects: gearAA.focusEffects,
-        caster: gearAA.caster
+        caster: gearAA.caster,
+        specialization: gearAA.specialization
       };
 
       var result = RotationEngine.simulateRotation(config);

@@ -1461,13 +1461,36 @@
       </p>
       <p class="muted">
         The rest of the Luclin/PoP caster AA line — Mental Clarity, Channeling Focus, Spell Casting Reinforcement,
-        the Spell Casting Mastery/Expertise/Deftness/Subtlety class-tier line, Innate Enlightenment, and the
+        the Spell Casting Expertise/Deftness/Subtlety class-tier line, Innate Enlightenment, and the
         Magician-only Fury of Magic — are all selectable in the AA Configurator too, so casters see the same
         breadth of options melee/hybrid classes do. Their numeric effects aren't applied anywhere, though: unlike
         Spell Casting Fury, none of them grant their bonus through an actual spell record, so there's no data to
-        derive an exact per-rank number from (mana pool size, interrupt/fizzle/aggro reduction, stat caps —
+        derive an exact per-rank number from (interrupt/fizzle/aggro reduction, stat caps —
         several of these mechanics also aren't simulated here at all, e.g. there's no interrupt or fizzle
         mechanic). They're there for completeness and record-keeping, not because they move any computed number.
+        <strong>Spell Casting Mastery</strong> is the one exception — see Spell Specialization below.
+      </p>
+      <h3>Spell Specialization (mana cost)</h3>
+      <p>
+        The Rotation planner's <strong>AA &amp; Gear</strong> card has a <strong>Spell Specialization</strong>
+        dropdown (Abjuration / Alteration / Conjuration / Divination / Evocation) that discounts the mana cost of
+        every spell in that school — matching the server's <code>GetActSpellCost</code>:
+      </p>
+      <pre>percent off = 1 + (specialization skill ÷ 20) + Spell Casting Mastery bonus (2.5% / 5% / 10% per rank)</pre>
+      <p>
+        Only spells whose school matches the chosen specialization get the discount; every other school is treated
+        as unspecialized (no reduction) — this server only allows <strong>one</strong> specialization skill to be
+        trained past 50 at a time, so raising a second one resets/caps the others. Rather than adding a raw skill-
+        value input, the planner assumes that one chosen school is trained to the class/level skill cap
+        (<code>5 &times; level + 5</code>, capped at 200) — the same "assume skills are trained to cap" convention
+        used everywhere else in the sim (see the weapon/combat/defensive skill caps above). The dropdown auto-picks
+        whichever school the checked spell pool leans on most (e.g. an all-Evocation Wizard nuke set auto-selects
+        Evocation) but can be overridden manually. <strong>Spell Casting Mastery</strong> (the AA, not to be
+        confused with the AA Configurator's placeholder tooltip on the melee tabs) stacks additively on top of the
+        skill-based discount, and only applies once the skill-based portion is active (i.e. specialization is
+        actually selected). The discount reduces the mana shown per cast and the totals in the report the same way
+        item mana-cost-reduction focus effects do, and both stack together (focus effect discount applied first,
+        specialization discount applied on top of that).
       </p>
       <p class="muted">
         Also not modeled: the handful of AA-granted "spells" whose damage depends on the caster's own current HP or
