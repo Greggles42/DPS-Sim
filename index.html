@@ -3142,8 +3142,9 @@
       <div class="target-fight-row">
         <div><label for="rotation-duration" class="small-label">Duration (sec)</label><input type="number" id="rotation-duration" value="600" min="1" style="width:6rem;"></div>
         <div><label for="rotation-max-mana" class="small-label">Max mana <span class="hint" style="margin:0;">(0=unlimited)</span></label><input type="number" id="rotation-max-mana" value="0" min="0" style="width:6rem;"></div>
-        <div><label for="rotation-mana-regen" class="small-label">Mana regen/tick <span class="hint" style="margin:0;">(6s, extra — gear/AA/spell only)</span></label><input type="number" id="rotation-mana-regen" value="0" min="0" style="width:6rem;"></div>
+        <div><label for="rotation-mana-regen" class="small-label">Mana regen/tick <span class="hint" style="margin:0;">(6s, extra — anything not auto-detected, e.g. spell bonuses)</span></label><input type="number" id="rotation-mana-regen" value="0" min="0" style="width:6rem;"></div>
       </div>
+      <p class="hint" style="margin:0.3rem 0 0;">Mental Clarity (AA, +1/tick per rank) and item Mana Regen — worn effects like Flowing Thought, capped at 15 total — are detected automatically from the AA Configurator and Import Inventory and added on top; no need to include them here.</p>
       <label style="display:flex;align-items:center;gap:0.4rem;margin-top:0.6rem;">
         <input type="checkbox" id="rotation-sit-med-ticks">
         <span>Sit for Med Ticks <span class="hint" style="margin:0;">(hold off starting a cast that would still be running when the next 6s tick lands, so you're sitting for it instead)</span></span>
@@ -3225,6 +3226,7 @@
     <details id="version-log-details">
     <summary style="cursor:pointer; font-size:1.17em; font-weight:bold; margin:0; list-style:revert;">Version log</summary>
     <ul style="font-size: 0.9rem; color: var(--muted); margin: 0.5rem 0 0; padding-left: 1.25rem;">
+      <li><strong>1.67</strong> — Rotation tab mana regen: <strong>Mental Clarity</strong> AA (+1 regen/tick per rank, up to +3 — previously listed as "increases max mana pool," which was wrong; it's regen, per <code>eqstr_en.txt</code>) and equipped <strong>item Mana Regen</strong> (worn-effect spells like Flowing Thought I-X — e.g. Circlet/Robe/Cape of Flowing Thought — detected via each item's <code>worneffect</code> field, summed and capped at 15 total) are now auto-detected from the shared AA Configurator and Import Inventory and added on every tick automatically, same as Spell Casting Fury and item focus effects already are — no more typing them into the Mana regen/tick field by hand. New <code>ItemFocus.getEquippedManaRegen</code> helper. Mechanics guide updated.</li>
       <li><strong>1.66</strong> — Cast Order timeline now explains itself when <strong>Sit for Med Ticks</strong> is checked but has no visible effect: with Max mana left at 0 (unlimited), the option is a no-op (nothing to conserve), so no tick markers were showing with no explanation — the chart caption now says so directly instead of silently showing nothing.</li>
       <li><strong>1.65</strong> — Rotation Planner: when <strong>Sit for Med Ticks</strong> is on, the <strong>Cast Order</strong> timeline now marks every 6s med tick with a small triangle/dashed line — green if you sat for it, amber if a cast ran through it and only got the standing rate — with a legend counting each below the chart. The report adds a matching <strong>Med ticks (sat for / cast through)</strong> line. Mechanics guide updated.</li>
       <li><strong>1.64</strong> — Fix: <strong>Simulate Rotation</strong> (and Ranged tab spell casting) never passed a seed to the RNG, so crit rolls always fell back to the same fixed default seed and every run with identical inputs produced byte-identical DPS/crit counts — no run-to-run variance like Melee/Tanking already have. Both now generate a fresh random seed per click, matching the rest of the sim. Mechanics guide corrected (previously described the old fixed-seed behavior as intentional).</li>
@@ -3789,7 +3791,7 @@
       }
 
       // When releasing: 1) Bump VERSION below. 2) Add a new <li> at the top of the Version log section above.
-      const VERSION = '1.66';
+      const VERSION = '1.67';
       const versionEl = $('app-version');
       if (versionEl) versionEl.textContent = 'v' + VERSION;
 
@@ -4906,7 +4908,7 @@
           tacticalMastery:  'Studying your opponent for weaknesses allows you to pierce through advanced defenses. Each rank grants an increasing chance of bypassing dodge, block, parry, and riposte.',
           innateDefense:    'Further increases your mitigation of incoming melee damage (stacks with Combat Stability).',
           lightningReflexes:'Further increases your chance of completely avoiding incoming melee damage (stacks with Combat Agility).',
-          mentalClarity:            'Increases your maximum mana pool per rank. Not applied automatically by this sim.',
+          mentalClarity:            '+1 mana regen per tick per rank (up to +3). Applied automatically on the Rotation tab.',
           channelingFocus:          'Reduces your chance of spell interruption from damage or movement while casting. Not modeled — no interrupt mechanic in this sim.',
           spellCastingReinforcement:'Further reduces spell interruption chance, stacking with Channeling Focus. Not modeled here.',
           spellCastingMastery:      'Adds a flat 2.5/5/10% mana-cost reduction on top of your Spell Specialization skill\'s own discount, for spells in your specialized school. Modeled on the Rotation tab (Spell Specialization control), where it stacks with the skill-based reduction.',
@@ -12732,7 +12734,7 @@
   function getRotationGearAndAA() {
     var classId = (document.getElementById('class') || {}).value || '';
     var era = window.getSelectedEra ? window.getSelectedEra() : 'pop';
-    var spellCritRank = 0, spellCritMasteryRank = 0, quickDamageRank = 0, castingMasteryRank = 0;
+    var spellCritRank = 0, spellCritMasteryRank = 0, quickDamageRank = 0, castingMasteryRank = 0, mentalClarityRank = 0;
     if (window.buildAASimOptions) {
       try {
         var _aaOpts = window.buildAASimOptions(classId, era);
@@ -12740,9 +12742,14 @@
         spellCritMasteryRank = _aaOpts.spellCastingFuryMasteryRank || 0;
         quickDamageRank = _aaOpts.quickDamageRank || 0;
         castingMasteryRank = _aaOpts.spellCastingMasteryRank || 0;
+        mentalClarityRank = _aaOpts.mentalClarityRank || 0;
       } catch (e) { /* AA configurator not initialized yet */ }
     }
     var focusEffects = [];
+    // Item Mana Regen — worn-effect spells like Flowing Thought I-X, not a
+    // focus effect (see itemFocus.js's getEquippedManaRegen) — capped at
+    // ItemManaRegenCap (Client::CalcManaRegenCap, default 15).
+    var itemManaRegen = 0;
     if (window.ItemFocus) {
       var state = window.__invManagerState || {};
       var items = Object.keys(state).map(function (slot) {
@@ -12750,6 +12757,7 @@
         return entry && entry.item ? entry.item : null;
       }).filter(function (it) { return !!it; });
       focusEffects = window.ItemFocus.getEquippedFocusEffects(items, era);
+      itemManaRegen = window.ItemFocus.getEquippedManaRegen(items, era, window.ItemFocus.ITEM_MANA_REGEN_CAP);
     }
     var levelEl = document.getElementById('level');
     var dexEl = document.getElementById('dex');
@@ -12774,7 +12782,9 @@
       quickDamageRank: quickDamageRank,
       focusEffects: focusEffects,
       caster: caster,
-      specialization: { school: specSchool || null, skill: specSkill, masteryRank: castingMasteryRank }
+      specialization: { school: specSchool || null, skill: specSkill, masteryRank: castingMasteryRank },
+      mentalClarityRank: mentalClarityRank,
+      itemManaRegen: itemManaRegen
     };
   }
 
@@ -12825,6 +12835,17 @@
         '<span style="' + VALUE + '">skill ' + spec.skill + '</span> ' +
         '<span>(-' + specPct + '% mana on ' + schoolLabel + ' spells' +
         (spec.masteryRank > 0 ? ', includes Spell Casting Mastery rank ' + spec.masteryRank : '') + ')</span>' +
+        '</div>');
+    }
+
+    if (gearAA.mentalClarityRank > 0 || gearAA.itemManaRegen > 0) {
+      var mcParts = [];
+      if (gearAA.mentalClarityRank > 0) mcParts.push('Mental Clarity rank ' + gearAA.mentalClarityRank + ' (+' + gearAA.mentalClarityRank + ')');
+      if (gearAA.itemManaRegen > 0) mcParts.push('item Mana Regen (+' + gearAA.itemManaRegen + ', e.g. Flowing Thought)');
+      lines.push('<div style="margin-top:0.35rem;font-size:0.8rem;color:var(--muted);">' +
+        '<strong style="' + LABEL + '">Mana regen/tick (AA + item):</strong> ' +
+        '<span style="' + VALUE + '">+' + (gearAA.mentalClarityRank + gearAA.itemManaRegen) + '</span> ' +
+        '<span>(' + mcParts.join(', ') + '; on every tick, sitting or standing)</span>' +
         '</div>');
     }
 
@@ -13301,7 +13322,12 @@
       }
 
       var sitForMedTicks = !!(document.getElementById('rotation-sit-med-ticks') || {}).checked;
-      var extraManaRegen = v('rotation-mana-regen', 0);
+      // Mental Clarity (AA, +1/tick per rank) and item Mana Regen (worn
+      // effects like Flowing Thought, capped at 15) are auto-detected from
+      // the shared AA Configurator / Import Inventory — see
+      // getRotationGearAndAA. The manual field below is only for anything
+      // else not auto-detected (e.g. spell bonuses like Donal's BP).
+      var extraManaRegen = v('rotation-mana-regen', 0) + gearAA.mentalClarityRank + gearAA.itemManaRegen;
       var computeBaseRegen = (window.RotationEngine && window.RotationEngine.computeBaseManaRegenPerTick)
         ? window.RotationEngine.computeBaseManaRegenPerTick
         : function (level, sitting) { return sitting ? 2 : 1; };

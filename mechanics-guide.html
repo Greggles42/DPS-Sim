@@ -1413,10 +1413,17 @@
         200 — the same "assume skills are trained to cap" convention used elsewhere in the sim). Unchecked assumes
         you just keep casting through every tick and only ever get the standing rate (1/tick) — no waiting, no DPS
         cost, but the lowest regen. Either way these base rates are computed automatically from level and added on
-        top of whatever's in the <strong>Mana regen/tick</strong> field, which represents only the extra, non-base
-        sources (gear focus effects, AA <code>ManaRegen</code>, spell bonuses like Donal's BP) — enter those the
-        same way you always did. The AA &amp; Gear card shows the computed base values once a spell pool is loaded,
-        and again live if you toggle the checkbox or move the slider.
+        top of two more auto-detected sources — <strong>Mental Clarity</strong> (AA, +1 per rank up to +3,
+        <code>aabonuses.ManaRegen</code>) and <strong>item Mana Regen</strong> (worn-effect spells like "Flowing
+        Thought I-X" found on real items — e.g. Circlet/Robe/Cape of Flowing Thought — via
+        <code>item.worneffect</code>, summed and capped at 15 total,
+        <code>Client::CalcManaRegenCap</code>/<code>RuleI(Character, ItemManaRegenCap)</code>) — read from the
+        shared AA Configurator and Import Inventory the same way Spell Casting Fury and focus effects already are,
+        no extra input needed. Both apply on every tick regardless of sit state, same as the level-62/64 bonus.
+        Whatever's left in the <strong>Mana regen/tick</strong> field is for anything not auto-detected (spell
+        bonuses like Donal's BP, etc.) — enter those manually the same way you always did. The AA &amp; Gear card
+        shows all of this — computed base rates, Mental Clarity/item regen if present — once a spell pool is
+        loaded, and again live if you toggle the checkbox or move the slider.
       </p>
       <p>
         With the checkbox on, both the <strong>Cast Order</strong> timeline and the report make the trade-off

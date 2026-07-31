@@ -102,8 +102,13 @@
       classes: ['cleric', 'druid', 'shaman', 'necromancer', 'wizard', 'magician', 'enchanter'],
       simOption: 'mentalClarityRank',
       category: 'caster',
-      description: 'Increases maximum mana pool per rank. Not applied automatically anywhere in this sim — factor it into the Max Mana field on the Spells tab yourself if you want it reflected.',
-      rankLabels: ['Off', '1', '2', '3']
+      // eqstr_en.txt 13543: "This ability increases your natural mana
+      // regeneration by 1 point per ability level." — aabonuses.ManaRegen
+      // += rank (Client::CalcManaRegen, client_mods.cpp), applied on the
+      // Rotation tab regardless of standing/sitting/medding state, same as
+      // the level-62/64 regen bonus. Uncapped (only item ManaRegen is).
+      description: '+1 mana regen per tick per rank (up to +3 at rank 3), on top of your base standing/sitting/meditate regen. Applied automatically on the Rotation tab.',
+      rankLabels: ['Off', '1 (+1 regen/tick)', '2 (+2 regen/tick)', '3 (+3 regen/tick)']
     },
     {
       id: 'channelingFocus',

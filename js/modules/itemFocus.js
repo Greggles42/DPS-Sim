@@ -1,5 +1,7 @@
 /**
- * Item focus-effect resolution for the rotation planner.
+ * Item focus-effect resolution for the rotation planner. Also resolves
+ * items' worn-effect mana regen (getEquippedManaRegen, below the focus
+ * code) — a related but distinct item mechanic (see its own doc comment).
  *
  * A focus effect is a passive, spell-only bonus granted by an equipped item
  * (as opposed to a worn effect, which is a permanent buff, or a proc). The
@@ -226,10 +228,66 @@
     return out;
   }
 
+  // SE_CurrentMana (SPA 15) — Client::ApplySpellsBonuses (bonuses.cpp)
+  // dumps this straight into ManaRegen for both buffs and worn effects.
+  // "Flowing Thought I-X" (items.json's `worneffect` field, e.g. Circlet/
+  // Robe/Cape of Flowing Thought-type items) grants +1 through +10 this
+  // way, permanently, with no cast or buff slot involved.
+  var SE_CURRENT_MANA = 15;
+
+  /** Sum of every SE_CurrentMana effect on a worn-effect spell record. */
+  function resolveWornManaRegen(spellId) {
+    var all = spellData();
+    var sp = all && all[spellId];
+    if (!sp) return 0;
+    var total = 0;
+    for (var i = 1; i <= 12; i++) {
+      if (Number(sp['effectid' + i]) === SE_CURRENT_MANA) {
+        total += Number(sp['effect_base_value' + i]) || 0;
+      }
+    }
+    return total;
+  }
+
+  /**
+   * Total mana regen/tick from equipped items' worn effects (items.json's
+   * `worneffect` field — a permanent passive spell, not a focus or proc),
+   * era-filtered the same way getEquippedFocusEffects is. Client::
+   * AddItemBonuses applies these into itembonuses.ManaRegen, which is
+   * capped — Client::CalcManaRegenCap() / RuleI(Character,
+   * ItemManaRegenCap), default 15 — pass that cap in explicitly since it's
+   * a server rule, not something derivable from the item data itself.
+   */
+  function getEquippedManaRegen(items, eraId, cap) {
+    var EC = global.EraConfig;
+    var era = EC ? EC.getEra(eraId) : null;
+    var total = 0;
+    var seenSpellIds = {};
+
+    (items || []).forEach(function (item) {
+      if (!item || !item.worneffect) return;
+      var wornSpellId = Number(item.worneffect);
+      if (!wornSpellId) return;
+
+      if (era && item.min_expansion != null) {
+        if (Number(item.min_expansion) > era.order) return;
+      }
+
+      if (seenSpellIds[wornSpellId]) return;   // same worn effect from two slots — dedupe
+      seenSpellIds[wornSpellId] = true;
+
+      total += resolveWornManaRegen(wornSpellId);
+    });
+
+    return cap != null ? Math.min(cap, total) : total;
+  }
+
   global.ItemFocus = {
     resolveFocusSpell: resolveFocusSpell,
     appliesToSpell: appliesToSpell,
-    getEquippedFocusEffects: getEquippedFocusEffects
+    getEquippedFocusEffects: getEquippedFocusEffects,
+    getEquippedManaRegen: getEquippedManaRegen,
+    ITEM_MANA_REGEN_CAP: 15
   };
 
 })(typeof window !== 'undefined' ? window : globalThis);
