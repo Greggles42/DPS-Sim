@@ -85,37 +85,6 @@
       description: 'Gives proc spells and direct-cast nukes/DoTs a chance to critically hit for bonus damage.',
       rankLabels: ['Off', '1 (2% spell crit, +33% dmg)', '2 (4% spell crit, +66% dmg)', '3 (7% spell crit, +100% dmg)']
     },
-    {
-      id: 'spellCastingFuryMastery',
-      label: 'Spell Casting Fury Mastery',
-      era: 'luclin',
-      section: 'luclin_archetype',
-      ranks: 3,
-      // Requires Spell Casting Fury maxed as an AA prereq server-side
-      // (Client::GetAA(aaSpellCastingFury) == 3 gate in effects.cpp); this
-      // sim doesn't enforce prereqs in the UI, but rotationEngine.js's
-      // applyGearAndAABonuses ignores this rank unless spellCritRank is 3.
-      classes: ['paladin', 'shadowknight', 'ranger', 'bard', 'beastlord',
-        'cleric', 'druid', 'shaman', 'necromancer', 'wizard', 'magician', 'enchanter'],
-      simOption: 'spellCastingFuryMasteryRank',
-      category: 'combat',
-      description: 'Further increases crit chance on direct-cast nukes/DoTs, stacking additively with Spell Casting Fury (no additional damage bonus — that stays fixed by Spell Casting Fury\'s own rank). Requires Spell Casting Fury rank 3.',
-      rankLabels: ['Off', '1 (+2% spell crit)', '2 (+4% spell crit)', '3 (+7% spell crit)']
-    },
-    {
-      id: 'quickDamage',
-      label: 'Quick Damage',
-      era: 'luclin',
-      section: 'luclin_archetype',
-      ranks: 3,
-      // Same Spell Casting Fury rank-3 prereq as the Mastery line above.
-      classes: ['paladin', 'shadowknight', 'ranger', 'bard', 'beastlord',
-        'cleric', 'druid', 'shaman', 'necromancer', 'wizard', 'magician', 'enchanter'],
-      simOption: 'quickDamageRank',
-      category: 'combat',
-      description: 'Reduces cast time on direct-damage spells (nukes/rains, cast time over 4s) by 2/5/10% per rank. Does not affect DoTs or buffs. Requires Spell Casting Fury rank 3.',
-      rankLabels: ['Off', '1 (-2% cast time)', '2 (-5% cast time)', '3 (-10% cast time)']
-    },
     // Casters' other Luclin archetype AAs. Unlike Spell Casting Fury, these
     // grant their bonus through a hardcoded server effect rather than a
     // spell record (spellid is the DB's "none" sentinel for all of them),
@@ -154,48 +123,31 @@
       era: 'luclin',
       section: 'luclin_archetype',
       ranks: 3,
-      classes: ['cleric', 'druid', 'shaman', 'necromancer', 'wizard', 'magician', 'enchanter'],
+      // Wizards do not get this AA (it's on the Cleric/Druid/Shaman/
+      // Necromancer/Magician/Enchanter caster line, not Wizard's).
+      classes: ['cleric', 'druid', 'shaman', 'necromancer', 'magician', 'enchanter'],
       simOption: 'spellCastingReinforcementRank',
       category: 'caster',
       description: 'Further reduces spell interruption chance, stacking with Channeling Focus. Not modeled — no interrupt mechanic in this sim.',
-      rankLabels: ['Off', '1', '2', '3']
-    },
-    // ============================================================
-    // Luclin — Class AAs
-    // ============================================================
-    // The "Spell Casting X" caster class-tier line — Mastery/Expertise/
-    // Deftness/Subtlety. Same story as the archetype trio above: hardcoded
-    // server effects, no spell record to read an exact value from. Included
-    // for visibility/selection; no numeric effect applied.
-    {
-      id: 'spellCastingMastery',
-      label: 'Spell Casting Mastery',
-      era: 'luclin',
-      section: 'luclin_class',
-      ranks: 3,
-      classes: ['cleric', 'druid', 'shaman', 'necromancer', 'wizard', 'magician', 'enchanter'],
-      simOption: 'spellCastingMasteryRank',
-      category: 'caster',
-      description: 'Caster class-tier AA — exact mechanic not verifiable from this server\'s spell data (hardcoded effect). Selectable for record-keeping; no effect on computed results.',
       rankLabels: ['Off', '1', '2', '3']
     },
     {
       id: 'spellCastingExpertise',
       label: 'Spell Casting Expertise',
       era: 'luclin',
-      section: 'luclin_class',
+      section: 'luclin_archetype',
       ranks: 3,
       classes: ['cleric', 'druid', 'shaman', 'necromancer', 'wizard', 'magician', 'enchanter'],
       simOption: 'spellCastingExpertiseRank',
       category: 'caster',
-      description: 'Caster class-tier AA — exact mechanic not verifiable from this server\'s spell data (hardcoded effect). Selectable for record-keeping; no effect on computed results.',
+      description: 'Caster archetype AA — exact mechanic not verifiable from this server\'s spell data (hardcoded effect). Selectable for record-keeping; no effect on computed results.',
       rankLabels: ['Off', '1', '2', '3']
     },
     {
       id: 'spellCastingDeftness',
       label: 'Spell Casting Deftness',
       era: 'luclin',
-      section: 'luclin_class',
+      section: 'luclin_archetype',
       ranks: 3,
       classes: ['cleric', 'druid', 'shaman', 'necromancer', 'wizard', 'magician', 'enchanter'],
       simOption: 'spellCastingDeftnessRank',
@@ -207,13 +159,63 @@
       id: 'spellCastingSubtlety',
       label: 'Spell Casting Subtlety',
       era: 'luclin',
-      section: 'luclin_class',
+      section: 'luclin_archetype',
       ranks: 1,
       classes: ['cleric', 'druid', 'shaman', 'necromancer', 'wizard', 'magician', 'enchanter'],
       simOption: 'spellCastingSubtletyRank',
       category: 'caster',
       description: 'Reduces the hate/aggro generated by spells. Not modeled — this sim doesn\'t compute spell aggro.',
       rankLabels: ['Off', '1 (enabled)']
+    },
+    // ============================================================
+    // Luclin — Class AAs
+    // ============================================================
+    {
+      id: 'spellCastingFuryMastery',
+      label: 'Spell Casting Fury Mastery',
+      era: 'luclin',
+      section: 'luclin_class',
+      ranks: 3,
+      // Requires Spell Casting Fury maxed as an AA prereq server-side
+      // (Client::GetAA(aaSpellCastingFury) == 3 gate in effects.cpp); this
+      // sim doesn't enforce prereqs in the UI, but rotationEngine.js's
+      // applyGearAndAABonuses ignores this rank unless spellCritRank is 3.
+      classes: ['paladin', 'shadowknight', 'ranger', 'bard', 'beastlord',
+        'cleric', 'druid', 'shaman', 'necromancer', 'wizard', 'magician', 'enchanter'],
+      simOption: 'spellCastingFuryMasteryRank',
+      category: 'combat',
+      description: 'Further increases crit chance on direct-cast nukes/DoTs, stacking additively with Spell Casting Fury (no additional damage bonus — that stays fixed by Spell Casting Fury\'s own rank). Requires Spell Casting Fury rank 3.',
+      rankLabels: ['Off', '1 (+2% spell crit)', '2 (+4% spell crit)', '3 (+7% spell crit)']
+    },
+    {
+      id: 'quickDamage',
+      label: 'Quick Damage',
+      era: 'luclin',
+      section: 'luclin_class',
+      ranks: 3,
+      // Same Spell Casting Fury rank-3 prereq as the Mastery line above.
+      classes: ['paladin', 'shadowknight', 'ranger', 'bard', 'beastlord',
+        'cleric', 'druid', 'shaman', 'necromancer', 'wizard', 'magician', 'enchanter'],
+      simOption: 'quickDamageRank',
+      category: 'combat',
+      description: 'Reduces cast time on direct-damage spells (nukes/rains, cast time over 4s) by 2/5/10% per rank. Does not affect DoTs or buffs. Requires Spell Casting Fury rank 3.',
+      rankLabels: ['Off', '1 (-2% cast time)', '2 (-5% cast time)', '3 (-10% cast time)']
+    },
+    // The "Spell Casting Mastery" caster class-tier AA — hardcoded server
+    // effect, but its mana-cost mechanic IS known and modeled: see
+    // Spell Specialization on the Rotation tab / rotationEngine.js's
+    // specializeManaReductionPct (Client::GetActSpellCost, effects.cpp).
+    {
+      id: 'spellCastingMastery',
+      label: 'Spell Casting Mastery',
+      era: 'luclin',
+      section: 'luclin_class',
+      ranks: 3,
+      classes: ['cleric', 'druid', 'shaman', 'necromancer', 'wizard', 'magician', 'enchanter'],
+      simOption: 'spellCastingMasteryRank',
+      category: 'caster',
+      description: 'Adds a flat 2.5/5/10% mana-cost reduction on top of your Spell Specialization skill\'s own discount, for spells in your specialized school. Modeled on the Rotation tab (Spell Specialization control).',
+      rankLabels: ['Off', '1', '2', '3']
     },
     {
       id: 'ambidexterity',

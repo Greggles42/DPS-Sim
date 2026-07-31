@@ -1251,7 +1251,7 @@
         <thead><tr><th>Era</th><th>AAs unlocked</th></tr></thead>
         <tbody>
           <tr><td>Classic / Kunark / Velious</td><td>None — AA system not yet available.</td></tr>
-          <tr><td>Luclin</td><td>Archetype AAs (Combat Fury, Combat Stability, Combat Agility, Natural Durability, Spell Casting Fury, Spell Casting Fury Mastery, Quick Damage) and Class AAs (Ambidexterity, Flurry, Slay Undead, Archery Mastery, Double Riposte, Return Kick, Two Hand Bash [Pal/SHD], Soul Abrasion [SHD]).</td></tr>
+          <tr><td>Luclin</td><td>Archetype AAs (Combat Fury, Combat Stability, Combat Agility, Natural Durability, Spell Casting Fury, Mental Clarity, Channeling Focus, Spell Casting Reinforcement [not Wizard], Spell Casting Expertise, Spell Casting Deftness, Spell Casting Subtlety) and Class AAs (Ambidexterity, Flurry, Slay Undead, Archery Mastery, Double Riposte, Return Kick, Two Hand Bash [Pal/SHD], Soul Abrasion [SHD], Spell Casting Fury Mastery, Quick Damage, Spell Casting Mastery).</td></tr>
           <tr><td>Planes of Power</td><td>All Luclin AAs plus: Planar Power, Planar Durability [War/Pal/SHD], Technique of Master Wu, Fury of the Ages, Ferocity, Knight's Advantage [Pal/SHD], Speed of the Knight [Pal/SHD], Raging Flurry [War], Tactical Mastery [War], Bestial Frenzy, Harmonious Attack, Flash of Steel, Innate Defense, Lightning Reflexes, Punishing Blade.</td></tr>
         </tbody>
       </table>
@@ -1401,11 +1401,11 @@
           Originally modeled here only for the 5 hybrid classes' weapon-proc crits (Melee tab), it's the same AA for
           pure casters applied to their direct casts instead, so the class list was broadened rather than adding a
           second copy of the ability.</li>
-        <li><strong>Spell Casting Fury Mastery</strong> (Luclin archetype AA, requires Spell Casting Fury rank 3)
+        <li><strong>Spell Casting Fury Mastery</strong> (Luclin class AA, requires Spell Casting Fury rank 3)
           adds another 2%/4%/7% crit chance per rank on top of Spell Casting Fury's own — the server sums the two
           AAs' crit-chance bonuses additively, so both maxed gives 14% total. It's chance only: the crit damage
           bonus (+33/66/100%) stays fixed by Spell Casting Fury's rank alone, Mastery doesn't add to it.</li>
-        <li><strong>Quick Damage</strong> (Luclin archetype AA, requires Spell Casting Fury rank 3) shortens cast
+        <li><strong>Quick Damage</strong> (Luclin class AA, requires Spell Casting Fury rank 3) shortens cast
           time by 2%/5%/10% per rank on direct-damage nukes and rains whose cast time is still over 4 seconds
           after other haste is applied. It has no effect on DoTs (which tick rather than resolve as one hit) or on
           spells already under the 4-second threshold.</li>
@@ -1469,8 +1469,9 @@
         single realized roll isn't mistaken for the average.
       </p>
       <p class="muted">
-        The rest of the Luclin/PoP caster AA line — Mental Clarity, Channeling Focus, Spell Casting Reinforcement,
-        the Spell Casting Expertise/Deftness/Subtlety class-tier line, Innate Enlightenment, and the
+        The rest of the Luclin/PoP caster AA line — Mental Clarity, Channeling Focus, Spell Casting Reinforcement
+        (not available to Wizard — that AA is only on the Cleric/Druid/Shaman/Necromancer/Magician/Enchanter caster
+        line), the Spell Casting Expertise/Deftness/Subtlety archetype line, Innate Enlightenment, and the
         Magician-only Fury of Magic — are all selectable in the AA Configurator too, so casters see the same
         breadth of options melee/hybrid classes do. Their numeric effects aren't applied anywhere, though: unlike
         Spell Casting Fury, none of them grant their bonus through an actual spell record, so there's no data to
