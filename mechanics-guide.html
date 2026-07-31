@@ -1484,15 +1484,17 @@
         happened: <strong>max hit</strong> (the single largest cast, headline stats), and — whenever a crit source
         is active — <strong>crits landed</strong> (count and %, split by AA vs. innate when both apply) and
         <strong>DPS from crits</strong> (the extra damage the crit chance itself contributed, isolating its value
-        from the base damage under it). Results are reproducible run to run for the same inputs — the crit rolls
-        use a fixed seed rather than true randomness, so tweaking a build and re-running isn't confounded by RNG
-        noise. Only the crit outcome is rolled per cast; resist and mana regen stay the deterministic expected-value
-        model described above.
+        from the base damage under it). Each run of <strong>Simulate Rotation</strong> uses a fresh random seed —
+        same convention as Melee/Tanking's runs — so crit outcomes (and therefore max hit/crit count/DPS) vary a
+        little between clicks with identical inputs, matching real fight-to-fight variance instead of always
+        returning the exact same number. Only the crit outcome is rolled per cast; resist and mana regen stay the
+        deterministic expected-value model described above.
       </p>
       <p class="muted">
-        Because the rotation sim only replays one seeded run (unlike Melee/Tanking, which average many trials),
-        "crits landed" is that single run's actual roll outcome, not a long-run average — a build with a 4% crit
-        chance and 40 casts genuinely can land anywhere from 0 to several crits on any one seed. The report also
+        Because the rotation sim only replays one seeded run per click (unlike Melee/Tanking, which average many
+        trials internally), "crits landed" is that single run's actual roll outcome, not a long-run average — a
+        build with a 4% crit chance and 40 casts genuinely can land anywhere from 0 to several crits on any given
+        run. The report also
         shows <strong>avg crits per run</strong>: the analytic expectation (each cast's own crit probability —
         SCF's chance, plus the wizard innate chance on casts SCF didn't already crit — summed across every cast),
         which is what "crits landed" converges to over many runs. The two numbers are shown side by side so the

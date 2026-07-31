@@ -274,9 +274,11 @@
     });
   }
 
-  /** Tiny seeded LCG — deterministic by default so re-running the same
-   * config reproduces the same crit rolls (and therefore the same max hit/
-   * crit count), same reasoning as tankingEngine.js's fallback RNG. */
+  /** Tiny seeded LCG. Callers pass a fresh random seed each run (same
+   * convention as tankingEngine.js) so crit rolls vary run to run, same as
+   * a real fight would; a caller that wants a reproducible run for testing
+   * can pass a fixed seed explicitly — omitting it falls back to a fixed
+   * default (1), not real randomness. */
   function createRng(seed) {
     var s = (seed != null ? seed : 1) >>> 0;
     return function () {
