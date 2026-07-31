@@ -406,7 +406,8 @@
     // maxTickWaitSec below — rather than the smoothed continuous
     // approximation used when this is off. Meaningless with unlimited mana
     // (nothing to conserve), so it's a no-op there.
-    var sitForMedTicks = !!config.sitForMedTicks && !unlimited;
+    var sitForMedTicksRequested = !!config.sitForMedTicks;
+    var sitForMedTicks = sitForMedTicksRequested && !unlimited;
     // Ticks landing while genuinely idle (no candidate ready, or a
     // deliberate wait below) are credited at the sitting/meditate rate;
     // ticks landing mid-cast (because waiting wasn't worth it) only get
@@ -432,7 +433,8 @@
         maxHit: 0, critCount: 0, critRate: 0, critDamageBonus: 0, critDps: 0,
         scfCritCount: 0, innateCritCount: 0, quickDamageCastCount: 0, manualMode: !!manualOrder,
         focusDamageGain: 0, focusDamageGainDps: 0, focusManaSaved: 0, focusManaSavedPerSec: 0,
-        sitForMedTicks: sitForMedTicks, manaTickLog: [], sitTickCount: 0, castThroughTickCount: 0
+        sitForMedTicks: sitForMedTicks, sitForMedTicksRequested: sitForMedTicksRequested,
+        manaTickLog: [], sitTickCount: 0, castThroughTickCount: 0
       };
     }
 
@@ -707,7 +709,12 @@
       gearSummary: gearSummary,
       // Only populated when sitForMedTicks is on — see applyPendingManaTicks
       // (sitting: true) / applyTicksDuringCast (sitting: false) above.
+      // sitForMedTicksRequested reflects the checkbox itself, even when it
+      // was silently overridden to false by unlimited mana (maxMana <= 0) —
+      // used to tell the UI "you checked this but it's a no-op right now"
+      // apart from "you didn't check it at all".
       sitForMedTicks: sitForMedTicks,
+      sitForMedTicksRequested: sitForMedTicksRequested,
       manaTickLog: manaTickLog,
       sitTickCount: sitTickCount,
       castThroughTickCount: castThroughTickCount,
@@ -1162,7 +1169,9 @@
       : '';
     var tickNote = hasMedTicks
       ? ' The triangles/dashed lines mark each 6s med tick — green if you sat for it, amber if a cast ran through it.'
-      : '';
+      : (result.sitForMedTicksRequested && !result.sitForMedTicks
+        ? ' Sit for Med Ticks has no effect with unlimited mana (Max mana = 0) — set a mana pool to see tick markers.'
+        : '');
 
     var tickLegend = hasMedTicks
       ? '<span style="display:inline-flex;align-items:center;gap:0.35rem;margin:0 0.75rem 0.3rem 0;">' +
