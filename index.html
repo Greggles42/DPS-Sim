@@ -3149,6 +3149,12 @@
         <span>Sit for Med Ticks <span class="hint" style="margin:0;">(hold off starting a cast that would still be running when the next 6s tick lands, so you're sitting for it instead)</span></span>
       </label>
       <p class="hint" style="margin:0.3rem 0 0;">A server regen tick lands every 6 seconds; what you get depends on whether you're sitting <em>at that instant</em> (standing = 1/tick, sitting = 2/tick, sitting with Meditate skill = up to ~17/tick at max skill). You can't cast while sitting, so catching the higher rate means deliberately not casting when a tick is about to land — checking this box has the sim wait (idle) for an imminent tick instead of starting a cast that would straddle it, then casts right after, trading a bit of DPS for guaranteed max regen every tick. Leave it unchecked to assume you just keep casting through ticks at the standing rate.</p>
+      <div style="display:flex;align-items:center;gap:0.6rem;margin-top:0.5rem;max-width:26rem;">
+        <label for="rotation-tick-wait-max" class="small-label" style="white-space:nowrap;">Max tick wait</label>
+        <input type="range" id="rotation-tick-wait-max" min="0" max="6" step="0.25" value="6" style="flex:1;">
+        <span id="rotation-tick-wait-max-label" class="hint" style="margin:0;min-width:3.5rem;text-align:right;">6.00s</span>
+      </div>
+      <p class="hint" style="margin:0.2rem 0 0;">Only used when <strong>Sit for Med Ticks</strong> is checked. Caps how long a wait is worth it: if a cast finishes with more than this much time left until the next tick, the sim casts through and takes the standing rate on that tick instead of sitting out the wait. At 6s (max) it always waits, however long; at 0s it never waits — same as unchecked.</p>
       <p class="hint" style="margin:0.75rem 0 0.3rem;font-weight:600;color:var(--text);">Priority mode</p>
       <div class="radio-group">
         <label><input type="radio" name="rotation-priority-mode" value="dps" checked><span class="radio-option-main">DPS</span> <span class="radio-option-note">(maximize damage/time)</span></label>
@@ -3219,6 +3225,7 @@
     <details id="version-log-details">
     <summary style="cursor:pointer; font-size:1.17em; font-weight:bold; margin:0; list-style:revert;">Version log</summary>
     <ul style="font-size: 0.9rem; color: var(--muted); margin: 0.5rem 0 0; padding-left: 1.25rem;">
+      <li><strong>1.63</strong> — Rotation tab: new <strong>Max tick wait</strong> slider (0-6s, next to Sit for Med Ticks) caps how long the sim is willing to sit idle for an imminent tick before giving up and casting through it at the standing rate instead. Previously the checkbox always waited however long it took; now it only waits when the gap is within the slider's threshold, matching a real player's tolerance for delaying a cast to catch a tick. At 6s it behaves as before (always wait); at 0s it's identical to unchecked. Mechanics guide updated.</li>
       <li><strong>1.62</strong> — Correction to <strong>Sit for Med Ticks</strong> (added in 1.61): you cannot cast while sitting, so catching the higher sitting/meditate regen tick actually requires holding off casting when a tick is imminent, not just sitting for free while continuing to cast. The sim now tracks the exact 6-second tick schedule and, when checked, delays any cast that would still be running when the next tick lands (sits idle until it passes, banks the full amount, then casts) — a real DPS-for-sustain trade rather than a free bonus. Mechanics guide updated.</li>
       <li><strong>1.61</strong> — Rotation tab: new <strong>Sit for Med Ticks</strong> checkbox (Simulation card) models the classic mana-regen tick — a server tick lands every 6 seconds and grants 1 mana/tick standing, 2 sitting, or up to ~17 sitting with maxed Meditate skill (<code>Client::CalcManaRegen</code>). The checkbox picks which base rate applies, computed automatically from level/Meditate skill and added on top of the <strong>Mana regen/tick</strong> field, which now represents only gear/AA/spell regen (previously that field had to include base regen manually). Mechanics guide updated.</li>
       <li><strong>1.60</strong> — AA Configurator corrections: <strong>Spell Casting Fury Mastery</strong> and <strong>Quick Damage</strong> moved from the Luclin Archetype section to Luclin Class (they're class-tier AAs, not archetype); <strong>Spell Casting Expertise</strong>, <strong>Spell Casting Deftness</strong>, and <strong>Spell Casting Subtlety</strong> moved from Luclin Class to Luclin Archetype; <strong>Wizard</strong> no longer offered <strong>Spell Casting Reinforcement</strong> (not on that class's AA line). Mechanics guide updated.</li>
@@ -3779,7 +3786,7 @@
       }
 
       // When releasing: 1) Bump VERSION below. 2) Add a new <li> at the top of the Version log section above.
-      const VERSION = '1.62';
+      const VERSION = '1.63';
       const versionEl = $('app-version');
       if (versionEl) versionEl.textContent = 'v' + VERSION;
 
@@ -12818,18 +12825,35 @@
     }
 
     var sitMedEl = document.getElementById('rotation-sit-med-ticks');
+    var tickWaitEl = document.getElementById('rotation-tick-wait-max');
     if (window.RotationEngine && window.RotationEngine.computeBaseManaRegenPerTick) {
       var sitForMedTicksNow = !!(sitMedEl && sitMedEl.checked);
-      var baseRegenNow = window.RotationEngine.computeBaseManaRegenPerTick(gearAA.caster.level, sitForMedTicksNow);
-      lines.push('<div style="margin-top:0.35rem;font-size:0.8rem;color:var(--muted);">' +
-        '<strong style="' + LABEL + '">Base mana regen/tick (' + (sitForMedTicksNow ? 'sitting/medding' : 'standing') + '):</strong> ' +
-        '<span style="' + VALUE + '">' + baseRegenNow + '</span> ' +
-        '<span>(6s tick' + (sitForMedTicksNow ? ', assumes Meditate skill trained to cap — sim will hold off casts that straddle a tick' : '') + '; on top of the Mana regen/tick field above)</span>' +
-        '</div>');
+      var baseStandingNow = window.RotationEngine.computeBaseManaRegenPerTick(gearAA.caster.level, false);
+      if (!sitForMedTicksNow) {
+        lines.push('<div style="margin-top:0.35rem;font-size:0.8rem;color:var(--muted);">' +
+          '<strong style="' + LABEL + '">Base mana regen/tick (standing):</strong> ' +
+          '<span style="' + VALUE + '">' + baseStandingNow + '</span> ' +
+          '<span>(6s tick; on top of the Mana regen/tick field above)</span>' +
+          '</div>');
+      } else {
+        var baseSittingNow = window.RotationEngine.computeBaseManaRegenPerTick(gearAA.caster.level, true);
+        var tickWaitNow = tickWaitEl ? parseFloat(tickWaitEl.value) : 6;
+        lines.push('<div style="margin-top:0.35rem;font-size:0.8rem;color:var(--muted);">' +
+          '<strong style="' + LABEL + '">Base mana regen/tick:</strong> ' +
+          '<span style="' + VALUE + '">' + baseSittingNow + ' sitting</span> / ' +
+          '<span style="' + VALUE + '">' + baseStandingNow + ' standing</span> ' +
+          '<span>(6s tick, sitting assumes Meditate skill trained to cap; on top of the Mana regen/tick field above — sim waits up to ' +
+          tickWaitNow.toFixed(2) + 's for an imminent tick before giving up and casting through it)</span>' +
+          '</div>');
+      }
     }
     if (sitMedEl && !sitMedEl._rotationSummaryBound) {
       sitMedEl._rotationSummaryBound = true;
       sitMedEl.addEventListener('change', renderRotationGearSummary);
+    }
+    if (tickWaitEl && !tickWaitEl._rotationSummaryBound) {
+      tickWaitEl._rotationSummaryBound = true;
+      tickWaitEl.addEventListener('change', renderRotationGearSummary);
     }
 
     var innateChance = (window.RotationEngine && window.RotationEngine.wizardInnateCritChance)
@@ -13078,6 +13102,17 @@
     apply();
   })();
 
+  (function initTickWaitSlider() {
+    var slider = document.getElementById('rotation-tick-wait-max');
+    var label = document.getElementById('rotation-tick-wait-max-label');
+    if (!slider || !label) return;
+    function apply() {
+      label.textContent = parseFloat(slider.value).toFixed(2) + 's';
+    }
+    slider.addEventListener('input', apply);
+    apply();
+  })();
+
   var btnManualAdd = document.getElementById('rotation-manual-add-btn');
   if (btnManualAdd) {
     btnManualAdd.addEventListener('click', function () {
@@ -13262,16 +13297,26 @@
       }
 
       var sitForMedTicks = !!(document.getElementById('rotation-sit-med-ticks') || {}).checked;
-      var baseManaRegenPerTick = (window.RotationEngine && window.RotationEngine.computeBaseManaRegenPerTick)
-        ? window.RotationEngine.computeBaseManaRegenPerTick(gearAA.caster.level, sitForMedTicks)
-        : (sitForMedTicks ? 2 : 1);
+      var extraManaRegen = v('rotation-mana-regen', 0);
+      var computeBaseRegen = (window.RotationEngine && window.RotationEngine.computeBaseManaRegenPerTick)
+        ? window.RotationEngine.computeBaseManaRegenPerTick
+        : function (level, sitting) { return sitting ? 2 : 1; };
+      // Standing rate always applies to the continuous approximation (box
+      // off) and to any tick that lands mid-cast when the box is on but the
+      // wait wasn't worth it; sitting rate only applies to ticks actually
+      // caught idle/seated — see rotationEngine.js's applyPendingManaTicks
+      // vs applyTicksDuringCast.
+      var manaRegenPerTickStanding = extraManaRegen + computeBaseRegen(gearAA.caster.level, false);
+      var manaRegenPerTickSitting = extraManaRegen + computeBaseRegen(gearAA.caster.level, true);
+      var maxTickWaitSec = v('rotation-tick-wait-max', 6);
 
       var config = {
         pool: pool,
         offGlobalSpellId: offGlobalSpellId,
         fightDurationSec: v('rotation-duration', 600),
         maxMana: v('rotation-max-mana', 0),
-        manaRegenPerTick: v('rotation-mana-regen', 0) + baseManaRegenPerTick,
+        manaRegenPerTick: manaRegenPerTickStanding,
+        manaRegenPerTickSitting: manaRegenPerTickSitting,
         resist: resistConfig,
         priorityMode: radioVal('rotation-priority-mode', 'dps'),
         manualOrder: manualOrder,
@@ -13281,7 +13326,8 @@
         focusEffects: gearAA.focusEffects,
         caster: gearAA.caster,
         specialization: gearAA.specialization,
-        sitForMedTicks: sitForMedTicks
+        sitForMedTicks: sitForMedTicks,
+        maxTickWaitSec: maxTickWaitSec
       };
 
       var result = RotationEngine.simulateRotation(config);

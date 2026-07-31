@@ -398,17 +398,28 @@
     // "Sit for Med Ticks": this server never lets you cast while sitting
     // (must stand to cast), so catching the 6s regen tick's sitting/
     // meditate rate means deliberately not being mid-cast when it lands.
-    // With this on, the sim guarantees every tick is caught by holding off
-    // (sitting idle) on any cast that would still be running when the next
-    // tick fires, then casting right after — trading some idle/GCD time for
-    // the full per-tick amount landing exactly on schedule, discretely,
-    // rather than the smoothed continuous approximation used otherwise.
-    // Meaningless with unlimited mana (nothing to conserve), so it's a
-    // no-op there.
+    // With this on, the sim tracks the exact tick schedule and, for any
+    // cast that would still be running when the next tick lands, weighs
+    // waiting (sitting idle) for it against just casting through — see
+    // maxTickWaitSec below — rather than the smoothed continuous
+    // approximation used when this is off. Meaningless with unlimited mana
+    // (nothing to conserve), so it's a no-op there.
     var sitForMedTicks = !!config.sitForMedTicks && !unlimited;
-    var manaPerTick = config.manaRegenPerTick || 0;
+    // Ticks landing while genuinely idle (no candidate ready, or a
+    // deliberate wait below) are credited at the sitting/meditate rate;
+    // ticks landing mid-cast (because waiting wasn't worth it) only get
+    // the standing rate — same two numbers CalcManaRegen would produce for
+    // those two states. Falls back to manaRegenPerTick for both if the
+    // caller doesn't distinguish them (e.g. older callers/tests).
+    var manaPerTickStanding = config.manaRegenPerTick || 0;
+    var manaPerTickSitting = config.manaRegenPerTickSitting != null ? config.manaRegenPerTickSitting : manaPerTickStanding;
+    // How long you're willing to sit idle for an imminent tick before
+    // deciding it's not worth it and just casting through instead (0-6s;
+    // 6 = always wait, however long; 0 = never wait, take the standing
+    // rate on whatever tick lands mid-cast). From the new slider.
+    var maxTickWaitSec = Math.max(0, Math.min(6, config.maxTickWaitSec != null ? config.maxTickWaitSec : 6));
     var nextManaTickAt = 6;
-    var regenPerSec = sitForMedTicks ? 0 : manaPerTick / 6;
+    var regenPerSec = sitForMedTicks ? 0 : manaPerTickStanding / 6;
 
     if (!pool.length || fightDurationSec <= 0) {
       return {
@@ -469,13 +480,26 @@
       return Math.min(maxMana, mana + (time - lastManaUpdateT) * regenPerSec);
     }
 
-    // Applies every 6s tick that has landed by `time` — only meaningful
-    // when sitForMedTicks, since the scheduling below guarantees each one
-    // is caught (never mid-cast when it lands).
+    // Applies every 6s tick that has landed by `time`, at the sitting rate —
+    // only called at genuinely idle points (top of loop, after a deliberate
+    // wait), where `time` is never inside an active cast bar, so every tick
+    // caught here is a real sitting tick.
     function applyPendingManaTicks(time) {
       if (!sitForMedTicks) return;
       while (nextManaTickAt <= time) {
-        mana = Math.min(maxMana, mana + manaPerTick);
+        mana = Math.min(maxMana, mana + manaPerTickSitting);
+        lastManaUpdateT = nextManaTickAt;
+        nextManaTickAt += 6;
+      }
+    }
+
+    // Applies every 6s tick landing inside [castStart, castEnd) — a cast
+    // the sim decided to run through rather than wait out — at the standing
+    // rate, since the caster was mid-cast (not sitting) for those.
+    function applyTicksDuringCast(castEnd) {
+      if (!sitForMedTicks) return;
+      while (nextManaTickAt < castEnd && nextManaTickAt < fightDurationSec) {
+        mana = Math.min(maxMana, mana + manaPerTickStanding);
         lastManaUpdateT = nextManaTickAt;
         nextManaTickAt += 6;
       }
@@ -539,14 +563,22 @@
 
         // Would this cast still be running when the next tick lands? Since
         // you can't cast while sitting, that tick would land while standing
-        // (mid-cast) and only grant the standing rate — so instead, sit and
-        // wait for the tick, then reconsider once it's landed.
+        // (mid-cast) and only grant the standing rate. Whether it's worth
+        // sitting out the wait for the full sitting rate instead depends on
+        // how long the wait actually is — maxTickWaitSec caps how much idle
+        // time you're willing to eat for it; past that, just cast through
+        // and take the standing rate on that tick (applyTicksDuringCast
+        // below), same as leaving the checkbox off.
         if (sitForMedTicks && nextManaTickAt < fightDurationSec && nextManaTickAt < castEnd - 1e-9) {
-          t = nextManaTickAt;
-          continue;
+          var tickWaitNeeded = nextManaTickAt - t;
+          if (tickWaitNeeded <= maxTickWaitSec + 1e-9) {
+            t = nextManaTickAt;
+            continue;
+          }
         }
 
         if (!unlimited) { mana = m - best.mana; lastManaUpdateT = t; }
+        applyTicksDuringCast(castEnd);
 
         // Real crit roll for this specific cast (one roll per cast, even for
         // a multi-wave rain/DoT — real per-wave/per-tick crit independence
