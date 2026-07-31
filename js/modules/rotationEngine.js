@@ -431,7 +431,8 @@
         ranOutOfManaAt: null, log: [], truncatedPool: truncatedPool, gearSummary: gearSummary,
         maxHit: 0, critCount: 0, critRate: 0, critDamageBonus: 0, critDps: 0,
         scfCritCount: 0, innateCritCount: 0, quickDamageCastCount: 0, manualMode: !!manualOrder,
-        focusDamageGain: 0, focusDamageGainDps: 0, focusManaSaved: 0, focusManaSavedPerSec: 0
+        focusDamageGain: 0, focusDamageGainDps: 0, focusManaSaved: 0, focusManaSavedPerSec: 0,
+        sitForMedTicks: sitForMedTicks, manaTickLog: [], sitTickCount: 0, castThroughTickCount: 0
       };
     }
 
@@ -476,6 +477,12 @@
     var expectedCritCount = 0;
     var quickDamageCastCount = 0;
     var ranOutOfManaAt = null;
+    // One entry per 6s tick that actually landed in-fight while
+    // sitForMedTicks is on, in order — {time, sitting, manaGained} — so the
+    // report can count sat-for vs cast-through ticks and the timeline can
+    // mark exactly where each one landed.
+    var manaTickLog = [];
+    var sitTickCount = 0, castThroughTickCount = 0;
 
     function manaAt(time) {
       if (unlimited) return Infinity;
@@ -491,6 +498,8 @@
       while (nextManaTickAt <= time) {
         mana = Math.min(maxMana, mana + manaPerTickSitting);
         lastManaUpdateT = nextManaTickAt;
+        manaTickLog.push({ time: nextManaTickAt, sitting: true, manaGained: manaPerTickSitting });
+        sitTickCount += 1;
         nextManaTickAt += 6;
       }
     }
@@ -503,6 +512,8 @@
       while (nextManaTickAt < castEnd && nextManaTickAt < fightDurationSec) {
         mana = Math.min(maxMana, mana + manaPerTickStanding);
         lastManaUpdateT = nextManaTickAt;
+        manaTickLog.push({ time: nextManaTickAt, sitting: false, manaGained: manaPerTickStanding });
+        castThroughTickCount += 1;
         nextManaTickAt += 6;
       }
     }
@@ -694,6 +705,12 @@
       log: log,
       truncatedPool: truncatedPool,
       gearSummary: gearSummary,
+      // Only populated when sitForMedTicks is on — see applyPendingManaTicks
+      // (sitting: true) / applyTicksDuringCast (sitting: false) above.
+      sitForMedTicks: sitForMedTicks,
+      manaTickLog: manaTickLog,
+      sitTickCount: sitTickCount,
+      castThroughTickCount: castThroughTickCount,
       // Crit stats — real per-cast rolls (see the isCrit roll above), not an
       // expected-value estimate. maxHit is the single largest cast; critDps
       // is the incremental damage attributable to critting (castDamage minus
@@ -822,6 +839,11 @@
     }
     if (result.ranOutOfManaAt != null) {
       lines.push(pad('  Ran out of mana at:', fmt(result.ranOutOfManaAt, 1) + ' sec'));
+    }
+    if (result.sitForMedTicks) {
+      var totalTicks = result.sitTickCount + result.castThroughTickCount;
+      lines.push(pad('  Med ticks (sat for / cast through):', fmt(result.sitTickCount, 0) + ' / ' +
+        fmt(result.castThroughTickCount, 0) + ' of ' + fmt(totalTicks, 0) + ' total ticks'));
     }
     if (result.truncatedPool) {
       lines.push('  Note: pool trimmed to the first ' + MAX_MEMORIZED_SPELLS +
@@ -1024,10 +1046,14 @@
     // Rough average glyph width for the system sans at FONT_SIZE — used only
     // to decide whether a label fits; skip it rather than let it clip.
     var CHAR_WIDTH = 5.8;
+    // Extra row above the lanes for med-tick markers (Sit for Med Ticks) —
+    // 0 when that option is off so the chart is unchanged from before.
+    var hasMedTicks = !!(result.sitForMedTicks && result.manaTickLog && result.manaTickLog.length);
+    var TICK_ROW_H = hasMedTicks ? 14 : 0;
 
     var hasOffGlobal = result.log.some(function (e) { return e.kind === 'offGlobal'; });
-    var laneY = { gcd: 0, offGlobal: hasOffGlobal ? (LANE_H + LANE_GAP) : 0 };
-    var plotH = hasOffGlobal ? (2 * LANE_H + LANE_GAP) : LANE_H;
+    var laneY = { gcd: TICK_ROW_H, offGlobal: TICK_ROW_H + (hasOffGlobal ? (LANE_H + LANE_GAP) : 0) };
+    var plotH = TICK_ROW_H + (hasOffGlobal ? (2 * LANE_H + LANE_GAP) : LANE_H);
 
     var windowSec = Math.min(result.durationSec, 300);
     var visible = result.log.filter(function (e) { return e.time < windowSec; });
@@ -1039,8 +1065,24 @@
     var svg = [];
     for (var s = 0; s <= windowSec; s += GRID_STEP) {
       var gx = LEAD_IN + s * PX_PER_SEC;
-      svg.push('<line x1="' + gx + '" y1="0" x2="' + gx + '" y2="' + plotH + '" stroke="#2c2c2a" stroke-width="1"/>');
+      svg.push('<line x1="' + gx + '" y1="' + TICK_ROW_H + '" x2="' + gx + '" y2="' + plotH + '" stroke="#2c2c2a" stroke-width="1"/>');
       svg.push('<text x="' + gx + '" y="' + (height - 5) + '" font-size="10" fill="#898781" text-anchor="middle">' + s + 's</text>');
+    }
+
+    if (hasMedTicks) {
+      result.manaTickLog.forEach(function (tk) {
+        if (tk.time >= windowSec) return;
+        var tx = LEAD_IN + tk.time * PX_PER_SEC;
+        var tickColor = tk.sitting ? TPS_LINE_COLOR : WARNING_COLOR;
+        var tickTip = (tk.sitting ? 'Sat for med tick' : 'Cast through tick (standing rate)') +
+          ' — ' + tk.time.toFixed(2) + 's, +' + Math.round(tk.manaGained) + ' mana';
+        svg.push(
+          '<line x1="' + tx.toFixed(1) + '" y1="' + TICK_ROW_H + '" x2="' + tx.toFixed(1) + '" y2="' + plotH +
+          '" stroke="' + tickColor + '" stroke-width="1.5" stroke-dasharray="2,2" opacity="0.65"/>' +
+          '<polygon points="' + (tx - 4).toFixed(1) + ',0 ' + (tx + 4).toFixed(1) + ',0 ' + tx.toFixed(1) + ',' + (TICK_ROW_H - 1) +
+          '" fill="' + tickColor + '"><title>' + escapeXml(tickTip) + '</title></polygon>'
+        );
+      });
     }
 
     visible.forEach(function (e) {
@@ -1118,13 +1160,25 @@
     var waveNote = hasVisibleWaves
       ? ' The small dots after a bar are its rain waves or DoT ticks landing over time.'
       : '';
+    var tickNote = hasMedTicks
+      ? ' The triangles/dashed lines mark each 6s med tick — green if you sat for it, amber if a cast ran through it.'
+      : '';
+
+    var tickLegend = hasMedTicks
+      ? '<span style="display:inline-flex;align-items:center;gap:0.35rem;margin:0 0.75rem 0.3rem 0;">' +
+        '<span style="width:10px;height:10px;border-radius:2px;flex:none;background:' + TPS_LINE_COLOR + ';"></span>' +
+        '<span style="font-size:0.8rem;color:var(--text);">Sat for tick — ' + result.sitTickCount + '</span></span>' +
+        '<span style="display:inline-flex;align-items:center;gap:0.35rem;margin:0 0.75rem 0.3rem 0;">' +
+        '<span style="width:10px;height:10px;border-radius:2px;flex:none;background:' + WARNING_COLOR + ';"></span>' +
+        '<span style="font-size:0.8rem;color:var(--text);">Cast through tick — ' + result.castThroughTickCount + '</span></span>'
+      : '';
 
     return (
-      '<p class="hint" style="margin:0 0 0.4rem;">Cast order, earliest to latest.' + windowNote + waveNote + ' Hover a block for details.</p>' +
+      '<p class="hint" style="margin:0 0 0.4rem;">Cast order, earliest to latest.' + windowNote + waveNote + tickNote + ' Hover a block for details.</p>' +
       '<div style="overflow-x:auto;border:1px solid var(--border);border-radius:4px;background:var(--input-bg);padding:0.5rem 0.5rem 0.25rem;">' +
       '<svg width="' + width + '" height="' + height + '" style="display:block;">' + svg.join('') + laneLabels + '</svg>' +
       '</div>' +
-      '<div style="margin-top:0.5rem;">' + legend + '</div>'
+      '<div style="margin-top:0.5rem;">' + tickLegend + legend + '</div>'
     );
   }
 

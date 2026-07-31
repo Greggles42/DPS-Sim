@@ -3225,6 +3225,7 @@
     <details id="version-log-details">
     <summary style="cursor:pointer; font-size:1.17em; font-weight:bold; margin:0; list-style:revert;">Version log</summary>
     <ul style="font-size: 0.9rem; color: var(--muted); margin: 0.5rem 0 0; padding-left: 1.25rem;">
+      <li><strong>1.65</strong> — Rotation Planner: when <strong>Sit for Med Ticks</strong> is on, the <strong>Cast Order</strong> timeline now marks every 6s med tick with a small triangle/dashed line — green if you sat for it, amber if a cast ran through it and only got the standing rate — with a legend counting each below the chart. The report adds a matching <strong>Med ticks (sat for / cast through)</strong> line. Mechanics guide updated.</li>
       <li><strong>1.64</strong> — Fix: <strong>Simulate Rotation</strong> (and Ranged tab spell casting) never passed a seed to the RNG, so crit rolls always fell back to the same fixed default seed and every run with identical inputs produced byte-identical DPS/crit counts — no run-to-run variance like Melee/Tanking already have. Both now generate a fresh random seed per click, matching the rest of the sim. Mechanics guide corrected (previously described the old fixed-seed behavior as intentional).</li>
       <li><strong>1.63</strong> — Rotation tab: new <strong>Max tick wait</strong> slider (0-6s, next to Sit for Med Ticks) caps how long the sim is willing to sit idle for an imminent tick before giving up and casting through it at the standing rate instead. Previously the checkbox always waited however long it took; now it only waits when the gap is within the slider's threshold, matching a real player's tolerance for delaying a cast to catch a tick. At 6s it behaves as before (always wait); at 0s it's identical to unchecked. Mechanics guide updated.</li>
       <li><strong>1.62</strong> — Correction to <strong>Sit for Med Ticks</strong> (added in 1.61): you cannot cast while sitting, so catching the higher sitting/meditate regen tick actually requires holding off casting when a tick is imminent, not just sitting for free while continuing to cast. The sim now tracks the exact 6-second tick schedule and, when checked, delays any cast that would still be running when the next tick lands (sits idle until it passes, banks the full amount, then casts) — a real DPS-for-sustain trade rather than a free bonus. Mechanics guide updated.</li>
@@ -3787,7 +3788,7 @@
       }
 
       // When releasing: 1) Bump VERSION below. 2) Add a new <li> at the top of the Version log section above.
-      const VERSION = '1.64';
+      const VERSION = '1.65';
       const versionEl = $('app-version');
       if (versionEl) versionEl.textContent = 'v' + VERSION;
 
