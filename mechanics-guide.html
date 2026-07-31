@@ -1394,19 +1394,23 @@
         A server regen tick fires every 6 seconds (<code>Client::CalcManaRegen</code>, <code>client_mods.cpp</code>).
         What it grants depends only on whether you're <em>sitting at the instant it lands</em>: 1 mana if standing,
         2 if sitting, or up to <code>4 + floor(skill/15)</code> — around 17 at max Meditate skill — if sitting with
-        trained Meditate skill (plus +1 at level 62 and another +1 at level 64, always). There's no separate penalty
-        for casting: this server never forces you to stand up when you cast (no <code>Stand()</code> call anywhere
-        in the cast path), so a caster who sits once at the start of the fight stays seated — and medding — through
-        every subsequent cast, with zero DPS cost.
+        trained Meditate skill (plus +1 at level 62 and another +1 at level 64, always). You cannot cast while
+        sitting, so catching the higher rate on a given tick means deliberately not being mid-cast when it lands —
+        the classic "sit for the tick" habit.
       </p>
       <p>
-        The <strong>Sit for Med Ticks</strong> checkbox (Simulation card) picks which of those two base rates the
-        sim uses for the whole fight: checked assumes you're seated throughout and applies the sitting/meditate
-        rate (Meditate skill assumed trained to the class/level cap, 5&nbsp;&times;&nbsp;level&nbsp;+&nbsp;5 capped
-        at 200 — the same "assume skills are trained to cap" convention used elsewhere in the sim); unchecked
-        assumes you're on your feet the whole time (e.g. kiting, repositioning) and only the standing rate applies.
-        This base amount is computed automatically from level and added on top of whatever's in the
-        <strong>Mana regen/tick</strong> field, which now represents only the extra, non-base sources (gear focus
+        The <strong>Sit for Med Ticks</strong> checkbox (Simulation card) models that timing decision directly
+        rather than just picking a flat average rate. When checked, the sim tracks the exact 6-second tick schedule
+        and — if starting the next queued cast would still have it running when the next tick lands — holds off
+        (sits idle) until the tick passes, banks the full sitting/meditate amount, then casts right after. This is a
+        real DPS trade: casts that would otherwise straddle a tick get delayed by up to a few seconds, so checking
+        this box can lower DPS while raising sustain, and the report reflects both directions honestly rather than
+        assuming a free bonus. Meditate skill is assumed trained to the class/level cap
+        (5&nbsp;&times;&nbsp;level&nbsp;+&nbsp;5, capped at 200 — the same "assume skills are trained to cap"
+        convention used elsewhere in the sim). Unchecked assumes you just keep casting through every tick and only
+        ever get the standing rate (1/tick) — no waiting, no DPS cost, but the lowest regen. Either way this base
+        rate is computed automatically from level and added on top of whatever's in the
+        <strong>Mana regen/tick</strong> field, which represents only the extra, non-base sources (gear focus
         effects, AA <code>ManaRegen</code>, spell bonuses like Donal's BP) — enter those the same way you always
         did. The AA &amp; Gear card shows the computed base value once a spell pool is loaded, and again live if you
         toggle the checkbox.

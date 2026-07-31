@@ -395,7 +395,20 @@
     var manualOrder = (config.manualOrder && config.manualOrder.length) ? config.manualOrder : null;
     var maxMana = config.maxMana != null ? config.maxMana : 0;
     var unlimited = maxMana <= 0;
-    var regenPerSec = ((config.manaRegenPerTick || 0)) / 6;
+    // "Sit for Med Ticks": this server never lets you cast while sitting
+    // (must stand to cast), so catching the 6s regen tick's sitting/
+    // meditate rate means deliberately not being mid-cast when it lands.
+    // With this on, the sim guarantees every tick is caught by holding off
+    // (sitting idle) on any cast that would still be running when the next
+    // tick fires, then casting right after — trading some idle/GCD time for
+    // the full per-tick amount landing exactly on schedule, discretely,
+    // rather than the smoothed continuous approximation used otherwise.
+    // Meaningless with unlimited mana (nothing to conserve), so it's a
+    // no-op there.
+    var sitForMedTicks = !!config.sitForMedTicks && !unlimited;
+    var manaPerTick = config.manaRegenPerTick || 0;
+    var nextManaTickAt = 6;
+    var regenPerSec = sitForMedTicks ? 0 : manaPerTick / 6;
 
     if (!pool.length || fightDurationSec <= 0) {
       return {
@@ -456,9 +469,26 @@
       return Math.min(maxMana, mana + (time - lastManaUpdateT) * regenPerSec);
     }
 
+    // Applies every 6s tick that has landed by `time` — only meaningful
+    // when sitForMedTicks, since the scheduling below guarantees each one
+    // is caught (never mid-cast when it lands).
+    function applyPendingManaTicks(time) {
+      if (!sitForMedTicks) return;
+      while (nextManaTickAt <= time) {
+        mana = Math.min(maxMana, mana + manaPerTick);
+        lastManaUpdateT = nextManaTickAt;
+        nextManaTickAt += 6;
+      }
+    }
+
     var guard = 0;
     while (t < fightDurationSec && guard++ < ITERATION_CEILING) {
       t = Math.max(t, busyUntil);
+      // Applied against the clamped time even on the exiting iteration, so
+      // a tick that lands in-fight but after the last real decision point
+      // (e.g. nothing left castable before the fight ends) still counts
+      // toward the reported mana remaining.
+      applyPendingManaTicks(Math.min(t, fightDurationSec));
       if (t >= fightDurationSec) break;
 
       var m = manaAt(t);
@@ -506,6 +536,16 @@
 
         var offGlobalBest = isOffGlobal(best, offGlobalSpellId);
         var castEnd = t + best.castTime;
+
+        // Would this cast still be running when the next tick lands? Since
+        // you can't cast while sitting, that tick would land while standing
+        // (mid-cast) and only grant the standing rate — so instead, sit and
+        // wait for the tick, then reconsider once it's landed.
+        if (sitForMedTicks && nextManaTickAt < fightDurationSec && nextManaTickAt < castEnd - 1e-9) {
+          t = nextManaTickAt;
+          continue;
+        }
+
         if (!unlimited) { mana = m - best.mana; lastManaUpdateT = t; }
 
         // Real crit roll for this specific cast (one roll per cast, even for
