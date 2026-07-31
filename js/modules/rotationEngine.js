@@ -131,6 +131,35 @@
   }
 
   /**
+   * Base (non-item/AA/spell) mana regen per 6-second server tick —
+   * Client::CalcManaRegen (client_mods.cpp): not famished, standing = 1;
+   * sitting = 2; sitting with Meditate skill = 3 (skill <= 1) or
+   * 4 + floor(skill/20)... actually floor(skill/15) per source; +1 at
+   * level 62, +1 more at level 64 (both apply regardless of sit state).
+   * There's no separate "casting" penalty in this server's source — sit-
+   * casting is unrestricted (no Stand() is ever forced by casting), so a
+   * caster who sits once at the start of a fight stays seated, and
+   * medding, through every subsequent cast. "Sit for Med Ticks" therefore
+   * doesn't cost any cast time/DPS in this sim; it only changes which of
+   * these two base rates applies for the whole fight. Meditate skill is
+   * assumed trained to the class/level cap (5*level+5, capped at 200),
+   * same "assume skills are trained to cap" convention as elsewhere.
+   */
+  var MEDITATE_SKILL_CAP = 200;
+
+  function computeBaseManaRegenPerTick(level, sitForMedTicks) {
+    var lvl = Number(level) || 1;
+    var regen = sitForMedTicks ? 2 : 1;
+    if (sitForMedTicks) {
+      var skill = Math.min(MEDITATE_SKILL_CAP, lvl * 5 + 5);
+      regen = skill > 1 ? 4 + Math.floor(skill / 15) : 3;
+    }
+    if (lvl > 61) regen += 1;
+    if (lvl > 63) regen += 1;
+    return regen;
+  }
+
+  /**
    * Wizards have a separate, innate direct-damage crit chance that exists
    * with zero AA points spent — Client::TryWizardInnateCrit in effects.cpp:
    *   chance = ((min(INT,255) + min(DEX,255)) / 2 + 32) / 10000
@@ -1210,6 +1239,7 @@
     buildRotationDpsOverTimeHtml: buildRotationDpsOverTimeHtml,
     summarizeRotationCycle: summarizeRotationCycle,
     wizardInnateCritChance: wizardInnateCritChance,
+    computeBaseManaRegenPerTick: computeBaseManaRegenPerTick,
     SPELL_CRIT_RANKS: SPELL_CRIT_RANKS,
     SPELL_CRIT_MASTERY_CHANCE: SPELL_CRIT_MASTERY_CHANCE,
     QUICK_DAMAGE_CAST_MOD: QUICK_DAMAGE_CAST_MOD

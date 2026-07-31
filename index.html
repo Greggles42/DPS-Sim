@@ -3142,8 +3142,13 @@
       <div class="target-fight-row">
         <div><label for="rotation-duration" class="small-label">Duration (sec)</label><input type="number" id="rotation-duration" value="600" min="1" style="width:6rem;"></div>
         <div><label for="rotation-max-mana" class="small-label">Max mana <span class="hint" style="margin:0;">(0=unlimited)</span></label><input type="number" id="rotation-max-mana" value="0" min="0" style="width:6rem;"></div>
-        <div><label for="rotation-mana-regen" class="small-label">Mana regen/tick <span class="hint" style="margin:0;">(6s, incl. buffs/meditation)</span></label><input type="number" id="rotation-mana-regen" value="0" min="0" style="width:6rem;"></div>
+        <div><label for="rotation-mana-regen" class="small-label">Mana regen/tick <span class="hint" style="margin:0;">(6s, extra — gear/AA/spell only)</span></label><input type="number" id="rotation-mana-regen" value="0" min="0" style="width:6rem;"></div>
       </div>
+      <label style="display:flex;align-items:center;gap:0.4rem;margin-top:0.6rem;">
+        <input type="checkbox" id="rotation-sit-med-ticks">
+        <span>Sit for Med Ticks <span class="hint" style="margin:0;">(stay seated the whole fight to catch every 6s regen tick at the higher sitting/meditate rate instead of standing)</span></span>
+      </label>
+      <p class="hint" style="margin:0.3rem 0 0;">A server regen tick lands every 6 seconds; what you get depends on whether you're sitting <em>at that instant</em> (standing = 1/tick, sitting = 2/tick, sitting with Meditate skill = up to ~17/tick at max skill). Casting doesn't stand you up on this server, so sitting once and casting from your seat the whole fight costs no DPS — this box just picks which base rate to add on top of the gear/AA/spell regen above; the computed base is shown below once you simulate.</p>
       <p class="hint" style="margin:0.75rem 0 0.3rem;font-weight:600;color:var(--text);">Priority mode</p>
       <div class="radio-group">
         <label><input type="radio" name="rotation-priority-mode" value="dps" checked><span class="radio-option-main">DPS</span> <span class="radio-option-note">(maximize damage/time)</span></label>
@@ -3214,6 +3219,7 @@
     <details id="version-log-details">
     <summary style="cursor:pointer; font-size:1.17em; font-weight:bold; margin:0; list-style:revert;">Version log</summary>
     <ul style="font-size: 0.9rem; color: var(--muted); margin: 0.5rem 0 0; padding-left: 1.25rem;">
+      <li><strong>1.61</strong> — Rotation tab: new <strong>Sit for Med Ticks</strong> checkbox (Simulation card) models the classic mana-regen tick — a server tick lands every 6 seconds and grants 1 mana/tick standing, 2 sitting, or up to ~17 sitting with maxed Meditate skill (<code>Client::CalcManaRegen</code>). Since this server never forces you to stand up to cast, sitting through the whole fight costs no DPS — the checkbox just picks which base rate applies, computed automatically from level/Meditate skill and added on top of the <strong>Mana regen/tick</strong> field, which now represents only gear/AA/spell regen (previously that field had to include base regen manually). Mechanics guide updated.</li>
       <li><strong>1.60</strong> — AA Configurator corrections: <strong>Spell Casting Fury Mastery</strong> and <strong>Quick Damage</strong> moved from the Luclin Archetype section to Luclin Class (they're class-tier AAs, not archetype); <strong>Spell Casting Expertise</strong>, <strong>Spell Casting Deftness</strong>, and <strong>Spell Casting Subtlety</strong> moved from Luclin Class to Luclin Archetype; <strong>Wizard</strong> no longer offered <strong>Spell Casting Reinforcement</strong> (not on that class's AA line). Mechanics guide updated.</li>
       <li><strong>1.59</strong> — Rotation Planner report: since the sim only replays a single seeded run (unlike Melee/Tanking's multi-trial average), the existing <strong>Crits landed</strong> line was just that one run's actual roll outcome. Added a new <strong>Avg crits per run</strong> line showing the analytic expected crit count (each cast's real crit probability — Spell Casting Fury's chance, plus the wizard innate chance on casts SCF didn't already crit — summed across every cast), so the long-run average is visible alongside the single realized roll. Mechanics guide updated.</li>
       <li><strong>1.58</strong> — Wizard's default checked rotation spells changed to a fixed 8-spell set (Garrison's Superior Sundering, Elnerick's Electrical Rending, Ice Spear of Solist, Ancient: Destruction of Ice, Draught of Ice, Tears of Prexus, Tears of Solusek, Tears of Druzzil) instead of the generic top-8-by-damage pick; every other class is unaffected. New <strong>Spell Specialization</strong> control on the Rotation tab's AA &amp; Gear card discounts mana cost for spells in the chosen school (Abjuration/Alteration/Conjuration/Divination/Evocation), matching <code>Client::GetActSpellCost</code>'s <code>1 + skill/20</code> formula plus the Spell Casting Mastery AA's 2.5/5/10% bonus — the skill is assumed trained to the class/level cap (5×level+5, capped at 200), matching this server's one-specialization-past-50 rule, and the dropdown auto-picks whichever school the checked pool leans on most. Mechanics guide updated.</li>
@@ -3772,7 +3778,7 @@
       }
 
       // When releasing: 1) Bump VERSION below. 2) Add a new <li> at the top of the Version log section above.
-      const VERSION = '1.60';
+      const VERSION = '1.61';
       const versionEl = $('app-version');
       if (versionEl) versionEl.textContent = 'v' + VERSION;
 
@@ -12810,6 +12816,21 @@
         '</div>');
     }
 
+    var sitMedEl = document.getElementById('rotation-sit-med-ticks');
+    if (window.RotationEngine && window.RotationEngine.computeBaseManaRegenPerTick) {
+      var sitForMedTicksNow = !!(sitMedEl && sitMedEl.checked);
+      var baseRegenNow = window.RotationEngine.computeBaseManaRegenPerTick(gearAA.caster.level, sitForMedTicksNow);
+      lines.push('<div style="margin-top:0.35rem;font-size:0.8rem;color:var(--muted);">' +
+        '<strong style="' + LABEL + '">Base mana regen/tick (' + (sitForMedTicksNow ? 'sitting/medding' : 'standing') + '):</strong> ' +
+        '<span style="' + VALUE + '">' + baseRegenNow + '</span> ' +
+        '<span>(6s tick' + (sitForMedTicksNow ? ', assumes Meditate skill trained to cap' : '') + '; on top of the Mana regen/tick field above)</span>' +
+        '</div>');
+    }
+    if (sitMedEl && !sitMedEl._rotationSummaryBound) {
+      sitMedEl._rotationSummaryBound = true;
+      sitMedEl.addEventListener('change', renderRotationGearSummary);
+    }
+
     var innateChance = (window.RotationEngine && window.RotationEngine.wizardInnateCritChance)
       ? window.RotationEngine.wizardInnateCritChance(gearAA.caster.classId, gearAA.caster.level, gearAA.caster.int, gearAA.caster.dex)
       : 0;
@@ -13239,12 +13260,17 @@
         }
       }
 
+      var sitForMedTicks = !!(document.getElementById('rotation-sit-med-ticks') || {}).checked;
+      var baseManaRegenPerTick = (window.RotationEngine && window.RotationEngine.computeBaseManaRegenPerTick)
+        ? window.RotationEngine.computeBaseManaRegenPerTick(gearAA.caster.level, sitForMedTicks)
+        : (sitForMedTicks ? 2 : 1);
+
       var config = {
         pool: pool,
         offGlobalSpellId: offGlobalSpellId,
         fightDurationSec: v('rotation-duration', 600),
         maxMana: v('rotation-max-mana', 0),
-        manaRegenPerTick: v('rotation-mana-regen', 0),
+        manaRegenPerTick: v('rotation-mana-regen', 0) + baseManaRegenPerTick,
         resist: resistConfig,
         priorityMode: radioVal('rotation-priority-mode', 'dps'),
         manualOrder: manualOrder,

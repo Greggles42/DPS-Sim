@@ -1389,6 +1389,29 @@
         internally as a hard cap, independent of the checklist.
       </p>
 
+      <h3>Mana regen and "Sit for Med Ticks"</h3>
+      <p>
+        A server regen tick fires every 6 seconds (<code>Client::CalcManaRegen</code>, <code>client_mods.cpp</code>).
+        What it grants depends only on whether you're <em>sitting at the instant it lands</em>: 1 mana if standing,
+        2 if sitting, or up to <code>4 + floor(skill/15)</code> — around 17 at max Meditate skill — if sitting with
+        trained Meditate skill (plus +1 at level 62 and another +1 at level 64, always). There's no separate penalty
+        for casting: this server never forces you to stand up when you cast (no <code>Stand()</code> call anywhere
+        in the cast path), so a caster who sits once at the start of the fight stays seated — and medding — through
+        every subsequent cast, with zero DPS cost.
+      </p>
+      <p>
+        The <strong>Sit for Med Ticks</strong> checkbox (Simulation card) picks which of those two base rates the
+        sim uses for the whole fight: checked assumes you're seated throughout and applies the sitting/meditate
+        rate (Meditate skill assumed trained to the class/level cap, 5&nbsp;&times;&nbsp;level&nbsp;+&nbsp;5 capped
+        at 200 — the same "assume skills are trained to cap" convention used elsewhere in the sim); unchecked
+        assumes you're on your feet the whole time (e.g. kiting, repositioning) and only the standing rate applies.
+        This base amount is computed automatically from level and added on top of whatever's in the
+        <strong>Mana regen/tick</strong> field, which now represents only the extra, non-base sources (gear focus
+        effects, AA <code>ManaRegen</code>, spell bonuses like Donal's BP) — enter those the same way you always
+        did. The AA &amp; Gear card shows the computed base value once a spell pool is loaded, and again live if you
+        toggle the checkbox.
+      </p>
+
       <h3>Alternate Advancement and item focus effects</h3>
       <p>
         The planner reuses the shared <strong>Alternate Advancement</strong> panel and <strong>Import Inventory</strong>
