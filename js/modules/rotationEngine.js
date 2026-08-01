@@ -159,6 +159,54 @@
     return regen;
   }
 
+  // INT casters (wiz/mag/nec/enc/shd/bard) use INT for mana; WIS casters
+  // (clr/dru/shm/pal/rng/bst) use WIS; everyone else has no mana pool —
+  // Mob::GetCasterClass (mob.cpp).
+  var CASTER_STAT_TYPE = {
+    wizard: 'I', magician: 'I', necromancer: 'I', enchanter: 'I', shadowknight: 'I', bard: 'I',
+    cleric: 'W', druid: 'W', shaman: 'W', paladin: 'W', ranger: 'W', beastlord: 'W'
+  };
+  // The three hybrid casters get no mana pool at all before this level —
+  // Client::CalcMaxMana (client_mods.cpp).
+  var HYBRID_MANA_MIN_LEVEL = { paladin: 9, ranger: 9, beastlord: 9 };
+
+  /** Which final-stat key (int/wis) feeds this class's mana pool, or null if it has none. */
+  function casterStatKeyForClass(classId) {
+    var t = CASTER_STAT_TYPE[String(classId || '').toLowerCase()];
+    return t === 'I' ? 'int' : (t === 'W' ? 'wis' : null);
+  }
+
+  /**
+   * Player max mana pool — Client::CalcBaseMana + CalcMaxMana (client_mods.cpp):
+   *   MindLesserFactor = stat>199 ? floor((stat-199)/2) : 0
+   *   MindFactor = stat - MindLesserFactor
+   *   base = stat>100
+   *     ? floor(floor(5*(MindFactor+20)/2) * 3 * level / 40)
+   *     : floor(floor(5*(MindFactor+200)/2) * 3 * level / 100)
+   * `statTotal` is the caster's final INT or WIS (base + creation points +
+   * gear + buffs — see casterStatKeyForClass for which one). `flatManaBonus`
+   * is any flat mana-pool addition on top (item "Mana" stat + buff SPA 97,
+   * e.g. Koadic's Endless Intellect) — added uncapped, since the server's
+   * 32767 ceiling is far beyond anything reachable at this era's level/gear.
+   */
+  function computeMaxManaPool(classId, level, statTotal, flatManaBonus) {
+    var cls = String(classId || '').toLowerCase();
+    var casterType = CASTER_STAT_TYPE[cls];
+    var lvl = Number(level) || 0;
+    if (!casterType || lvl <= 0) return 0;
+    var minLevel = HYBRID_MANA_MIN_LEVEL[cls];
+    if (minLevel && lvl < minLevel) return 0;
+
+    var stat = Math.max(0, Number(statTotal) || 0);
+    var mindLesserFactor = stat > 199 ? Math.floor((stat - 199) / 2) : 0;
+    var mindFactor = stat - mindLesserFactor;
+    var base = stat > 100
+      ? Math.floor(Math.floor(5 * (mindFactor + 20) / 2) * 3 * lvl / 40)
+      : Math.floor(Math.floor(5 * (mindFactor + 200) / 2) * 3 * lvl / 100);
+
+    return Math.max(0, Math.round(base + (Number(flatManaBonus) || 0)));
+  }
+
   /**
    * Wizards have a separate, innate direct-damage crit chance that exists
    * with zero AA points spent — Client::TryWizardInnateCrit in effects.cpp:
@@ -429,6 +477,8 @@
         totalDamage: 0, totalMana: 0, totalThreat: 0, castCount: 0,
         durationSec: fightDurationSec, dps: 0, manaPerSec: 0, tps: 0,
         manaRemaining: unlimited ? null : maxMana,
+        maxMana: unlimited ? null : maxMana,
+        manaLog: unlimited ? [] : [{ time: 0, mana: maxMana }],
         ranOutOfManaAt: null, log: [], truncatedPool: truncatedPool, gearSummary: gearSummary,
         maxHit: 0, critCount: 0, critRate: 0, critDamageBonus: 0, critDps: 0,
         scfCritCount: 0, innateCritCount: 0, quickDamageCastCount: 0, manualMode: !!manualOrder,
@@ -485,6 +535,12 @@
     // mark exactly where each one landed.
     var manaTickLog = [];
     var sitTickCount = 0, castThroughTickCount = 0;
+    // One entry per point where `mana` actually changes (initial value, each
+    // regen tick, each cast's cost) — {time, mana} — so the DPS-over-time
+    // chart can draw the real mana curve (linear regen between points, same
+    // as manaAt's approximation) instead of re-deriving it from the cast
+    // log. Left empty in unlimited-mana mode (nothing meaningful to chart).
+    var manaLog = unlimited ? [] : [{ time: 0, mana: mana }];
 
     function manaAt(time) {
       if (unlimited) return Infinity;
@@ -501,6 +557,7 @@
         mana = Math.min(maxMana, mana + manaPerTickSitting);
         lastManaUpdateT = nextManaTickAt;
         manaTickLog.push({ time: nextManaTickAt, sitting: true, manaGained: manaPerTickSitting });
+        manaLog.push({ time: nextManaTickAt, mana: mana });
         sitTickCount += 1;
         nextManaTickAt += 6;
       }
@@ -515,6 +572,7 @@
         mana = Math.min(maxMana, mana + manaPerTickStanding);
         lastManaUpdateT = nextManaTickAt;
         manaTickLog.push({ time: nextManaTickAt, sitting: false, manaGained: manaPerTickStanding });
+        manaLog.push({ time: nextManaTickAt, mana: mana });
         castThroughTickCount += 1;
         nextManaTickAt += 6;
       }
@@ -592,7 +650,7 @@
           }
         }
 
-        if (!unlimited) { mana = m - best.mana; lastManaUpdateT = t; }
+        if (!unlimited) { mana = m - best.mana; lastManaUpdateT = t; manaLog.push({ time: t, mana: mana }); }
         applyTicksDuringCast(castEnd);
 
         // Real crit roll for this specific cast (one roll per cast, even for
@@ -693,6 +751,11 @@
       t = Math.min(nextT, fightDurationSec);
     }
 
+    // Final snapshot at the true end of the fight (t above may fall a hair
+    // short of fightDurationSec) so the chart's mana line runs all the way
+    // to the right edge instead of stopping at the last cast/tick.
+    if (!unlimited) manaLog.push({ time: fightDurationSec, mana: manaAt(t) });
+
     return {
       totalDamage: totalDamage,
       totalMana: totalMana,
@@ -703,6 +766,8 @@
       manaPerSec: totalMana / fightDurationSec,
       tps: totalThreat / fightDurationSec,
       manaRemaining: unlimited ? null : manaAt(t),
+      maxMana: unlimited ? null : maxMana,
+      manaLog: manaLog,
       ranOutOfManaAt: ranOutOfManaAt,
       log: log,
       truncatedPool: truncatedPool,
@@ -1198,6 +1263,7 @@
   var DPS_LINE_COLOR = '#3987e5';       // categorical slot 1 — bucketed (instantaneous) DPS
   var ROLLING_LINE_COLOR = '#d95926';   // categorical slot 2 — rolling 30s average
   var TPS_LINE_COLOR = '#199e70';       // categorical slot 3 — bucketed threat/sec
+  var MANA_LINE_COLOR = '#9085e9';      // categorical slot 7 — mana remaining (secondary axis)
   var WARNING_COLOR = '#fab219';    // status palette: reserved, never a series color
   var MUTED_INK = '#898781';
   var GRID_COLOR = '#2c2c2a';
@@ -1256,19 +1322,56 @@
     });
 
     var rollingDps = rollingAverageSeries(events, points.map(function (p) { return p.t; }), ROLL_WINDOW_SEC);
+    // Points still inside the first window haven't accumulated a full
+    // ROLL_WINDOW_SEC of data yet, so their "average" is really just
+    // whatever landed so far divided by a tiny elapsed time (e.g. one early
+    // rain/DoT tick over 2s reads as a huge rate) — not a meaningful trailing
+    // average. Drop them from the line entirely (a real moving average has
+    // no defined value until its window is full) rather than let that
+    // transient spike both distort the plotted line and blow out the axis
+    // scale for the rest of the fight. Falls back to the unfiltered set for
+    // fights shorter than the window, where nothing would ever qualify.
+    var rollingStartIdx = 0;
+    while (rollingStartIdx < points.length && points[rollingStartIdx].t < ROLL_WINDOW_SEC) rollingStartIdx++;
+    if (rollingStartIdx >= points.length) rollingStartIdx = 0;
 
     var maxDps = 0;
     points.forEach(function (p) { if (p.dps > maxDps) maxDps = p.dps; if (p.tps > maxDps) maxDps = p.tps; });
-    rollingDps.forEach(function (v) { if (v > maxDps) maxDps = v; });
+    for (var ri = rollingStartIdx; ri < rollingDps.length; ri++) { if (rollingDps[ri] > maxDps) maxDps = rollingDps[ri]; }
     maxDps = maxDps > 0 ? maxDps * 1.15 : 1;
 
+    // Mana remaining, on its own secondary (right-hand) axis — only when the
+    // sim actually tracked a mana pool (maxMana > 0). manaLog is a sparse
+    // list of {time, mana} snapshots taken whenever mana actually changed
+    // (each regen tick, each cast's cost); between snapshots mana moves
+    // linearly, same approximation manaAt() uses internally, so linear
+    // interpolation between them reproduces the real curve.
+    var hasMana = !!(result.manaLog && result.manaLog.length && result.maxMana != null);
+    var maxMana = hasMana ? result.maxMana : 0;
+    function manaValueAt(time) {
+      var log = result.manaLog;
+      if (time <= log[0].time) return log[0].mana;
+      for (var li = 1; li < log.length; li++) {
+        if (time <= log[li].time) {
+          var prev = log[li - 1], next = log[li];
+          var span = next.time - prev.time;
+          if (span <= 0) return next.mana;
+          return prev.mana + (next.mana - prev.mana) * ((time - prev.time) / span);
+        }
+      }
+      return log[log.length - 1].mana;
+    }
+    var manaSampleTimes = hasMana ? [0].concat(points.map(function (p) { return p.t; })).concat([result.durationSec]) : [];
+    var manaSamples = manaSampleTimes.map(manaValueAt);
+
     var W = 780, H = 200;
-    var marginLeft = 44, marginRight = 12, marginTop = 12, marginBottom = 22;
+    var marginLeft = 44, marginRight = hasMana ? 46 : 12, marginTop = 12, marginBottom = 22;
     var plotW = W - marginLeft - marginRight;
     var plotH = H - marginTop - marginBottom;
 
     function xFor(t) { return marginLeft + (t / result.durationSec) * plotW; }
     function yFor(dps) { return marginTop + plotH - (dps / maxDps) * plotH; }
+    function yForMana(m) { return marginTop + plotH - (maxMana > 0 ? (m / maxMana) * plotH : 0); }
 
     var svg = [];
 
@@ -1280,6 +1383,13 @@
         '" y2="' + gy.toFixed(1) + '" stroke="' + GRID_COLOR + '" stroke-width="1"/>');
       svg.push('<text x="' + (marginLeft - 6) + '" y="' + (gy + 3).toFixed(1) +
         '" font-size="10" fill="' + MUTED_INK + '" text-anchor="end">' + Math.round(val) + '</text>');
+      // Secondary (mana) axis labels share the same gridlines, just relabeled
+      // against the mana scale instead of the DPS/TPS scale.
+      if (hasMana) {
+        var manaVal = (maxMana / yTicks) * gi;
+        svg.push('<text x="' + (W - marginRight + 6) + '" y="' + (gy + 3).toFixed(1) +
+          '" font-size="10" fill="' + MANA_LINE_COLOR + '" text-anchor="start">' + Math.round(manaVal) + '</text>');
+      }
     }
 
     var xTickCount = 6;
@@ -1289,6 +1399,7 @@
         '" font-size="10" fill="' + MUTED_INK + '" text-anchor="middle">' + Math.round(xt) + 's</text>');
     }
 
+    svg.push('<g data-series="dps">');
     var areaPath = 'M' + xFor(0).toFixed(1) + ',' + yFor(0).toFixed(1) + ' ';
     points.forEach(function (p) { areaPath += 'L' + xFor(p.t).toFixed(1) + ',' + yFor(p.dps).toFixed(1) + ' '; });
     areaPath += 'L' + xFor(result.durationSec).toFixed(1) + ',' + yFor(0).toFixed(1) + ' Z';
@@ -1306,18 +1417,24 @@
       svg.push('<circle cx="' + xFor(p.t).toFixed(1) + '" cy="' + yFor(p.dps).toFixed(1) +
         '" r="7" fill="transparent"><title>' + escapeXml(tip) + '</title></circle>');
     });
+    svg.push('</g>');
 
-    var rollingLinePoints = points.map(function (p, i) {
+    svg.push('<g data-series="rolling">');
+    var rollingLinePoints = points.slice(rollingStartIdx).map(function (p, i0) {
+      var i = i0 + rollingStartIdx;
       return xFor(p.t).toFixed(1) + ',' + yFor(rollingDps[i]).toFixed(1);
     }).join(' ');
     svg.push('<polyline points="' + rollingLinePoints + '" fill="none" stroke="' + ROLLING_LINE_COLOR +
       '" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>');
-    points.forEach(function (p, i) {
+    points.slice(rollingStartIdx).forEach(function (p, i0) {
+      var i = i0 + rollingStartIdx;
       var tip = 't=' + p.t.toFixed(1) + 's, trailing ' + ROLL_WINDOW_SEC + 's avg: ' + rollingDps[i].toFixed(1) + ' dps';
       svg.push('<circle cx="' + xFor(p.t).toFixed(1) + '" cy="' + yFor(rollingDps[i]).toFixed(1) +
         '" r="7" fill="transparent"><title>' + escapeXml(tip) + '</title></circle>');
     });
+    svg.push('</g>');
 
+    svg.push('<g data-series="tps">');
     var tpsLinePoints = points.map(function (p) {
       return xFor(p.t).toFixed(1) + ',' + yFor(p.tps).toFixed(1);
     }).join(' ');
@@ -1328,6 +1445,22 @@
       svg.push('<circle cx="' + xFor(p.t).toFixed(1) + '" cy="' + yFor(p.tps).toFixed(1) +
         '" r="7" fill="transparent"><title>' + escapeXml(tip) + '</title></circle>');
     });
+    svg.push('</g>');
+
+    if (hasMana) {
+      svg.push('<g data-series="mana">');
+      var manaLinePoints = manaSampleTimes.map(function (t, i) {
+        return xFor(t).toFixed(1) + ',' + yForMana(manaSamples[i]).toFixed(1);
+      }).join(' ');
+      svg.push('<polyline points="' + manaLinePoints + '" fill="none" stroke="' + MANA_LINE_COLOR +
+        '" stroke-width="2" stroke-dasharray="5,3" stroke-linejoin="round" stroke-linecap="round"/>');
+      manaSampleTimes.forEach(function (t, i) {
+        var tip = 't=' + t.toFixed(1) + 's: ' + Math.round(manaSamples[i]) + ' mana (of ' + Math.round(maxMana) + ')';
+        svg.push('<circle cx="' + xFor(t).toFixed(1) + '" cy="' + yForMana(manaSamples[i]).toFixed(1) +
+          '" r="7" fill="transparent"><title>' + escapeXml(tip) + '</title></circle>');
+      });
+      svg.push('</g>');
+    }
 
     var avgY = yFor(result.dps);
     svg.push('<line x1="' + marginLeft + '" y1="' + avgY.toFixed(1) + '" x2="' + (W - marginRight) +
@@ -1341,28 +1474,33 @@
       svg.push('<line x1="' + mx.toFixed(1) + '" y1="' + marginTop + '" x2="' + mx.toFixed(1) +
         '" y2="' + (marginTop + plotH) + '" stroke="' + WARNING_COLOR + '" stroke-width="1.5" stroke-dasharray="4,3"/>');
       svg.push('<text x="' + (mx + 4).toFixed(1) + '" y="' + (marginTop + 10) +
-        '" font-size="10" fill="' + WARNING_COLOR + '">Mana low</text>');
+        '" font-size="10" fill="' + WARNING_COLOR + '">Mana low (' + result.ranOutOfManaAt.toFixed(0) + 's)</text>');
       manaNote = ' The dashed amber line marks ' + result.ranOutOfManaAt.toFixed(0) +
         's, when mana first ran out and casting switched to damage-per-mana priority.';
     }
 
+    function legendItem(seriesId, color, label, dashed) {
+      return '<span class="rot-chart-legend-item" data-series-toggle="' + seriesId + '" ' +
+        'style="display:inline-flex;align-items:center;gap:0.35rem;margin:0 0.75rem 0.3rem 0;cursor:pointer;user-select:none;">' +
+        '<span style="width:14px;height:2px;flex:none;background:' + color + ';' +
+        (dashed ? 'background-image:linear-gradient(90deg,' + color + ' 60%,transparent 0%);background-size:6px 2px;background-color:transparent;' : '') +
+        '"></span>' +
+        '<span style="font-size:0.8rem;color:var(--text);">' + label + '</span></span>';
+    }
+
     var legend =
-      '<span style="display:inline-flex;align-items:center;gap:0.35rem;margin:0 0.75rem 0.3rem 0;">' +
-      '<span style="width:14px;height:2px;flex:none;background:' + DPS_LINE_COLOR + ';"></span>' +
-      '<span style="font-size:0.8rem;color:var(--text);">DPS per ' + bucketWidth + 's window</span></span>' +
-      '<span style="display:inline-flex;align-items:center;gap:0.35rem;margin:0 0.75rem 0.3rem 0;">' +
-      '<span style="width:14px;height:2px;flex:none;background:' + ROLLING_LINE_COLOR + ';"></span>' +
-      '<span style="font-size:0.8rem;color:var(--text);">Trailing ' + ROLL_WINDOW_SEC + 's average</span></span>' +
-      '<span style="display:inline-flex;align-items:center;gap:0.35rem;">' +
-      '<span style="width:14px;height:2px;flex:none;background:' + TPS_LINE_COLOR + ';"></span>' +
-      '<span style="font-size:0.8rem;color:var(--text);">TPS per ' + bucketWidth + 's window</span></span>';
+      legendItem('dps', DPS_LINE_COLOR, 'DPS per ' + bucketWidth + 's window') +
+      legendItem('rolling', ROLLING_LINE_COLOR, 'Trailing ' + ROLL_WINDOW_SEC + 's average') +
+      legendItem('tps', TPS_LINE_COLOR, 'TPS per ' + bucketWidth + 's window') +
+      (hasMana ? legendItem('mana', MANA_LINE_COLOR, 'Mana remaining (right axis)', true) : '');
 
     return (
       '<p class="hint" style="margin:0 0 0.4rem;">DPS and TPS over time.' + manaNote + '</p>' +
       '<div style="overflow-x:auto;border:1px solid var(--border);border-radius:4px;background:var(--input-bg);padding:0.5rem;">' +
       '<svg width="' + W + '" height="' + H + '" style="display:block;">' + svg.join('') + '</svg>' +
       '</div>' +
-      '<div style="margin-top:0.5rem;">' + legend + '</div>'
+      '<div style="margin-top:0.5rem;" class="rot-chart-legend">' + legend + '</div>' +
+      '<p class="hint" style="margin:0.3rem 0 0;">Click a legend entry to show/hide that series.</p>'
     );
   }
 
@@ -1377,6 +1515,8 @@
     summarizeRotationCycle: summarizeRotationCycle,
     wizardInnateCritChance: wizardInnateCritChance,
     computeBaseManaRegenPerTick: computeBaseManaRegenPerTick,
+    casterStatKeyForClass: casterStatKeyForClass,
+    computeMaxManaPool: computeMaxManaPool,
     SPELL_CRIT_RANKS: SPELL_CRIT_RANKS,
     SPELL_CRIT_MASTERY_CHANCE: SPELL_CRIT_MASTERY_CHANCE,
     QUICK_DAMAGE_CAST_MOD: QUICK_DAMAGE_CAST_MOD

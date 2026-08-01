@@ -2390,6 +2390,7 @@
           <span><span class="bt-label">STA: </span><span class="bt-val" id="bt-sta">+0</span></span>
           <span><span class="bt-label">AC (raw): </span><span class="bt-val" id="bt-ac">+0</span></span>
           <span><span class="bt-label">HP: </span><span class="bt-val" id="bt-hp">+0</span></span>
+          <span><span class="bt-label">Mana regen/tick: </span><span class="bt-val" id="bt-mana-regen">+0</span></span>
         </div>
       </details>
   </section>
@@ -3141,19 +3142,19 @@
       <h2>Simulation</h2>
       <div class="target-fight-row">
         <div><label for="rotation-duration" class="small-label">Duration (sec)</label><input type="number" id="rotation-duration" value="600" min="1" style="width:6rem;"></div>
-        <div><label for="rotation-max-mana" class="small-label">Max mana <span class="hint" style="margin:0;">(0=unlimited)</span></label><input type="number" id="rotation-max-mana" value="0" min="0" style="width:6rem;"></div>
+        <div><label for="rotation-max-mana" class="small-label">Max mana <span class="hint" style="margin:0;">(0=unlimited; auto-filled from class/stats/gear/buffs on Import Inventory — edit freely, it's your value until the next import)</span></label><input type="number" id="rotation-max-mana" value="0" min="0" style="width:6rem;"></div>
         <div><label for="rotation-mana-regen" class="small-label">Mana regen/tick <span class="hint" style="margin:0;">(6s, extra — anything not auto-detected, e.g. spell bonuses)</span></label><input type="number" id="rotation-mana-regen" value="0" min="0" style="width:6rem;"></div>
       </div>
-      <p class="hint" style="margin:0.3rem 0 0;">Mental Clarity (AA, +1/tick per rank) and item Mana Regen — worn effects like Flowing Thought, capped at 15 total — are detected automatically from the AA Configurator and Import Inventory and added on top; no need to include them here.</p>
+      <p class="hint" style="margin:0.3rem 0 0;">Mental Clarity (AA, +1/tick per rank), item Mana Regen — worn effects like Flowing Thought, capped at 15 total — and Mana Regen from buffs checked in the Buff Panel (e.g. Koadic's, Protection of the Glades/Cabbage, Spiritual Purity) are detected automatically from the AA Configurator, Import Inventory, and Buff Panel and added on top; no need to include them here.</p>
       <label style="display:flex;align-items:center;gap:0.4rem;margin-top:0.6rem;">
-        <input type="checkbox" id="rotation-sit-med-ticks">
+        <input type="checkbox" id="rotation-sit-med-ticks" checked>
         <span>Sit for Med Ticks <span class="hint" style="margin:0;">(hold off starting a cast that would still be running when the next 6s tick lands, so you're sitting for it instead)</span></span>
       </label>
       <p class="hint" style="margin:0.3rem 0 0;">A server regen tick lands every 6 seconds; what you get depends on whether you're sitting <em>at that instant</em> (standing = 1/tick, sitting = 2/tick, sitting with Meditate skill = up to ~17/tick at max skill). You can't cast while sitting, so catching the higher rate means deliberately not casting when a tick is about to land — checking this box has the sim wait (idle) for an imminent tick instead of starting a cast that would straddle it, then casts right after, trading a bit of DPS for guaranteed max regen every tick. Leave it unchecked to assume you just keep casting through ticks at the standing rate.</p>
       <div style="display:flex;align-items:center;gap:0.6rem;margin-top:0.5rem;max-width:26rem;">
         <label for="rotation-tick-wait-max" class="small-label" style="white-space:nowrap;">Max tick wait</label>
-        <input type="range" id="rotation-tick-wait-max" min="0" max="6" step="0.25" value="6" style="flex:1;">
-        <span id="rotation-tick-wait-max-label" class="hint" style="margin:0;min-width:3.5rem;text-align:right;">6.00s</span>
+        <input type="range" id="rotation-tick-wait-max" min="0" max="6" step="0.25" value="2.25" style="flex:1;">
+        <span id="rotation-tick-wait-max-label" class="hint" style="margin:0;min-width:3.5rem;text-align:right;">2.25s</span>
       </div>
       <p class="hint" style="margin:0.2rem 0 0;">Only used when <strong>Sit for Med Ticks</strong> is checked. Caps how long a wait is worth it: if a cast finishes with more than this much time left until the next tick, the sim casts through and takes the standing rate on that tick instead of sitting out the wait. At 6s (max) it always waits, however long; at 0s it never waits — same as unchecked.</p>
       <p class="hint" style="margin:0.75rem 0 0.3rem;font-weight:600;color:var(--text);">Priority mode</p>
@@ -3226,6 +3227,7 @@
     <details id="version-log-details">
     <summary style="cursor:pointer; font-size:1.17em; font-weight:bold; margin:0; list-style:revert;">Version log</summary>
     <ul style="font-size: 0.9rem; color: var(--muted); margin: 0.5rem 0 0; padding-left: 1.25rem;">
+      <li><strong>1.68</strong> — Rotation Planner DPS-over-time chart: added a <strong>Mana remaining</strong> line on its own secondary (right-hand) axis, and clicking any legend entry now shows/hides that series. Fixed the chart's Y-axis scaling — the trailing 30s-average line was reading as a huge, meaningless rate during its first ~30s (no full window of data yet to average over), which blew out the axis and flattened the rest of the fight; it's now only plotted (and only sets the axis scale) once a full window has elapsed. The "Mana low" marker now shows the time it happened. <strong>Sit for Med Ticks</strong> now defaults on, with <strong>Max tick wait</strong> defaulting to 2.25s (was 6.00s). New: <strong>Max mana</strong> auto-calculates from class, final INT/WIS (race + creation points + gear + buffs), and flat mana bonuses (gear "Mana" stat + buff mana pool, e.g. Koadic's Endless Intellect) whenever gear is imported — <code>Client::CalcBaseMana</code>/<code>CalcMaxMana</code> — while staying a normal editable field the rest of the time. Buffs now also track INT/WIS and mana-pool bonuses (previously only DPS-relevant stats were tracked), fixing the Buffed stat column for Koadic's/Voice of Quellious as a side effect. Mechanics guide updated.</li>
       <li><strong>1.67</strong> — Rotation tab mana regen: <strong>Mental Clarity</strong> AA (+1 regen/tick per rank, up to +3 — previously listed as "increases max mana pool," which was wrong; it's regen, per <code>eqstr_en.txt</code>) and equipped <strong>item Mana Regen</strong> (worn-effect spells like Flowing Thought I-X — e.g. Circlet/Robe/Cape of Flowing Thought — detected via each item's <code>worneffect</code> field, summed and capped at 15 total) are now auto-detected from the shared AA Configurator and Import Inventory and added on every tick automatically, same as Spell Casting Fury and item focus effects already are — no more typing them into the Mana regen/tick field by hand. New <code>ItemFocus.getEquippedManaRegen</code> helper. Mechanics guide updated.</li>
       <li><strong>1.66</strong> — Cast Order timeline now explains itself when <strong>Sit for Med Ticks</strong> is checked but has no visible effect: with Max mana left at 0 (unlimited), the option is a no-op (nothing to conserve), so no tick markers were showing with no explanation — the chart caption now says so directly instead of silently showing nothing.</li>
       <li><strong>1.65</strong> — Rotation Planner: when <strong>Sit for Med Ticks</strong> is on, the <strong>Cast Order</strong> timeline now marks every 6s med tick with a small triangle/dashed line — green if you sat for it, amber if a cast ran through it and only got the standing rate — with a legend counting each below the chart. The report adds a matching <strong>Med ticks (sat for / cast through)</strong> line. Mechanics guide updated.</li>
@@ -3791,7 +3793,7 @@
       }
 
       // When releasing: 1) Bump VERSION below. 2) Add a new <li> at the top of the Version log section above.
-      const VERSION = '1.67';
+      const VERSION = '1.68';
       const versionEl = $('app-version');
       if (versionEl) versionEl.textContent = 'v' + VERSION;
 
@@ -3946,6 +3948,7 @@
           _baseSpellHaste = null;
           updateEffectiveHasteDisplay();
           if (typeof window.updateTankHP === 'function') window.updateTankHP();
+          if (typeof renderRotationGearSummary === 'function') renderRotationGearSummary();
           return;
         }
 
@@ -4007,7 +4010,9 @@
         setVal('bt-sta', t.sta);
         setVal('bt-ac',  t.ac);
         setVal('bt-hp',  t.hp || 0);
+        setVal('bt-mana-regen', t.manaRegen || 0);
         if (typeof window.updateTankHP === 'function') window.updateTankHP();
+        if (typeof renderRotationGearSummary === 'function') renderRotationGearSummary();
 
         // Net spell ATK and worn ATK (show totals, not incremental contributions)
         var spellAtkInput = parseInt(($('spell-attack') && $('spell-attack').value) || '0', 10) || 0;
@@ -11471,7 +11476,7 @@
       };
 
       // Expose gear-stat updater for inventory system (different IIFE scope)
-      window.applyGearStats = function (str, dex, agi, sta, cha, intStat, wis) {
+      window.applyGearStats = function (str, dex, agi, sta, cha, intStat, wis, mana) {
         charCreation.gear.str = str || 0;
         charCreation.gear.dex = dex || 0;
         charCreation.gear.agi = agi || 0;
@@ -11479,8 +11484,43 @@
         charCreation.gear.cha = cha || 0;
         charCreation.gear.int = intStat || 0;
         charCreation.gear.wis = wis || 0;
+        // Flat item "Mana" stat — not part of the point-allocation stat
+        // table (no base/pts/cap of its own), just carried through for the
+        // Rotation tab's max-mana auto-calc. See autoFillRotationMaxMana.
+        charCreation.gear.mana = mana || 0;
         renderStatDistributor();
         syncHiddenStats();
+      };
+
+      /**
+       * Auto-calculates the Rotation Planner's Max mana field from class,
+       * final INT/WIS (base + creation points + gear), active buffs, and
+       * flat mana bonuses (gear "Mana" stat + buff mana pool, e.g. Koadic's)
+       * — Client::CalcBaseMana/CalcMaxMana. Called after gear import (see
+       * _applyInventoryFromEquippedSlots); overwrites whatever's currently
+       * in the field, same as re-importing overwrites every other
+       * auto-detected stat. Between imports the field is a normal editable
+       * number input, so the user's own value always wins until the next
+       * import re-fills it.
+       */
+      window.autoFillRotationMaxMana = function () {
+        var manaEl = document.getElementById('rotation-max-mana');
+        if (!manaEl || !window.RotationEngine || !window.RotationEngine.computeMaxManaPool) return;
+        var classId = (document.getElementById('class') || {}).value || '';
+        var level = parseInt((document.getElementById('level') || {}).value, 10) || 0;
+        var statKey = window.RotationEngine.casterStatKeyForClass(classId);
+        if (!statKey) return;  // non-caster class — leave the field alone (e.g. manual/melee-only)
+
+        var raceId = charCreation.race;
+        var ppRank = aaConfig.planarPower || 0;
+        var finalStat = getFinalStat(raceId, statKey, charCreation.pts[statKey], charCreation.gear[statKey], ppRank);
+        var buffFx = (typeof getBuffEffects === 'function') ? getBuffEffects() : null;
+        var buffStat = buffFx ? (buffFx[statKey] || 0) : 0;
+        var buffManaPool = buffFx ? (buffFx.manaPool || 0) : 0;
+        var flatManaBonus = (charCreation.gear.mana || 0) + buffManaPool;
+
+        var maxMana = window.RotationEngine.computeMaxManaPool(classId, level, finalStat + buffStat, flatManaBonus);
+        manaEl.value = String(maxMana);
       };
     })();
 
@@ -12177,7 +12217,7 @@
 
     // Shared stats via stat distributor (updates str/dex/agi/sta hidden inputs)
     if (typeof window.applyGearStats === 'function') {
-      window.applyGearStats(totals.str || 0, totals.dex || 0, totals.agi || 0, totals.sta || 0, totals.cha || 0, totals.int || 0, totals.wis || 0);
+      window.applyGearStats(totals.str || 0, totals.dex || 0, totals.agi || 0, totals.sta || 0, totals.cha || 0, totals.int || 0, totals.wis || 0, totals.mana || 0);
     } else {
       if (totals.str) setEl('str', totals.str);
       if (totals.dex) setEl('dex', totals.dex);
@@ -12401,6 +12441,15 @@
 
     // Update easy-mode weapon summaries to reflect the newly imported proc/weapon info
     if (typeof syncEasyWeaponSummaries === 'function') syncEasyWeaponSummaries();
+
+    // Auto-calc the Rotation Planner's max mana now that class, level, and
+    // gear stats are all finalized above (must run after the Class/Level
+    // DOM update, not right after applyGearStats — see the comment on the
+    // recLevelCharLevel fallback near the top of this function). No-op for
+    // non-caster classes.
+    if (typeof window.autoFillRotationMaxMana === 'function') {
+      window.autoFillRotationMaxMana();
+    }
   }
 
   function applyInventoryFromState() {
@@ -12759,6 +12808,13 @@
       focusEffects = window.ItemFocus.getEquippedFocusEffects(items, era);
       itemManaRegen = window.ItemFocus.getEquippedManaRegen(items, era, window.ItemFocus.ITEM_MANA_REGEN_CAP);
     }
+    // Mana regen from active buffs checked in the Buff Panel (e.g. Koadic's
+    // Endless Intellect, Protection of the Glades/Cabbage, Spiritual Purity).
+    var buffManaRegen = 0;
+    if (typeof getBuffEffects === 'function') {
+      var _buffFxRegen = getBuffEffects();
+      buffManaRegen = _buffFxRegen ? (_buffFxRegen.manaRegen || 0) : 0;
+    }
     var levelEl = document.getElementById('level');
     var dexEl = document.getElementById('dex');
     var intEl = document.getElementById('int');
@@ -12784,7 +12840,8 @@
       caster: caster,
       specialization: { school: specSchool || null, skill: specSkill, masteryRank: castingMasteryRank },
       mentalClarityRank: mentalClarityRank,
-      itemManaRegen: itemManaRegen
+      itemManaRegen: itemManaRegen,
+      buffManaRegen: buffManaRegen
     };
   }
 
@@ -12838,13 +12895,14 @@
         '</div>');
     }
 
-    if (gearAA.mentalClarityRank > 0 || gearAA.itemManaRegen > 0) {
+    if (gearAA.mentalClarityRank > 0 || gearAA.itemManaRegen > 0 || gearAA.buffManaRegen > 0) {
       var mcParts = [];
       if (gearAA.mentalClarityRank > 0) mcParts.push('Mental Clarity rank ' + gearAA.mentalClarityRank + ' (+' + gearAA.mentalClarityRank + ')');
       if (gearAA.itemManaRegen > 0) mcParts.push('item Mana Regen (+' + gearAA.itemManaRegen + ', e.g. Flowing Thought)');
+      if (gearAA.buffManaRegen > 0) mcParts.push('buffs (+' + gearAA.buffManaRegen + ', e.g. Koadic\'s, Protection of the Glades/Cabbage, Spiritual Purity)');
       lines.push('<div style="margin-top:0.35rem;font-size:0.8rem;color:var(--muted);">' +
-        '<strong style="' + LABEL + '">Mana regen/tick (AA + item):</strong> ' +
-        '<span style="' + VALUE + '">+' + (gearAA.mentalClarityRank + gearAA.itemManaRegen) + '</span> ' +
+        '<strong style="' + LABEL + '">Mana regen/tick (AA + item + buffs):</strong> ' +
+        '<span style="' + VALUE + '">+' + (gearAA.mentalClarityRank + gearAA.itemManaRegen + gearAA.buffManaRegen) + '</span> ' +
         '<span>(' + mcParts.join(', ') + '; on every tick, sitting or standing)</span>' +
         '</div>');
     }
@@ -13322,12 +13380,14 @@
       }
 
       var sitForMedTicks = !!(document.getElementById('rotation-sit-med-ticks') || {}).checked;
-      // Mental Clarity (AA, +1/tick per rank) and item Mana Regen (worn
-      // effects like Flowing Thought, capped at 15) are auto-detected from
-      // the shared AA Configurator / Import Inventory — see
+      // Mental Clarity (AA, +1/tick per rank), item Mana Regen (worn effects
+      // like Flowing Thought, capped at 15), and mana regen from buffs
+      // checked in the Buff Panel (Koadic's, Protection of the
+      // Glades/Cabbage, Spiritual Purity) are auto-detected from the shared
+      // AA Configurator / Import Inventory / Buff Panel — see
       // getRotationGearAndAA. The manual field below is only for anything
       // else not auto-detected (e.g. spell bonuses like Donal's BP).
-      var extraManaRegen = v('rotation-mana-regen', 0) + gearAA.mentalClarityRank + gearAA.itemManaRegen;
+      var extraManaRegen = v('rotation-mana-regen', 0) + gearAA.mentalClarityRank + gearAA.itemManaRegen + gearAA.buffManaRegen;
       var computeBaseRegen = (window.RotationEngine && window.RotationEngine.computeBaseManaRegenPerTick)
         ? window.RotationEngine.computeBaseManaRegenPerTick
         : function (level, sitting) { return sitting ? 2 : 1; };
@@ -13373,7 +13433,25 @@
       }
       if (reportEl) reportEl.textContent = text;
       if (timelineEl) timelineEl.innerHTML = RotationEngine.buildRotationTimelineHtml(result);
-      if (dpsChartEl) dpsChartEl.innerHTML = RotationEngine.buildRotationDpsOverTimeHtml(result);
+      if (dpsChartEl) {
+        dpsChartEl.innerHTML = RotationEngine.buildRotationDpsOverTimeHtml(result);
+        // Click a legend entry to show/hide the matching <g data-series="…">
+        // in the SVG above. Wired once (delegated) since innerHTML is
+        // replaced on every re-simulate.
+        if (!dpsChartEl.dataset.toggleWired) {
+          dpsChartEl.dataset.toggleWired = '1';
+          dpsChartEl.addEventListener('click', function (e) {
+            var item = e.target.closest && e.target.closest('[data-series-toggle]');
+            if (!item || !dpsChartEl.contains(item)) return;
+            var seriesId = item.getAttribute('data-series-toggle');
+            var group = dpsChartEl.querySelector('g[data-series="' + seriesId + '"]');
+            if (!group) return;
+            var hidden = group.style.display === 'none';
+            group.style.display = hidden ? '' : 'none';
+            item.style.opacity = hidden ? '' : '0.4';
+          });
+        }
+      }
       if (wrapEl) wrapEl.style.display = '';
 
       (function pushRotationSimHistory() {

@@ -1413,17 +1413,20 @@
         200 — the same "assume skills are trained to cap" convention used elsewhere in the sim). Unchecked assumes
         you just keep casting through every tick and only ever get the standing rate (1/tick) — no waiting, no DPS
         cost, but the lowest regen. Either way these base rates are computed automatically from level and added on
-        top of two more auto-detected sources — <strong>Mental Clarity</strong> (AA, +1 per rank up to +3,
-        <code>aabonuses.ManaRegen</code>) and <strong>item Mana Regen</strong> (worn-effect spells like "Flowing
+        top of three more auto-detected sources — <strong>Mental Clarity</strong> (AA, +1 per rank up to +3,
+        <code>aabonuses.ManaRegen</code>), <strong>item Mana Regen</strong> (worn-effect spells like "Flowing
         Thought I-X" found on real items — e.g. Circlet/Robe/Cape of Flowing Thought — via
         <code>item.worneffect</code>, summed and capped at 15 total,
-        <code>Client::CalcManaRegenCap</code>/<code>RuleI(Character, ItemManaRegenCap)</code>) — read from the
-        shared AA Configurator and Import Inventory the same way Spell Casting Fury and focus effects already are,
-        no extra input needed. Both apply on every tick regardless of sit state, same as the level-62/64 bonus.
-        Whatever's left in the <strong>Mana regen/tick</strong> field is for anything not auto-detected (spell
-        bonuses like Donal's BP, etc.) — enter those manually the same way you always did. The AA &amp; Gear card
-        shows all of this — computed base rates, Mental Clarity/item regen if present — once a spell pool is
-        loaded, and again live if you toggle the checkbox or move the slider.
+        <code>Client::CalcManaRegenCap</code>/<code>RuleI(Character, ItemManaRegenCap)</code>), and
+        <strong>buff Mana Regen</strong> (any mana-regen buffs checked in the Buff Panel — Koadic's Endless
+        Intellect, Protection of the Glades/Cabbage, Spiritual Purity — using the standard buff stacking rule: the
+        highest value per stacking group is kept, and different groups add together) — read from the shared AA
+        Configurator, Import Inventory, and Buff Panel the same way Spell Casting Fury and focus effects already
+        are, no extra input needed. All three apply on every tick regardless of sit state, same as the level-62/64
+        bonus. Whatever's left in the <strong>Mana regen/tick</strong> field is for anything not auto-detected
+        (spell bonuses like Donal's BP, etc.) — enter those manually the same way you always did. The AA &amp;
+        Gear card shows all of this — computed base rates, Mental Clarity/item/buff regen if present — once a
+        spell pool is loaded, and again live if you toggle the checkbox, move the slider, or change buffs.
       </p>
       <p>
         With the checkbox on, both the <strong>Cast Order</strong> timeline and the report make the trade-off
@@ -1655,6 +1658,18 @@
         the report notes the exact moment the caster first had a spell ready to go (off recast and off the GCD) but
         couldn't afford it — the simulation keeps running after that point on whatever regen allows, rather than
         stopping.
+      </p>
+      <p>
+        <strong>Max mana</strong> auto-fills whenever gear is imported (<code>Client::CalcBaseMana</code>/
+        <code>CalcMaxMana</code>, <code>client_mods.cpp</code>): INT casters (Wizard/Magician/Necromancer/
+        Enchanter/Shadowknight/Bard) scale off final INT, WIS casters (Cleric/Druid/Shaman/Paladin/Ranger/
+        Beastlord) off final WIS — base race stat plus creation points plus gear, plus any INT/WIS bonus from
+        buffs checked in the Buff Panel (e.g. Koadic's Endless Intellect) — run through the server's base-mana
+        curve for the caster's level, then a flat mana-pool bonus is added on top from gear's "Mana" stat and
+        buff mana-pool effects (also Koadic's, and Voice of Quellious). Paladins, Rangers, and Beastlords get no
+        mana pool at all below level 9, matching the server. Non-casters (Warrior, Monk, Rogue) are left alone.
+        The field stays a normal editable number afterward — type over it and that value is what the simulation
+        uses, until the next gear import re-fills it.
       </p>
     </div>
 

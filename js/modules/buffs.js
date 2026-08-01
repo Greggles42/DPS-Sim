@@ -16,6 +16,7 @@
  *   SPA 11 = SE_AttackSpeed (haste v1; stored as 100 + haste%, so base 158 = 58%)
  *   SPA 69 = SE_TotalHP     (max HP increase)
  *   SPA119 = bard haste v3  (stacks with haste v1)
+ *   SPA 15 = SE_CurrentMana (mana regen per tick, e.g. Clarity/Koadic's)
  *
  * Stacking model (SpellAffectIndex = SAI):
  *   - SPA 11 (haste v1): global max across all active buffs regardless of SAI
@@ -38,6 +39,8 @@
     HASTE_V1: 11,
     TOTAL_HP: 69,
     HASTE_V3: 119,
+    MANA_REGEN: 15,
+    MANA_POOL: 97,
   };
 
   const BARD_INSTRUMENT_MOD = 1.8; // Bard epic: Singing Sword of the Maestro
@@ -199,7 +202,12 @@
       source: 'ENC',
       spellId: 2570,
       sai: 6,
-      effects: [],  // mana pool / mana regen / INT / WIS — no DPS stats
+      effects: [
+        { spa: SPA.MANA_REGEN, value: 14 },
+        { spa: SPA.MANA_POOL,  value: 250 },
+        { spa: SPA.INT,        value: 25 },
+        { spa: SPA.WIS,        value: 25 },
+      ],  // no DPS-relevant stats, but feeds max-mana auto-calc (Rotation tab)
     },
     {
       id: 'call_of_predator',
@@ -602,8 +610,9 @@
       spellId: 1442,
       sai: 2,
       effects: [
-        { spa: SPA.AC,       value: 25 },
-        { spa: SPA.TOTAL_HP, value: 290 },
+        { spa: SPA.AC,          value: 25 },
+        { spa: SPA.TOTAL_HP,    value: 290 },
+        { spa: SPA.MANA_REGEN,  value: 6 },
       ],
     },
     {
@@ -614,8 +623,9 @@
       spellId: 2188,
       sai: 2,
       effects: [
-        { spa: SPA.AC,       value: 25 },
-        { spa: SPA.TOTAL_HP, value: 290 },
+        { spa: SPA.AC,          value: 25 },
+        { spa: SPA.TOTAL_HP,    value: 290 },
+        { spa: SPA.MANA_REGEN,  value: 6 },
       ],
     },
     {
@@ -690,7 +700,23 @@
       spellId: 3360,
       sai: 6,
       minEra: 'pop',
-      effects: [],  // INT/WIS only — no DPS-relevant stats
+      effects: [
+        { spa: SPA.MANA_REGEN, value: 18 },
+        { spa: SPA.MANA_POOL,  value: 275 },
+        { spa: SPA.INT,        value: 28 },
+        { spa: SPA.WIS,        value: 28 },
+      ],  // no DPS-relevant stats, but feeds max-mana auto-calc (Rotation tab)
+    },
+    {
+      id: 'spiritual_purity',
+      name: 'Spiritual Purity',
+      category: 'defensive',
+      source: 'CLR',
+      spellId: 2629,
+      sai: 10,
+      effects: [
+        { spa: SPA.MANA_REGEN, value: 7 },
+      ],  // also +7 HP regen/tick — not modeled in sim
     },
   ];
 
@@ -720,7 +746,7 @@
       return Object.assign({}, b, { effects: computed });
     });
 
-    var totals = { atk: 0, wornAtk: 0, str: 0, dex: 0, agi: 0, sta: 0, ac: 0, hp: 0, hasteV1: 0, hasteBard: 0 };
+    var totals = { atk: 0, wornAtk: 0, str: 0, dex: 0, agi: 0, sta: 0, int: 0, wis: 0, ac: 0, hp: 0, hasteV1: 0, hasteBard: 0, manaRegen: 0, manaPool: 0 };
 
     // SPA 11: global max
     var bestHasteV1 = 0;
@@ -757,8 +783,12 @@
     SPA_TO_KEY[SPA.DEX]      = 'dex';
     SPA_TO_KEY[SPA.AGI]      = 'agi';
     SPA_TO_KEY[SPA.STA]      = 'sta';
+    SPA_TO_KEY[SPA.INT]      = 'int';
+    SPA_TO_KEY[SPA.WIS]      = 'wis';
     SPA_TO_KEY[SPA.AC]       = 'ac';
     SPA_TO_KEY[SPA.TOTAL_HP] = 'hp';
+    SPA_TO_KEY[SPA.MANA_REGEN] = 'manaRegen';
+    SPA_TO_KEY[SPA.MANA_POOL]  = 'manaPool';
 
     var combinedActive = spellActive.concat(wornUndom);
     var spaNums = Object.keys(SPA_TO_KEY).map(Number);
@@ -834,8 +864,12 @@
     SPA_TO_KEY[SPA.DEX]      = 'dex';
     SPA_TO_KEY[SPA.AGI]      = 'agi';
     SPA_TO_KEY[SPA.STA]      = 'sta';
+    SPA_TO_KEY[SPA.INT]      = 'int';
+    SPA_TO_KEY[SPA.WIS]      = 'wis';
     SPA_TO_KEY[SPA.AC]       = 'ac';
     SPA_TO_KEY[SPA.TOTAL_HP] = 'hp';
+    SPA_TO_KEY[SPA.MANA_REGEN] = 'manaRegen';
+    SPA_TO_KEY[SPA.MANA_POOL]  = 'manaPool';
     var spaNums = Object.keys(SPA_TO_KEY).map(Number);
 
     // For SPA 11: buffs whose haste < global max are dominated on haste
@@ -900,6 +934,8 @@
     [SPA.HASTE_V1]: 'Haste',
     [SPA.TOTAL_HP]: 'HP',
     [SPA.HASTE_V3]: 'Bard Haste (V3)',
+    [SPA.MANA_REGEN]: 'Mana Regen',
+    [SPA.MANA_POOL]: 'Mana Pool',
   };
 
   function buffTooltipText(buff) {
