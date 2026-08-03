@@ -3227,6 +3227,7 @@
     <details id="version-log-details">
     <summary style="cursor:pointer; font-size:1.17em; font-weight:bold; margin:0; list-style:revert;">Version log</summary>
     <ul style="font-size: 0.9rem; color: var(--muted); margin: 0.5rem 0 0; padding-left: 1.25rem;">
+      <li><strong>1.72</strong> — Weapon 1/Weapon 2 cards now show a melee weapon-skill mod (e.g. Shadowed Torment's 2H Slashing bonus) the same way Backstab and Archery mods already appear — the small skill line under the weapon name adds "2HS +3% (225→231)" (percent plus the resulting base→post-modifier skill) whenever the equipped weapon or gear carries one. Previously only the modifier percentage showed, with no visible post-modifier skill number. The badge doesn't overwrite the shared base-skill input (unlike Backstab's dedicated field) to avoid double-applying the modifier on the next simulation run. Mechanics guide updated.</li>
       <li><strong>1.71</strong> — Fix: the 1.70 weapon-skill report fields (named skill, base/mod/post-mod, MH/OH breakdown) never actually showed up because the default 20-run averaged simulation built its combined report object field-by-field and simply omitted them — always falling back to the generic "weapon type skill" label regardless of what weapon or mod was equipped. Single-run (Runs=1) simulations were unaffected. These fields are deterministic per simulation (not RNG-dependent), so they're now copied straight from the first run's report, same as offense skill/rating already were.</li>
       <li><strong>1.70</strong> — Offense &amp; To-Hit Model report: "From skill" lines now name the actual skill (e.g. "225 (2H Slashing)") instead of a generic "(weapon type skill)" label. Fixed a bug where melee weapon-skill mods (e.g. <strong>Shadowed Torment</strong>'s 2H Slashing bonus) silently failed to apply when the weapon was picked via item search — <code>itemSearch.js</code> only ever passed <code>skillmodtype</code>/<code>skillmodvalue</code> through for archery and backstab mods, dropping melee mods before they reached the weapon-apply code. On <strong>Import Inventory</strong>, weapon-skill mods are now also picked up from any equipped item, not just the weapon — the sim keeps the single highest value seen per skill type across all gear and combines it with the weapon's own mod using max (not sum), matching the server's non-stacking item-bonus logic, then applies the existing 252-skill hard cap. Mechanics guide updated.</li>
       <li><strong>1.69</strong> — Melee weapon skill mods (e.g. Shadowed Torment): fixed the 2H Slashing mod to apply as a percentage (server: <code>skill × (100+mod)/100</code>, capped at 252) instead of a flat +N capped at 255, and generalized it from 2HS-only to all melee weapon skills (1H Blunt, 1H Slashing, 2H Blunt, 2H Slashing, Piercing). Dual wielding now uses each hand's own weapon skill for to-hit and offense rating (matching <code>Mob::GetToHit(skillinuse)</code> server behavior) instead of applying the mainhand's skill to both hands — the Offense &amp; To-Hit Model report breaks this out into MH/OH lines whenever they differ, showing base skill, % modifier, and post-mod effective skill per hand. Removed the redundant "Weapon skill cap (2hs): 225 (Quarm/TAKP)" line previously prepended above the report. Mechanics guide updated.</li>
@@ -3796,7 +3797,7 @@
       }
 
       // When releasing: 1) Bump VERSION below. 2) Add a new <li> at the top of the Version log section above.
-      const VERSION = '1.71';
+      const VERSION = '1.72';
       const versionEl = $('app-version');
       if (versionEl) versionEl.textContent = 'v' + VERSION;
 
@@ -4561,6 +4562,18 @@
             var skillModVal = Math.max(Number(ownSkillMod) || 0, typeof getGearMeleeSkillModPercent === 'function' ? getGearMeleeSkillModPercent(skillKey) : 0);
             if (skillModVal > 0) {
               skillText += ' · ' + formatSkillLabel(skillKey) + ' +' + skillModVal + '%';
+              // Show the resulting post-modifier skill (base × (100+mod)/100, capped 252) alongside the %,
+              // same idea as the backstab-skill input already showing an effective value — but without
+              // mutating the shared #skill-<key> base-skill input (that would double-apply the mod on reread).
+              var baseSkillForBadge = getWeaponSkillInput(skillKey);
+              if (baseSkillForBadge <= 0 && typeof WeaponSkillCaps !== 'undefined') {
+                var badgeClassId = ($('class') && $('class').value || '').toLowerCase();
+                var badgeLevel = parseInt(($('level') && $('level').value) || '', 10) || 60;
+                if (badgeClassId) baseSkillForBadge = WeaponSkillCaps.getCapForSimClass(badgeClassId, skillKey, badgeLevel) || 0;
+              }
+              if (baseSkillForBadge > 0) {
+                skillText += ' (' + baseSkillForBadge + '→' + applyWeaponSkillModPercent(baseSkillForBadge, skillModVal) + ')';
+              }
             }
           }
           skillEl.textContent = skillText;
@@ -9527,6 +9540,10 @@
         applyGenericTargetIfNoneSelected();
         updateItemSearchDebug();
         syncEasyFromAdvancedBasics();
+        // Refresh the weapon-card skill badges: the post-mod skill number shown there depends on
+        // the class/level-derived base skill cap, which just changed.
+        updateWeaponNameDisplay('w1');
+        updateWeaponNameDisplay('w2');
       }
       function updateClassIcon() {
         const classId = ($('class').value || '').toLowerCase();

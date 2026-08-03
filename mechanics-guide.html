@@ -298,6 +298,9 @@
         This isn't limited to weapons — any equipped item (rings, armor, etc.) can carry the same skillmodtype/skillmodvalue bonus. On <strong>Import Inventory</strong>, the sim scans every equipped slot and keeps the <em>highest</em> value seen per skill type, then combines that with the currently-equipped weapon's own mod (again taking the higher of the two, not adding them) — this matches the server's item-bonus logic, which keeps a single max value per skill rather than stacking every item that touches it.
       </p>
       <p>
+        The Weapon 1/Weapon 2 cards on the Melee tab show this the same way they already show Backstab and Archery mods: whenever the equipped weapon (or gear) carries a skill mod for that weapon's own type, the small skill line under the weapon name adds e.g. "2HS +3% (225→231)" — the percentage and the resulting base→post-modifier skill, using your currently-set base skill for that weapon type (or the class/level cap if you haven't set one).
+      </p>
+      <p>
         When dual wielding, the mainhand and offhand weapons roll to-hit and offense rating using <em>their own</em> weapon skill — a 1H Slash mainhand paired with a 1H Blunt offhand uses each weapon's own skill (and its own item skill mod, if any) independently. Whenever a genuine offhand weapon is equipped, the report breaks the skill and offense rating out into "MH" and "OH" lines. (Fistweaving and two-hand weaving reswing the same mainhand weapon, so they use one shared skill line instead.)
       </p>
       <p>
