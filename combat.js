@@ -1667,10 +1667,12 @@
       weaponSkillKeyForToHit: options.weaponSkillKeyForToHit != null ? options.weaponSkillKeyForToHit : undefined,
       weaponSkillBase: options.weaponSkillBase != null ? options.weaponSkillBase : undefined,
       weaponSkillModPercent: options.weaponSkillModPercent != null ? options.weaponSkillModPercent : undefined,
+      weaponSkillModSource: options.weaponSkillModSource != null ? options.weaponSkillModSource : undefined,
       weaponSkillForToHit: WEAPON_SKILL_FOR_TOHIT,
       weaponSkillKeyForToHitOffhand: (offhandEquipped && options.weaponSkillKeyForToHitOffhand != null) ? options.weaponSkillKeyForToHitOffhand : undefined,
       weaponSkillBaseOffhand: (offhandEquipped && options.weaponSkillBaseOffhand != null) ? options.weaponSkillBaseOffhand : undefined,
       weaponSkillModPercentOffhand: (offhandEquipped && options.weaponSkillModPercentOffhand != null) ? options.weaponSkillModPercentOffhand : undefined,
+      weaponSkillModSourceOffhand: (offhandEquipped && options.weaponSkillModSourceOffhand != null) ? options.weaponSkillModSourceOffhand : undefined,
       weaponSkillForToHitOffhand: offhandEquipped ? WEAPON_SKILL_FOR_TOHIT_OH : undefined,
       offenseRating: offenseRating,
       offenseRatingOffhand: offhandEquipped ? offenseRatingOh : undefined,
@@ -2894,22 +2896,23 @@
     if (report.calculatedToHit != null) lines.push(padLine('  Calculated to-hit:', String(report.calculatedToHit)));
     if (report.offenseSkill != null) lines.push(padLine('  Offense skill:', `${report.offenseSkill}  (0–255, used for to-hit only)`));
     const hasOffhandSkillInfo = report.weaponSkillForToHitOffhand != null && report.weaponSkillKeyForToHitOffhand != null;
-    function pushWeaponSkillLines(handLabel, skillKey, base, modPercent, effective) {
+    function pushWeaponSkillLines(handLabel, skillKey, base, modPercent, effective, modSource) {
       const skillLabel = String(skillKey).toUpperCase();
       const prefix = handLabel ? `  ${handLabel} ` : '  ';
       if (base != null && modPercent != null && modPercent > 0) {
+        const sourceLabel = modSource === 'item' ? 'equipped item' : 'equipped weapon';
         lines.push(padLine(`${prefix}${skillLabel} skill (base):`, String(base)));
-        lines.push(padLine(`${prefix}Weapon skill modifier:`, `+${modPercent}%  (from equipped weapon)`));
+        lines.push(padLine(`${prefix}Weapon skill modifier:`, `+${modPercent}%  (from ${sourceLabel})`));
         lines.push(padLine(`${prefix}${skillLabel} skill (post-mod, for to-hit):`, String(effective)));
       } else {
         lines.push(padLine(`${prefix}Weapon skill (for to-hit):`, `${effective}  (${skillLabel})`));
       }
     }
     if (report.weaponSkillForToHit != null && report.weaponSkillKeyForToHit != null) {
-      pushWeaponSkillLines(hasOffhandSkillInfo ? 'MH' : '', report.weaponSkillKeyForToHit, report.weaponSkillBase, report.weaponSkillModPercent, report.weaponSkillForToHit);
+      pushWeaponSkillLines(hasOffhandSkillInfo ? 'MH' : '', report.weaponSkillKeyForToHit, report.weaponSkillBase, report.weaponSkillModPercent, report.weaponSkillForToHit, report.weaponSkillModSource);
     }
     if (hasOffhandSkillInfo) {
-      pushWeaponSkillLines('OH', report.weaponSkillKeyForToHitOffhand, report.weaponSkillBaseOffhand, report.weaponSkillModPercentOffhand, report.weaponSkillForToHitOffhand);
+      pushWeaponSkillLines('OH', report.weaponSkillKeyForToHitOffhand, report.weaponSkillBaseOffhand, report.weaponSkillModPercentOffhand, report.weaponSkillForToHitOffhand, report.weaponSkillModSourceOffhand);
     }
     const wornAtkContrib = (report.offenseRatingFromWornAttack || 0);
     const spellAtkContrib = (report.offenseRatingFromSpellAttack || 0);

@@ -5571,14 +5571,17 @@
         // Combine the equipped weapon's own embedded mod with the highest matching mod found anywhere
         // else in gear on the last inventory import (rings, armor, etc. can carry skillmodtype too).
         // Server bonuses.cpp keeps the single highest value per skill type — it does not stack — so use max, not sum.
-        const weaponSkillModPercent = Math.max((hasMainHand ? w1WeaponSkillMod : w2WeaponSkillMod) || 0, getGearMeleeSkillModPercent(skillKey));
+        const ownWeaponSkillModForMh = (hasMainHand ? w1WeaponSkillMod : w2WeaponSkillMod) || 0;
+        const gearWeaponSkillModForMh = getGearMeleeSkillModPercent(skillKey);
+        const weaponSkillModPercent = Math.max(ownWeaponSkillModForMh, gearWeaponSkillModForMh);
+        const weaponSkillModSource = weaponSkillModPercent > 0 ? (ownWeaponSkillModForMh >= gearWeaponSkillModForMh ? 'weapon' : 'item') : undefined;
         if (weaponSkillForToHit != null && weaponSkillModPercent > 0) {
           weaponSkillForToHit = applyWeaponSkillModPercent(weaponSkillForToHit, weaponSkillModPercent);
         }
         // Offhand weapon can be a different skill type than the mainhand (e.g. 1H Slash main / 1H Blunt off);
         // only compute a distinct offhand skill for genuine dual wield, not fistweave/2H-weave (which reswing the mainhand weapon).
         const offhandIsDistinctWeapon = useWeapon2 && hasMainHand && !fwNonEpicMonk && !twWeaveActive;
-        let offhandSkillKey, offhandWeaponSkillBase, offhandWeaponSkillModPercent, offhandWeaponSkillForToHit;
+        let offhandSkillKey, offhandWeaponSkillBase, offhandWeaponSkillModPercent, offhandWeaponSkillForToHit, offhandWeaponSkillModSource;
         if (offhandIsDistinctWeapon) {
           offhandSkillKey = skillKeyForCap(w2WeaponType, false);
           offhandWeaponSkillBase = getWeaponSkillInput(offhandSkillKey);
@@ -5586,7 +5589,10 @@
             offhandWeaponSkillBase = WeaponSkillCaps.getCapForSimClass(classId, offhandSkillKey, level) || undefined;
           }
           if (offhandWeaponSkillBase <= 0) offhandWeaponSkillBase = undefined;
-          offhandWeaponSkillModPercent = Math.max(w2WeaponSkillMod || 0, getGearMeleeSkillModPercent(offhandSkillKey));
+          const ownWeaponSkillModForOh = w2WeaponSkillMod || 0;
+          const gearWeaponSkillModForOh = getGearMeleeSkillModPercent(offhandSkillKey);
+          offhandWeaponSkillModPercent = Math.max(ownWeaponSkillModForOh, gearWeaponSkillModForOh);
+          offhandWeaponSkillModSource = offhandWeaponSkillModPercent > 0 ? (ownWeaponSkillModForOh >= gearWeaponSkillModForOh ? 'weapon' : 'item') : undefined;
           offhandWeaponSkillForToHit = (offhandWeaponSkillBase != null && offhandWeaponSkillModPercent > 0)
             ? applyWeaponSkillModPercent(offhandWeaponSkillBase, offhandWeaponSkillModPercent)
             : offhandWeaponSkillBase;
@@ -5674,10 +5680,12 @@
           weaponSkillKeyForToHit: skillKey,
           weaponSkillBase: weaponSkillBase,
           weaponSkillModPercent: weaponSkillModPercent > 0 ? weaponSkillModPercent : undefined,
+          weaponSkillModSource: weaponSkillModSource,
           weaponSkillForToHitOffhand: offhandWeaponSkillForToHit,
           weaponSkillKeyForToHitOffhand: offhandIsDistinctWeapon ? offhandSkillKey : undefined,
           weaponSkillBaseOffhand: offhandWeaponSkillBase,
           weaponSkillModPercentOffhand: offhandWeaponSkillModPercent > 0 ? offhandWeaponSkillModPercent : undefined,
+          weaponSkillModSourceOffhand: offhandWeaponSkillModSource,
           backstabModPercent: classId === 'rogue' ? (equippedBackstabModPercent > 0 ? equippedBackstabModPercent : getRogueEquippedBackstabModPercent()) : undefined,
           backstabSkill: classId === 'rogue' ? getRogueBackstabSkillBase() : undefined,
           duelist: classId === 'rogue' && $('duelist').checked,
@@ -5843,10 +5851,12 @@
             weaponSkillKeyForToHit: reports[0].weaponSkillKeyForToHit,
             weaponSkillBase: reports[0].weaponSkillBase,
             weaponSkillModPercent: reports[0].weaponSkillModPercent,
+            weaponSkillModSource: reports[0].weaponSkillModSource,
             weaponSkillForToHit: reports[0].weaponSkillForToHit,
             weaponSkillKeyForToHitOffhand: reports[0].weaponSkillKeyForToHitOffhand,
             weaponSkillBaseOffhand: reports[0].weaponSkillBaseOffhand,
             weaponSkillModPercentOffhand: reports[0].weaponSkillModPercentOffhand,
+            weaponSkillModSourceOffhand: reports[0].weaponSkillModSourceOffhand,
             weaponSkillForToHitOffhand: reports[0].weaponSkillForToHitOffhand,
             offenseRating: reports[0].offenseRating,
             offenseRatingOffhand: reports[0].offenseRatingOffhand,
