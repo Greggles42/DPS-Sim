@@ -2833,24 +2833,6 @@
     return v == null ? '—' : (Number.isInteger(v) ? String(v) : v.toFixed(2));
   }
 
-  // Human-readable names for the EQ weapon-skill keys used throughout the report (skillKeyForCap in index.html).
-  const WEAPON_SKILL_DISPLAY_NAMES = {
-    '1hb': '1H Blunt',
-    '1hs': '1H Slashing',
-    '2hb': '2H Blunt',
-    '2hs': '2H Slashing',
-    '1hp': 'Piercing',
-    '2hp': 'Piercing',
-    'h2h': 'Hand to Hand',
-    'archery': 'Archery',
-    'throwing': 'Throwing',
-  };
-  function weaponSkillDisplayName(skillKey) {
-    if (skillKey == null) return null;
-    const k = String(skillKey).toLowerCase();
-    return WEAPON_SKILL_DISPLAY_NAMES[k] || String(skillKey).toUpperCase();
-  }
-
   function formatReport(report, weapon1Label, weapon2Label, runsAveraged) {
     const w1 = report.weapon1;
     const w2 = report.weapon2;
@@ -2941,15 +2923,13 @@
     }
     if (report.offenseRating != null && report.offenseRatingFromStr != null) {
       const skillContrib = report.offenseRating - report.offenseRatingFromStr - wornAtkContrib - spellAtkContrib;
-      const skillName = weaponSkillDisplayName(report.weaponSkillKeyForToHit) || 'weapon type skill';
-      lines.push(padLine(hasOffhandSkillInfo ? '    MH From skill:' : '    From skill:', `${skillContrib}  (${skillName})`));
+      lines.push(padLine(hasOffhandSkillInfo ? '    MH From skill:' : '    From skill:', `${skillContrib}  (weapon type skill)`));
     }
     if (report.offenseRatingOffhand != null) {
       lines.push(padLine('  OH offense rating:', `${report.offenseRatingOffhand}  (used for damage)`));
       if (report.offenseRatingFromStr != null) {
         const skillContribOh = report.offenseRatingOffhand - report.offenseRatingFromStr - wornAtkContrib - spellAtkContrib;
-        const skillNameOh = weaponSkillDisplayName(report.weaponSkillKeyForToHitOffhand) || 'weapon type skill';
-        lines.push(padLine('    OH From skill:', `${skillContribOh}  (${skillNameOh})`));
+        lines.push(padLine('    OH From skill:', `${skillContribOh}  (weapon type skill)`));
       }
     }
     if (report.displayedAttack != null) lines.push(padLine('  Displayed ATK:', String(report.displayedAttack)));

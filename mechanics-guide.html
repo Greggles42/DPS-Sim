@@ -292,7 +292,7 @@
       </p>
       <div class="formula">weaponSkill = min(252, floor(baseSkill × (100 + weaponSkillModPercent) / 100))</div>
       <p>
-        The report shows the base skill, the modifier, and the resulting post-modifier skill whenever an equipped weapon carries one of these bonuses. The report names the specific skill involved (e.g. "225 (2H Slashing)") rather than a generic "weapon type skill" label. The same percentage formula is used for Archery skill mods and for Backstab skill mods on rogue weapons.
+        The report's <strong>Offense &amp; To-Hit Model</strong> section shows the base skill, the modifier, and the resulting post-modifier skill whenever an equipped weapon carries one of these bonuses. The same percentage formula is used for Archery skill mods and for Backstab skill mods on rogue weapons.
       </p>
       <p>
         This isn't limited to weapons — any equipped item (rings, armor, etc.) can carry the same skillmodtype/skillmodvalue bonus. On <strong>Import Inventory</strong>, the sim scans every equipped slot and keeps the <em>highest</em> value seen per skill type, then combines that with the currently-equipped weapon's own mod (again taking the higher of the two, not adding them) — this matches the server's item-bonus logic, which keeps a single max value per skill rather than stacking every item that touches it.

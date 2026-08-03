@@ -3227,6 +3227,7 @@
     <details id="version-log-details">
     <summary style="cursor:pointer; font-size:1.17em; font-weight:bold; margin:0; list-style:revert;">Version log</summary>
     <ul style="font-size: 0.9rem; color: var(--muted); margin: 0.5rem 0 0; padding-left: 1.25rem;">
+      <li><strong>1.73</strong> — Fix: melee weapon-skill mods (Shadowed Torment, etc.) still didn't apply for anyone who'd previously selected that weapon from item search before the 1.70 fix — the "Recent" weapons list caches the full normalized weapon object in <code>localStorage</code> indefinitely (survives hard refreshes), so a weapon picked from Recent replayed the old cached object with no <code>skillmodtype</code>/<code>skillmodvalue</code> at all, the same failure mode the Backstab mod already had a fallback for. Now falls back to re-deriving the mod from the underlying local item data via the cached object's itemId, same pattern Backstab and worn-ATK already use. Also reverted the "Offense rating &gt; From skill" line's parenthetical back to the generic "(weapon type skill)" label (previous change named the specific skill there, which read as confusingly duplicating the separate "Offense skill" line above it since the two often show the same number by coincidence).</li>
       <li><strong>1.72</strong> — Weapon 1/Weapon 2 cards now show a melee weapon-skill mod (e.g. Shadowed Torment's 2H Slashing bonus) the same way Backstab and Archery mods already appear — the small skill line under the weapon name adds "2HS +3% (225→231)" (percent plus the resulting base→post-modifier skill) whenever the equipped weapon or gear carries one. Previously only the modifier percentage showed, with no visible post-modifier skill number. The badge doesn't overwrite the shared base-skill input (unlike Backstab's dedicated field) to avoid double-applying the modifier on the next simulation run. Mechanics guide updated.</li>
       <li><strong>1.71</strong> — Fix: the 1.70 weapon-skill report fields (named skill, base/mod/post-mod, MH/OH breakdown) never actually showed up because the default 20-run averaged simulation built its combined report object field-by-field and simply omitted them — always falling back to the generic "weapon type skill" label regardless of what weapon or mod was equipped. Single-run (Runs=1) simulations were unaffected. These fields are deterministic per simulation (not RNG-dependent), so they're now copied straight from the first run's report, same as offense skill/rating already were.</li>
       <li><strong>1.70</strong> — Offense &amp; To-Hit Model report: "From skill" lines now name the actual skill (e.g. "225 (2H Slashing)") instead of a generic "(weapon type skill)" label. Fixed a bug where melee weapon-skill mods (e.g. <strong>Shadowed Torment</strong>'s 2H Slashing bonus) silently failed to apply when the weapon was picked via item search — <code>itemSearch.js</code> only ever passed <code>skillmodtype</code>/<code>skillmodvalue</code> through for archery and backstab mods, dropping melee mods before they reached the weapon-apply code. On <strong>Import Inventory</strong>, weapon-skill mods are now also picked up from any equipped item, not just the weapon — the sim keeps the single highest value seen per skill type across all gear and combines it with the weapon's own mod using max (not sum), matching the server's non-stacking item-bonus logic, then applies the existing 252-skill hard cap. Mechanics guide updated.</li>
@@ -3797,7 +3798,7 @@
       }
 
       // When releasing: 1) Bump VERSION below. 2) Add a new <li> at the top of the Version log section above.
-      const VERSION = '1.72';
+      const VERSION = '1.73';
       const versionEl = $('app-version');
       if (versionEl) versionEl.textContent = 'v' + VERSION;
 
@@ -10221,6 +10222,17 @@
         if (!isNaN(tNum) && tNum === SKILL_ID_FOR_KEY[normSkillKey]) {
           var vNum = (typeof vRaw === 'number') ? vRaw : parseInt(vRaw, 10);
           if (!isNaN(vNum) && vNum > 0) weaponSkillModVal = Number(vNum);
+        }
+        // Some item-search results (notably ones saved to the "Recent" localStorage cache before this
+        // field existed) may not carry skillmodtype/skillmodvalue at all. If we have an itemId, derive
+        // it fresh from the underlying local weapon/raw item data instead of trusting the cached object.
+        if (weaponSkillModVal == null && weapon.itemId != null) {
+          var skillModRaw =
+            (allWeaponsData && allWeaponsData[String(weapon.itemId)]) ||
+            (procRatesByItemId && procRatesByItemId[String(weapon.itemId)]) ||
+            null;
+          var modFromRawSkill = getWeaponSkillModFromRawItem(skillModRaw, normSkillKey);
+          if (modFromRawSkill != null && modFromRawSkill > 0) weaponSkillModVal = modFromRawSkill;
         }
         var wornAttackVal = (weapon.wornAttackBonus != null && !isNaN(Number(weapon.wornAttackBonus))) ? Number(weapon.wornAttackBonus) : null;
         if ((wornAttackVal == null || wornAttackVal <= 0) && weapon.itemId != null) {
