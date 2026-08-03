@@ -288,6 +288,16 @@
         <strong>weaponSkill</strong> is the weapon <em>type</em> skill for whatever you're wielding (e.g. 1H Slash, 2H Slash), capped by class. A warrior using 1H Slash caps at 200, while most other melee classes cap at 252 for their primary weapon. This means warriors can have a lower offense rating for damage than other classes even at max skill — but their damage bonus, triple attack, and flurry compensate.
       </p>
       <p>
+        Some weapons (e.g. Shadowed Torment) carry a built-in bonus to their own weapon skill (1H Blunt, 1H Slash, 2H Blunt, 2H Slash, or Piercing). This is a <strong>percentage</strong> bonus to your current skill, not a flat number of skill points, and it's capped at 252 either way:
+      </p>
+      <div class="formula">weaponSkill = min(252, floor(baseSkill × (100 + weaponSkillModPercent) / 100))</div>
+      <p>
+        The report shows the base skill, the modifier, and the resulting post-modifier skill whenever an equipped weapon carries one of these bonuses. The same percentage formula is used for Archery skill mods and for Backstab skill mods on rogue weapons.
+      </p>
+      <p>
+        When dual wielding, the mainhand and offhand weapons roll to-hit and offense rating using <em>their own</em> weapon skill — a 1H Slash mainhand paired with a 1H Blunt offhand uses each weapon's own skill (and its own item skill mod, if any) independently. Whenever a genuine offhand weapon is equipped, the report breaks the skill and offense rating out into "Mainhand" and "Offhand" lines. (Fistweaving and two-hand weaving reswing the same mainhand weapon, so they use one shared skill line instead.)
+      </p>
+      <p>
         STR contributes through:
       </p>
       <div class="formula">STR_bonus = floor((2 * STR - 150) / 3), when STR >= 75</div>

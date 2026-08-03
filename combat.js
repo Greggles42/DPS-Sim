@@ -1447,6 +1447,19 @@
     const offenseRating = (options.attackRating != null && options.wornAttack == null && options.spellAttack == null)
       ? options.attackRating + strBonus
       : (WEAPON_SKILL_FOR_TOHIT + strBonus + wornAttack + spellAttack);
+    // Offhand weapon can carry a different weapon-type skill than the mainhand (e.g. 1H Slash main / 1H Blunt off);
+    // the server rolls to-hit/offense per swing using that specific weapon's own skill (Mob::GetToHit(skillinuse)).
+    // Falls back to the mainhand's skill when the caller doesn't provide one (e.g. offhand shares the mainhand weapon in fistweave/2H-weave modes).
+    const WEAPON_SKILL_FOR_TOHIT_OH = (options.weaponSkillForToHitOffhand != null && typeof options.weaponSkillForToHitOffhand === 'number')
+      ? options.weaponSkillForToHitOffhand
+      : WEAPON_SKILL_FOR_TOHIT;
+    const BASE_TO_HIT_OH = 7 + OFFENSE_SKILL + WEAPON_SKILL_FOR_TOHIT_OH;
+    const toHitOh = (options.attackRating != null && options.wornAttack == null && options.spellAttack == null)
+      ? toHit
+      : BASE_TO_HIT_OH + toHitBonus;
+    const offenseRatingOh = (options.attackRating != null && options.wornAttack == null && options.spellAttack == null)
+      ? offenseRating
+      : (WEAPON_SKILL_FOR_TOHIT_OH + strBonus + wornAttack + spellAttack);
     const dualWieldEffective = getDualWieldEffective(level, options.dualWieldSkill, options.ambidexterity ?? 0);
     const dualWieldPct = (dualWieldEffective / 375) * 100;
 
@@ -1652,8 +1665,15 @@
       calculatedToHit: toHit,
       offenseSkill: OFFENSE_SKILL,
       weaponSkillKeyForToHit: options.weaponSkillKeyForToHit != null ? options.weaponSkillKeyForToHit : undefined,
+      weaponSkillBase: options.weaponSkillBase != null ? options.weaponSkillBase : undefined,
+      weaponSkillModPercent: options.weaponSkillModPercent != null ? options.weaponSkillModPercent : undefined,
       weaponSkillForToHit: WEAPON_SKILL_FOR_TOHIT,
+      weaponSkillKeyForToHitOffhand: (offhandEquipped && options.weaponSkillKeyForToHitOffhand != null) ? options.weaponSkillKeyForToHitOffhand : undefined,
+      weaponSkillBaseOffhand: (offhandEquipped && options.weaponSkillBaseOffhand != null) ? options.weaponSkillBaseOffhand : undefined,
+      weaponSkillModPercentOffhand: (offhandEquipped && options.weaponSkillModPercentOffhand != null) ? options.weaponSkillModPercentOffhand : undefined,
+      weaponSkillForToHitOffhand: offhandEquipped ? WEAPON_SKILL_FOR_TOHIT_OH : undefined,
       offenseRating: offenseRating,
+      offenseRatingOffhand: offhandEquipped ? offenseRatingOh : undefined,
       offenseRatingFromStr: strBonus,
       offenseRatingFromWornAttack: wornAttack,
       offenseRatingFromSpellAttack: spellAttack,
@@ -2686,13 +2706,13 @@
               }
             }
           }
-          if (rollHit(toHit, avoidance, weaveRng, frontAvoidChance)) {
+          if (rollHit(toHitOh, avoidance, weaveRng, frontAvoidChance)) {
             const ohElemAdder = getElementalBaseAdder(w2, options, elemRng);
             report.elementalDamageTotal += ohElemAdder;
             let ohBase = cappedW2Damage + ohElemAdder;
             ohBase = applyDisciplineDamageMod(ohBase, disciplineActiveOh);
-            let dmg = calcMeleeDamage(ohBase, offenseRating, mitigation, weaveRng, 0);
-            const mult = rollDamageMultiplier(offenseRating, dmg, level, options.classId, false, weaveRng);
+            let dmg = calcMeleeDamage(ohBase, offenseRatingOh, mitigation, weaveRng, 0);
+            const mult = rollDamageMultiplier(offenseRatingOh, dmg, level, options.classId, false, weaveRng);
             dmg = mult.damage;
             const beforeCrit = dmg;
             const critResult = rollMeleeCrit(dmg, 0, level, options.classId, options.dex, options.critChanceMult, false, false, 0, options.critDmgDebugDmgBonus, weaveRng, furyDmgBonusPct);
@@ -2715,13 +2735,13 @@
           }
           if (checkDoubleAttack(doubleAttackEffective, weaveRng, options.classId)) {
             attacksThisRound = 2;
-            if (rollHit(toHit, avoidance, weaveRng, frontAvoidChance)) {
+            if (rollHit(toHitOh, avoidance, weaveRng, frontAvoidChance)) {
               const ohElemAdder2 = getElementalBaseAdder(w2, options, elemRng);
               report.elementalDamageTotal += ohElemAdder2;
               let ohBase2 = cappedW2Damage + ohElemAdder2;
               ohBase2 = applyDisciplineDamageMod(ohBase2, disciplineActiveOh);
-              let dmg = calcMeleeDamage(ohBase2, offenseRating, mitigation, weaveRng, 0);
-              const mult = rollDamageMultiplier(offenseRating, dmg, level, options.classId, false, weaveRng);
+              let dmg = calcMeleeDamage(ohBase2, offenseRatingOh, mitigation, weaveRng, 0);
+              const mult = rollDamageMultiplier(offenseRatingOh, dmg, level, options.classId, false, weaveRng);
               dmg = mult.damage;
               const beforeCrit = dmg;
               const critResult = rollMeleeCrit(dmg, 0, level, options.classId, options.dex, options.critChanceMult, false, false, 0, options.critDmgDebugDmgBonus, weaveRng, furyDmgBonusPct);
@@ -2873,14 +2893,27 @@
     lines.push('=== Offense & To-Hit Model ===', '');
     if (report.calculatedToHit != null) lines.push(padLine('  Calculated to-hit:', String(report.calculatedToHit)));
     if (report.offenseSkill != null) lines.push(padLine('  Offense skill:', `${report.offenseSkill}  (0–255, used for to-hit only)`));
-    if (report.weaponSkillForToHit != null && report.weaponSkillKeyForToHit != null) {
-      if (String(report.weaponSkillKeyForToHit) === '2hs') {
-        lines.push(padLine('  Effective 2HS skill (for to-hit):', String(report.weaponSkillForToHit)));
+    const hasOffhandSkillInfo = report.weaponSkillForToHitOffhand != null && report.weaponSkillKeyForToHitOffhand != null;
+    function pushWeaponSkillLines(handLabel, skillKey, base, modPercent, effective) {
+      const skillLabel = String(skillKey).toUpperCase();
+      const prefix = handLabel ? `  ${handLabel} ` : '  ';
+      if (base != null && modPercent != null && modPercent > 0) {
+        lines.push(padLine(`${prefix}${skillLabel} skill (base):`, String(base)));
+        lines.push(padLine(`${prefix}weapon skill modifier:`, `+${modPercent}%  (from equipped weapon)`));
+        lines.push(padLine(`${prefix}${skillLabel} skill (post-mod, for to-hit):`, String(effective)));
       } else {
-        lines.push(padLine('  Weapon skill (for to-hit):', String(report.weaponSkillForToHit)));
+        lines.push(padLine(`${prefix}weapon skill (for to-hit):`, `${effective}  (${skillLabel})`));
       }
     }
-    if (report.offenseRating != null) lines.push(padLine('  Offense rating:', `${report.offenseRating}  (used for damage)`));
+    if (report.weaponSkillForToHit != null && report.weaponSkillKeyForToHit != null) {
+      pushWeaponSkillLines(hasOffhandSkillInfo ? 'MH' : '', report.weaponSkillKeyForToHit, report.weaponSkillBase, report.weaponSkillModPercent, report.weaponSkillForToHit);
+    }
+    if (hasOffhandSkillInfo) {
+      pushWeaponSkillLines('OH', report.weaponSkillKeyForToHitOffhand, report.weaponSkillBaseOffhand, report.weaponSkillModPercentOffhand, report.weaponSkillForToHitOffhand);
+    }
+    const wornAtkContrib = (report.offenseRatingFromWornAttack || 0);
+    const spellAtkContrib = (report.offenseRatingFromSpellAttack || 0);
+    if (report.offenseRating != null) lines.push(padLine(hasOffhandSkillInfo ? '  MH offense rating:' : '  Offense rating:', `${report.offenseRating}  (used for damage)`));
     if (report.offenseRatingFromStr != null) lines.push(padLine('    From STR:', String(report.offenseRatingFromStr)));
     if (report.offenseRatingFromWornAttack != null && report.offenseRatingFromWornAttack > 0) {
       lines.push(padLine('    From worn ATK:', String(report.offenseRatingFromWornAttack)));
@@ -2889,10 +2922,17 @@
       lines.push(padLine('    From spell ATK:', String(report.offenseRatingFromSpellAttack)));
     }
     if (report.offenseRating != null && report.offenseRatingFromStr != null) {
-      const wornAtkContrib = (report.offenseRatingFromWornAttack || 0);
-      const spellAtkContrib = (report.offenseRatingFromSpellAttack || 0);
       const skillContrib = report.offenseRating - report.offenseRatingFromStr - wornAtkContrib - spellAtkContrib;
-      lines.push(padLine('    From skill:', `${skillContrib}  (weapon type skill)`));
+      const skillName = report.weaponSkillKeyForToHit != null ? String(report.weaponSkillKeyForToHit).toUpperCase() : 'weapon type skill';
+      lines.push(padLine(hasOffhandSkillInfo ? '    MH From skill:' : '    From skill:', `${skillContrib}  (${skillName})`));
+    }
+    if (report.offenseRatingOffhand != null) {
+      lines.push(padLine('  OH offense rating:', `${report.offenseRatingOffhand}  (used for damage)`));
+      if (report.offenseRatingFromStr != null) {
+        const skillContribOh = report.offenseRatingOffhand - report.offenseRatingFromStr - wornAtkContrib - spellAtkContrib;
+        const skillNameOh = report.weaponSkillKeyForToHitOffhand != null ? String(report.weaponSkillKeyForToHitOffhand).toUpperCase() : 'weapon type skill';
+        lines.push(padLine('    OH From skill:', `${skillContribOh}  (${skillNameOh})`));
+      }
     }
     if (report.displayedAttack != null) lines.push(padLine('  Displayed ATK:', String(report.displayedAttack)));
     lines.push(padLine('  ATK formula:', '(offense rating + toHit) * 1000 / 744'));

@@ -4310,10 +4310,10 @@
       let w2WeaponType = null;
       let w1BackstabModPercent = null;
       let w2BackstabModPercent = null;
-      // Skill modifiers embedded in some weapons via EQ skillmodtype/skillmodvalue.
-      // For Shadowed Torment: skillmodtype=3 -> 2HS skill modifier.
-      let w1TwoHsSkillMod = null;
-      let w2TwoHsSkillMod = null;
+      // Skill modifiers embedded in some weapons via EQ skillmodtype/skillmodvalue (a % bonus to that
+      // weapon's own skill, e.g. Shadowed Torment: skillmodtype=3 -> +% 2H Slashing skill).
+      let w1WeaponSkillMod = null;
+      let w2WeaponSkillMod = null;
       let w1WornAttackBonus = null;
       let w2WornAttackBonus = null;
       /** When a weapon with backstab mod is equipped, we show effective skill in the input; this stores the base to restore when unequipped. */
@@ -4329,12 +4329,15 @@
         if (isNaN(v) || v <= 0) return null;
         return v;
       }
-      function getTwoHsSkillModFromRawItem(raw) {
+      /** Reads an item's embedded skillmodtype/skillmodvalue bonus (a %, per server GetSkill) for the given weapon skill key ('1hb','1hs','2hb','2hs','1hp','h2h'). */
+      function getWeaponSkillModFromRawItem(raw, skillKey) {
         if (!raw || typeof raw !== 'object') return null;
+        var expectedType = SKILL_ID_FOR_KEY[skillKey];
+        if (expectedType == null) return null;
         var tRaw = raw.skillmodtype != null ? raw.skillmodtype : raw.skillmodType;
         var vRaw = raw.skillmodvalue != null ? raw.skillmodvalue : raw.skillmodValue;
         var t = (typeof tRaw === 'number') ? tRaw : parseInt(tRaw, 10);
-        if (t !== 3) return null;
+        if (t !== expectedType) return null;
         var v = (typeof vRaw === 'number') ? vRaw : parseInt(vRaw, 10);
         if (isNaN(v) || v <= 0) return null;
         return v;
@@ -4447,18 +4450,18 @@
         w2BackstabModPercent = (refreshedW2 != null ? refreshedW2 : null);
         updateBackstabModFromEquipment();
       }
-      function refreshTwoHsSkillModsFromCurrentWeapons() {
+      function refreshWeaponSkillModsFromCurrentWeapons() {
         function resolveSlotMod(prefix) {
           var currentType = (prefix === 'w1' ? w1WeaponType : w2WeaponType);
-          var t = (currentType != null ? String(currentType) : '').toLowerCase();
-          if (t !== '2hb' && t !== '2hs' && t !== '2hp') return null;
-          var current = (prefix === 'w1' ? w1TwoHsSkillMod : w2TwoHsSkillMod);
+          var skillKey = skillKeyForCap(currentType, false);
+          if (SKILL_ID_FOR_KEY[skillKey] == null) return null;
+          var current = (prefix === 'w1' ? w1WeaponSkillMod : w2WeaponSkillMod);
           if (current != null && !isNaN(Number(current)) && Number(current) > 0) return Number(current);
           var presetEl = $(prefix + '-preset');
           var presetId = presetEl && presetEl.value ? String(presetEl.value) : '';
           if (presetId && presetId !== 'unequipped') {
             var raw = (allWeaponsData && allWeaponsData[presetId]) || (procRatesByItemId && procRatesByItemId[presetId]) || null;
-            var modFromRaw = getTwoHsSkillModFromRawItem(raw);
+            var modFromRaw = getWeaponSkillModFromRawItem(raw, skillKey);
             if (modFromRaw != null && modFromRaw > 0) return modFromRaw;
           }
           if (typeof itemSearchDebugSlots !== 'undefined' && itemSearchDebugSlots) {
@@ -4468,7 +4471,7 @@
               var tRaw = slot.skillmodtype != null ? slot.skillmodtype : slot.skillmodType;
               var vRaw = slot.skillmodvalue != null ? slot.skillmodvalue : slot.skillmodValue;
               var tt = (typeof tRaw === 'number') ? tRaw : parseInt(tRaw, 10);
-              if (tt === 3) {
+              if (tt === SKILL_ID_FOR_KEY[skillKey]) {
                 var vv = (typeof vRaw === 'number') ? vRaw : parseInt(vRaw, 10);
                 if (!isNaN(vv) && vv > 0) return vv;
               }
@@ -4478,8 +4481,8 @@
         }
         var refreshedW1 = resolveSlotMod('w1');
         var refreshedW2 = resolveSlotMod('w2');
-        w1TwoHsSkillMod = (refreshedW1 != null ? refreshedW1 : null);
-        w2TwoHsSkillMod = (refreshedW2 != null ? refreshedW2 : null);
+        w1WeaponSkillMod = (refreshedW1 != null ? refreshedW1 : null);
+        w2WeaponSkillMod = (refreshedW2 != null ? refreshedW2 : null);
         // Update weapon skill labels to reflect the mod.
         updateWeaponNameDisplay('w1');
         updateWeaponNameDisplay('w2');
@@ -4550,10 +4553,10 @@
           if (prefix === 'w1' && skillText && w1BackstabModPercent != null && !isNaN(w1BackstabModPercent)) {
             skillText += ' · Backstab +' + w1BackstabModPercent + '%';
           }
-          if (skillText && skillKey === '2hs') {
-            var skillModVal = prefix === 'w1' ? w1TwoHsSkillMod : w2TwoHsSkillMod;
+          if (skillText && SKILL_ID_FOR_KEY[skillKey] != null) {
+            var skillModVal = prefix === 'w1' ? w1WeaponSkillMod : w2WeaponSkillMod;
             if (skillModVal != null && !isNaN(Number(skillModVal)) && Number(skillModVal) > 0) {
-              skillText += ' · 2HS +' + Number(skillModVal);
+              skillText += ' · ' + formatSkillLabel(skillKey) + ' +' + Number(skillModVal) + '%';
             }
           }
           skillEl.textContent = skillText;
@@ -4625,8 +4628,9 @@
           if (p1Backstab == null && p && p.backstabModPercent != null && !isNaN(Number(p.backstabModPercent)) && Number(p.backstabModPercent) > 0)
             p1Backstab = Number(p.backstabModPercent);
             w1BackstabModPercent = (p1Backstab != null) ? p1Backstab : null;
-          var p1TwoHsSkillMod = getTwoHsSkillModFromRawItem(raw);
-          w1TwoHsSkillMod = (p1TwoHsSkillMod != null && !isNaN(Number(p1TwoHsSkillMod)) && Number(p1TwoHsSkillMod) > 0) ? Number(p1TwoHsSkillMod) : null;
+          var p1SkillKey = skillKeyForCap(p1Type, pType2H);
+          var p1WeaponSkillMod = getWeaponSkillModFromRawItem(raw, p1SkillKey);
+          w1WeaponSkillMod = (p1WeaponSkillMod != null && !isNaN(Number(p1WeaponSkillMod)) && Number(p1WeaponSkillMod) > 0) ? Number(p1WeaponSkillMod) : null;
           var p1WornAtk = getWornAttackBonusFromRawItem(raw);
           if (p1WornAtk <= 0 && p && p.wornAttackBonus != null && !isNaN(Number(p.wornAttackBonus)) && Number(p.wornAttackBonus) > 0)
             p1WornAtk = Number(p.wornAttackBonus);
@@ -4643,8 +4647,9 @@
           if (p2Backstab == null && p && p.backstabModPercent != null && !isNaN(Number(p.backstabModPercent)) && Number(p.backstabModPercent) > 0)
             p2Backstab = Number(p.backstabModPercent);
           w2BackstabModPercent = (p2Backstab != null) ? p2Backstab : null;
-          var p2TwoHsSkillMod = getTwoHsSkillModFromRawItem(raw);
-          w2TwoHsSkillMod = (p2TwoHsSkillMod != null && !isNaN(Number(p2TwoHsSkillMod)) && Number(p2TwoHsSkillMod) > 0) ? Number(p2TwoHsSkillMod) : null;
+          var p2SkillKey = skillKeyForCap(p2Type, false);
+          var p2WeaponSkillMod = getWeaponSkillModFromRawItem(raw, p2SkillKey);
+          w2WeaponSkillMod = (p2WeaponSkillMod != null && !isNaN(Number(p2WeaponSkillMod)) && Number(p2WeaponSkillMod) > 0) ? Number(p2WeaponSkillMod) : null;
           var p2WornAtk = getWornAttackBonusFromRawItem(raw);
           if (p2WornAtk <= 0 && p && p.wornAttackBonus != null && !isNaN(Number(p.wornAttackBonus)) && Number(p.wornAttackBonus) > 0)
             p2WornAtk = Number(p.wornAttackBonus);
@@ -4743,7 +4748,7 @@
         t = w1WeaponType; w1WeaponType = w2WeaponType; w2WeaponType = t;
         updateCustomTypeVisibility('w1'); updateCustomTypeVisibility('w2');
         t = w1BackstabModPercent; w1BackstabModPercent = w2BackstabModPercent; w2BackstabModPercent = t;
-        t = w1TwoHsSkillMod; w1TwoHsSkillMod = w2TwoHsSkillMod; w2TwoHsSkillMod = t;
+        t = w1WeaponSkillMod; w1WeaponSkillMod = w2WeaponSkillMod; w2WeaponSkillMod = t;
         t = w1WornAttackBonus; w1WornAttackBonus = w2WornAttackBonus; w2WornAttackBonus = t;
         var overrideEl = $('w1-is2h-override');
         if (overrideEl) overrideEl.value = '0';
@@ -5541,11 +5546,27 @@
         }
         if (weaponSkillForToHit <= 0) weaponSkillForToHit = undefined;
         // Apply embedded weapon skill modifiers (e.g. Shadowed Torment: +2HS skill from skillmodtype=3).
-        if (weaponSkillForToHit != null && skillKey === '2hs') {
-          const twoHsMod = (w1TwoHsSkillMod != null ? Number(w1TwoHsSkillMod) : 0) + (w2TwoHsSkillMod != null ? Number(w2TwoHsSkillMod) : 0);
-          if (!isNaN(twoHsMod) && twoHsMod > 0) {
-            weaponSkillForToHit = Math.min(255, weaponSkillForToHit + twoHsMod);
+        // Server applies these as a %: skill * (100+mod)/100, capped at 252 (GetSkill in client.cpp).
+        const weaponSkillBase = weaponSkillForToHit;
+        const weaponSkillModPercent = (hasMainHand ? w1WeaponSkillMod : w2WeaponSkillMod) || 0;
+        if (weaponSkillForToHit != null && weaponSkillModPercent > 0) {
+          weaponSkillForToHit = applyWeaponSkillModPercent(weaponSkillForToHit, weaponSkillModPercent);
+        }
+        // Offhand weapon can be a different skill type than the mainhand (e.g. 1H Slash main / 1H Blunt off);
+        // only compute a distinct offhand skill for genuine dual wield, not fistweave/2H-weave (which reswing the mainhand weapon).
+        const offhandIsDistinctWeapon = useWeapon2 && hasMainHand && !fwNonEpicMonk && !twWeaveActive;
+        let offhandSkillKey, offhandWeaponSkillBase, offhandWeaponSkillModPercent, offhandWeaponSkillForToHit;
+        if (offhandIsDistinctWeapon) {
+          offhandSkillKey = skillKeyForCap(w2WeaponType, false);
+          offhandWeaponSkillBase = getWeaponSkillInput(offhandSkillKey);
+          if (offhandWeaponSkillBase <= 0 && typeof WeaponSkillCaps !== 'undefined' && classId && level) {
+            offhandWeaponSkillBase = WeaponSkillCaps.getCapForSimClass(classId, offhandSkillKey, level) || undefined;
           }
+          if (offhandWeaponSkillBase <= 0) offhandWeaponSkillBase = undefined;
+          offhandWeaponSkillModPercent = w2WeaponSkillMod || 0;
+          offhandWeaponSkillForToHit = (offhandWeaponSkillBase != null && offhandWeaponSkillModPercent > 0)
+            ? applyWeaponSkillModPercent(offhandWeaponSkillBase, offhandWeaponSkillModPercent)
+            : offhandWeaponSkillBase;
         }
         const w1ProcResist = hasMainHand && weapon1 ? {
           procSpellResistType: weapon1.procSpellResistType,
@@ -5628,6 +5649,12 @@
           classId: classId || undefined,
           weaponSkillForToHit: weaponSkillForToHit,
           weaponSkillKeyForToHit: skillKey,
+          weaponSkillBase: weaponSkillBase,
+          weaponSkillModPercent: weaponSkillModPercent > 0 ? weaponSkillModPercent : undefined,
+          weaponSkillForToHitOffhand: offhandWeaponSkillForToHit,
+          weaponSkillKeyForToHitOffhand: offhandIsDistinctWeapon ? offhandSkillKey : undefined,
+          weaponSkillBaseOffhand: offhandWeaponSkillBase,
+          weaponSkillModPercentOffhand: offhandWeaponSkillModPercent > 0 ? offhandWeaponSkillModPercent : undefined,
           backstabModPercent: classId === 'rogue' ? (equippedBackstabModPercent > 0 ? equippedBackstabModPercent : getRogueEquippedBackstabModPercent()) : undefined,
           backstabSkill: classId === 'rogue' ? getRogueBackstabSkillBase() : undefined,
           duelist: classId === 'rogue' && $('duelist').checked,
@@ -5903,11 +5930,6 @@
           var npcLevelStr = (npc.level != null && npc.level !== '') ? String(npc.level) : '?';
           var npcACStr = (npc.AC != null && npc.AC !== '') ? String(npc.AC) : '?';
           reportText = '  Target: ' + String(npc.name).replace(/_/g, ' ') + ', Level ' + npcLevelStr + ', AC ' + npcACStr + '\n\n' + reportText;
-        }
-        if (typeof WeaponSkillCaps !== 'undefined' && classId && level) {
-          const capSkillKey = skillKeyForCap(w1WeaponType, weapon1.is2H);
-          const skillCap = WeaponSkillCaps.getCapForSimClass(classId, capSkillKey, level);
-          reportText = '  Weapon skill cap (' + capSkillKey + '): ' + skillCap + ' (Quarm/TAKP)\n\n' + reportText;
         }
         var petResult = null;
         var includeNetEl = $('pet-include-net-dps');
@@ -6833,12 +6855,12 @@
             if (!norm) return;
             var loreStr = raw.lore != null ? String(raw.lore) : '';
             norm.isLore = loreStr.indexOf('*') >= 0;
-            // Shadowed Torment / similar: embed 2HS skill modifier on normalized items.
-            var twoHsMod = getTwoHsSkillModFromRawItem(raw);
-            if (twoHsMod != null && !isNaN(Number(twoHsMod)) && Number(twoHsMod) > 0) {
-              norm.twoHsSkillMod = Number(twoHsMod);
-            }
             var skillKey = skillKeyForCap(norm.type, !!(norm.is2H || (norm.type && offhandBlockedTypes[norm.type])));
+            // Shadowed Torment / similar: embed the weapon's own skill modifier on normalized items.
+            var weaponSkillMod = getWeaponSkillModFromRawItem(raw, skillKey);
+            if (weaponSkillMod != null && !isNaN(Number(weaponSkillMod)) && Number(weaponSkillMod) > 0) {
+              norm.weaponSkillMod = Number(weaponSkillMod);
+            }
             if (WeaponSkillCaps.getCapForSimClass(classId, skillKey, level) <= 0) return;
             rankWeaponMap[id] = norm;
             allIds.push(id);
@@ -6966,13 +6988,13 @@
           } else {
             var primSkillKey = p1 ? skillKeyForCap(p1.type, is2HPrimary) : '';
             var primCap = p1 && typeof WeaponSkillCaps !== 'undefined' ? (WeaponSkillCaps.getCapForSimClass(classId, primSkillKey, level) || 252) : 0;
-            var primSkillMod = (primSkillKey === '2hs' && p1 && p1.twoHsSkillMod != null && !isNaN(Number(p1.twoHsSkillMod))) ? Number(p1.twoHsSkillMod) : 0;
-            var primCapEffective = Math.min(255, primCap + primSkillMod);
+            var primSkillMod = (p1 && p1.weaponSkillMod != null && !isNaN(Number(p1.weaponSkillMod))) ? Number(p1.weaponSkillMod) : 0;
+            var primCapEffective = applyWeaponSkillModPercent(primCap, primSkillMod);
             primarySkillLabel = p1 ? ((primSkillKey || '').toUpperCase() + '-' + primCapEffective) : '—';
             var secSkillKey = p2 ? skillKeyForCap(p2.type, false) : '';
             var secCap = p2 && typeof WeaponSkillCaps !== 'undefined' ? (WeaponSkillCaps.getCapForSimClass(classId, secSkillKey, level) || 252) : 0;
-            var secSkillMod = (secSkillKey === '2hs' && p2 && p2.twoHsSkillMod != null && !isNaN(Number(p2.twoHsSkillMod))) ? Number(p2.twoHsSkillMod) : 0;
-            var secCapEffective = Math.min(255, secCap + secSkillMod);
+            var secSkillMod = (p2 && p2.weaponSkillMod != null && !isNaN(Number(p2.weaponSkillMod))) ? Number(p2.weaponSkillMod) : 0;
+            var secCapEffective = applyWeaponSkillModPercent(secCap, secSkillMod);
             secondarySkillLabel = (comb.secondaryId && p2) ? ((secSkillKey || '').toUpperCase() + '-' + secCapEffective) : '—';
           }
           var finalAtk = (baseOptions.spellAttack || 0) + (baseOptions.wornAttack || 0) + atk1 + atk2;
@@ -7061,8 +7083,8 @@
               applyBaneOnlyForRankWeapon(w1, p);
               var skillKey = skillKeyForCap(p.type, is2H);
               var weaponSkillForToHit = WeaponSkillCaps.getCapForSimClass(classId, skillKey, level) || 252;
-              if (skillKey === '2hs' && p && p.twoHsSkillMod != null && !isNaN(Number(p.twoHsSkillMod)) && Number(p.twoHsSkillMod) > 0) {
-                weaponSkillForToHit = Math.min(255, weaponSkillForToHit + Number(p.twoHsSkillMod));
+              if (p && p.weaponSkillMod != null && !isNaN(Number(p.weaponSkillMod)) && Number(p.weaponSkillMod) > 0) {
+                weaponSkillForToHit = applyWeaponSkillModPercent(weaponSkillForToHit, Number(p.weaponSkillMod));
               }
               var comboWornBackstab = getRankComboWornAndBackstab(p, null);
               var options = Object.assign({}, baseOptions, {
@@ -7126,8 +7148,8 @@
               applyBaneOnlyForRankWeapon(w2, p2);
               var secSkillKey = skillKeyForCap(p2.type, false);
               var secWeaponSkillForToHit = WeaponSkillCaps.getCapForSimClass(classId, secSkillKey, level) || 252;
-              if (secSkillKey === '2hs' && p2 && p2.twoHsSkillMod != null && !isNaN(Number(p2.twoHsSkillMod)) && Number(p2.twoHsSkillMod) > 0) {
-                secWeaponSkillForToHit = Math.min(255, secWeaponSkillForToHit + Number(p2.twoHsSkillMod));
+              if (p2 && p2.weaponSkillMod != null && !isNaN(Number(p2.weaponSkillMod)) && Number(p2.weaponSkillMod) > 0) {
+                secWeaponSkillForToHit = applyWeaponSkillModPercent(secWeaponSkillForToHit, Number(p2.weaponSkillMod));
               }
               var comboWornBackstabOff = getRankComboWornAndBackstab(null, p2);
               try {
@@ -7137,8 +7159,8 @@
                   applyBaneOnlyForRankWeapon(w1refOh, pRefOh);
                   var refSkillKeyOh = skillKeyForCap(pRefOh.type, true);
                   var refWpnSkillOh = WeaponSkillCaps.getCapForSimClass(classId, refSkillKeyOh, level) || 252;
-                  if (refSkillKeyOh === '2hs' && pRefOh && pRefOh.twoHsSkillMod != null && !isNaN(Number(pRefOh.twoHsSkillMod)) && Number(pRefOh.twoHsSkillMod) > 0) {
-                    refWpnSkillOh = Math.min(255, refWpnSkillOh + Number(pRefOh.twoHsSkillMod));
+                  if (pRefOh && pRefOh.weaponSkillMod != null && !isNaN(Number(pRefOh.weaponSkillMod)) && Number(pRefOh.weaponSkillMod) > 0) {
+                    refWpnSkillOh = applyWeaponSkillModPercent(refWpnSkillOh, Number(pRefOh.weaponSkillMod));
                   }
                   var comboWbFw = getRankComboWornAndBackstab(pRefOh, p2);
                   var optsFwOh = Object.assign({}, baseOptions, {
@@ -7175,8 +7197,8 @@
                   applyBaneOnlyForRankWeapon(w1refTw, pRefTw);
                   var refSkillKeyTw = skillKeyForCap(pRefTw.type, true);
                   var refWpnSkillTw = WeaponSkillCaps.getCapForSimClass(classId, refSkillKeyTw, level) || 252;
-                  if (refSkillKeyTw === '2hs' && pRefTw && pRefTw.twoHsSkillMod != null && !isNaN(Number(pRefTw.twoHsSkillMod)) && Number(pRefTw.twoHsSkillMod) > 0) {
-                    refWpnSkillTw = Math.min(255, refWpnSkillTw + Number(pRefTw.twoHsSkillMod));
+                  if (pRefTw && pRefTw.weaponSkillMod != null && !isNaN(Number(pRefTw.weaponSkillMod)) && Number(pRefTw.weaponSkillMod) > 0) {
+                    refWpnSkillTw = applyWeaponSkillModPercent(refWpnSkillTw, Number(pRefTw.weaponSkillMod));
                   }
                   var comboWbTw = getRankComboWornAndBackstab(pRefTw, p2);
                   var optsTwOh = Object.assign({}, baseOptions, {
@@ -7283,8 +7305,8 @@
                 applyBaneOnlyForRankWeapon(w2Only, p2);
                 var secSkillKeyOnly = skillKeyForCap(p2.type, false);
                 var secWeaponSkillOnly = WeaponSkillCaps.getCapForSimClass(classId, secSkillKeyOnly, level) || 252;
-                if (secSkillKeyOnly === '2hs' && p2 && p2.twoHsSkillMod != null && !isNaN(Number(p2.twoHsSkillMod)) && Number(p2.twoHsSkillMod) > 0) {
-                  secWeaponSkillOnly = Math.min(255, secWeaponSkillOnly + Number(p2.twoHsSkillMod));
+                if (p2 && p2.weaponSkillMod != null && !isNaN(Number(p2.weaponSkillMod)) && Number(p2.weaponSkillMod) > 0) {
+                  secWeaponSkillOnly = applyWeaponSkillModPercent(secWeaponSkillOnly, Number(p2.weaponSkillMod));
                 }
                 opts = Object.assign({}, baseOptions, {
                   weapon1: undefined,
@@ -7305,8 +7327,8 @@
                 applyBaneOnlyForRankWeapon(w1, p1);
                 var skillKey = skillKeyForCap(p1.type, is2H);
                 var weaponSkillForToHit = WeaponSkillCaps.getCapForSimClass(classId, skillKey, level) || 252;
-                if (skillKey === '2hs' && p1 && p1.twoHsSkillMod != null && !isNaN(Number(p1.twoHsSkillMod)) && Number(p1.twoHsSkillMod) > 0) {
-                  weaponSkillForToHit = Math.min(255, weaponSkillForToHit + Number(p1.twoHsSkillMod));
+                if (p1 && p1.weaponSkillMod != null && !isNaN(Number(p1.weaponSkillMod)) && Number(p1.weaponSkillMod) > 0) {
+                  weaponSkillForToHit = applyWeaponSkillModPercent(weaponSkillForToHit, Number(p1.weaponSkillMod));
                 }
                 opts = Object.assign({}, baseOptions, {
                   weapon1: w1,
@@ -7571,8 +7593,8 @@
               applyBaneOnlyForRankWeapon(w2Only, p2Only);
               var secSkillKeyOnly = skillKeyForCap(p2Only.type, false);
               var secWeaponSkillOnly = WeaponSkillCaps.getCapForSimClass(classId, secSkillKeyOnly, level) || 252;
-              if (secSkillKeyOnly === '2hs' && p2Only && p2Only.twoHsSkillMod != null && !isNaN(Number(p2Only.twoHsSkillMod)) && Number(p2Only.twoHsSkillMod) > 0) {
-                secWeaponSkillOnly = Math.min(255, secWeaponSkillOnly + Number(p2Only.twoHsSkillMod));
+              if (p2Only && p2Only.weaponSkillMod != null && !isNaN(Number(p2Only.weaponSkillMod)) && Number(p2Only.weaponSkillMod) > 0) {
+                secWeaponSkillOnly = applyWeaponSkillModPercent(secWeaponSkillOnly, Number(p2Only.weaponSkillMod));
               }
               var comboOffOnly = getRankComboWornAndBackstab(null, p2Only);
               opts = Object.assign({}, baseOptions, {
@@ -7594,8 +7616,8 @@
               applyBaneOnlyForRankWeapon(w1, p1);
               var skillKey = skillKeyForCap(p1.type, is2H);
               var weaponSkillForToHit = WeaponSkillCaps.getCapForSimClass(classId, skillKey, level) || 252;
-              if (skillKey === '2hs' && p1 && p1.twoHsSkillMod != null && !isNaN(Number(p1.twoHsSkillMod)) && Number(p1.twoHsSkillMod) > 0) {
-                weaponSkillForToHit = Math.min(255, weaponSkillForToHit + Number(p1.twoHsSkillMod));
+              if (p1 && p1.weaponSkillMod != null && !isNaN(Number(p1.weaponSkillMod)) && Number(p1.weaponSkillMod) > 0) {
+                weaponSkillForToHit = applyWeaponSkillModPercent(weaponSkillForToHit, Number(p1.weaponSkillMod));
               }
               var comboWornBackstabTop = getRankComboWornAndBackstab(p1, row.secondaryId ? rankWeaponMap[row.secondaryId] : null);
               opts = Object.assign({}, baseOptions, {
@@ -9714,6 +9736,16 @@
 
       var SKILL_TYPE_ALIASES = { '2hp': '1hp', 'bow': 'archery' };
       var VALID_SKILL_KEYS = ['1hb', '1hs', '1hp', '2hb', '2hs', 'h2h', 'archery', 'throwing', 'undefined'];
+      // EQ server skill IDs (EQ::skills::SkillType) for the melee weapon skills that can carry an
+      // item-embedded skillmodtype/skillmodvalue bonus (e.g. Shadowed Torment: +15% 2H Slashing skill).
+      var SKILL_ID_FOR_KEY = { '1hb': 0, '1hs': 1, '2hb': 2, '2hs': 3, '1hp': 36, 'h2h': 28 };
+      /** Server applies item skill mods as a percentage: skill * (100+mod)/100, hard-capped at 252 (HARD_SKILL_CAP). */
+      function applyWeaponSkillModPercent(baseSkill, modPercent) {
+        if (baseSkill == null || isNaN(Number(baseSkill))) return baseSkill;
+        var mod = Number(modPercent) || 0;
+        if (mod <= 0) return baseSkill;
+        return Math.min(252, Math.floor(Number(baseSkill) * (100 + mod) / 100));
+      }
       function skillKeyForCap(typeOrNull, is2H) {
         const t = (typeOrNull || '').toLowerCase();
         if (t === 'undefined') return 'undefined';
@@ -9782,7 +9814,7 @@
         updateCustomTypeVisibility(prefix);
         refreshWornAttackFromCurrentWeapons();
         refreshBackstabModsFromCurrentWeapons();
-        refreshTwoHsSkillModsFromCurrentWeapons();
+        refreshWeaponSkillModsFromCurrentWeapons();
         updateBackstabModFromEquipment();
       }
       [$('w1-damage'), $('w1-delay')].forEach(function (el) { if (el) el.addEventListener('input', function () { clearItemSearchOnManualEdit('w1'); updateWeaponNameDisplay('w1'); updateWeaponNameDisplay('w2'); }); });
@@ -10137,13 +10169,14 @@
           var modFromRaw = getBackstabModPercentFromRawItem(raw);
           if (modFromRaw != null && modFromRaw > 0) backstabModVal = modFromRaw;
         }
+        var normSkillKey = skillKeyForCap(normType, !!weapon.is2H);
         var tRaw = weapon.skillmodtype != null ? weapon.skillmodtype : weapon.skillmodType;
         var vRaw = weapon.skillmodvalue != null ? weapon.skillmodvalue : weapon.skillmodValue;
-        var twoHsSkillModVal = null;
+        var weaponSkillModVal = null;
         var tNum = (typeof tRaw === 'number') ? tRaw : parseInt(tRaw, 10);
-        if (!isNaN(tNum) && tNum === 3) {
+        if (!isNaN(tNum) && tNum === SKILL_ID_FOR_KEY[normSkillKey]) {
           var vNum = (typeof vRaw === 'number') ? vRaw : parseInt(vRaw, 10);
-          if (!isNaN(vNum) && vNum > 0) twoHsSkillModVal = Number(vNum);
+          if (!isNaN(vNum) && vNum > 0) weaponSkillModVal = Number(vNum);
         }
         var wornAttackVal = (weapon.wornAttackBonus != null && !isNaN(Number(weapon.wornAttackBonus))) ? Number(weapon.wornAttackBonus) : null;
         if ((wornAttackVal == null || wornAttackVal <= 0) && weapon.itemId != null) {
@@ -10152,11 +10185,11 @@
         }
         if (prefix === 'w1') {
           w1BackstabModPercent = (backstabModVal != null) ? backstabModVal : null;
-          w1TwoHsSkillMod = (twoHsSkillModVal != null && !isNaN(Number(twoHsSkillModVal)) && Number(twoHsSkillModVal) > 0) ? Number(twoHsSkillModVal) : null;
+          w1WeaponSkillMod = (weaponSkillModVal != null && !isNaN(Number(weaponSkillModVal)) && Number(weaponSkillModVal) > 0) ? Number(weaponSkillModVal) : null;
           w1WornAttackBonus = wornAttackVal != null ? wornAttackVal : null;
         } else {
           w2BackstabModPercent = (backstabModVal != null) ? backstabModVal : null;
-          w2TwoHsSkillMod = (twoHsSkillModVal != null && !isNaN(Number(twoHsSkillModVal)) && Number(twoHsSkillModVal) > 0) ? Number(twoHsSkillModVal) : null;
+          w2WeaponSkillMod = (weaponSkillModVal != null && !isNaN(Number(weaponSkillModVal)) && Number(weaponSkillModVal) > 0) ? Number(weaponSkillModVal) : null;
           w2WornAttackBonus = wornAttackVal != null ? wornAttackVal : null;
         }
         updateBackstabModFromEquipment();
