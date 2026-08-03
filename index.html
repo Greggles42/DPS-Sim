@@ -4554,9 +4554,10 @@
             skillText += ' · Backstab +' + w1BackstabModPercent + '%';
           }
           if (skillText && SKILL_ID_FOR_KEY[skillKey] != null) {
-            var skillModVal = prefix === 'w1' ? w1WeaponSkillMod : w2WeaponSkillMod;
-            if (skillModVal != null && !isNaN(Number(skillModVal)) && Number(skillModVal) > 0) {
-              skillText += ' · ' + formatSkillLabel(skillKey) + ' +' + Number(skillModVal) + '%';
+            var ownSkillMod = prefix === 'w1' ? w1WeaponSkillMod : w2WeaponSkillMod;
+            var skillModVal = Math.max(Number(ownSkillMod) || 0, typeof getGearMeleeSkillModPercent === 'function' ? getGearMeleeSkillModPercent(skillKey) : 0);
+            if (skillModVal > 0) {
+              skillText += ' · ' + formatSkillLabel(skillKey) + ' +' + skillModVal + '%';
             }
           }
           skillEl.textContent = skillText;
@@ -5548,7 +5549,10 @@
         // Apply embedded weapon skill modifiers (e.g. Shadowed Torment: +2HS skill from skillmodtype=3).
         // Server applies these as a %: skill * (100+mod)/100, capped at 252 (GetSkill in client.cpp).
         const weaponSkillBase = weaponSkillForToHit;
-        const weaponSkillModPercent = (hasMainHand ? w1WeaponSkillMod : w2WeaponSkillMod) || 0;
+        // Combine the equipped weapon's own embedded mod with the highest matching mod found anywhere
+        // else in gear on the last inventory import (rings, armor, etc. can carry skillmodtype too).
+        // Server bonuses.cpp keeps the single highest value per skill type — it does not stack — so use max, not sum.
+        const weaponSkillModPercent = Math.max((hasMainHand ? w1WeaponSkillMod : w2WeaponSkillMod) || 0, getGearMeleeSkillModPercent(skillKey));
         if (weaponSkillForToHit != null && weaponSkillModPercent > 0) {
           weaponSkillForToHit = applyWeaponSkillModPercent(weaponSkillForToHit, weaponSkillModPercent);
         }
@@ -5563,7 +5567,7 @@
             offhandWeaponSkillBase = WeaponSkillCaps.getCapForSimClass(classId, offhandSkillKey, level) || undefined;
           }
           if (offhandWeaponSkillBase <= 0) offhandWeaponSkillBase = undefined;
-          offhandWeaponSkillModPercent = w2WeaponSkillMod || 0;
+          offhandWeaponSkillModPercent = Math.max(w2WeaponSkillMod || 0, getGearMeleeSkillModPercent(offhandSkillKey));
           offhandWeaponSkillForToHit = (offhandWeaponSkillBase != null && offhandWeaponSkillModPercent > 0)
             ? applyWeaponSkillModPercent(offhandWeaponSkillBase, offhandWeaponSkillModPercent)
             : offhandWeaponSkillBase;
@@ -9739,6 +9743,17 @@
       // EQ server skill IDs (EQ::skills::SkillType) for the melee weapon skills that can carry an
       // item-embedded skillmodtype/skillmodvalue bonus (e.g. Shadowed Torment: +15% 2H Slashing skill).
       var SKILL_ID_FOR_KEY = { '1hb': 0, '1hs': 1, '2hb': 2, '2hs': 3, '1hp': 36, 'h2h': 28 };
+      // Reverse of SKILL_ID_FOR_KEY, restricted to melee weapon skills (excludes h2h — monks don't wield items).
+      var SKILL_ID_TO_MELEE_KEY = { 0: '1hb', 1: '1hs', 2: '2hb', 3: '2hs', 36: '1hp' };
+      /** Highest skillmodtype/skillmodvalue seen per EQ skill ID across ALL equipped gear (weapons + armor),
+          refreshed on every inventory import. Server bonuses.cpp keeps the max per item type, not a sum. */
+      window.gearMeleeSkillMods = window.gearMeleeSkillMods || {};
+      function getGearMeleeSkillModPercent(skillKey) {
+        var skillId = SKILL_ID_FOR_KEY[skillKey];
+        if (skillId == null) return 0;
+        var v = (window.gearMeleeSkillMods || {})[skillId];
+        return (v != null && !isNaN(Number(v)) && Number(v) > 0) ? Number(v) : 0;
+      }
       /** Server applies item skill mods as a percentage: skill * (100+mod)/100, hard-capped at 252 (HARD_SKILL_CAP). */
       function applyWeaponSkillModPercent(baseSkill, modPercent) {
         if (baseSkill == null || isNaN(Number(baseSkill))) return baseSkill;
@@ -11926,6 +11941,10 @@
     var atkItems    = [];   // { name, atk, spellName }
     var archeryModItems = []; // { name, mod }
     var rangeSlotArcheryMod = 0; // tracked separately so it isn't double-counted with ranged-archery-mod
+    // Melee weapon-skill mods (skillmodtype 0/1/2/3/36 = 1H Blunt/1H Slash/2H Blunt/2H Slash/Piercing), keyed by
+    // EQ skill ID. Any equipped item can carry one (not just weapons). Server bonuses.cpp keeps the HIGHEST
+    // value per skill across all equipped items — it does not stack — so this tracks a max, not a sum.
+    var gearMeleeSkillMods = {};
     var classMask   = 0x7FFF; // intersection starts at ALL_CLASSES, narrow down
     var hasClassConstraint = false;
 
@@ -12014,6 +12033,14 @@
             if (slot === 'Range') rangeSlotArcheryMod = _wornArchMod;
           }
         }
+        // Melee weapon-skill mod on this item (any slot) — keep the highest value seen per skill type.
+        var _meleeModType = parseInt(item.skillmodtype);
+        if (SKILL_ID_TO_MELEE_KEY[_meleeModType] != null) {
+          var _meleeModVal = parseInt(item.skillmodvalue) || 0;
+          if (_meleeModVal > (gearMeleeSkillMods[_meleeModType] || 0)) {
+            gearMeleeSkillMods[_meleeModType] = _meleeModVal;
+          }
+        }
 
         // Class detection — narrow intersection
         var itemClasses = parseInt(item.classes) || 0;
@@ -12043,6 +12070,13 @@
 
     if (slotsDiv)   slotsDiv.innerHTML = html;
     if (displayDiv) { displayDiv.classList.add('has-inventory'); displayDiv.open = true; }
+
+    // Publish the gear-wide melee skill mods (max per skill type) so the melee sim can fold them
+    // into whichever weapon skill is actually in play (mainhand/offhand), taking the max with the
+    // weapon's own embedded mod rather than stacking — refreshWeaponSkillModsFromCurrentWeapons()
+    // and the report both re-read window.gearMeleeSkillMods via getGearMeleeSkillModPercent().
+    window.gearMeleeSkillMods = gearMeleeSkillMods;
+    if (typeof refreshWeaponSkillModsFromCurrentWeapons === 'function') refreshWeaponSkillModsFromCurrentWeapons();
 
     // Auto-fill worn archery mod field with full total (bow + gear).
     // Also track the gear-only portion separately for the rank/comparison sim.

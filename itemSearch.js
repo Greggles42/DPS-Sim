@@ -702,6 +702,10 @@
       classes: itemClasses,
       backstabModPercent: backstabModPercent,
       archeryModPercent: archeryModPercent != null ? archeryModPercent : undefined,
+      /* Raw skillmodtype/skillmodvalue passed through so the caller can match it against this weapon's own
+         melee skill (1H Blunt/Slash, 2H Blunt/Slash, Piercing) — e.g. Shadowed Torment: type=3 -> +% 2H Slash. */
+      skillmodType: !isNaN(skillmodType) ? skillmodType : undefined,
+      skillmodValue: !isNaN(skillmodVal) ? skillmodVal : undefined,
       itemId: itemIdVal
     };
     if (procSpellBonusHate != null) out.procSpellBonusHate = procSpellBonusHate;
