@@ -2899,10 +2899,10 @@
       const prefix = handLabel ? `  ${handLabel} ` : '  ';
       if (base != null && modPercent != null && modPercent > 0) {
         lines.push(padLine(`${prefix}${skillLabel} skill (base):`, String(base)));
-        lines.push(padLine(`${prefix}weapon skill modifier:`, `+${modPercent}%  (from equipped weapon)`));
+        lines.push(padLine(`${prefix}Weapon skill modifier:`, `+${modPercent}%  (from equipped weapon)`));
         lines.push(padLine(`${prefix}${skillLabel} skill (post-mod, for to-hit):`, String(effective)));
       } else {
-        lines.push(padLine(`${prefix}weapon skill (for to-hit):`, `${effective}  (${skillLabel})`));
+        lines.push(padLine(`${prefix}Weapon skill (for to-hit):`, `${effective}  (${skillLabel})`));
       }
     }
     if (report.weaponSkillForToHit != null && report.weaponSkillKeyForToHit != null) {
