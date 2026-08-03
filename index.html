@@ -3227,6 +3227,7 @@
     <details id="version-log-details">
     <summary style="cursor:pointer; font-size:1.17em; font-weight:bold; margin:0; list-style:revert;">Version log</summary>
     <ul style="font-size: 0.9rem; color: var(--muted); margin: 0.5rem 0 0; padding-left: 1.25rem;">
+      <li><strong>1.75</strong> — Fix: the Equipped Items summary (stat pills, item list, gear totals) silently failed to render whenever <strong>any</strong> equipped item — including via <strong>Edit Inventory</strong> from a blank slate, not just file import — got as far as being scanned for a melee weapon-skill mod. A <code>ReferenceError: SKILL_ID_TO_MELEE_KEY is not defined</code> (a leftover from the 1.74 gear-scan feature referencing a variable that only existed in a different script closure) aborted the whole inventory-apply function partway through, before the summary code ran, with nothing visible in the UI to indicate a crash had happened. Verified fixed by adding an item via Edit Inventory starting from a fully blank inventory — the summary panel and weapon fields now populate correctly with no console errors.</li>
       <li><strong>1.74</strong> — <strong>Rank Weapons</strong> tool: melee weapon-skill mods were already applied per-weapon (each candidate's own skillmodtype/skillmodvalue), but ignored gear-wide mods picked up from Import Inventory (rings/armor). All 9 spots that compute a candidate weapon's effective skill now take the max of the weapon's own mod and the gear-wide mod, same as the main Melee tab sim, so ranking results reflect your actually-equipped gear.</li>
       <li><strong>1.73</strong> — Fix: melee weapon-skill mods (Shadowed Torment, etc.) still didn't apply for anyone who'd previously selected that weapon from item search before the 1.70 fix — the "Recent" weapons list caches the full normalized weapon object in <code>localStorage</code> indefinitely (survives hard refreshes), so a weapon picked from Recent replayed the old cached object with no <code>skillmodtype</code>/<code>skillmodvalue</code> at all, the same failure mode the Backstab mod already had a fallback for. Now falls back to re-deriving the mod from the underlying local item data via the cached object's itemId, same pattern Backstab and worn-ATK already use. Also reverted the "Offense rating &gt; From skill" line's parenthetical back to the generic "(weapon type skill)" label (previous change named the specific skill there, which read as confusingly duplicating the separate "Offense skill" line above it since the two often show the same number by coincidence).</li>
       <li><strong>1.72</strong> — Weapon 1/Weapon 2 cards now show a melee weapon-skill mod (e.g. Shadowed Torment's 2H Slashing bonus) the same way Backstab and Archery mods already appear — the small skill line under the weapon name adds "2HS +3% (225→231)" (percent plus the resulting base→post-modifier skill) whenever the equipped weapon or gear carries one. Previously only the modifier percentage showed, with no visible post-modifier skill number. The badge doesn't overwrite the shared base-skill input (unlike Backstab's dedicated field) to avoid double-applying the modifier on the next simulation run. Mechanics guide updated.</li>
@@ -3799,7 +3800,7 @@
       }
 
       // When releasing: 1) Bump VERSION below. 2) Add a new <li> at the top of the Version log section above.
-      const VERSION = '1.74';
+      const VERSION = '1.75';
       const versionEl = $('app-version');
       if (versionEl) versionEl.textContent = 'v' + VERSION;
 
@@ -11995,6 +11996,9 @@
     // EQ skill ID. Any equipped item can carry one (not just weapons). Server bonuses.cpp keeps the HIGHEST
     // value per skill across all equipped items — it does not stack — so this tracks a max, not a sum.
     var gearMeleeSkillMods = {};
+    // Local copy of the melee tab's SKILL_ID_TO_MELEE_KEY — this function runs in a different closure,
+    // so it can't reach that IIFE's top-level vars. Kept in sync manually with SKILL_ID_FOR_KEY there.
+    var SKILL_ID_TO_MELEE_KEY = { 0: '1hb', 1: '1hs', 2: '2hb', 3: '2hs', 36: '1hp' };
     var classMask   = 0x7FFF; // intersection starts at ALL_CLASSES, narrow down
     var hasClassConstraint = false;
 
