@@ -360,6 +360,22 @@
       ],
     },
     {
+      // Bard epic 1.0 (Singing Short Sword) proc — a real buff-duration spell
+      // (spellId 1937, 30 ticks = 3min), not a passive worn effect, so it
+      // stacks/dominates like any other spell buff in its SAI group.
+      id: 'dance_of_the_blade',
+      name: 'Dance of the Blade',
+      category: 'offensive',
+      source: 'Proc',
+      spellId: 1937,
+      sai: 7,
+      effects: [
+        { spa: SPA.HASTE_V1, value: 55 },
+        { spa: SPA.ATK,      value: 30 },
+        { spa: SPA.AC,       value: 30 },
+      ],
+    },
+    {
       id: 'spirit_of_bihli',
       name: 'Spirit of Bih`Li',
       category: 'offensive',

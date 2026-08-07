@@ -3285,6 +3285,7 @@
     <details id="version-log-details">
     <summary style="cursor:pointer; font-size:1.17em; font-weight:bold; margin:0; list-style:revert;">Version log</summary>
     <ul style="font-size: 0.9rem; color: var(--muted); margin: 0.5rem 0 0; padding-left: 1.25rem;">
+      <li><strong>1.80</strong> — Buff Panel: added <strong>Dance of the Blade</strong>, the proc buff from the bard epic 1.0 weapon (Singing Short Sword) — +55% haste, +30 ATK, +30 AC for 3 minutes (spell 1937, Luclin-era).</li>
       <li><strong>1.79</strong> — Rotation tab's <strong>AA &amp; Gear</strong> card: the <strong>Wizard innate crit</strong> line now shows the formula (<code>((INT + DEX) / 2 + 32) / 10000</code>) instead of a computed percentage — it previously calculated using whatever INT/DEX happened to be in the Character card at that moment (often an unset 75/255 default), which read as the actual crit chance but usually wasn't. The real calculated chance, using the run's final INT/DEX (base + gear + buffs), still appears in the Rotation Report after simulating, unchanged. Also fixes the caster INT/DEX/WIS the sim itself uses (Wizard innate crit calc, spec skill) to include active buff bonuses on top of the Character card's base+gear stat, not just gear (e.g. Koadic's Endless Intellect's +25 INT now counts).</li>
       <li><strong>1.78</strong> — Rotation tab's <strong>AA &amp; Gear</strong> card: new <strong>Add focus effect manually</strong> picker lists every focus effect found on any item in the database (135 distinct effects) so you can test its impact without owning or equipping the item — resolved and applied through the same <code>itemFocus.js</code> logic as an equipped focus (same resist/spell-type/level/cast-time restrictions), and deduped against equipped items so the same focus spell never double-counts. New <code>ItemFocus.getAllKnownFocusEffects()</code> helper (dedupes items.json's <code>focuseffect</code> field by spell id, cached). Mechanics guide updated.</li>
       <li><strong>1.77</strong> — Fix: flat SE-92 proc hate (e.g. <strong>Enraging Blow</strong>'s +700) was being folded into the same 400-capped non-damage hate bucket as detrimental no-damage procs, so it was silently clamped to 400 instead of applying its full value — a regression from the 1.47 threat-cap refactor that contradicted the sim's own documented intent (flat SE-92 hate is meant to be uncapped, same as direct-damage proc hate). Now added after the cap is applied, so Enraging Blow and similar spells correctly generate their full flat hate per successful proc. Affects both the melee/main proc path and ranged (bow) procs. Mechanics guide updated (section 2.2).</li>
@@ -3862,7 +3863,7 @@
       }
 
       // When releasing: 1) Bump VERSION below. 2) Add a new <li> at the top of the Version log section above.
-      const VERSION = '1.79';
+      const VERSION = '1.80';
       const versionEl = $('app-version');
       if (versionEl) versionEl.textContent = 'v' + VERSION;
 
