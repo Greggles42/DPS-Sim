@@ -282,11 +282,46 @@
     return cap != null ? Math.min(cap, total) : total;
   }
 
+  var _allKnownFocusCache = null;
+
+  /**
+   * Every distinct focus effect known to the item database (items.json's
+   * `focuseffect` field, deduped by spell id), resolved and sorted by name —
+   * powers the Rotation tab's manual "Add Focus Effect" picker, which lets a
+   * player test a focus's impact without needing the exact item equipped.
+   * Not era-filtered (a manual pick is an explicit override, not something
+   * we should silently hide); result is cached since items-data.js/
+   * spells-data.js don't change at runtime.
+   */
+  function getAllKnownFocusEffects() {
+    if (_allKnownFocusCache) return _allKnownFocusCache;
+    var itemsData = global.__DPS_ITEMS__;
+    if (!itemsData) return [];
+
+    var seenSpellIds = {};
+    var out = [];
+    Object.keys(itemsData).forEach(function (id) {
+      var item = itemsData[id];
+      if (!item || !item.focuseffect) return;
+      var focusSpellId = Number(item.focuseffect);
+      if (!focusSpellId || seenSpellIds[focusSpellId]) return;
+      seenSpellIds[focusSpellId] = true;
+
+      var resolved = resolveFocusSpell(focusSpellId);
+      if (resolved) out.push(resolved);
+    });
+
+    out.sort(function (a, b) { return a.name.localeCompare(b.name); });
+    _allKnownFocusCache = out;
+    return out;
+  }
+
   global.ItemFocus = {
     resolveFocusSpell: resolveFocusSpell,
     appliesToSpell: appliesToSpell,
     getEquippedFocusEffects: getEquippedFocusEffects,
     getEquippedManaRegen: getEquippedManaRegen,
+    getAllKnownFocusEffects: getAllKnownFocusEffects,
     ITEM_MANA_REGEN_CAP: 15
   };
 

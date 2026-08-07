@@ -1172,7 +1172,10 @@
           high-damage-bonus mobs.</li>
         <li><strong>Runes</strong> absorb damage 1:1 from a flat pool before your HP is touched. A swing entirely
           eaten by a rune counts as absorbed, not as a hit.</li>
-        <li><strong>Damage shields</strong> fire back at the mob on every melee hit you take.</li>
+        <li><strong>Damage shields</strong> fire back at the mob on every melee hit you take. The
+          <strong>Damage shield</strong> field on the Tanking tab is a single manually-set total, but
+          <strong>Import Inventory</strong> auto-fills it by summing the worn damage-shield effect from every
+          equipped item that grants one — the same way multiple damage-shield items stack additively in-game.</li>
       </ul>
 
       <h3>Natural and Planar Durability</h3>
@@ -1506,7 +1509,20 @@
           how the server resolves it (Spell Casting Fury is checked first; the wizard's innate crit is the
           fallback). INT and WIS fields appear in the Character module above when this tab is active (DEX and level
           are already there for every tab) — WIS isn't used by anything yet, but is there alongside INT since both
-          are the two casting stats. Every class other than Wizard has no innate crit chance at all.</li>
+          are the two casting stats. Every class other than Wizard has no innate crit chance at all. INT/DEX/WIS used
+          for this (and for spell specialization skill) include any active buffs checked in the Buff Panel on top of
+          the Character card's base+gear stat (e.g. Koadic's Endless Intellect's +25 INT counts), capped by Planar
+          Power same as the Character card's own Buffed column. The <strong>AA &amp; Gear</strong> card shows this
+          as the bare formula rather than a computed percentage, since the Character card's INT/DEX may not be
+          finalized yet when that card renders — the <strong>Rotation Report</strong> shown after simulating always
+          has the real calculated chance, using whatever INT/DEX the run actually used.</li>
+        <li><strong>Add focus effect manually</strong> — the <strong>AA &amp; Gear</strong> card also has a
+          dropdown listing every focus effect that exists on any item in the database (135 distinct effects), so you
+          can test one's impact without owning or equipping the item it comes from. A focus added this way is
+          resolved and applied through the exact same logic as an equipped one — same resist/spell-type/level/
+          cast-time restrictions, same report contribution lines — it's simply not read from your inventory. If the
+          same focus spell is also picked up from an equipped item, it only counts once (no double-dipping). Manual
+          picks aren't era-filtered, since choosing one is already an explicit override.</li>
       </ul>
       <p class="muted">
         Both AA and focus effects are era-filtered — an AA rank beyond what the selected era allows is ignored, and
@@ -1870,6 +1886,47 @@
         <strong>Combined total damage</strong>, <strong>Combined DPS</strong>, and <strong>Combined TPS</strong> —
         so the ranged-only figure stays visible right next to the number it feeds into, rather than requiring a
         second pass through Executive Summary to find it.
+      </p>
+    </div>
+
+    <div class="section">
+      <h2>24) Buffs Panel — Bard Song Instrument Modifiers <span class="badge badge-game">In-Game Mechanic</span></h2>
+      <p>
+        Bard songs scale up based on the bard's skill with the instrument used to play them, and separately
+        on how good that specific instrument item is. In-game there are five instrument skills — <strong>Singing</strong>,
+        <strong>Stringed</strong>, <strong>Brass</strong>, <strong>Percussion</strong>, and <strong>Wind</strong> — and
+        each bard song is tied to exactly one of them (it's determined by the song itself, not a choice you make).
+        A better instrument (or higher instrument-mastery AAs) raises the effective modifier applied to that song's
+        numbers, on top of the level-based scaling every song already has.
+      </p>
+      <p>
+        The <strong>Buffs</strong> card includes a <strong>Bard Instrument Mods</strong> row with one slider per
+        instrument type. Each slider has five stops: <strong>1.0×</strong> (no instrument bonus), <strong>1.8×</strong>
+        (an epic-tier instrument — the default for all five, matching what a well-equipped raid bard usually carries),
+        and <strong>2.2×</strong>, <strong>2.4×</strong>, <strong>2.6×</strong> for progressively better
+        instruments/AA combinations. Moving a slider only affects bard songs that use that instrument type — for
+        example, raising the Brass slider changes songs like Warsong of Zek but has no effect on a Singing-type song
+        like Rizlona's Call of Flame.
+      </p>
+      <p class="muted">
+        Internally, each bard song buff is defined by its raw spell slot values (base, per-level scaling, and cap)
+        exactly as they exist in the spell data, and the instrument modifier is applied to that computed value
+        after level-scaling and before the slot's hard cap is re-applied — so a slider change never lets a song
+        exceed its actual in-game ceiling. This is applied automatically whenever you toggle a bard song on in the
+        Buffs panel; there's nothing else to configure.
+      </p>
+      <p class="muted">
+        <strong>Haste is exempt.</strong> Not every number on a bard song is instrument-modded — the server's own
+        moddable-effect list (<code>IsInstrumentModdableSpellEffect</code>) covers stats, ATK, AC, resists, and a
+        few other effect types, but leaves both haste effects (v1 and the bard-only v3) out entirely. So on a song
+        like McVaxius' Rousing Rondo or Warsong of Zek, the instrument sliders scale the STR/ATK numbers but never
+        touch the haste percentage — that part of the song is fixed regardless of instrument quality.
+      </p>
+      <p class="muted">
+        Level scaling always assumes the bard singing the song is at the current era's level cap (60, or 65 in
+        Planes of Power) — not the simulated character's own level. In practice you're buffed by whichever bard is
+        in your group or raid, and that bard's level has nothing to do with the level of the character being
+        simmed, so gSim always computes bard songs at the highest level a bard could realistically be in that era.
       </p>
     </div>
 

@@ -98,6 +98,16 @@
   }
 
   /**
+   * Character level cap for the given era. 60 through Luclin, 65 from Planes of Power on.
+   * @param {string} eraId
+   * @returns {number}
+   */
+  function getMaxLevel(eraId) {
+    const era = getEra(eraId);
+    return (era && era.id === 'pop') ? 65 : 60;
+  }
+
+  /**
    * Approximate EQEmu item ID ranges by expansion.
    * Used to determine era availability when an item lacks an explicit `expansion` field.
    */
@@ -144,6 +154,7 @@
     isAvailableInEra: isAvailableInEra,
     isItemIdAvailableInEra: isItemIdAvailableInEra,
     erasHasAA: erasHasAA,
-    eraHasBeastlord: eraHasBeastlord
+    eraHasBeastlord: eraHasBeastlord,
+    getMaxLevel: getMaxLevel
   };
 })(typeof self !== 'undefined' ? self : this);

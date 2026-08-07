@@ -45,17 +45,80 @@
 
   const BARD_INSTRUMENT_MOD = 1.8; // Bard epic: Singing Sword of the Maestro
 
+  // Per-instrument-type modifier slider stops, selectable in the Buffs panel.
+  // 1.0 = no instrument mastery, 1.8 = epic weapon, 2.2/2.4/2.6 = higher AA/item tiers.
+  const INSTRUMENT_TYPES = ['singing', 'stringed', 'brass', 'percussion', 'wind'];
+  const INSTRUMENT_STOPS = [1.0, 1.8, 2.2, 2.4, 2.6];
+  const DEFAULT_INSTRUMENT_MODS = {
+    singing: BARD_INSTRUMENT_MOD,
+    stringed: BARD_INSTRUMENT_MOD,
+    brass: BARD_INSTRUMENT_MOD,
+    percussion: BARD_INSTRUMENT_MOD,
+    wind: BARD_INSTRUMENT_MOD,
+  };
+
+  /**
+   * Resolve the instrument modifier to use for a given bard song buff, based on
+   * its `instrument` field (spell's skill: singing/stringed/brass/percussion/wind)
+   * and a user-supplied instrumentMods override map from the Buffs panel sliders.
+   */
+  function resolveInstrumentMod(buff, instrumentMods) {
+    var type = buff.instrument;
+    if (type && instrumentMods && instrumentMods[type] != null) return instrumentMods[type];
+    if (type && DEFAULT_INSTRUMENT_MODS[type] != null) return DEFAULT_INSTRUMENT_MODS[type];
+    return BARD_INSTRUMENT_MOD;
+  }
+
+  /**
+   * Level-scale a raw spell effect base value, matching EQMacEmu's
+   * Mob::CalcSpellEffectValue_formula (zone/spell_effects.cpp) for the formula
+   * IDs that actually appear on bard songs. `base` here is already the
+   * unsigned magnitude (ubase in the server source).
+   */
+  function scaleByFormula(formula, ubase, level) {
+    switch (formula) {
+      case 0:
+      case 100: return ubase;
+      case 101: return ubase + Math.floor(level / 2);
+      case 102: return ubase + level;
+      case 103: return ubase + level * 2;
+      case 104: return ubase + level * 3;
+      case 105: return ubase + level * 4;
+      case 109: return ubase + Math.floor(level / 4);
+      case 110: return ubase + Math.floor(level / 6);
+      case 111: return ubase + 6  * Math.max(0, level - 16);
+      case 112: return ubase + 8  * Math.max(0, level - 24);
+      case 113: return ubase + 10 * Math.max(0, level - 34);
+      case 114: return ubase + 15 * Math.max(0, level - 44);
+      case 119: return ubase + Math.floor(level / 8);
+      case 121: return ubase + Math.floor(level / 3);
+      default:
+        // formulas 1-99: base + level * formulaID (generic linear table)
+        if (formula >= 1 && formula <= 99) return ubase + level * formula;
+        return ubase;
+    }
+  }
+
+  // SPAs the instrument modifier actually applies to, per EQMacEmu's
+  // IsInstrumentModdableSpellEffect (common/spdat.cpp). Haste (SPA 11 v1, SPA 119
+  // v3) is notably absent from that list — bard haste songs do NOT scale with
+  // instrument quality, only stat/ATK/AC/resist/etc. effects on the same song do.
+  var INSTRUMENT_MODDABLE_SPAS = {};
+  INSTRUMENT_MODDABLE_SPAS[SPA.AC]  = true;
+  INSTRUMENT_MODDABLE_SPAS[SPA.ATK] = true;
+  INSTRUMENT_MODDABLE_SPAS[SPA.STR] = true;
+  INSTRUMENT_MODDABLE_SPAS[SPA.DEX] = true;
+  INSTRUMENT_MODDABLE_SPAS[SPA.AGI] = true;
+  INSTRUMENT_MODDABLE_SPAS[SPA.STA] = true;
+  INSTRUMENT_MODDABLE_SPAS[SPA.INT] = true;
+  INSTRUMENT_MODDABLE_SPAS[SPA.WIS] = true;
+
   /**
    * Compute a single bard song slot value at a given caster level and instrument mod.
    *
-   * Level scaling uses the standard EQMacEmu formula table:
-   *   formula 100 → flat base (no level component)
-   *   formula 101 → base + ceil(level / 2)
-   *   formula 102 → base + level
-   *   formula 103 → base + level * 1.5  … etc. (each step adds 0.5× level)
-   *
    * Instrument mod is applied to the effect percentage AFTER level scaling and
-   * AFTER the limit cap, so the limit is always a hard ceiling even with mods.
+   * AFTER the limit cap, so the limit is always a hard ceiling even with mods —
+   * but only for SPAs in INSTRUMENT_MODDABLE_SPAS; haste passes through unmodded.
    * For SPA 11 the raw spell value is stored as (100 + haste%); we work in
    * haste-% space internally.
    *
@@ -63,16 +126,7 @@
    */
   function calcBardSlot(spa, base, limit, formula, level, instrumentMod) {
     // --- Level scaling ---
-    var scaled;
-    if (formula === 100) {
-      scaled = base;
-    } else {
-      // formula 101 = base + level * 0.5
-      // formula 102 = base + level * 1.0
-      // formula N   = base + level * (N - 100) * 0.5
-      var levelMult = (formula - 100) * 0.5;
-      scaled = base + Math.floor(level * levelMult);
-    }
+    var scaled = scaleByFormula(formula, base, level);
 
     // --- Limit cap ---
     if (limit !== 0) {
@@ -88,15 +142,9 @@
       effectVal = scaled;
     }
 
-    // --- Apply instrument modifier ---
-    var result = Math.floor(effectVal * instrumentMod);
-
-    // --- Re-apply limit cap after mod (hard ceiling for SPA 11) ---
-    if (spa === SPA.HASTE_V1 && limit !== 0) {
-      result = Math.min(result, limit - 100);
-    }
-
-    return result;
+    // --- Apply instrument modifier (only to moddable SPAs; haste is exempt) ---
+    if (!INSTRUMENT_MODDABLE_SPAS[spa]) return effectVal;
+    return Math.floor(effectVal * instrumentMod);
   }
 
   /**
@@ -467,6 +515,7 @@
       spellId: 2610,
       sai: -1,
       bardSong: true,
+      instrument: 'brass', // spell skill=12 (Brass Instruments)
       effects: [],  // computed dynamically via rawSlots + buildBardEffects()
       rawSlots: [
         // eid=119 base=25 limit=0 formula=100 — flat v3 haste; scales with instrument mod
@@ -481,14 +530,15 @@
       spellId: 1760,
       sai: 43,  // distinct from sai 42 (celestial_tranquility) so ATK stacks additively
       bardSong: true,
+      instrument: 'brass', // spell skill=12 (Brass Instruments)
       effects: [],  // computed dynamically via rawSlots + buildBardEffects()
       rawSlots: [
         // eid=11 base=110 limit=140 formula=110 — v1 haste; limit 40% is hard ceiling
         { spa: SPA.HASTE_V1, base: 110, limit: 140, formula: 110 },
-        // eid=4  base=1   limit=0   formula=100 — STR (trivial)
-        { spa: SPA.STR,      base: 1,   limit: 0,   formula: 100 },
-        // eid=2  base=11  limit=0   formula=100 — ATK; floor(11 * 1.8) = 19 with bard epic
-        { spa: SPA.ATK,      base: 11,  limit: 0,   formula: 100 },
+        // eid=4  base=1  limit=0  formula=121 — STR; base + floor(level/3), e.g. 1+19=20 at level 57
+        { spa: SPA.STR,      base: 1,   limit: 0,   formula: 121 },
+        // eid=2  base=2  limit=0  formula=110 — ATK; base + floor(level/6)
+        { spa: SPA.ATK,      base: 2,   limit: 0,   formula: 110 },
       ],
     },
     {
@@ -500,6 +550,7 @@
       sai: 42,
       minEra: 'pop',
       bardSong: true,
+      instrument: 'singing', // spell skill=41 (Singing)
       effects: [],  // computed dynamically via rawSlots + buildBardEffects()
       rawSlots: [
         // eid=119 base=30 limit=30 formula=100 — v3 haste; limit 30% hard-capped at 25% by engine
@@ -515,18 +566,15 @@
       sai: 42,
       minEra: 'pop',
       bardSong: true,
+      instrument: 'brass', // spell skill=12 (Brass Instruments)
       effects: [],  // computed dynamically via rawSlots + buildBardEffects()
       rawSlots: [
         // eid=11 base=160 limit=0 formula=100 — 60% v1 haste base; engine caps at 100%
         { spa: SPA.HASTE_V1, base: 160, limit: 0, formula: 100 },
         // eid=4  base=5  limit=0  formula=101 — STR
         { spa: SPA.STR,      base: 5,   limit: 0, formula: 101 },
-        // eid=2  base=18 limit=0  formula=100 — ATK
-        // Raw spell base=2 formula=109, but formula=109 is a brass-instrument type indicator,
-        // not a level-scaling formula; the correct pre-instrument ATK is 18.
-        // instrMod=2.56 represents epic (Singing Sword) + max Instrument Mastery,
-        // giving floor(18 * 2.56) = 46 — confirmed against TAKP.
-        { spa: SPA.ATK,      base: 18,  limit: 0, formula: 100, instrMod: 2.56 },
+        // eid=2  base=2  limit=0  formula=109 — ATK; base + floor(level/4)
+        { spa: SPA.ATK,      base: 2,   limit: 0, formula: 109 },
       ],
     },
     {
@@ -731,9 +779,10 @@
    *
    * @param {string[]} activeBuffIds
    * @param {number}   [playerLevel=60]  — used to scale bard song effects
+   * @param {Object}   [instrumentMods]  — { singing, stringed, brass, percussion, wind } modifier overrides
    * @returns {{ atk, str, dex, agi, sta, ac, hp, hasteV1, hasteBard }}
    */
-  function resolveBuffEffects(activeBuffIds, playerLevel) {
+  function resolveBuffEffects(activeBuffIds, playerLevel, instrumentMods) {
     var level = (playerLevel != null && playerLevel > 0) ? playerLevel : 60;
     var active = BUFFS.filter(function (b) {
       return activeBuffIds.indexOf(b.id) !== -1;
@@ -742,7 +791,7 @@
     // For bard songs, replace the static (empty) effects with level-computed ones
     active = active.map(function (b) {
       if (!b.bardSong || !b.rawSlots) return b;
-      var computed = buildBardEffects(b.rawSlots, level, BARD_INSTRUMENT_MOD);
+      var computed = buildBardEffects(b.rawSlots, level, resolveInstrumentMod(b, instrumentMods));
       return Object.assign({}, b, { effects: computed });
     });
 
@@ -836,7 +885,7 @@
    * contributions are fully dominated (overridden) by another active buff.
    * Used to dim/strikethrough overridden buffs in the UI.
    */
-  function resolveBuffsWithDominance(activeBuffIds, playerLevel) {
+  function resolveBuffsWithDominance(activeBuffIds, playerLevel, instrumentMods) {
     var level = (playerLevel != null && playerLevel > 0) ? playerLevel : 60;
     var active = BUFFS.filter(function (b) {
       return activeBuffIds.indexOf(b.id) !== -1;
@@ -844,9 +893,9 @@
     // Expand bard song effects for dominance checking
     active = active.map(function (b) {
       if (!b.bardSong || !b.rawSlots) return b;
-      return Object.assign({}, b, { effects: buildBardEffects(b.rawSlots, level, BARD_INSTRUMENT_MOD) });
+      return Object.assign({}, b, { effects: buildBardEffects(b.rawSlots, level, resolveInstrumentMod(b, instrumentMods)) });
     });
-    var totals = resolveBuffEffects(activeBuffIds, level);
+    var totals = resolveBuffEffects(activeBuffIds, level, instrumentMods);
     var dominated = new Set();
 
     // wornType buffs are fully dominated if any spell (non-worn) buff occupies the same SAI group
@@ -961,6 +1010,9 @@
     BUFFS: BUFFS,
     SPA: SPA,
     BARD_INSTRUMENT_MOD: BARD_INSTRUMENT_MOD,
+    INSTRUMENT_TYPES: INSTRUMENT_TYPES,
+    INSTRUMENT_STOPS: INSTRUMENT_STOPS,
+    DEFAULT_INSTRUMENT_MODS: DEFAULT_INSTRUMENT_MODS,
     buildBardEffects: buildBardEffects,
     resolveBuffEffects: resolveBuffEffects,
     resolveBuffsWithDominance: resolveBuffsWithDominance,

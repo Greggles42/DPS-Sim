@@ -1880,6 +1880,30 @@
       margin-left: 0.2rem;
     }
     .buff-item.dominated label { opacity: 0.45; text-decoration: line-through; }
+    #bard-instr-panel {
+      grid-column: 1 / -1;
+      margin-top: 0.2rem;
+      padding-top: 0.4rem;
+      border-top: 1px solid var(--border, #444);
+    }
+    .bard-instr-sliders {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+      gap: 0.5rem 0.9rem;
+      margin-top: 0.3rem;
+    }
+    .bard-instr-slider label {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.72rem;
+      color: var(--text, #e8e0cc);
+      margin-bottom: 0.1rem;
+    }
+    .bard-instr-slider .bard-instr-val { color: var(--accent); font-weight: 600; }
+    .bard-instr-slider input[type="range"] {
+      width: 100%;
+      accent-color: var(--accent);
+    }
     #buff-tooltip {
       position: fixed;
       background: #1a1d23;
@@ -2378,6 +2402,31 @@
               <div class="buff-col-header">Defensive</div>
             </div>
           </div>
+          <div id="bard-instr-panel">
+            <div class="buff-col-header">Bard Instrument Mods</div>
+            <div class="bard-instr-sliders">
+              <div class="bard-instr-slider" data-instr="singing">
+                <label for="bard-instr-singing">Singing <span class="bard-instr-val" id="bard-instr-val-singing">1.8&times;</span></label>
+                <input type="range" id="bard-instr-singing" class="bard-instr-input" min="0" max="4" step="1" value="1" title="Singing instrument modifier">
+              </div>
+              <div class="bard-instr-slider" data-instr="stringed">
+                <label for="bard-instr-stringed">Stringed <span class="bard-instr-val" id="bard-instr-val-stringed">1.8&times;</span></label>
+                <input type="range" id="bard-instr-stringed" class="bard-instr-input" min="0" max="4" step="1" value="1" title="Stringed instrument modifier">
+              </div>
+              <div class="bard-instr-slider" data-instr="brass">
+                <label for="bard-instr-brass">Brass <span class="bard-instr-val" id="bard-instr-val-brass">1.8&times;</span></label>
+                <input type="range" id="bard-instr-brass" class="bard-instr-input" min="0" max="4" step="1" value="1" title="Brass instrument modifier">
+              </div>
+              <div class="bard-instr-slider" data-instr="percussion">
+                <label for="bard-instr-percussion">Percussion <span class="bard-instr-val" id="bard-instr-val-percussion">1.8&times;</span></label>
+                <input type="range" id="bard-instr-percussion" class="bard-instr-input" min="0" max="4" step="1" value="1" title="Percussion instrument modifier">
+              </div>
+              <div class="bard-instr-slider" data-instr="wind">
+                <label for="bard-instr-wind">Wind <span class="bard-instr-val" id="bard-instr-val-wind">1.8&times;</span></label>
+                <input type="range" id="bard-instr-wind" class="bard-instr-input" min="0" max="4" step="1" value="1" title="Wind instrument modifier">
+              </div>
+            </div>
+          </div>
         </div>
         <div class="buff-totals" id="buff-totals" style="display:none">
           <span><span class="bt-label">Haste v1: </span><span class="bt-val" id="bt-haste-v1">+0%</span></span>
@@ -2874,7 +2923,7 @@
         </div>
         <div>
           <label for="tank-damage-shield" class="small-label">Damage shield</label>
-          <input type="number" id="tank-damage-shield" value="0" min="0" style="width:5.5rem;" title="Damage reflected back at the mob on every melee hit you take.">
+          <input type="number" id="tank-damage-shield" value="0" min="0" style="width:5.5rem;" title="Damage reflected back at the mob on every melee hit you take. Summed across all equipped items' worn damage-shield effects — auto-filled by Import Inventory.">
         </div>
         <div>
           <label for="tank-buff-mitigation" class="small-label">Melee mitigation % <span class="hint" style="margin:0;">(buff)</span></label>
@@ -3093,6 +3142,15 @@
       </div>
       <p class="hint" style="margin:0 0 0.5rem;">Auto-picked from whichever school the checked pool uses most; override if needed. Only spells in the chosen school get a mana discount — this server only lets one specialization be trained past 50 skill, so the sim assumes it's trained to the class/level skill cap (5&nbsp;&times;&nbsp;level&nbsp;+&nbsp;5, capped at 200) and the rest stay unspecialized.</p>
       <div id="rotation-gear-summary" class="hint">Click Refresh spell pool to detect AA/gear.</div>
+      <div style="margin-top:0.75rem;padding-top:0.6rem;border-top:1px solid var(--border);">
+        <label for="rotation-manual-focus-select" class="small-label">Add focus effect manually</label>
+        <p class="hint" style="margin:0 0 0.4rem;">Test any focus effect from the full item database without equipping the item it comes from — applies with the same rules (spell type/resist/level/cast-time limits) as if it were equipped.</p>
+        <div class="target-fight-row" style="margin-bottom:0.4rem;">
+          <select id="rotation-manual-focus-select" style="width:22rem;max-width:100%;"><option value="">Select a focus effect…</option></select>
+          <button type="button" id="rotation-manual-focus-add-btn" class="magic-btn">Add</button>
+        </div>
+        <div id="rotation-manual-focus-list"></div>
+      </div>
     </section>
 
     <!-- ═══════════════════════════════════════════════════════
@@ -3227,6 +3285,8 @@
     <details id="version-log-details">
     <summary style="cursor:pointer; font-size:1.17em; font-weight:bold; margin:0; list-style:revert;">Version log</summary>
     <ul style="font-size: 0.9rem; color: var(--muted); margin: 0.5rem 0 0; padding-left: 1.25rem;">
+      <li><strong>1.79</strong> — Rotation tab's <strong>AA &amp; Gear</strong> card: the <strong>Wizard innate crit</strong> line now shows the formula (<code>((INT + DEX) / 2 + 32) / 10000</code>) instead of a computed percentage — it previously calculated using whatever INT/DEX happened to be in the Character card at that moment (often an unset 75/255 default), which read as the actual crit chance but usually wasn't. The real calculated chance, using the run's final INT/DEX (base + gear + buffs), still appears in the Rotation Report after simulating, unchanged. Also fixes the caster INT/DEX/WIS the sim itself uses (Wizard innate crit calc, spec skill) to include active buff bonuses on top of the Character card's base+gear stat, not just gear (e.g. Koadic's Endless Intellect's +25 INT now counts).</li>
+      <li><strong>1.78</strong> — Rotation tab's <strong>AA &amp; Gear</strong> card: new <strong>Add focus effect manually</strong> picker lists every focus effect found on any item in the database (135 distinct effects) so you can test its impact without owning or equipping the item — resolved and applied through the same <code>itemFocus.js</code> logic as an equipped focus (same resist/spell-type/level/cast-time restrictions), and deduped against equipped items so the same focus spell never double-counts. New <code>ItemFocus.getAllKnownFocusEffects()</code> helper (dedupes items.json's <code>focuseffect</code> field by spell id, cached). Mechanics guide updated.</li>
       <li><strong>1.77</strong> — Fix: flat SE-92 proc hate (e.g. <strong>Enraging Blow</strong>'s +700) was being folded into the same 400-capped non-damage hate bucket as detrimental no-damage procs, so it was silently clamped to 400 instead of applying its full value — a regression from the 1.47 threat-cap refactor that contradicted the sim's own documented intent (flat SE-92 hate is meant to be uncapped, same as direct-damage proc hate). Now added after the cap is applied, so Enraging Blow and similar spells correctly generate their full flat hate per successful proc. Affects both the melee/main proc path and ranged (bow) procs. Mechanics guide updated (section 2.2).</li>
       <li><strong>1.76</strong> — Fix: Easy Mode's Ambidexterity AA (and Combat Fury/Spell Casting Fury/Slay Undead defaults, plus max-stat defaults) only auto-applied at exactly level 60, and Easy Mode itself hard-capped level at 60 with no way to represent PoP's level 65 — so switching from a pre-PoP era to PoP (which auto-bumps character level to 65) silently dropped Ambidexterity's +32 effective dual-wield skill, measurably lowering the real chance of getting an offhand swing at all and cutting offhand proc rate well below what DEX/gear alone would predict. Easy Mode now unlocks levels 61-65 when PoP era is selected, and all of these level-gated defaults check <code>level &gt;= 60</code> instead of <code>=== 60</code>, matching Advanced mode's (already-correct) logic. Also fixes any PoP-only weapon proc with a 61-65 proc-level requirement being incorrectly gated off even while playing in PoP era, since the real level was previously getting clamped down before that check ran.</li>
       <li><strong>1.75</strong> — Fix: the Equipped Items summary (stat pills, item list, gear totals) silently failed to render whenever <strong>any</strong> equipped item — including via <strong>Edit Inventory</strong> from a blank slate, not just file import — got as far as being scanned for a melee weapon-skill mod. A <code>ReferenceError: SKILL_ID_TO_MELEE_KEY is not defined</code> (a leftover from the 1.74 gear-scan feature referencing a variable that only existed in a different script closure) aborted the whole inventory-apply function partway through, before the summary code ran, with nothing visible in the UI to indicate a crash had happened. Verified fixed by adding an item via Edit Inventory starting from a fully blank inventory — the summary panel and weapon fields now populate correctly with no console errors.</li>
@@ -3802,7 +3862,7 @@
       }
 
       // When releasing: 1) Bump VERSION below. 2) Add a new <li> at the top of the Version log section above.
-      const VERSION = '1.77';
+      const VERSION = '1.79';
       const versionEl = $('app-version');
       if (versionEl) versionEl.textContent = 'v' + VERSION;
 
@@ -3900,12 +3960,46 @@
         return ids;
       }
 
+      // Reads the Bard Instrument Mods sliders (index 0-4 into INSTRUMENT_STOPS) and
+      // returns a { singing, stringed, brass, percussion, wind } modifier map.
+      function getBardInstrumentMods() {
+        var stops = (window.Buffs && window.Buffs.INSTRUMENT_STOPS) || [1.0, 1.8, 2.2, 2.4, 2.6];
+        var types = (window.Buffs && window.Buffs.INSTRUMENT_TYPES) || ['singing', 'stringed', 'brass', 'percussion', 'wind'];
+        var mods = {};
+        types.forEach(function (t) {
+          var el = $('bard-instr-' + t);
+          var idx = el ? parseInt(el.value, 10) : 1;
+          if (isNaN(idx) || idx < 0 || idx >= stops.length) idx = 1;
+          mods[t] = stops[idx];
+        });
+        return mods;
+      }
+
+      function updateBardInstrumentLabels() {
+        var stops = (window.Buffs && window.Buffs.INSTRUMENT_STOPS) || [1.0, 1.8, 2.2, 2.4, 2.6];
+        var types = (window.Buffs && window.Buffs.INSTRUMENT_TYPES) || ['singing', 'stringed', 'brass', 'percussion', 'wind'];
+        types.forEach(function (t) {
+          var el = $('bard-instr-' + t);
+          var lbl = $('bard-instr-val-' + t);
+          if (!el || !lbl) return;
+          var idx = parseInt(el.value, 10);
+          if (isNaN(idx) || idx < 0 || idx >= stops.length) idx = 1;
+          lbl.textContent = stops[idx].toFixed(1) + '×';
+        });
+      }
+
+      // Bard songs scale with the buffing bard's own level, not the simulated
+      // character's level — assume a bard at the era's level cap (60, or 65 in PoP).
+      function getBardCasterLevel() {
+        var eraId = ($('era-select') && $('era-select').value) || 'classic';
+        return (typeof EraConfig !== 'undefined' && EraConfig.getMaxLevel) ? EraConfig.getMaxLevel(eraId) : 60;
+      }
+
       function getBuffEffects() {
         if (!window.Buffs) return null;
         var ids = getActiveBuffIds();
         if (!ids.length) return null;
-        var lvl = parseInt(($('level') && $('level').value) || '60', 10) || 60;
-        return window.Buffs.resolveBuffEffects(ids, lvl);
+        return window.Buffs.resolveBuffEffects(ids, getBardCasterLevel(), getBardInstrumentMods());
       }
       // Expose so tanking and other tabs can share the same buff resolution
       window.getBuffEffects = getBuffEffects;
@@ -3961,8 +4055,7 @@
           return;
         }
 
-        var playerLvl = parseInt(($('level') && $('level').value) || '60', 10) || 60;
-        var result = window.Buffs.resolveBuffsWithDominance(ids, playerLvl);
+        var result = window.Buffs.resolveBuffsWithDominance(ids, getBardCasterLevel(), getBardInstrumentMods());
         var t = result.totals;
         totalsEl.style.display = '';
 
@@ -9854,6 +9947,15 @@
       renderBuffPanel();
       updateEffectiveHasteDisplay();
 
+      // Bard Instrument Mods sliders — recompute buff totals whenever a modifier changes
+      updateBardInstrumentLabels();
+      document.querySelectorAll('.bard-instr-input').forEach(function (el) {
+        el.addEventListener('input', function () {
+          updateBardInstrumentLabels();
+          updateBuffTotals();
+        });
+      });
+
       // Re-render buff panel when era changes (shows/hides era-gated buffs)
       document.addEventListener('gsim:erachange', function () {
         renderBuffPanel();
@@ -11788,7 +11890,7 @@
     if (!spells || !spellId) return { haste: 0, atk: 0, spellName: '' };
     var s = spells[spellId] || spells[String(spellId)];
     if (!s) return { haste: 0, atk: 0, spellName: '' };
-    var haste = 0, atk = 0, regen = 0, ft = 0;
+    var haste = 0, atk = 0, regen = 0, ft = 0, ds = 0;
     for (var i = 1; i <= 12; i++) {
       var eid = parseInt(s['effectid' + i]);
       var bv  = parseInt(s['effect_base_value' + i]);
@@ -11806,8 +11908,9 @@
       if (eid === 2  && ev > 0) atk   = Math.max(atk,   ev);
       if (eid === 0  && ev > 0) regen = Math.max(regen,  ev); // HP Regen (SE_CurrentHP)
       if (eid === 15 && ev > 0) ft    = Math.max(ft,     ev); // Flowing Thought / mana regen (SE_CurrentMana)
+      if (eid === 59 && ev > 0) ds    = Math.max(ds,     ev); // Damage Shield (SE_DamageShield)
     }
-    return { haste: haste, atk: atk, regen: regen, ft: ft, spellName: s.name || '' };
+    return { haste: haste, atk: atk, regen: regen, ft: ft, ds: ds, spellName: s.name || '' };
   }
 
   /**
@@ -12011,7 +12114,7 @@
     var recLevelCharLevel = (charInfo && charInfo.level != null)
       ? (parseInt(charInfo.level, 10) || 0)
       : (parseInt((document.getElementById('level') || {}).value, 10) || 0);
-    var totals = { ac: 0, str: 0, dex: 0, agi: 0, sta: 0, wis: 0, int: 0, cha: 0, hp: 0, mana: 0, atk: 0, mr: 0, fr: 0, cr: 0, dr: 0, pr: 0, regen: 0, ft: 0, archeryMod: 0, shieldAc: 0, weight: 0 };
+    var totals = { ac: 0, str: 0, dex: 0, agi: 0, sta: 0, wis: 0, int: 0, cha: 0, hp: 0, mana: 0, atk: 0, mr: 0, fr: 0, cr: 0, dr: 0, pr: 0, regen: 0, ft: 0, damageShield: 0, archeryMod: 0, shieldAc: 0, weight: 0 };
     var ITEM_TYPE_SHIELD = 8;   // EQ::item::ItemTypeShield
     var hasteItems  = [];   // { name, haste, spellName }
     var atkItems    = [];   // { name, atk, spellName }
@@ -12101,6 +12204,9 @@
           }
           if (fx.regen > 0) totals.regen += fx.regen;
           if (fx.ft    > 0) totals.ft    += fx.ft;
+          // Damage shield worn effects stack additively across gear slots (e.g. a
+          // DS ring + a DS cloak both reflect damage on every melee hit taken).
+          if (fx.ds    > 0) totals.damageShield += fx.ds;
         }
 
         // Worn archery skill modifier — include all slots for display, but track Range separately
@@ -12377,6 +12483,7 @@
       if (_easyHasteReadout) _easyHasteReadout.textContent = totalHaste + '%';
     }
     if (totals.atk) setEl('worn-attack', totals.atk);
+    setEl('tank-damage-shield', totals.damageShield || 0);
     updateTankHP();
 
     // ---- Class detection via class bitmask intersection ----
@@ -12437,6 +12544,7 @@
       ['ATK',   totals.atk],
       ['Regen', totals.regen],
       ['FT',    totals.ft],
+      ['DS',    totals.damageShield],
     ];
     function renderPill(pair) {
       var val = pair[1] || 0;
@@ -12954,6 +13062,23 @@
       focusEffects = window.ItemFocus.getEquippedFocusEffects(items, era);
       itemManaRegen = window.ItemFocus.getEquippedManaRegen(items, era, window.ItemFocus.ITEM_MANA_REGEN_CAP);
     }
+    // Manually-added focus effects (AA & Gear card's "Add focus effect
+    // manually" picker) — lets a player test any focus from the full item
+    // database without equipping its source item. Same resolved shape as an
+    // equipped focus, so it flows through applyGearAndAABonuses identically;
+    // skipped if an equipped item already grants the same spell id.
+    if (window.ItemFocus && window._rotationManualFocusIds && window._rotationManualFocusIds.length) {
+      var equippedFocusIds = {};
+      focusEffects.forEach(function (f) { equippedFocusIds[f.spellId] = true; });
+      window._rotationManualFocusIds.forEach(function (spellId) {
+        if (equippedFocusIds[spellId]) return;
+        var resolved = window.ItemFocus.resolveFocusSpell(spellId);
+        if (resolved) {
+          resolved.itemName = '(Manually added)';
+          focusEffects.push(resolved);
+        }
+      });
+    }
     // Mana regen from active buffs checked in the Buff Panel (e.g. Koadic's
     // Endless Intellect, Protection of the Glades/Cabbage, Spiritual Purity).
     var buffManaRegen = 0;
@@ -12965,12 +13090,19 @@
     var dexEl = document.getElementById('dex');
     var intEl = document.getElementById('int');
     var wisEl = document.getElementById('wis');
+    // #int/#dex hold the unbuffed final stat (race + creation points + gear,
+    // via getFinalStat) — add active buffs' stat bonus on top (same
+    // buffedVal formula as the Character card's stat distributor table and
+    // the Ranged tab's caster stat block) so Wizard innate crit reflects the
+    // true buffed INT/DEX, not just gear.
+    var statBuffFx = (typeof getBuffEffects === 'function') ? getBuffEffects() : null;
+    var statCap = 255 + ((typeof aaConfig !== 'undefined' && aaConfig.planarPower) || 0) * 5;
     var caster = {
       classId: classId,
       level: levelEl ? parseInt(levelEl.value, 10) || 0 : 0,
-      dex: dexEl ? parseInt(dexEl.value, 10) || 0 : 0,
-      int: intEl ? parseInt(intEl.value, 10) || 0 : 255,
-      wis: wisEl ? parseInt(wisEl.value, 10) || 0 : 255
+      dex: Math.min(statCap, (dexEl ? parseInt(dexEl.value, 10) || 0 : 255) + (statBuffFx ? statBuffFx.dex || 0 : 0)),
+      int: Math.min(statCap, (intEl ? parseInt(intEl.value, 10) || 0 : 255) + (statBuffFx ? statBuffFx.int || 0 : 0)),
+      wis: Math.min(statCap, (wisEl ? parseInt(wisEl.value, 10) || 0 : 255) + (statBuffFx ? statBuffFx.wis || 0 : 0))
     };
     var specSchoolEl = document.getElementById('rotation-spec-school');
     var specSchool = specSchoolEl ? specSchoolEl.value : '';
@@ -13085,15 +13217,19 @@
       tickWaitEl.addEventListener('change', renderRotationGearSummary);
     }
 
+    // Gate on the same class/level rule wizardInnateCritChance uses — the
+    // chance itself isn't shown here since INT/DEX at render time may not
+    // reflect what a simulation run will actually use (buffs/gear not yet
+    // finalized); the report shows the real calculated chance per run.
     var innateChance = (window.RotationEngine && window.RotationEngine.wizardInnateCritChance)
       ? window.RotationEngine.wizardInnateCritChance(gearAA.caster.classId, gearAA.caster.level, gearAA.caster.int, gearAA.caster.dex)
       : 0;
     if (innateChance > 0) {
       lines.push('<div style="margin-top:0.35rem;font-size:0.8rem;color:var(--muted);">' +
         '<strong style="' + LABEL + '">Wizard innate crit:</strong> ' +
-        '<span style="' + VALUE + '">' + (innateChance * 100).toFixed(2) + '% chance</span> ' +
-        '<span>(+1-50% damage on hit, from INT ' + gearAA.caster.int + ' / DEX ' + gearAA.caster.dex +
-        '; only rolls when Spell Casting Fury didn\'t already crit)</span>' +
+        '<span style="' + VALUE + '">((INT + DEX) / 2 + 32) / 10000</span> ' +
+        '<span>chance for +1-50% damage on hit (only rolls when Spell Casting Fury didn\'t already crit) — ' +
+        'see the Rotation Report after simulating for the calculated chance using your final INT/DEX</span>' +
         '</div>');
     }
 
@@ -13123,6 +13259,77 @@
     }
   }
 
+  // Manually-added focus effects (see getRotationGearAndAA's merge step) —
+  // spell ids the player wants tested regardless of what's equipped.
+  window._rotationManualFocusIds = window._rotationManualFocusIds || [];
+
+  function focusEffectSummaryLabel(f) {
+    var parts = [];
+    if (f.improvedDamagePct > 0) parts.push('+' + f.improvedDamagePct + '% dmg');
+    if (f.reduceManaPct > 0) parts.push('-' + f.reduceManaPct + '% mana');
+    if (f.spellHastePct > 0) parts.push('+' + f.spellHastePct + '% haste');
+    if (f.increaseDurationPct > 0) parts.push('+' + f.increaseDurationPct + '% DoT duration');
+    return f.name + (parts.length ? ' (' + parts.join(', ') + ')' : '');
+  }
+
+  function initRotationManualFocusPicker() {
+    var selectEl = document.getElementById('rotation-manual-focus-select');
+    var addBtn = document.getElementById('rotation-manual-focus-add-btn');
+    var listEl = document.getElementById('rotation-manual-focus-list');
+    if (!selectEl || !addBtn || !listEl) return;
+
+    if (!selectEl._focusOptionsLoaded && window.ItemFocus) {
+      selectEl._focusOptionsLoaded = true;
+      var all = window.ItemFocus.getAllKnownFocusEffects();
+      all.forEach(function (f) {
+        var opt = document.createElement('option');
+        opt.value = f.spellId;
+        opt.textContent = focusEffectSummaryLabel(f);
+        selectEl.appendChild(opt);
+      });
+    }
+
+    function renderList() {
+      if (!window._rotationManualFocusIds.length) {
+        listEl.innerHTML = '';
+        return;
+      }
+      var html = window._rotationManualFocusIds.map(function (spellId) {
+        var resolved = window.ItemFocus ? window.ItemFocus.resolveFocusSpell(spellId) : null;
+        var label = resolved ? focusEffectSummaryLabel(resolved) : ('Spell ' + spellId);
+        return '<div style="display:flex;align-items:center;gap:0.5rem;margin-top:0.25rem;font-size:0.8rem;">' +
+          '<span style="color:var(--muted);">' + String(label).replace(/</g, '&lt;') + '</span>' +
+          '<button type="button" class="sim-history-clear-btn" data-remove-manual-focus="' + spellId + '" style="padding:0.1rem 0.5rem;">Remove</button>' +
+          '</div>';
+      }).join('');
+      listEl.innerHTML = html;
+      Array.prototype.forEach.call(listEl.querySelectorAll('[data-remove-manual-focus]'), function (btn) {
+        btn.addEventListener('click', function () {
+          var id = btn.getAttribute('data-remove-manual-focus');
+          window._rotationManualFocusIds = window._rotationManualFocusIds.filter(function (sid) { return String(sid) !== String(id); });
+          renderList();
+          renderRotationGearSummary();
+        });
+      });
+    }
+
+    if (!addBtn._boundManualFocus) {
+      addBtn._boundManualFocus = true;
+      addBtn.addEventListener('click', function () {
+        var spellId = selectEl.value;
+        if (!spellId) return;
+        if (window._rotationManualFocusIds.indexOf(spellId) === -1) {
+          window._rotationManualFocusIds.push(spellId);
+          renderList();
+          renderRotationGearSummary();
+        }
+        selectEl.value = '';
+      });
+    }
+
+    renderList();
+  }
+
   var CLASS_DEFAULT_SPELL_NAMES = {
     wizard: [
       "Garrison's Superior Sundering",
@@ -13138,6 +13345,7 @@
 
   window.refreshRotationSpellPool = function refreshRotationSpellPool() {
     renderRotationGearSummary();
+    initRotationManualFocusPicker();
     var poolEl = document.getElementById('rotation-spell-pool');
     var selectEl = document.getElementById('rotation-off-global-select');
     if (!poolEl) return;
