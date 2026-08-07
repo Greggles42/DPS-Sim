@@ -953,9 +953,11 @@
       if (!isNonDamagingDetrimental && bow.procSpellCcAddsMobHpThreat && baseProcDmg > 0 && TR.detrimentalNonDamageSpellThreat) {
         nonDamageHate += TR.detrimentalNonDamageSpellThreat(resolveTargetMaxHpRanged(options));
       }
+      if (nonDamageHate > rangedProcCap) nonDamageHate = rangedProcCap;
+      // Flat SE-92 hate (e.g. Enraging Blow) is a direct hate adjustment, not the
+      // CanClassCastSpell-capped non-damage bucket — added after the cap, uncapped.
       const flat = bow.procSpellBonusHate != null ? (bow.procSpellBonusHate | 0) : 0;
       if (flat !== 0) nonDamageHate += TR.procFlatHate ? TR.procFlatHate(flat) : flat;
-      if (nonDamageHate > rangedProcCap) nonDamageHate = rangedProcCap;
       const h = nonDamageHate + damageHate;
       if (h === 0) return;
       rangedProcThreatAcc += h;
@@ -1613,9 +1615,11 @@
       if (!isNonDamagingDetrimental && w && w.procSpellCcAddsMobHpThreat && baseThreatDmg > 0 && T.detrimentalNonDamageSpellThreat) {
         nonDamageHate += T.detrimentalNonDamageSpellThreat(resolveTargetMaxHp(options));
       }
+      if (nonDamageHate > effectiveProcCap) nonDamageHate = effectiveProcCap;
+      // Flat SE-92 hate (e.g. Enraging Blow) is a direct hate adjustment, not the
+      // CanClassCastSpell-capped non-damage bucket — added after the cap, uncapped.
       const flat = (includeFlatHate !== false && w && w.procSpellBonusHate != null) ? (w.procSpellBonusHate | 0) : 0;
       if (flat !== 0) nonDamageHate += T.procFlatHate ? T.procFlatHate(flat) : flat;
-      if (nonDamageHate > effectiveProcCap) nonDamageHate = effectiveProcCap;
       const h = nonDamageHate + damageHate;
       if (h === 0) return;
       procThreatAcc += h;
