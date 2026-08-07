@@ -3227,6 +3227,7 @@
     <details id="version-log-details">
     <summary style="cursor:pointer; font-size:1.17em; font-weight:bold; margin:0; list-style:revert;">Version log</summary>
     <ul style="font-size: 0.9rem; color: var(--muted); margin: 0.5rem 0 0; padding-left: 1.25rem;">
+      <li><strong>1.76</strong> — Fix: Easy Mode's Ambidexterity AA (and Combat Fury/Spell Casting Fury/Slay Undead defaults, plus max-stat defaults) only auto-applied at exactly level 60, and Easy Mode itself hard-capped level at 60 with no way to represent PoP's level 65 — so switching from a pre-PoP era to PoP (which auto-bumps character level to 65) silently dropped Ambidexterity's +32 effective dual-wield skill, measurably lowering the real chance of getting an offhand swing at all and cutting offhand proc rate well below what DEX/gear alone would predict. Easy Mode now unlocks levels 61-65 when PoP era is selected, and all of these level-gated defaults check <code>level &gt;= 60</code> instead of <code>=== 60</code>, matching Advanced mode's (already-correct) logic. Also fixes any PoP-only weapon proc with a 61-65 proc-level requirement being incorrectly gated off even while playing in PoP era, since the real level was previously getting clamped down before that check ran.</li>
       <li><strong>1.75</strong> — Fix: the Equipped Items summary (stat pills, item list, gear totals) silently failed to render whenever <strong>any</strong> equipped item — including via <strong>Edit Inventory</strong> from a blank slate, not just file import — got as far as being scanned for a melee weapon-skill mod. A <code>ReferenceError: SKILL_ID_TO_MELEE_KEY is not defined</code> (a leftover from the 1.74 gear-scan feature referencing a variable that only existed in a different script closure) aborted the whole inventory-apply function partway through, before the summary code ran, with nothing visible in the UI to indicate a crash had happened. Verified fixed by adding an item via Edit Inventory starting from a fully blank inventory — the summary panel and weapon fields now populate correctly with no console errors.</li>
       <li><strong>1.74</strong> — <strong>Rank Weapons</strong> tool: melee weapon-skill mods were already applied per-weapon (each candidate's own skillmodtype/skillmodvalue), but ignored gear-wide mods picked up from Import Inventory (rings/armor). All 9 spots that compute a candidate weapon's effective skill now take the max of the weapon's own mod and the gear-wide mod, same as the main Melee tab sim, so ranking results reflect your actually-equipped gear.</li>
       <li><strong>1.73</strong> — Fix: melee weapon-skill mods (Shadowed Torment, etc.) still didn't apply for anyone who'd previously selected that weapon from item search before the 1.70 fix — the "Recent" weapons list caches the full normalized weapon object in <code>localStorage</code> indefinitely (survives hard refreshes), so a weapon picked from Recent replayed the old cached object with no <code>skillmodtype</code>/<code>skillmodvalue</code> at all, the same failure mode the Backstab mod already had a fallback for. Now falls back to re-deriving the mod from the underlying local item data via the cached object's itemId, same pattern Backstab and worn-ATK already use. Also reverted the "Offense rating &gt; From skill" line's parenthetical back to the generic "(weapon type skill)" label (previous change named the specific skill there, which read as confusingly duplicating the separate "Offense skill" line above it since the two often show the same number by coincidence).</li>
@@ -3800,7 +3801,7 @@
       }
 
       // When releasing: 1) Bump VERSION below. 2) Add a new <li> at the top of the Version log section above.
-      const VERSION = '1.75';
+      const VERSION = '1.76';
       const versionEl = $('app-version');
       if (versionEl) versionEl.textContent = 'v' + VERSION;
 
@@ -8607,19 +8608,28 @@
       }
       function buildEasyLevelOptions() {
         var levelEl = $('easy-level'); if (!levelEl) return;
+        var preserved = levelEl.value;
+        var isPop = (window.getSelectedEra ? window.getSelectedEra() : 'classic') === 'pop';
+        var maxUnlocked = isPop ? 65 : 60;
         var options = [];
-        for (var i = 1; i <= 65; i++) options.push('<option value="' + i + '"' + (i >= 61 ? ' disabled' : '') + '>' + i + (i >= 61 ? ' (locked)' : '') + '</option>');
+        for (var i = 1; i <= 65; i++) options.push('<option value="' + i + '"' + (i > maxUnlocked ? ' disabled' : '') + '>' + i + (i > maxUnlocked ? ' (locked)' : '') + '</option>');
         levelEl.innerHTML = options.join('');
+        if (preserved) {
+          var maxLvl = isPop ? 65 : 60;
+          var restored = Math.min(parseInt(preserved, 10) || 1, maxLvl);
+          levelEl.value = String(restored);
+        }
       }
       function getEasyAssumptionsByLevel(level) {
         var lvl = parseInt(level, 10) || 1;
         if (lvl < 1) lvl = 1;
-        if (lvl > 60) lvl = 60;
+        var isPop = (window.getSelectedEra ? window.getSelectedEra() : 'classic') === 'pop';
+        if (lvl > (isPop ? 65 : 60)) lvl = isPop ? 65 : 60;
         var wornHaste = 0;
         if (lvl >= 10 && lvl <= 39) wornHaste = 22;
         else if (lvl >= 40 && lvl <= 59) wornHaste = 34;
-        else if (lvl === 60) wornHaste = 41;
-        var isMax = (lvl === 60);
+        else if (lvl >= 60) wornHaste = 41;
+        var isMax = (lvl >= 60);
         return {
           level: lvl,
           wornHaste: wornHaste,
@@ -8658,7 +8668,7 @@
           '- STR: ' + a.str,
           '- DEX: ' + a.dex
         ];
-        if (a.level === 60) {
+        if (a.level >= 60) {
           lines.push('- Ambidexterity: On');
           lines.push('- Combat Fury 3: On (+6% crit)');
           lines.push('- Worn attack: 0');
@@ -8677,7 +8687,8 @@
       }
       function syncEasyFromAdvancedBasics() {
         var levelSrc = $('level'); var easyLevel = $('easy-level');
-        if (levelSrc && easyLevel) { var lvl = parseInt(levelSrc.value, 10); if (isNaN(lvl)) lvl = 60; if (lvl > 60) lvl = 60; if (lvl < 1) lvl = 1; easyLevel.value = String(lvl); }
+        var isPopEra = (window.getSelectedEra ? window.getSelectedEra() : 'classic') === 'pop';
+        if (levelSrc && easyLevel) { var lvl = parseInt(levelSrc.value, 10); if (isNaN(lvl)) lvl = 60; var maxLvl = isPopEra ? 65 : 60; if (lvl > maxLvl) lvl = maxLvl; if (lvl < 1) lvl = 1; easyLevel.value = String(lvl); }
         var currentLevel = easyLevel ? (parseInt(easyLevel.value, 10) || 1) : 1;
         var defaults = getEasyAssumptionsByLevel(currentLevel);
         var easyHaste = $('easy-worn-haste');
@@ -8712,10 +8723,10 @@
           applyDefaultStatsByLevel(assumptions.level);
         }
         var classId = (($('class') && $('class').value) || '').toLowerCase();
-        aaConfig.ambidexterity = assumptions.level === 60 ? 1 : 0;
-        aaConfig.combatFury = assumptions.level === 60 ? 3 : 0;
-        aaConfig.spellCastingFury = (assumptions.level === 60 && easyClassHasSpellCastingFury(classId)) ? 3 : 0;
-        aaConfig.slayUndead = (assumptions.level === 60 && classId === 'paladin') ? 3 : 0;
+        aaConfig.ambidexterity = assumptions.level >= 60 ? 1 : 0;
+        aaConfig.combatFury = assumptions.level >= 60 ? 3 : 0;
+        aaConfig.spellCastingFury = (assumptions.level >= 60 && easyClassHasSpellCastingFury(classId)) ? 3 : 0;
+        aaConfig.slayUndead = (assumptions.level >= 60 && classId === 'paladin') ? 3 : 0;
         if (typeof buildAAConfiguratorUI === 'function') buildAAConfiguratorUI();
         if (typeof buildPetPanelUI === 'function') buildPetPanelUI();
       }
@@ -8903,7 +8914,9 @@
         setupEasyItemSearch('w2');
         var easyLevel = $('easy-level');
         if (easyLevel) easyLevel.addEventListener('change', function () {
-          if ((parseInt(easyLevel.value, 10) || 0) > 60) easyLevel.value = '60';
+          var isPopEra = (window.getSelectedEra ? window.getSelectedEra() : 'classic') === 'pop';
+          var maxLvl = isPopEra ? 65 : 60;
+          if ((parseInt(easyLevel.value, 10) || 0) > maxLvl) easyLevel.value = String(maxLvl);
           var lvl = parseInt(easyLevel.value, 10) || 1;
           var assumptions = getEasyAssumptionsByLevel(lvl);
           var easyHasteEl = $('easy-worn-haste');
@@ -9596,7 +9609,7 @@
         if (window.inventoryLoaded) return;
         var lvl = parseInt(level, 10) || 60;
         var str, agi, dex, sta;
-        if (lvl === 60) { str = 255; agi = 255; dex = 255; sta = 255; }
+        if (lvl >= 60) { str = 255; agi = 255; dex = 255; sta = 255; }
         else            { str = 150; agi = 100; dex = 100; sta = 100; }
         var strEl = $('str'); if (strEl) strEl.value = String(str);
         var dexEl = $('dex'); if (dexEl) dexEl.value = String(dex);
@@ -9844,6 +9857,7 @@
       document.addEventListener('gsim:erachange', function () {
         renderBuffPanel();
         updateBuffTotals();
+        if (typeof buildEasyLevelOptions === 'function') buildEasyLevelOptions();
       });
 
       // Init stat distributor and race selector
