@@ -22,6 +22,25 @@
  *   - SPA 11 (haste v1): global max across all active buffs regardless of SAI
  *   - SPA 119 (bard haste v3): global max; stacks with v1
  *   - All other SPAs: group by SAI, take max within each SAI group, then sum across groups
+ *
+ * CAVEAT — "sai" here is an approximation, not the real mechanic:
+ *   EQ's actual buff-stacking check (Mob::FindAffectSlot in the server's
+ *   buffstacking.cpp) does NOT use SpellAffectIndex at all — that field is
+ *   leftover client particle-effect data (see spdat.cpp: "data for the older
+ *   particle cloud system in the client, and not for spell logic"). The real
+ *   check walks both spells' 12 effect slots in lockstep and only treats two
+ *   buffs as conflicting on a stat if that stat's effect sits at the *same
+ *   slot index* in both spells' effectid[] arrays (from spells_en.json).
+ *   Reusing SpellAffectIndex as a grouping key happens to match that real
+ *   behavior for same-line spells (e.g. Avatar/Feral Avatar/Ferine Avatar all
+ *   put ATK in slot 2), but it is WRONG whenever two spells share a
+ *   SpellAffectIndex value while their actual effects live in different slot
+ *   positions — those spells stack in-game but this model would incorrectly
+ *   suppress one of them. When adding a new buff, if it shares a `sai` with
+ *   an existing one, check both spells' effectid[]/effect_base_value[] in
+ *   resources/spells_en.json before assuming they're mutually exclusive; give
+ *   it a distinct sai (see dance_of_the_blade for a worked example) if the
+ *   conflicting stat's slot index doesn't actually line up.
  */
 
 (function () {
@@ -46,9 +65,16 @@
   const BARD_INSTRUMENT_MOD = 1.8; // Bard epic: Singing Sword of the Maestro
 
   // Per-instrument-type modifier slider stops, selectable in the Buffs panel.
-  // 1.0 = no instrument mastery, 1.8 = epic weapon, 2.2/2.4/2.6 = higher AA/item tiers.
+  // 1.0 = no instrument mastery, 1.8 = epic weapon, remaining stops = higher AA/item
+  // tiers. The ceiling is era-gated: PoP raised the achievable instrument mastery cap,
+  // so the top stop is higher than Luclin and earlier.
   const INSTRUMENT_TYPES = ['singing', 'stringed', 'brass', 'percussion', 'wind'];
-  const INSTRUMENT_STOPS = [1.0, 1.8, 2.2, 2.4, 2.6];
+  const INSTRUMENT_STOPS = [1.0, 1.8, 2.4, 3.0, 3.6];        // Luclin and earlier
+  const INSTRUMENT_STOPS_POP = [1.0, 1.8, 2.5, 3.3, 4.0];    // Planes of Power
+
+  function getInstrumentStops(eraId) {
+    return eraId === 'pop' ? INSTRUMENT_STOPS_POP : INSTRUMENT_STOPS;
+  }
   const DEFAULT_INSTRUMENT_MODS = {
     singing: BARD_INSTRUMENT_MOD,
     stringed: BARD_INSTRUMENT_MOD,
@@ -361,18 +387,30 @@
     },
     {
       // Bard epic 1.0 (Singing Short Sword) proc — a real buff-duration spell
-      // (spellId 1937, 30 ticks = 3min), not a passive worn effect, so it
-      // stacks/dominates like any other spell buff in its SAI group.
+      // (spellId 1937, 30 ticks = 3min), not a passive worn effect.
+      // effectid[] = [CHA×9, AttackSpeed, STR, ATK] — its ATK/STR land in
+      // effect slots 10/11 (0-indexed), while every other sai:7 "avatar" line
+      // spell (Avatar/Feral Avatar/Ferine Avatar) puts ATK in slot 2 and ends
+      // (SE_Blank) by slot 7. EQ's real stacking check (Mob::FindAffectSlot in
+      // buffstacking.cpp) walks both spells' effect slots in lockstep and only
+      // treats them as conflicting if the *same slot index* holds the same
+      // effect id in both — SpellAffectIndex ("sai") itself is not used for
+      // this at all (see spdat.cpp comment: "data for the older particle cloud
+      // system in the client, and not for spell logic"). Because Dance's
+      // ATK/STR sit past where the avatar-line spells' effect lists end, they
+      // never collide, so Dance of the Blade always stacks additively with
+      // Avatar/Feral Avatar/Ferine Avatar rather than being suppressed by
+      // them. Giving it its own sai group here reproduces that.
       id: 'dance_of_the_blade',
       name: 'Dance of the Blade',
       category: 'offensive',
       source: 'Proc',
       spellId: 1937,
-      sai: 7,
+      sai: 200,
       effects: [
         { spa: SPA.HASTE_V1, value: 55 },
+        { spa: SPA.STR,      value: 30 },
         { spa: SPA.ATK,      value: 30 },
-        { spa: SPA.AC,       value: 30 },
       ],
     },
     {
@@ -1028,6 +1066,8 @@
     BARD_INSTRUMENT_MOD: BARD_INSTRUMENT_MOD,
     INSTRUMENT_TYPES: INSTRUMENT_TYPES,
     INSTRUMENT_STOPS: INSTRUMENT_STOPS,
+    INSTRUMENT_STOPS_POP: INSTRUMENT_STOPS_POP,
+    getInstrumentStops: getInstrumentStops,
     DEFAULT_INSTRUMENT_MODS: DEFAULT_INSTRUMENT_MODS,
     buildBardEffects: buildBardEffects,
     resolveBuffEffects: resolveBuffEffects,

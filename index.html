@@ -3358,6 +3358,7 @@
     <details id="version-log-details">
     <summary style="cursor:pointer; font-size:1.17em; font-weight:bold; margin:0; list-style:revert;">Version log</summary>
     <ul style="font-size: 0.9rem; color: var(--muted); margin: 0.5rem 0 0; padding-left: 1.25rem;">
+      <li><strong>1.82</strong> — Buff Panel: fixed <strong>Dance of the Blade</strong> — its third effect was mislabeled as +30 AC, it's actually +30 STR. Also fixed it being incorrectly suppressed (via SAI stacking group) when <strong>Ancient: Feral Avatar</strong>, <strong>Avatar</strong>, or <strong>Ferine Avatar</strong> was also up — real EQ stacking compares each spell's effects slot-by-slot, and Dance of the Blade's ATK/STR sit in effect slots that don't collide with those spells', so they stack in-game and now stack in the sim too.</li>
       <li><strong>1.81</strong> — New landing splash on first visit (or after a new release): a mode-picker image lets you choose Easy or Advanced mode by clicking either half. Your choice is remembered in the browser so you won't be asked again until gSim updates or you visit from a new device/browser.</li>
       <li><strong>1.80</strong> — Buff Panel: added <strong>Dance of the Blade</strong>, the proc buff from the bard epic 1.0 weapon (Singing Short Sword) — +55% haste, +30 ATK, +30 AC for 3 minutes (spell 1937, Luclin-era).</li>
       <li><strong>1.79</strong> — Rotation tab's <strong>AA &amp; Gear</strong> card: the <strong>Wizard innate crit</strong> line now shows the formula (<code>((INT + DEX) / 2 + 32) / 10000</code>) instead of a computed percentage — it previously calculated using whatever INT/DEX happened to be in the Character card at that moment (often an unset 75/255 default), which read as the actual crit chance but usually wasn't. The real calculated chance, using the run's final INT/DEX (base + gear + buffs), still appears in the Rotation Report after simulating, unchanged. Also fixes the caster INT/DEX/WIS the sim itself uses (Wizard innate crit calc, spec skill) to include active buff bonuses on top of the Character card's base+gear stat, not just gear (e.g. Koadic's Endless Intellect's +25 INT now counts).</li>
@@ -3937,7 +3938,7 @@
       }
 
       // When releasing: 1) Bump VERSION below. 2) Add a new <li> at the top of the Version log section above.
-      const VERSION = '1.81';
+      const VERSION = '1.82';
       const versionEl = $('app-version');
       if (versionEl) versionEl.textContent = 'v' + VERSION;
 

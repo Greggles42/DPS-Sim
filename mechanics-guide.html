@@ -1945,6 +1945,31 @@
       </p>
     </div>
 
+    <div class="card">
+      <h2>25) Buffs Panel — How Buffs Combine (Stacking) <span class="badge badge-game">In-Game Mechanic</span></h2>
+      <p>
+        When you check multiple buffs at once (say, several ATK-boosting buffs), the sim mirrors EverQuest's rule
+        that some buffs of "the same kind" don't fully add together — one wins and the other is wasted, just like
+        in-game. Buffs are grouped, and within a group only the strongest one counts toward your stats; buffs in
+        <em>different</em> groups always add on top of each other normally.
+      </p>
+      <p class="muted">
+        Two exceptions: worn/spell haste (the most common haste buffs) always uses the single best value active,
+        regardless of grouping, and bard-only haste is a separate pool on top of that — this matches how haste
+        actually works in-game (it doesn't stack additively even across different spell lines).
+      </p>
+      <p class="muted">
+        <strong>v1.82 fix — Dance of the Blade.</strong> The bard epic 1.0 proc (Singing Short Sword) was previously
+        grouped with the shaman Avatar line (Avatar / Ancient: Feral Avatar / Ferine Avatar), so having both up only
+        counted the stronger one. In-game, EverQuest actually checks buffs against each other very literally, effect
+        by effect — two buffs only compete if they're carrying the exact same kind of bonus in the exact same
+        "slot" of their spell data. Dance of the Blade's ATK and STR bonuses live in different slots than the Avatar
+        line's, so in real EQ they never compete — both fully apply. The sim now reflects that: Dance of the Blade
+        stacks with any of the Avatar-line buffs instead of being suppressed by them. (Also fixed: its third bonus
+        was mislabeled as +30 AC when it's actually +30 STR.)
+      </p>
+    </div>
+
     <p class="muted">
       Reference implementation: <a href="https://github.com/SecretsOTheP/EQMacEmu/blob/main/zone/attack.cpp" target="_blank" rel="noopener">EQMacEmu attack.cpp</a>.
       Return to <a href="index.html">main simulator</a>.
