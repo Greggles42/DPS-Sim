@@ -1992,9 +1992,82 @@
       .stat-dist-table { width: max-content; min-width: 100%; }
     }
 
+    /* Landing splash: mode picker shown on first visit / new device / new version */
+    .landing-splash {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      background: #0a0a0d;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 1.25rem;
+      padding: 1.5rem;
+    }
+    .landing-splash.landing-splash--visible { display: flex; }
+    .landing-splash-question {
+      font-family: 'Cinzel', serif;
+      font-weight: 700;
+      color: #d4af37;
+      font-size: clamp(1.1rem, 3vw, 1.6rem);
+      text-align: center;
+      margin: 0;
+      letter-spacing: 0.02em;
+    }
+    .landing-splash-image-wrap {
+      position: relative;
+      max-width: min(92vw, 1000px);
+      max-height: 78vh;
+      width: 100%;
+      display: flex;
+      justify-content: center;
+    }
+    .landing-splash-image {
+      width: 100%;
+      height: auto;
+      max-height: 78vh;
+      object-fit: contain;
+      border-radius: 6px;
+      box-shadow: 0 12px 40px rgba(0,0,0,0.6);
+      pointer-events: none;
+      user-select: none;
+    }
+    .landing-splash-hit {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      width: 50%;
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      padding: 0;
+      transition: background 0.15s ease;
+    }
+    .landing-splash-hit:hover,
+    .landing-splash-hit:focus-visible {
+      background: rgba(212, 175, 55, 0.12);
+      outline: none;
+    }
+    .landing-splash-hit--easy { left: 0; }
+    .landing-splash-hit--advanced { right: 0; }
+    @media (max-width: 640px) {
+      .landing-splash { gap: 0.85rem; }
+      .landing-splash-image-wrap { max-height: 70vh; }
+      .landing-splash-image { max-height: 70vh; }
+    }
+
   </style>
 </head>
 <body data-ui-mode="easy" class="app-body">
+  <div id="landing-splash" class="landing-splash" role="dialog" aria-modal="true" aria-labelledby="landing-splash-question">
+    <p id="landing-splash-question" class="landing-splash-question">Which simulator mode would you like?</p>
+    <div class="landing-splash-image-wrap">
+      <img src="resources/gSim easy advanced.png" alt="Choose Easy mode or Advanced mode" class="landing-splash-image" draggable="false">
+      <button type="button" class="landing-splash-hit landing-splash-hit--easy" id="landing-splash-easy" aria-label="Choose Easy mode"></button>
+      <button type="button" class="landing-splash-hit landing-splash-hit--advanced" id="landing-splash-advanced" aria-label="Choose Advanced mode"></button>
+    </div>
+  </div>
   <header class="app-header flex items-center justify-between gap-4 px-4 md:px-8 z-50">
     <div class="header-logo-block flex items-center gap-3 md:gap-4 min-w-0">
       <iconify-icon icon="ra:crossed-swords" class="text-2xl md:text-3xl text-[#d4af37] flex-shrink-0"></iconify-icon>
@@ -3285,6 +3358,7 @@
     <details id="version-log-details">
     <summary style="cursor:pointer; font-size:1.17em; font-weight:bold; margin:0; list-style:revert;">Version log</summary>
     <ul style="font-size: 0.9rem; color: var(--muted); margin: 0.5rem 0 0; padding-left: 1.25rem;">
+      <li><strong>1.81</strong> — New landing splash on first visit (or after a new release): a mode-picker image lets you choose Easy or Advanced mode by clicking either half. Your choice is remembered in the browser so you won't be asked again until gSim updates or you visit from a new device/browser.</li>
       <li><strong>1.80</strong> — Buff Panel: added <strong>Dance of the Blade</strong>, the proc buff from the bard epic 1.0 weapon (Singing Short Sword) — +55% haste, +30 ATK, +30 AC for 3 minutes (spell 1937, Luclin-era).</li>
       <li><strong>1.79</strong> — Rotation tab's <strong>AA &amp; Gear</strong> card: the <strong>Wizard innate crit</strong> line now shows the formula (<code>((INT + DEX) / 2 + 32) / 10000</code>) instead of a computed percentage — it previously calculated using whatever INT/DEX happened to be in the Character card at that moment (often an unset 75/255 default), which read as the actual crit chance but usually wasn't. The real calculated chance, using the run's final INT/DEX (base + gear + buffs), still appears in the Rotation Report after simulating, unchanged. Also fixes the caster INT/DEX/WIS the sim itself uses (Wizard innate crit calc, spec skill) to include active buff bonuses on top of the Character card's base+gear stat, not just gear (e.g. Koadic's Endless Intellect's +25 INT now counts).</li>
       <li><strong>1.78</strong> — Rotation tab's <strong>AA &amp; Gear</strong> card: new <strong>Add focus effect manually</strong> picker lists every focus effect found on any item in the database (135 distinct effects) so you can test its impact without owning or equipping the item — resolved and applied through the same <code>itemFocus.js</code> logic as an equipped focus (same resist/spell-type/level/cast-time restrictions), and deduped against equipped items so the same focus spell never double-counts. New <code>ItemFocus.getAllKnownFocusEffects()</code> helper (dedupes items.json's <code>focuseffect</code> field by spell id, cached). Mechanics guide updated.</li>
@@ -3863,7 +3937,7 @@
       }
 
       // When releasing: 1) Bump VERSION below. 2) Add a new <li> at the top of the Version log section above.
-      const VERSION = '1.80';
+      const VERSION = '1.81';
       const versionEl = $('app-version');
       if (versionEl) versionEl.textContent = 'v' + VERSION;
 
@@ -3963,8 +4037,14 @@
 
       // Reads the Bard Instrument Mods sliders (index 0-4 into INSTRUMENT_STOPS) and
       // returns a { singing, stringed, brass, percussion, wind } modifier map.
+      function getBardInstrumentStops() {
+        var eraId = window.getSelectedEra ? window.getSelectedEra() : 'classic';
+        if (window.Buffs && window.Buffs.getInstrumentStops) return window.Buffs.getInstrumentStops(eraId);
+        return [1.0, 1.8, 2.4, 3.0, 3.6];
+      }
+
       function getBardInstrumentMods() {
-        var stops = (window.Buffs && window.Buffs.INSTRUMENT_STOPS) || [1.0, 1.8, 2.2, 2.4, 2.6];
+        var stops = getBardInstrumentStops();
         var types = (window.Buffs && window.Buffs.INSTRUMENT_TYPES) || ['singing', 'stringed', 'brass', 'percussion', 'wind'];
         var mods = {};
         types.forEach(function (t) {
@@ -3977,7 +4057,7 @@
       }
 
       function updateBardInstrumentLabels() {
-        var stops = (window.Buffs && window.Buffs.INSTRUMENT_STOPS) || [1.0, 1.8, 2.2, 2.4, 2.6];
+        var stops = getBardInstrumentStops();
         var types = (window.Buffs && window.Buffs.INSTRUMENT_TYPES) || ['singing', 'stringed', 'brass', 'percussion', 'wind'];
         types.forEach(function (t) {
           var el = $('bard-instr-' + t);
@@ -8642,7 +8722,44 @@
       }
       var modeBtn = $('btn-mode-toggle');
       if (modeBtn) modeBtn.addEventListener('click', toggleUiMode);
-      setUiMode(UI_MODES.EASY);
+
+      // Landing splash: ask which mode to use once per device, and again whenever
+      // the app version changes (a new release may add features worth re-choosing).
+      var LANDING_CHOICE_KEY = 'gsim_landing_choice';
+      function getStoredUiModeChoice() {
+        try {
+          var raw = localStorage.getItem(LANDING_CHOICE_KEY);
+          if (!raw) return null;
+          var parsed = JSON.parse(raw);
+          if (!parsed || parsed.version !== VERSION) return null;
+          if (parsed.mode !== UI_MODES.EASY && parsed.mode !== UI_MODES.ADVANCED) return null;
+          return parsed.mode;
+        } catch (e) { return null; }
+      }
+      function storeUiModeChoice(mode) {
+        try { localStorage.setItem(LANDING_CHOICE_KEY, JSON.stringify({ mode: mode, version: VERSION })); } catch (e) {}
+      }
+      function hideLandingSplash() {
+        var splash = $('landing-splash');
+        if (splash) splash.classList.remove('landing-splash--visible');
+      }
+      function chooseUiModeFromSplash(mode) {
+        storeUiModeChoice(mode);
+        setUiMode(mode);
+        hideLandingSplash();
+      }
+      var storedUiMode = getStoredUiModeChoice();
+      if (storedUiMode) {
+        setUiMode(storedUiMode);
+      } else {
+        setUiMode(UI_MODES.EASY);
+        var splashEl = $('landing-splash');
+        if (splashEl) splashEl.classList.add('landing-splash--visible');
+      }
+      var splashEasyBtn = $('landing-splash-easy');
+      var splashAdvBtn = $('landing-splash-advanced');
+      if (splashEasyBtn) splashEasyBtn.addEventListener('click', function () { chooseUiModeFromSplash(UI_MODES.EASY); });
+      if (splashAdvBtn) splashAdvBtn.addEventListener('click', function () { chooseUiModeFromSplash(UI_MODES.ADVANCED); });
 
       var EASY_CLASS_ORDER = ['bard','beastlord','cleric','druid','enchanter','magician','monk','necromancer','paladin','ranger','rogue','shadowknight','shaman','warrior','wizard'];
       var EASY_CLASS_ICONS = {
@@ -9049,7 +9166,6 @@
           if (Array.isArray(list)) { el.textContent = list.map(function (line) { return '- ' + String(line); }).join('\n'); return; }
           el.textContent = String(list || '');
         };
-        setUiMode(UI_MODES.EASY);
         renderEasyHistory();
         updateEasyDpsFromGlobal();
       }
@@ -9960,6 +10076,7 @@
       // Re-render buff panel when era changes (shows/hides era-gated buffs)
       document.addEventListener('gsim:erachange', function () {
         renderBuffPanel();
+        updateBardInstrumentLabels();
         updateBuffTotals();
         if (typeof buildEasyLevelOptions === 'function') buildEasyLevelOptions();
       });

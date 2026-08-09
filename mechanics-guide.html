@@ -118,6 +118,20 @@
     </p>
 
     <div class="card">
+      <h2>0) Choosing Easy or Advanced Mode <span class="badge badge-sim">Sim Feature</span></h2>
+      <p>
+        The first time you open gSim (or after any release that changes the app version), you'll see a
+        picture split in two — click the <strong>Easy</strong> side or the <strong>Advanced</strong> side to
+        pick your starting mode. You can always switch modes later with the Easy/Advanced toggle in the header.
+      </p>
+      <p class="muted">
+        Your choice is saved in your browser (not on a server), so you won't be asked again on that same
+        device/browser until gSim ships a new version. A different device or browser, or clearing your
+        browser data, will show the picker again.
+      </p>
+    </div>
+
+    <div class="card">
       <h2>1) Weapon Base Damage and Delay <span class="badge badge-game">In-Game Mechanic</span></h2>
       <p>
         Every weapon starts from <strong>base damage</strong> and <strong>delay</strong>. Delay is in deciseconds
@@ -1903,10 +1917,11 @@
         The <strong>Buffs</strong> card includes a <strong>Bard Instrument Mods</strong> row with one slider per
         instrument type. Each slider has five stops: <strong>1.0×</strong> (no instrument bonus), <strong>1.8×</strong>
         (an epic-tier instrument — the default for all five, matching what a well-equipped raid bard usually carries),
-        and <strong>2.2×</strong>, <strong>2.4×</strong>, <strong>2.6×</strong> for progressively better
-        instruments/AA combinations. Moving a slider only affects bard songs that use that instrument type — for
-        example, raising the Brass slider changes songs like Warsong of Zek but has no effect on a Singing-type song
-        like Rizlona's Call of Flame.
+        and two more stops for progressively better instruments/AA combinations, topping out at <strong>3.6×</strong>
+        on Luclin and earlier or <strong>4.0×</strong> once the era is set to Planes of Power (which raised the
+        achievable instrument mastery ceiling). Moving a slider only affects bard songs that use that instrument
+        type — for example, raising the Brass slider changes songs like Warsong of Zek but has no effect on a
+        Singing-type song like Rizlona's Call of Flame.
       </p>
       <p class="muted">
         Internally, each bard song buff is defined by its raw spell slot values (base, per-level scaling, and cap)
