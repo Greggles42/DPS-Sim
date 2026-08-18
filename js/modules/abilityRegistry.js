@@ -185,8 +185,10 @@
       // (Client::GetAA(aaSpellCastingFury) == 3 gate in effects.cpp); this
       // sim doesn't enforce prereqs in the UI, but rotationEngine.js's
       // applyGearAndAABonuses ignores this rank unless spellCritRank is 3.
-      classes: ['paladin', 'shadowknight', 'ranger', 'bard', 'beastlord',
-        'cleric', 'druid', 'shaman', 'necromancer', 'wizard', 'magician', 'enchanter'],
+      // This follow-up AA is Wizard-only on this server's AA table
+      // (altadv_vars.classes = 4096), unlike Spell Casting Fury's broad
+      // caster+hybrid list.
+      classes: ['wizard'],
       simOption: 'spellCastingFuryMasteryRank',
       category: 'combat',
       description: 'Further increases crit chance on direct-cast nukes/DoTs, stacking additively with Spell Casting Fury (no additional damage bonus — that stays fixed by Spell Casting Fury\'s own rank). Requires Spell Casting Fury rank 3.',
@@ -198,9 +200,11 @@
       era: 'luclin',
       section: 'luclin_class',
       ranks: 3,
-      // Same Spell Casting Fury rank-3 prereq as the Mastery line above.
-      classes: ['paladin', 'shadowknight', 'ranger', 'bard', 'beastlord',
-        'cleric', 'druid', 'shaman', 'necromancer', 'wizard', 'magician', 'enchanter'],
+      // Same Spell Casting Fury rank-3 prereq as the Mastery line above,
+      // but this particular follow-up AA is restricted to Druid/Wizard/
+      // Magician on this server's AA table (altadv_vars.classes = 12352),
+      // unlike the broad caster+hybrid list Spell Casting Fury itself uses.
+      classes: ['druid', 'wizard', 'magician'],
       simOption: 'quickDamageRank',
       category: 'combat',
       description: 'Reduces cast time on direct-damage spells (nukes/rains, cast time over 4s) by 2/5/10% per rank. Does not affect DoTs or buffs. Requires Spell Casting Fury rank 3.',

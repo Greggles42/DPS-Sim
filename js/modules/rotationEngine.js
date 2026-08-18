@@ -456,6 +456,20 @@
     // (nothing to conserve), so it's a no-op there.
     var sitForMedTicksRequested = !!config.sitForMedTicks;
     var sitForMedTicks = sitForMedTicksRequested && !unlimited;
+    // "Mounted": being on a horse lets you gain meditation ticks while
+    // casting — no need to be sitting (or even standing still) for the
+    // sitting/meditate rate to land. This bypasses the wait-vs-cast-through
+    // trade-off entirely: with Mounted on, the sim never holds off starting
+    // a cast for an imminent tick (see the wait check below), and every
+    // tick — whether it lands idle or mid-cast — is credited at the sitting
+    // rate instead of only the ticks caught genuinely idle. Independent of
+    // the Sit for Med Ticks checkbox; if both are on, Mounted wins (no
+    // waiting). Meaningless with unlimited mana, same as Sit for Med Ticks.
+    var mountedRequested = !!config.mounted;
+    var mounted = mountedRequested && !unlimited;
+    // Whether tick-by-tick tracking (as opposed to the smoothed continuous
+    // approximation) is active at all — either source turns it on.
+    var trackMedTicks = sitForMedTicks || mounted;
     // Ticks landing while genuinely idle (no candidate ready, or a
     // deliberate wait below) are credited at the sitting/meditate rate;
     // ticks landing mid-cast (because waiting wasn't worth it) only get
@@ -470,7 +484,22 @@
     // rate on whatever tick lands mid-cast). From the new slider.
     var maxTickWaitSec = Math.max(0, Math.min(6, config.maxTickWaitSec != null ? config.maxTickWaitSec : 6));
     var nextManaTickAt = 6;
-    var regenPerSec = sitForMedTicks ? 0 : manaPerTickStanding / 6;
+    var regenPerSec = trackMedTicks ? 0 : manaPerTickStanding / 6;
+
+    // "GCD clicky": a global-cooldown-reset item clicked right after a cast
+    // finishes, then a new spell started immediately rather than waiting
+    // out the normal 2.25s GCD. The click itself still takes a moment
+    // (gcdClickyDelaySec, default 200ms) — modeled as the earliest the next
+    // GCD spell can start after a clicked cast, instead of castEnd + GCD.
+    // Only works for a next spell whose own cast time is at least the GCD —
+    // a faster spell "fails to cast" this way in practice, so it isn't
+    // offered the shortcut and simply waits out the normal GCD like usual.
+    // Doesn't apply to the off-global filler spell, which already ignores
+    // the GCD outright. See the candidate filter and gcdFree/lastGcdClickAt
+    // bookkeeping below.
+    var gcdClicky = !!config.gcdClicky;
+    var gcdClickyDelaySec = Math.max(0, config.gcdClickyDelaySec != null ? config.gcdClickyDelaySec : 0.2);
+    var lastGcdClickAt = -Infinity;
 
     if (!pool.length || fightDurationSec <= 0) {
       return {
@@ -484,7 +513,9 @@
         scfCritCount: 0, innateCritCount: 0, quickDamageCastCount: 0, manualMode: !!manualOrder,
         focusDamageGain: 0, focusDamageGainDps: 0, focusManaSaved: 0, focusManaSavedPerSec: 0,
         sitForMedTicks: sitForMedTicks, sitForMedTicksRequested: sitForMedTicksRequested,
-        manaTickLog: [], sitTickCount: 0, castThroughTickCount: 0
+        mounted: mounted, mountedRequested: mountedRequested,
+        manaTickLog: [], sitTickCount: 0, castThroughTickCount: 0,
+        gcdClicky: gcdClicky, gcdClickyCastCount: 0
       };
     }
 
@@ -535,6 +566,10 @@
     // mark exactly where each one landed.
     var manaTickLog = [];
     var sitTickCount = 0, castThroughTickCount = 0;
+    // Casts that started right after a GCD-clicky click (i.e. would have
+    // had to wait out the full GCD otherwise) — reported so the trade-off
+    // is visible, same as the med-tick counters above.
+    var gcdClickyCastCount = 0;
     // One entry per point where `mana` actually changes (initial value, each
     // regen tick, each cast's cost) — {time, mana} — so the DPS-over-time
     // chart can draw the real mana curve (linear regen between points, same
@@ -552,7 +587,7 @@
     // wait), where `time` is never inside an active cast bar, so every tick
     // caught here is a real sitting tick.
     function applyPendingManaTicks(time) {
-      if (!sitForMedTicks) return;
+      if (!trackMedTicks) return;
       while (nextManaTickAt <= time) {
         mana = Math.min(maxMana, mana + manaPerTickSitting);
         lastManaUpdateT = nextManaTickAt;
@@ -564,16 +599,19 @@
     }
 
     // Applies every 6s tick landing inside [castStart, castEnd) — a cast
-    // the sim decided to run through rather than wait out — at the standing
-    // rate, since the caster was mid-cast (not sitting) for those.
+    // the sim decided to run through rather than wait out. Normally that
+    // means the caster was mid-cast (not sitting), so it's the standing
+    // rate — except when Mounted, which grants the sitting/meditate rate
+    // even while casting, so no rate penalty applies at all.
     function applyTicksDuringCast(castEnd) {
-      if (!sitForMedTicks) return;
+      if (!trackMedTicks) return;
       while (nextManaTickAt < castEnd && nextManaTickAt < fightDurationSec) {
-        mana = Math.min(maxMana, mana + manaPerTickStanding);
+        var rate = mounted ? manaPerTickSitting : manaPerTickStanding;
+        mana = Math.min(maxMana, mana + rate);
         lastManaUpdateT = nextManaTickAt;
-        manaTickLog.push({ time: nextManaTickAt, sitting: false, manaGained: manaPerTickStanding });
+        manaTickLog.push({ time: nextManaTickAt, sitting: mounted, manaGained: rate });
         manaLog.push({ time: nextManaTickAt, mana: mana });
-        castThroughTickCount += 1;
+        if (mounted) sitTickCount += 1; else castThroughTickCount += 1;
         nextManaTickAt += 6;
       }
     }
@@ -589,11 +627,20 @@
       if (t >= fightDurationSec) break;
 
       var m = manaAt(t);
+      // A normal (non-off-global) spell is GCD-ready either the usual way
+      // (gcdFree, the full 2.25s since the last GCD cast) or, with the GCD
+      // clicky on, right after the click's delay — but only for a spell
+      // whose own cast time is at least the GCD, per the "fails to cast"
+      // caveat on faster spells.
+      function gcdReady(spell) {
+        if (gcdFree <= t) return true;
+        return gcdClicky && spell.castTime >= GCD - 1e-9 && (lastGcdClickAt + gcdClickyDelaySec) <= t;
+      }
       var candidates = pool.filter(function (spell) {
         var offGlobal = isOffGlobal(spell, offGlobalSpellId);
         return availAt[spell.id] <= t &&
           (unlimited || m >= spell.mana) &&
-          (offGlobal || gcdFree <= t);
+          (offGlobal || gcdReady(spell));
       });
 
       if (candidates.length) {
@@ -632,6 +679,7 @@
         }
 
         var offGlobalBest = isOffGlobal(best, offGlobalSpellId);
+        if (!offGlobalBest && gcdClicky && gcdFree > t) gcdClickyCastCount += 1;
         var castEnd = t + best.castTime;
 
         // Would this cast still be running when the next tick lands? Since
@@ -641,8 +689,10 @@
         // how long the wait actually is — maxTickWaitSec caps how much idle
         // time you're willing to eat for it; past that, just cast through
         // and take the standing rate on that tick (applyTicksDuringCast
-        // below), same as leaving the checkbox off.
-        if (sitForMedTicks && nextManaTickAt < fightDurationSec && nextManaTickAt < castEnd - 1e-9) {
+        // below), same as leaving the checkbox off. Mounted skips this
+        // entirely — casting through already gets the sitting rate (see
+        // applyTicksDuringCast), so there's never anything to wait for.
+        if (sitForMedTicks && !mounted && nextManaTickAt < fightDurationSec && nextManaTickAt < castEnd - 1e-9) {
           var tickWaitNeeded = nextManaTickAt - t;
           if (tickWaitNeeded <= maxTickWaitSec + 1e-9) {
             t = nextManaTickAt;
@@ -730,7 +780,7 @@
           availAt[best.id] = castEnd + best.recastTime;
         }
         busyUntil = castEnd;
-        if (!offGlobalBest) gcdFree = castEnd + GCD;
+        if (!offGlobalBest) { gcdFree = castEnd + GCD; lastGcdClickAt = castEnd; }
         t = castEnd;
         continue;
       }
@@ -738,13 +788,17 @@
       if (!unlimited && ranOutOfManaAt === null) {
         var wouldBeReadyIgnoringMana = pool.some(function (spell) {
           var offGlobal = isOffGlobal(spell, offGlobalSpellId);
-          return availAt[spell.id] <= t && (offGlobal || gcdFree <= t);
+          return availAt[spell.id] <= t && (offGlobal || gcdReady(spell));
         });
         if (wouldBeReadyIgnoringMana) ranOutOfManaAt = t;
       }
 
       var nextTimes = [];
       if (gcdFree > t) nextTimes.push(gcdFree);
+      // With the clicky, a spell can also become GCD-ready at the click
+      // delay, which may land before gcdFree — make sure the time-skip
+      // below doesn't step past that earlier opportunity.
+      if (gcdClicky && (lastGcdClickAt + gcdClickyDelaySec) > t) nextTimes.push(lastGcdClickAt + gcdClickyDelaySec);
       pool.forEach(function (spell) { if (availAt[spell.id] > t) nextTimes.push(availAt[spell.id]); });
       var nextT = nextTimes.length ? Math.min.apply(null, nextTimes) : t + 0.25;
       if (nextT <= t) nextT = t + 0.1;
@@ -780,9 +834,18 @@
       // apart from "you didn't check it at all".
       sitForMedTicks: sitForMedTicks,
       sitForMedTicksRequested: sitForMedTicksRequested,
+      // Mounted: same idea, but bypasses the wait check (see the wait-check
+      // comment above simulateRotation's decision loop) and credits every
+      // tick at the sitting rate, even the ones landing mid-cast.
+      mounted: mounted,
+      mountedRequested: mountedRequested,
       manaTickLog: manaTickLog,
       sitTickCount: sitTickCount,
       castThroughTickCount: castThroughTickCount,
+      // Only meaningful when gcdClicky is on — count of casts that started
+      // right after a click instead of waiting out the full GCD.
+      gcdClicky: gcdClicky,
+      gcdClickyCastCount: gcdClickyCastCount,
       // Crit stats — real per-cast rolls (see the isCrit roll above), not an
       // expected-value estimate. maxHit is the single largest cast; critDps
       // is the incremental damage attributable to critting (castDamage minus
@@ -912,10 +975,15 @@
     if (result.ranOutOfManaAt != null) {
       lines.push(pad('  Ran out of mana at:', fmt(result.ranOutOfManaAt, 1) + ' sec'));
     }
-    if (result.sitForMedTicks) {
+    if (result.sitForMedTicks || result.mounted) {
       var totalTicks = result.sitTickCount + result.castThroughTickCount;
       lines.push(pad('  Med ticks (sat for / cast through):', fmt(result.sitTickCount, 0) + ' / ' +
-        fmt(result.castThroughTickCount, 0) + ' of ' + fmt(totalTicks, 0) + ' total ticks'));
+        fmt(result.castThroughTickCount, 0) + ' of ' + fmt(totalTicks, 0) + ' total ticks' +
+        (result.mounted ? ' — mounted, every tick at the sitting rate' : '')));
+    }
+    if (result.gcdClicky) {
+      lines.push(pad('  GCD-clicky casts:', fmt(result.gcdClickyCastCount, 0) + ' of ' +
+        fmt(result.castCount, 0) + ' total casts started right after a click instead of waiting out the GCD'));
     }
     if (result.truncatedPool) {
       lines.push('  Note: pool trimmed to the first ' + MAX_MEMORIZED_SPELLS +
@@ -1120,7 +1188,7 @@
     var CHAR_WIDTH = 5.8;
     // Extra row above the lanes for med-tick markers (Sit for Med Ticks) —
     // 0 when that option is off so the chart is unchanged from before.
-    var hasMedTicks = !!(result.sitForMedTicks && result.manaTickLog && result.manaTickLog.length);
+    var hasMedTicks = !!((result.sitForMedTicks || result.mounted) && result.manaTickLog && result.manaTickLog.length);
     var TICK_ROW_H = hasMedTicks ? 14 : 0;
 
     var hasOffGlobal = result.log.some(function (e) { return e.kind === 'offGlobal'; });
@@ -1156,6 +1224,16 @@
         );
       });
     }
+
+    // Rain wave / DoT tick dots are collected here instead of drawn inline,
+    // so overlapping ones (e.g. a rain recast before its own waves finish
+    // landing puts wave N of one cast at the same instant as wave 1 of the
+    // next) can be detected and spread apart vertically below — otherwise
+    // they stack exactly on top of each other and only the topmost is ever
+    // visible.
+    var waveDots = [];
+    var DOT_R = 4;
+    var DOT_SPACING = 9;
 
     visible.forEach(function (e) {
       var y = e.kind === 'offGlobal' ? laneY.offGlobal : laneY.gcd;
@@ -1193,15 +1271,39 @@
           var wt = landStart + wi * e.waveIntervalSec;
           if (wt >= windowSec) break;
           var wx = LEAD_IN + wt * PX_PER_SEC;
-          var wy = y + LANE_H / 2;
+          // Anchored just below the bar rather than dead center — the
+          // spell-name label sits centered in the lane, so a center-anchored
+          // dot sits right on top of the text.
+          var wy = y + LANE_H + DOT_R;
           var wTip = e.spellName + ' ' + unitLabel + ' ' + (wi + 1) + '/' + e.waves + ' — ' +
             wt.toFixed(2) + 's, ' + Math.round(perWaveDmg) + ' dmg' + mechanicNote;
-          svg.push(
-            '<circle cx="' + wx.toFixed(1) + '" cy="' + wy.toFixed(1) + '" r="4" fill="' + color +
-            '" stroke="' + SURFACE_COLOR + '" stroke-width="2"><title>' + escapeXml(wTip) + '</title></circle>'
-          );
+          waveDots.push({ wx: wx, wy: wy, color: color, tip: wTip });
         }
       }
+    });
+
+    // Group dots landing at (essentially) the same lane/instant — within a
+    // couple pixels of each other, closer than a dot's own diameter — and
+    // fan them out so every one stays visible instead of the later ones
+    // silently painting over the earlier. Only ever pushed *downward* from
+    // the bottom-edge anchor above — never upward, or a big enough group
+    // would climb back over the spell-name text (or, in the GCD lane,
+    // straight into the med-tick triangle row above the bars).
+    var overlapGroups = {};
+    waveDots.forEach(function (d) {
+      var key = Math.round(d.wy) + ':' + Math.round(d.wx / (DOT_R * 2));
+      (overlapGroups[key] = overlapGroups[key] || []).push(d);
+    });
+    Object.keys(overlapGroups).forEach(function (key) {
+      var g = overlapGroups[key];
+      if (g.length < 2) return;
+      g.forEach(function (d, i) { d.wy += i * DOT_SPACING; });
+    });
+    waveDots.forEach(function (d) {
+      svg.push(
+        '<circle cx="' + d.wx.toFixed(1) + '" cy="' + d.wy.toFixed(1) + '" r="' + DOT_R + '" fill="' + d.color +
+        '" stroke="' + SURFACE_COLOR + '" stroke-width="2"><title>' + escapeXml(d.tip) + '</title></circle>'
+      );
     });
 
     // Drawn last (on top of every bar) with an opaque background chip behind
@@ -1233,9 +1335,9 @@
       ? ' The small dots after a bar are its rain waves or DoT ticks landing over time.'
       : '';
     var tickNote = hasMedTicks
-      ? ' The triangles/dashed lines mark each 6s med tick — green if you sat for it, amber if a cast ran through it.'
-      : (result.sitForMedTicksRequested && !result.sitForMedTicks
-        ? ' Sit for Med Ticks has no effect with unlimited mana (Max mana = 0) — set a mana pool to see tick markers.'
+      ? ' The triangles/dashed lines mark each 6s med tick — green if it landed at the sitting/meditate rate (sat for it, or mounted), amber if a cast ran through it at only the standing rate.'
+      : ((result.sitForMedTicksRequested && !result.sitForMedTicks) || (result.mountedRequested && !result.mounted)
+        ? ' Sit for Med Ticks / Mounted have no effect with unlimited mana (Max mana = 0) — set a mana pool to see tick markers.'
         : '');
 
     var tickLegend = hasMedTicks

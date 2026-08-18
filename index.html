@@ -3241,6 +3241,15 @@
           <select id="rotation-off-global-select" style="width:18rem;"><option value="">None (pure GCD chain)</option></select>
         </div>
       </div>
+      <label style="display:flex;align-items:center;gap:0.4rem;margin-top:0.6rem;">
+        <input type="checkbox" id="rotation-gcd-clicky">
+        <span>GCD clicky after each spell <span class="hint" style="margin:0;">(click a global-cooldown-reset item right after each cast finishes, then start the next spell immediately instead of waiting out the 2.25s GCD)</span></span>
+      </label>
+      <div id="rotation-gcd-clicky-delay-wrap" style="display:none;align-items:center;gap:0.6rem;margin-top:0.5rem;max-width:26rem;">
+        <label for="rotation-gcd-clicky-delay" class="small-label" style="white-space:nowrap;">Click delay (ms)</label>
+        <input type="number" id="rotation-gcd-clicky-delay" value="200" min="0" step="10" style="width:6rem;">
+      </div>
+      <p class="hint" id="rotation-gcd-clicky-hint" style="display:none;margin:0.3rem 0 0;">Models a GCD-reset clicky: instead of waiting the full 2.25s global cooldown after a cast, the sim spends only the delay above (default 200ms, for the click itself) before starting the next spell — but only for a next spell whose own cast time is at least 2.25s; a faster spell can't be started this way and simply waits out the normal GCD instead, same as if this were unchecked. Doesn't affect the off-global filler spell above, which already ignores the GCD entirely.</p>
     </section>
 
     <!-- ═══════════════════════════════════════════════════════
@@ -3277,17 +3286,19 @@
         <div><label for="rotation-mana-regen" class="small-label">Mana regen/tick <span class="hint" style="margin:0;">(6s, extra — anything not auto-detected, e.g. spell bonuses)</span></label><input type="number" id="rotation-mana-regen" value="0" min="0" style="width:6rem;"></div>
       </div>
       <p class="hint" style="margin:0.3rem 0 0;">Mental Clarity (AA, +1/tick per rank), item Mana Regen — worn effects like Flowing Thought, capped at 15 total — and Mana Regen from buffs checked in the Buff Panel (e.g. Koadic's, Protection of the Glades/Cabbage, Spiritual Purity) are detected automatically from the AA Configurator, Import Inventory, and Buff Panel and added on top; no need to include them here.</p>
-      <label style="display:flex;align-items:center;gap:0.4rem;margin-top:0.6rem;">
-        <input type="checkbox" id="rotation-sit-med-ticks" checked>
-        <span>Sit for Med Ticks <span class="hint" style="margin:0;">(hold off starting a cast that would still be running when the next 6s tick lands, so you're sitting for it instead)</span></span>
-      </label>
-      <p class="hint" style="margin:0.3rem 0 0;">A server regen tick lands every 6 seconds; what you get depends on whether you're sitting <em>at that instant</em> (standing = 1/tick, sitting = 2/tick, sitting with Meditate skill = up to ~17/tick at max skill). You can't cast while sitting, so catching the higher rate means deliberately not casting when a tick is about to land — checking this box has the sim wait (idle) for an imminent tick instead of starting a cast that would straddle it, then casts right after, trading a bit of DPS for guaranteed max regen every tick. Leave it unchecked to assume you just keep casting through ticks at the standing rate.</p>
-      <div style="display:flex;align-items:center;gap:0.6rem;margin-top:0.5rem;max-width:26rem;">
+      <p class="hint" style="margin:0.3rem 0 0;">A server regen tick lands every 6 seconds; what you get depends on whether you're sitting <em>at that instant</em> (standing = 1/tick, sitting = 2/tick, sitting with Meditate skill = up to ~17/tick at max skill). You can't normally cast while sitting, so catching the higher rate means deliberately not casting when a tick is about to land — unless you're mounted, which grants the sitting/meditate rate even while casting.</p>
+      <p class="hint" style="margin:0.6rem 0 0.3rem;font-weight:600;color:var(--text);">Med tick handling</p>
+      <div class="radio-group" id="rotation-med-tick-mode-group">
+        <label><input type="radio" name="rotation-med-tick-mode" value="sit" id="rotation-med-tick-sit" checked><span class="radio-option-main">Sit for Med Ticks</span> <span class="radio-option-note">(hold off starting a cast that would still be running when the next tick lands, so you're sitting for it instead)</span></label>
+        <label><input type="radio" name="rotation-med-tick-mode" value="mounted" id="rotation-med-tick-mounted"><span class="radio-option-main">Mounted</span> <span class="radio-option-note">(on a horse — gain meditation ticks while casting; never waits, just casts as quickly as possible)</span></label>
+        <label><input type="radio" name="rotation-med-tick-mode" value="ignore" id="rotation-med-tick-ignore"><span class="radio-option-main">Ignore Med Ticks</span> <span class="radio-option-note">(stand and cast through every tick at the standing rate)</span></label>
+      </div>
+      <div id="rotation-tick-wait-wrap" style="display:flex;align-items:center;gap:0.6rem;margin-top:0.5rem;max-width:26rem;">
         <label for="rotation-tick-wait-max" class="small-label" style="white-space:nowrap;">Max tick wait</label>
         <input type="range" id="rotation-tick-wait-max" min="0" max="6" step="0.25" value="2.25" style="flex:1;">
         <span id="rotation-tick-wait-max-label" class="hint" style="margin:0;min-width:3.5rem;text-align:right;">2.25s</span>
       </div>
-      <p class="hint" style="margin:0.2rem 0 0;">Only used when <strong>Sit for Med Ticks</strong> is checked. Caps how long a wait is worth it: if a cast finishes with more than this much time left until the next tick, the sim casts through and takes the standing rate on that tick instead of sitting out the wait. At 6s (max) it always waits, however long; at 0s it never waits — same as unchecked.</p>
+      <p class="hint" id="rotation-tick-wait-hint" style="margin:0.2rem 0 0;">Only used with <strong>Sit for Med Ticks</strong>. Caps how long a wait is worth it: if a cast finishes with more than this much time left until the next tick, the sim casts through and takes the standing rate on that tick instead of sitting out the wait. At 6s (max) it always waits, however long; at 0s it never waits — same as Ignore Med Ticks.</p>
       <p class="hint" style="margin:0.75rem 0 0.3rem;font-weight:600;color:var(--text);">Priority mode</p>
       <div class="radio-group">
         <label><input type="radio" name="rotation-priority-mode" value="dps" checked><span class="radio-option-main">DPS</span> <span class="radio-option-note">(maximize damage/time)</span></label>
@@ -3358,6 +3369,7 @@
     <details id="version-log-details">
     <summary style="cursor:pointer; font-size:1.17em; font-weight:bold; margin:0; list-style:revert;">Version log</summary>
     <ul style="font-size: 0.9rem; color: var(--muted); margin: 0.5rem 0 0; padding-left: 1.25rem;">
+      <li><strong>1.83</strong> — AA Configurator fix: <strong>Quick Damage</strong> and <strong>Spell Casting Fury Mastery</strong> were incorrectly offered to every caster/hybrid class (same list as their prereq, Spell Casting Fury) — per this server's AA table, these two follow-up AAs are restricted much more narrowly (Quick Damage: Druid/Wizard/Magician; Spell Casting Fury Mastery: Wizard only), so e.g. Bard was wrongly showing both. Class lists corrected; both AAs also zero out for the excluded classes in computed sim output, not just the configurator UI. Mechanics guide updated.</li>
       <li><strong>1.82</strong> — Buff Panel: fixed <strong>Dance of the Blade</strong> — its third effect was mislabeled as +30 AC, it's actually +30 STR. Also fixed it being incorrectly suppressed (via SAI stacking group) when <strong>Ancient: Feral Avatar</strong>, <strong>Avatar</strong>, or <strong>Ferine Avatar</strong> was also up — real EQ stacking compares each spell's effects slot-by-slot, and Dance of the Blade's ATK/STR sit in effect slots that don't collide with those spells', so they stack in-game and now stack in the sim too.</li>
       <li><strong>1.81</strong> — New landing splash on first visit (or after a new release): a mode-picker image lets you choose Easy or Advanced mode by clicking either half. Your choice is remembered in the browser so you won't be asked again until gSim updates or you visit from a new device/browser.</li>
       <li><strong>1.80</strong> — Buff Panel: added <strong>Dance of the Blade</strong>, the proc buff from the bard epic 1.0 weapon (Singing Short Sword) — +55% haste, +30 ATK, +30 AC for 3 minutes (spell 1937, Luclin-era).</li>
@@ -5090,8 +5102,8 @@
           combatAgility:    'Increases your melee damage avoidance by 2, 5 and 10 percent.',
           naturalDurability:'Increases your maximum hitpoints by 2, 5, and 10 percent (based on base HP including stamina effects).',
           spellCastingFury: 'Gives you a chance to land critical hits with direct damage spells. Ranks increase crit chance by 2, 4, and 7 percent.',
-          spellCastingFuryMastery: 'Requires Spell Casting Fury rank 3. Adds another 2, 4, or 7 percent spell crit chance on top of Spell Casting Fury (chance only — no extra damage bonus).',
-          quickDamage:      'Requires Spell Casting Fury rank 3. Reduces cast time by 2, 5, or 10 percent on direct-damage spells (nukes/rains) with a base cast time over 4 seconds. No effect on DoTs.',
+          spellCastingFuryMastery: 'Requires Spell Casting Fury rank 3. Adds another 2, 4, or 7 percent spell crit chance on top of Spell Casting Fury (chance only — no extra damage bonus). Wizard only.',
+          quickDamage:      'Requires Spell Casting Fury rank 3. Reduces cast time by 2, 5, or 10 percent on direct-damage spells (nukes/rains) with a base cast time over 4 seconds. No effect on DoTs. Druid/Wizard/Magician only.',
           ambidexterity:    'Increases your chance to use dual wield successfully.',
           flurry:           'Allows you to perform up to 2 additional attacks from your primary hand per round.',
           slayUndead:       'Causes your criticals to inflict greatly improved damage versus the undead.',
@@ -13304,12 +13316,12 @@
         '</div>');
     }
 
-    var sitMedEl = document.getElementById('rotation-sit-med-ticks');
+    var medTickModeEl = document.querySelector('input[name="rotation-med-tick-mode"]:checked');
     var tickWaitEl = document.getElementById('rotation-tick-wait-max');
     if (window.RotationEngine && window.RotationEngine.computeBaseManaRegenPerTick) {
-      var sitForMedTicksNow = !!(sitMedEl && sitMedEl.checked);
+      var medTickModeNow = medTickModeEl ? medTickModeEl.value : 'sit';
       var baseStandingNow = window.RotationEngine.computeBaseManaRegenPerTick(gearAA.caster.level, false);
-      if (!sitForMedTicksNow) {
+      if (medTickModeNow === 'ignore') {
         lines.push('<div style="margin-top:0.35rem;font-size:0.8rem;color:var(--muted);">' +
           '<strong style="' + LABEL + '">Base mana regen/tick (standing):</strong> ' +
           '<span style="' + VALUE + '">' + baseStandingNow + '</span> ' +
@@ -13317,19 +13329,25 @@
           '</div>');
       } else {
         var baseSittingNow = window.RotationEngine.computeBaseManaRegenPerTick(gearAA.caster.level, true);
-        var tickWaitNow = tickWaitEl ? parseFloat(tickWaitEl.value) : 6;
+        var waitNote = medTickModeNow === 'mounted'
+          ? 'mounted — every tick lands at the sitting rate, no waiting'
+          : 'sim waits up to ' + (tickWaitEl ? parseFloat(tickWaitEl.value).toFixed(2) : '6.00') + 's for an imminent tick before giving up and casting through it';
         lines.push('<div style="margin-top:0.35rem;font-size:0.8rem;color:var(--muted);">' +
           '<strong style="' + LABEL + '">Base mana regen/tick:</strong> ' +
           '<span style="' + VALUE + '">' + baseSittingNow + ' sitting</span> / ' +
           '<span style="' + VALUE + '">' + baseStandingNow + ' standing</span> ' +
-          '<span>(6s tick, sitting assumes Meditate skill trained to cap; on top of the Mana regen/tick field above — sim waits up to ' +
-          tickWaitNow.toFixed(2) + 's for an imminent tick before giving up and casting through it)</span>' +
+          '<span>(6s tick, sitting assumes Meditate skill trained to cap; on top of the Mana regen/tick field above — ' +
+          waitNote + ')</span>' +
           '</div>');
       }
     }
-    if (sitMedEl && !sitMedEl._rotationSummaryBound) {
-      sitMedEl._rotationSummaryBound = true;
-      sitMedEl.addEventListener('change', renderRotationGearSummary);
+    var medTickRadios = document.querySelectorAll('input[name="rotation-med-tick-mode"]');
+    for (var mti = 0; mti < medTickRadios.length; mti++) {
+      var mtr = medTickRadios[mti];
+      if (!mtr._rotationSummaryBound) {
+        mtr._rotationSummaryBound = true;
+        mtr.addEventListener('change', renderRotationGearSummary);
+      }
     }
     if (tickWaitEl && !tickWaitEl._rotationSummaryBound) {
       tickWaitEl._rotationSummaryBound = true;
@@ -13669,6 +13687,35 @@
     apply();
   })();
 
+  (function initGcdClickyToggle() {
+    var checkbox = document.getElementById('rotation-gcd-clicky');
+    var delayWrap = document.getElementById('rotation-gcd-clicky-delay-wrap');
+    var hint = document.getElementById('rotation-gcd-clicky-hint');
+    if (!checkbox) return;
+    function apply() {
+      var on = checkbox.checked;
+      if (delayWrap) delayWrap.style.display = on ? 'flex' : 'none';
+      if (hint) hint.style.display = on ? 'block' : 'none';
+    }
+    checkbox.addEventListener('change', apply);
+    apply();
+  })();
+
+  (function initMedTickModeGroup() {
+    var radios = document.querySelectorAll('input[name="rotation-med-tick-mode"]');
+    var waitWrap = document.getElementById('rotation-tick-wait-wrap');
+    var waitHint = document.getElementById('rotation-tick-wait-hint');
+    if (!radios.length) return;
+    function apply() {
+      var checked = document.querySelector('input[name="rotation-med-tick-mode"]:checked');
+      var isSit = checked && checked.value === 'sit';
+      if (waitWrap) waitWrap.style.display = isSit ? 'flex' : 'none';
+      if (waitHint) waitHint.style.display = isSit ? 'block' : 'none';
+    }
+    for (var i = 0; i < radios.length; i++) radios[i].addEventListener('change', apply);
+    apply();
+  })();
+
   var btnManualAdd = document.getElementById('rotation-manual-add-btn');
   if (btnManualAdd) {
     btnManualAdd.addEventListener('click', function () {
@@ -13852,7 +13899,11 @@
         }
       }
 
-      var sitForMedTicks = !!(document.getElementById('rotation-sit-med-ticks') || {}).checked;
+      var medTickMode = (document.querySelector('input[name="rotation-med-tick-mode"]:checked') || {}).value || 'sit';
+      var sitForMedTicks = medTickMode === 'sit';
+      var mounted = medTickMode === 'mounted';
+      var gcdClicky = !!(document.getElementById('rotation-gcd-clicky') || {}).checked;
+      var gcdClickyDelaySec = Math.max(0, v('rotation-gcd-clicky-delay', 200)) / 1000;
       // Mental Clarity (AA, +1/tick per rank), item Mana Regen (worn effects
       // like Flowing Thought, capped at 15), and mana regen from buffs
       // checked in the Buff Panel (Koadic's, Protection of the
@@ -13891,6 +13942,9 @@
         specialization: gearAA.specialization,
         sitForMedTicks: sitForMedTicks,
         maxTickWaitSec: maxTickWaitSec,
+        mounted: mounted,
+        gcdClicky: gcdClicky,
+        gcdClickyDelaySec: gcdClickyDelaySec,
         seed: Math.floor(Math.random() * 0xffffffff)
       };
 

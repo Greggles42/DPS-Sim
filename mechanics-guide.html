@@ -1432,23 +1432,35 @@
         the classic "sit for the tick" habit.
       </p>
       <p>
-        The <strong>Sit for Med Ticks</strong> checkbox (Simulation card) models that timing decision directly
-        rather than just picking a flat average rate. When checked, the sim tracks the exact 6-second tick schedule
-        and — if starting the next queued cast would still have it running when the next tick lands — weighs waiting
-        it out against just casting through, using the <strong>Max tick wait</strong> slider (0-6s) right below it:
-        if the wait needed is within that cap, the sim sits idle until the tick passes, banks the full sitting/
-        meditate amount, then casts right after; if the wait would be longer than the slider allows, it casts
-        through instead and that particular tick only grants the standing rate. At the slider's max (6s) it always
-        waits, however long, matching a caster who never lets a tick slip; at 0s it never waits, identical to
-        leaving the checkbox unchecked. This is a real DPS trade either way: casts that get delayed lower DPS while
-        raising sustain, and the report reflects both directions honestly rather than assuming a free bonus.
-        Meditate skill is assumed trained to the class/level cap (5&nbsp;&times;&nbsp;level&nbsp;+&nbsp;5, capped at
-        200 — the same "assume skills are trained to cap" convention used elsewhere in the sim). Unchecked assumes
-        you just keep casting through every tick and only ever get the standing rate (1/tick) — no waiting, no DPS
-        cost, but the lowest regen. Either way these base rates are computed automatically from level and added on
-        top of three more auto-detected sources — <strong>Mental Clarity</strong> (AA, +1 per rank up to +3,
-        <code>aabonuses.ManaRegen</code>), <strong>item Mana Regen</strong> (worn-effect spells like "Flowing
-        Thought I-X" found on real items — e.g. Circlet/Robe/Cape of Flowing Thought — via
+        The <strong>Med tick handling</strong> radio group (Simulation card) picks which of three ways the sim
+        models that timing decision, instead of just assuming a flat average rate:
+      </p>
+      <ul>
+        <li><strong>Sit for Med Ticks</strong> — the sim tracks the exact 6-second tick schedule and, if starting
+          the next queued cast would still have it running when the next tick lands, weighs waiting it out against
+          just casting through, using the <strong>Max tick wait</strong> slider (0-6s) that appears below the radios
+          in this mode: if the wait needed is within that cap, the sim sits idle until the tick passes, banks the
+          full sitting/meditate amount, then casts right after; if the wait would be longer than the slider allows,
+          it casts through instead and that particular tick only grants the standing rate. At the slider's max (6s)
+          it always waits, however long, matching a caster who never lets a tick slip; at 0s it never waits,
+          identical to Ignore Med Ticks below. This is a real DPS trade either way: casts that get delayed lower DPS
+          while raising sustain, and the report reflects both directions honestly rather than assuming a free
+          bonus.</li>
+        <li><strong>Mounted</strong> — being on a horse lets ticks land at the sitting/meditate rate even while
+          you're actively casting, so there's no timing trade-off to make at all: the sim never holds off starting a
+          cast to wait out an imminent tick (the Max tick wait slider doesn't apply in this mode) — it just casts as
+          quickly as possible back to back — and every tick that lands, idle or mid-cast, is credited at the full
+          sitting/meditate rate instead of only the standing rate for the mid-cast ones.</li>
+        <li><strong>Ignore Med Ticks</strong> — assumes you just stand and keep casting through every tick, getting
+          only the standing rate (1/tick) on all of them. No waiting, no DPS cost, but the lowest regen.</li>
+      </ul>
+      <p>
+        Meditate skill (used by Sit for Med Ticks and Mounted) is assumed trained to the class/level cap
+        (5&nbsp;&times;&nbsp;level&nbsp;+&nbsp;5, capped at 200 — the same "assume skills are trained to cap"
+        convention used elsewhere in the sim). Regardless of mode, these base rates are computed automatically from
+        level and added on top of three more auto-detected sources — <strong>Mental Clarity</strong> (AA, +1 per
+        rank up to +3, <code>aabonuses.ManaRegen</code>), <strong>item Mana Regen</strong> (worn-effect spells like
+        "Flowing Thought I-X" found on real items — e.g. Circlet/Robe/Cape of Flowing Thought — via
         <code>item.worneffect</code>, summed and capped at 15 total,
         <code>Client::CalcManaRegenCap</code>/<code>RuleI(Character, ItemManaRegenCap)</code>), and
         <strong>buff Mana Regen</strong> (any mana-regen buffs checked in the Buff Panel — Koadic's Endless
@@ -1459,16 +1471,16 @@
         bonus. Whatever's left in the <strong>Mana regen/tick</strong> field is for anything not auto-detected
         (spell bonuses like Donal's BP, etc.) — enter those manually the same way you always did. The AA &amp;
         Gear card shows all of this — computed base rates, Mental Clarity/item/buff regen if present — once a
-        spell pool is loaded, and again live if you toggle the checkbox, move the slider, or change buffs.
+        spell pool is loaded, and again live if you change the radio mode, move the slider, or change buffs.
       </p>
       <p>
-        With the checkbox on, both the <strong>Cast Order</strong> timeline and the report make the trade-off
-        visible rather than leaving it implicit in the mana numbers. The timeline gets a thin marker row above the
-        cast bars — a green dashed line/triangle at every tick you actually sat for, amber for one a cast ran
-        through instead — so you can see at a glance which ticks a rotation catches versus skips (hover a marker for
-        the exact time and mana gained), with a small legend below the chart counting each color. The report adds a
-        <strong>Med ticks (sat for / cast through)</strong> line with the same two counts out of the total ticks
-        that landed during the fight.
+        In Sit for Med Ticks or Mounted mode, both the <strong>Cast Order</strong> timeline and the report make the
+        outcome visible rather than leaving it implicit in the mana numbers. The timeline gets a thin marker row
+        above the cast bars — a green dashed line/triangle at every tick that landed at the sitting/meditate rate
+        (sat for it, or mounted), amber for one a cast ran through at only the standing rate — so you can see at a
+        glance which ticks a rotation catches versus skips (hover a marker for the exact time and mana gained), with
+        a small legend below the chart counting each color. The report adds a <strong>Med ticks (sat for / cast
+        through)</strong> line with the same two counts out of the total ticks that landed during the fight.
       </p>
 
       <h3>Alternate Advancement and item focus effects</h3>
@@ -1483,14 +1495,16 @@
           Originally modeled here only for the 5 hybrid classes' weapon-proc crits (Melee tab), it's the same AA for
           pure casters applied to their direct casts instead, so the class list was broadened rather than adding a
           second copy of the ability.</li>
-        <li><strong>Spell Casting Fury Mastery</strong> (Luclin class AA, requires Spell Casting Fury rank 3)
-          adds another 2%/4%/7% crit chance per rank on top of Spell Casting Fury's own — the server sums the two
-          AAs' crit-chance bonuses additively, so both maxed gives 14% total. It's chance only: the crit damage
-          bonus (+33/66/100%) stays fixed by Spell Casting Fury's rank alone, Mastery doesn't add to it.</li>
-        <li><strong>Quick Damage</strong> (Luclin class AA, requires Spell Casting Fury rank 3) shortens cast
-          time by 2%/5%/10% per rank on direct-damage nukes and rains whose cast time is still over 4 seconds
-          after other haste is applied. It has no effect on DoTs (which tick rather than resolve as one hit) or on
-          spells already under the 4-second threshold.</li>
+        <li><strong>Spell Casting Fury Mastery</strong> (Luclin class AA, requires Spell Casting Fury rank 3,
+          <strong>Wizard only</strong>) adds another 2%/4%/7% crit chance per rank on top of Spell Casting Fury's
+          own — the server sums the two AAs' crit-chance bonuses additively, so both maxed gives 14% total. It's
+          chance only: the crit damage bonus (+33/66/100%) stays fixed by Spell Casting Fury's rank alone, Mastery
+          doesn't add to it.</li>
+        <li><strong>Quick Damage</strong> (Luclin class AA, requires Spell Casting Fury rank 3,
+          <strong>Druid/Wizard/Magician only</strong>) shortens cast time by 2%/5%/10% per rank on direct-damage
+          nukes and rains whose cast time is still over 4 seconds after other haste is applied. It has no effect
+          on DoTs (which tick rather than resolve as one hit) or on spells already under the 4-second
+          threshold.</li>
         <li><strong>Item focus effects</strong> — passive, spell-only bonuses on equipped gear (spell damage %, mana
           cost reduction %, spell haste %, and DoT duration extension — see below) — are read from every item in
           your imported inventory. Each focus effect carries its own restrictions (only certain resist types, only
@@ -1578,6 +1592,17 @@
         <strong>Spell Casting Mastery</strong> is the one exception — see Spell Specialization below.
       </p>
       <h3>Spell Specialization (mana cost)</h3>
+      <p class="muted">
+        On the server, Spell Specialization and Spell Casting Mastery each grant two separate, additive bonuses:
+        a mana-cost reduction and a fizzle-chance reduction. Specialization skill (e.g. Specialize Abjuration)
+        always grants both, scaled by skill value. Spell Casting Mastery (ranks 1&ndash;3) adds a flat bonus on top
+        of whatever specialization already provides &mdash; but only if specialization skill in that school is
+        above 0 &mdash; rather than improving the odds specialization "kicks in": +2/+5/+10 to the fizzle-avoidance
+        chance (capped at 98%), and +2.5%/5.0%/10.0% additional mana reduction, both stacked directly onto the
+        specialization-derived numbers. The sim has no fizzle mechanic at all (see above), so only the mana-cost
+        side is modeled here; the fizzle-reduction side of both Specialization and Mastery has no effect on any
+        computed number.
+      </p>
       <p>
         The Rotation planner's <strong>AA &amp; Gear</strong> card has a <strong>Spell Specialization</strong>
         dropdown (Abjuration / Alteration / Conjuration / Divination / Evocation) that discounts the mana cost of
@@ -1617,6 +1642,18 @@
         lock, and casting it never imposes a GCD lock on what comes next. It is limited only by its own recast
         timer. This models the small set of spells that behave this way rather than a general assumption that
         every spell is off-global.
+      </p>
+      <p>
+        The <strong>GCD clicky after each spell</strong> checkbox (Spell Pool card) models a different trick: a
+        global-cooldown-reset item that, when clicked right after a cast finishes, lets a new normal spell begin
+        immediately instead of waiting out the 2.25s lockout. The click itself still takes a moment — the
+        <strong>Click delay (ms)</strong> field below the checkbox (default 200ms) — so the sim starts the next spell
+        that many milliseconds after the previous one ends, rather than 2.25s later. This only works for a next spell
+        whose own <strong>cast time is at least 2.25s</strong>; a faster spell fails to cast this way in practice, so
+        the sim doesn't offer it the shortcut and it simply waits out the normal GCD, same as with the checkbox off.
+        It's independent of, and stacks with, the off-global filler above — that spell already ignores the GCD
+        entirely and is unaffected either way. When on, the report adds a <strong>GCD-clicky casts</strong> line
+        counting how many of the run's casts actually used the click to skip the wait.
       </p>
 
       <h3>How the rotation is chosen</h3>
