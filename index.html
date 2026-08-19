@@ -3369,6 +3369,7 @@
     <details id="version-log-details">
     <summary style="cursor:pointer; font-size:1.17em; font-weight:bold; margin:0; list-style:revert;">Version log</summary>
     <ul style="font-size: 0.9rem; color: var(--muted); margin: 0.5rem 0 0; padding-left: 1.25rem;">
+      <li><strong>1.84</strong> — Rotation tab TPS fix: per-cast threat was being computed as the actual damage dealt (post-resist, post-crit), so a full resist wrongly zeroed out that cast's threat and a crit wrongly inflated it. Per EQMacEmu (<code>Mob::CheckAggroAmount</code> / <code>Mob::ResistSpell</code>), a detrimental cast's hate comes from the spell's plain listed/base damage regardless of resist or crit outcome — resists and crits only change the damage dealt, never the threat generated. Threat is now computed from that base value; DPS is unaffected. Also fixed the DPS-over-time chart's TPS line, which was deriving per-wave threat from actual (not base) damage for rains/DoTs. Separately fixed the <strong>Target Mob</strong> fields (level, MR/FR/CR/PR/DR) drifting out of sync between tabs — e.g. Easy Mode's "raid target" preset bumped Melee's resists to 75 but left the Rotation tab's copy at its old value, so the Rotation sim silently kept using stale (often lower) resists. Every place that sets the target mob now routes through one shared function that updates the Melee, Ranged, and Rotation copies together, and clearing the target (or having none selected) resets all three to the same generic level-matched defaults (MR/FR/CR/PR/DR 35, matching Melee's own default) instead of just Melee's. Also fixed inventory import (Import Inventory / Quarmy files): AA ranks from the file were silently failing to apply to the Alternate Advancement panel — a <code>ReferenceError</code> partway through processing the imported AAs (a leftover scoping bug — the import code lived in a different script closure than the AA Configurator's underlying data) aborted before the panel could be refreshed, even though the imported AAs still listed correctly under "AAs imported" on the Equipped Items card. AAs imported from a file now check off correctly. Also fixed <strong>Spell Casting Subtlety</strong> being modeled as a 1-rank on/off AA in the Configurator when it's actually a 3-rank AA — real exports were importing rank 3 into it, which couldn't match any of the old 0/1 buttons and showed as unchecked. Mechanics guide updated.</li>
       <li><strong>1.83</strong> — AA Configurator fix: <strong>Quick Damage</strong> and <strong>Spell Casting Fury Mastery</strong> were incorrectly offered to every caster/hybrid class (same list as their prereq, Spell Casting Fury) — per this server's AA table, these two follow-up AAs are restricted much more narrowly (Quick Damage: Druid/Wizard/Magician; Spell Casting Fury Mastery: Wizard only), so e.g. Bard was wrongly showing both. Class lists corrected; both AAs also zero out for the excluded classes in computed sim output, not just the configurator UI. Mechanics guide updated.</li>
       <li><strong>1.82</strong> — Buff Panel: fixed <strong>Dance of the Blade</strong> — its third effect was mislabeled as +30 AC, it's actually +30 STR. Also fixed it being incorrectly suppressed (via SAI stacking group) when <strong>Ancient: Feral Avatar</strong>, <strong>Avatar</strong>, or <strong>Ferine Avatar</strong> was also up — real EQ stacking compares each spell's effects slot-by-slot, and Dance of the Blade's ATK/STR sit in effect slots that don't collide with those spells', so they stack in-game and now stack in the sim too.</li>
       <li><strong>1.81</strong> — New landing splash on first visit (or after a new release): a mode-picker image lets you choose Easy or Advanced mode by clicking either half. Your choice is remembered in the browser so you won't be asked again until gSim updates or you visit from a new device/browser.</li>
@@ -5012,6 +5013,11 @@
         ragingFlurry: 0,
         tacticalMastery: 0,
       };
+      // Exposed so code in other top-level IIFEs (e.g. the inventory-import
+      // handler further down, which lives in its own closure) can read/write
+      // AA ranks without needing its own copy — see the import block's
+      // window.aaConfig[id] = ... assignment.
+      window.aaConfig = aaConfig;
 
       /**
        * Build sim-option overrides from aaConfig for the given class/era.
@@ -9066,12 +9072,8 @@
         };
         if (isRaid) {
           set('target-ac', 650);
-          set('mob-level', 65);
-          set('target-mr', 75);
-          set('target-fr', 75);
-          set('target-cr', 75);
-          set('target-pr', 75);
-          set('target-dr', 75);
+          set('ranged-target-ac', 650);
+          setTargetMobStatsEverywhere(65, 75, 75, 75, 75, 75);
         } else {
           applyGenericTargetIfNoneSelected();
         }
@@ -10972,6 +10974,27 @@
         var t = (lvl - 1) / (60 - 1);
         return Math.round(5 + t * (200 - 5));
       }
+      // Single point of truth for "the target mob's" level and elemental
+      // resists across every tab that has its own copy of these fields
+      // (Melee's target-*, Ranged's ranged-target-*, Rotation's
+      // rotation-mob-*). Every place that changes the target mob — NPC
+      // search selection, the generic no-target fallback, Easy Mode's raid
+      // preset — must route through this instead of setting one tab's
+      // fields directly, so the Rotation tab (and Ranged) can never drift
+      // out of sync with what the Melee "Target Mob" card actually shows.
+      function setTargetMobStatsEverywhere(level, mr, fr, cr, pr, dr) {
+        var set = function (id, val) {
+          var el = $(id);
+          if (el && val !== undefined && val !== null) el.value = val;
+        };
+        set('mob-level', level);
+        set('target-mr', mr); set('target-fr', fr); set('target-cr', cr); set('target-pr', pr); set('target-dr', dr);
+        set('ranged-mob-level', level);
+        set('ranged-target-mr', mr); set('ranged-target-fr', fr); set('ranged-target-cr', cr); set('ranged-target-pr', pr); set('ranged-target-dr', dr);
+        set('rotation-mob-level', level);
+        set('rotation-mob-mr', mr); set('rotation-mob-fr', fr); set('rotation-mob-cr', cr); set('rotation-mob-pr', pr); set('rotation-mob-dr', dr);
+      }
+
       function applyGenericTargetIfNoneSelected() {
         if (window.selectedTargetNpc && typeof window.selectedTargetNpc === 'object') return;
         var level = parseInt($('level').value, 10) || 60;
@@ -10979,11 +11002,14 @@
           var el = $(id);
           if (el && val !== undefined && val !== null) el.value = val;
         };
-        set('mob-level', level);
+        // 35 is the same generic-target resist default the Melee tab's
+        // "Target resistances" fields ship with (target-mr etc., markup
+        // default value="35") — applied here too so every tab's copy resets
+        // to that same baseline, not just whichever tab happened to already
+        // have it, e.g. after clearing a previously-selected NPC.
+        setTargetMobStatsEverywhere(level, 35, 35, 35, 35, 35);
         set('target-ac', getGenericTargetAcFromLevel(level));
-        set('ranged-mob-level', level);
         set('ranged-target-ac', getGenericTargetAcFromLevel(level));
-        set('rotation-mob-level', level);
       }
       function attachTargetNpcButtons(listEl, npcTypesList, npcNameForDisplay, inputEl, closeDropdown) {
         if (!listEl) return;
@@ -11087,19 +11113,8 @@
           if (el && val !== undefined && val !== null) el.value = val;
         };
         set('target-ac', npc.AC);
-        set('mob-level', npc.level);
-        set('target-mr', npc.MR);
-        set('target-fr', npc.FR);
-        set('target-cr', npc.CR);
-        set('target-pr', npc.PR);
-        set('target-dr', npc.DR);
         set('ranged-target-ac', npc.AC);
-        set('ranged-mob-level', npc.level);
-        set('ranged-target-mr', npc.MR);
-        set('ranged-target-fr', npc.FR);
-        set('ranged-target-cr', npc.CR);
-        set('ranged-target-pr', npc.PR);
-        set('ranged-target-dr', npc.DR);
+        setTargetMobStatsEverywhere(npc.level, npc.MR, npc.FR, npc.CR, npc.PR, npc.DR);
         // Tanking tab mob (attacker) stats
         set('tank-mob-level',   npc.level);
         set('tank-mob-ac',      npc.AC);
@@ -11117,13 +11132,8 @@
         set('tank-mob-spells-id', npc.npc_spells_id || 0);
         set('tank-mob-hp', npc.hp || 0);
         set('tank-mob-slow-mitigation', npc.slow_mitigation || 0);
-        // Rotation tab mob (resist check target + target-restricted spells)
-        set('rotation-mob-level', npc.level);
-        set('rotation-mob-mr', npc.MR);
-        set('rotation-mob-fr', npc.FR);
-        set('rotation-mob-cr', npc.CR);
-        set('rotation-mob-pr', npc.PR);
-        set('rotation-mob-dr', npc.DR);
+        // Rotation tab: bodytype for target-restricted spells (level/MR/FR/
+        // CR/PR/DR already covered by setTargetMobStatsEverywhere above).
         set('rotation-mob-bodytype', npc.bodytype != null ? npc.bodytype : '');
         renderMobSpecials(npc);
         updateTargetNpcNameDisplay();
@@ -12816,9 +12826,18 @@
     }
 
     // ── AAs from charInfo ───────────────────────────────────────────────────────────────
-    if (aaRanks && Object.keys(aaRanks).length > 0) {
+    // window.aaConfig, not the bare identifier: this function runs in a
+    // different top-level IIFE than the one that declares aaConfig (see the
+    // window.aaConfig = aaConfig assignment near its declaration), so the
+    // bare name isn't in scope here — using it threw a silent (well, not so
+    // silent — check the console) ReferenceError that aborted this whole
+    // block before it ever reached the UI rebuild calls below, which is why
+    // imported AAs would show up in the Equipped Items summary (built
+    // earlier in this function, before this block) but never get checked
+    // off in the Alternate Advancement panel.
+    if (aaRanks && Object.keys(aaRanks).length > 0 && window.aaConfig) {
       Object.keys(aaRanks).forEach(function (id) {
-        aaConfig[id] = aaRanks[id];
+        window.aaConfig[id] = aaRanks[id];
       });
       if (typeof buildAAConfiguratorUI === 'function') buildAAConfiguratorUI();
       if (typeof buildPetPanelUI === 'function') buildPetPanelUI();
@@ -13794,9 +13813,11 @@
             mode: 'statBased',
             casterLevel: v('level', 60),
             mobLevel: v('rotation-mob-level', 60),
+            // 35 fallback matches the Melee tab's generic-target resist
+            // default (target-mr etc.) — see setTargetMobStatsEverywhere.
             mobResists: {
-              mr: v('rotation-mob-mr', 0), fr: v('rotation-mob-fr', 0),
-              cr: v('rotation-mob-cr', 0), pr: v('rotation-mob-pr', 0), dr: v('rotation-mob-dr', 0)
+              mr: v('rotation-mob-mr', 35), fr: v('rotation-mob-fr', 35),
+              cr: v('rotation-mob-cr', 35), pr: v('rotation-mob-pr', 35), dr: v('rotation-mob-dr', 35)
             }
           };
       var priorityMode = radioVal('rotation-priority-mode', 'dps');
@@ -13880,9 +13901,11 @@
             mode: 'statBased',
             casterLevel: v('level', 60),
             mobLevel: v('rotation-mob-level', 60),
+            // 35 fallback matches the Melee tab's generic-target resist
+            // default (target-mr etc.) — see setTargetMobStatsEverywhere.
             mobResists: {
-              mr: v('rotation-mob-mr', 0), fr: v('rotation-mob-fr', 0),
-              cr: v('rotation-mob-cr', 0), pr: v('rotation-mob-pr', 0), dr: v('rotation-mob-dr', 0)
+              mr: v('rotation-mob-mr', 35), fr: v('rotation-mob-fr', 35),
+              cr: v('rotation-mob-cr', 35), pr: v('rotation-mob-pr', 35), dr: v('rotation-mob-dr', 35)
             }
           };
 

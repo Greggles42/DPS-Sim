@@ -1715,11 +1715,21 @@
         A third line tracks <strong>TPS</strong> (threat per second). Every spell in a rotation comes from the
         caster's own class spellbook, so EQMacEmu's <code>CanClassCastSpell</code> hate cap (the same 400 cap that
         clamps weapon-proc non-damage hate on the Melee tab — see the Threat section above) never applies here:
-        each discrete damage instance generates hate equal to its own damage, <strong>uncapped</strong> — a rain
-        wave or DoT tick is its own hate-generating instance, credited its own uncapped share, not the cast's full
-        total in one lump. TPS tracks DPS closely as a result (it's the same damage number, just summed
-        per-hate-instance instead of per-cast), unlike the Melee tab's proc TPS, which is genuinely a different,
-        capped figure because weapon procs are never on your own class list.
+        each discrete damage instance generates hate, <strong>uncapped</strong> — a rain wave or DoT tick is its
+        own hate-generating instance, credited its own uncapped share, not the cast's full total in one lump.
+      </p>
+      <p>
+        Unlike DPS, that per-instance hate is <strong>not</strong> the damage the cast actually deals — it's the
+        spell's plain listed/base damage, exactly as it would be with no gear, no resist, and no crit involved.
+        This matches how EQMacEmu itself computes it: a detrimental cast's threat comes from
+        <code>Mob::CheckAggroAmount</code> reading the spell's raw formula value directly off the spell data, with
+        no resist or crit rolled in at all — that's true even on a <strong>full resist</strong>, which still
+        generates the same threat as a clean hit (<code>Mob::ResistSpell</code> calls the same
+        <code>CheckAggroAmount</code>). The actual, resist-and-crit-adjusted damage is tracked separately
+        server-side purely for kill-credit/XP bookkeeping and never feeds the hate the mob's AI uses to pick a
+        target. So on the Rotation tab: a resisted cast doesn't lose any threat, and a crit doesn't gain any —
+        only DPS moves. TPS therefore reads a bit lower than a naive "TPS = DPS" assumption would suggest whenever
+        crits or gear/focus damage bonuses are in play, since those inflate damage without inflating threat.
       </p>
 
       <h3>Resist checks</h3>
@@ -1732,6 +1742,13 @@
       </ul>
       <p class="muted">
         A partial resist is treated as landing for 25% of listed damage; a full resist lands for 0%.
+      </p>
+      <p>
+        The <strong>Target Mob</strong> card's level and MR/FR/CR/PR/DR fields are shared with the Melee tab's
+        "Target resistances" and the Ranged tab — searching for an NPC on any of those tabs fills in all three at
+        once, and so does clearing it or leaving no target selected (which falls back to a generic level-matched
+        mob with MR/FR/CR/PR/DR of 35 each, same as Melee's own default). Whatever those fields show on the
+        Rotation tab is exactly what the resist check above uses — there's no separate, independently-stale copy.
       </p>
 
       <h3>Mana and sustain</h3>

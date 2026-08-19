@@ -273,6 +273,11 @@
       });
 
       var clone = Object.assign({}, spell);
+      // Listed/base spell damage before gear focus, resist, or crit — see
+      // the castThreat comment in simulateRotation for why this (not the
+      // gear/resist/crit-adjusted damage the cast actually deals) is what
+      // hate is computed from.
+      clone._rawDamage = spell.damage;
       // Extends tick count, not per-tick damage: Client::ApplyDurationFocus
       // (spell_effects.cpp) floors ticksRemaining * (100+pct)/100 onto the
       // buff. `waves` is our tick count, so growing it here also correctly
@@ -730,8 +735,26 @@
         if (best._quickDamageApplied) quickDamageCastCount += 1;
 
         // Direct-damage hate from the caster's own class spell is uncapped
-        // (CanClassCastSpell is true) — hate equals the damage dealt.
-        var castThreat = castDamage;
+        // (CanClassCastSpell is true) but is NOT "the damage dealt": server-
+        // side, hate for a detrimental spell comes from Mob::CheckAggroAmount
+        // (aggro.cpp), which for a damage effect reads the spell's raw,
+        // level-scaled formula value straight off the spell data — no gear/
+        // focus bonus, no resist, no crit applied. That nominal amount is
+        // what lands in the hate-list's `hate` field (spells.cpp calls it on
+        // every detrimental cast, including full resists via ResistSpell()
+        // — see the aggro_amount/aggro locals there). The *actual*, resist-
+        // and-crit-adjusted damage dealt is added separately via
+        // CommonDamage() -> AddToHateList(attacker, 0, damage), but that
+        // goes into the hate list's `damage` field (kill-credit bookkeeping
+        // for XP), not `hate` — and Mob::GetHateAmount / HateList::GetEntHate
+        // (hate_list.cpp), which is what the AI actually uses to pick and
+        // rank targets, only ever reads the `hate` field. So the damage a
+        // cast actually deals doesn't move the needle on aggro at all; a
+        // full resist generates exactly the same threat as a clean hit, and
+        // a crit generates no extra threat beyond its base roll. threat.js's
+        // procSpellThreatFromDamage documents the same base-damage-only
+        // model for procs/clickables.
+        var castThreat = best._rawDamage != null ? best._rawDamage : baseDmg;
 
         totalDamage += castDamage;
         totalMana += best.mana;
@@ -1145,18 +1168,22 @@
     var events = [];
     log.forEach(function (e) {
       if (e.waves > 1 && e.waveIntervalSec > 0) {
-        var perWave = e.effectiveDamage / e.waves;
+        // Damage and threat are split evenly per wave independently — threat
+        // no longer tracks damage 1:1 (see castThreat above), so each needs
+        // its own per-wave share rather than reusing one perWave value.
+        var perWaveDamage = e.effectiveDamage / e.waves;
+        var perWaveThreat = e.threat / e.waves;
         var landAt = e.time + (e.duration || 0);
         for (var i = 0; i < e.waves; i++) {
           events.push({
             time: landAt + i * e.waveIntervalSec,
-            spellId: e.spellId, spellName: e.spellName, effectiveDamage: perWave, threat: perWave
+            spellId: e.spellId, spellName: e.spellName, effectiveDamage: perWaveDamage, threat: perWaveThreat
           });
         }
       } else {
         events.push({
           time: e.time, spellId: e.spellId, spellName: e.spellName,
-          effectiveDamage: e.effectiveDamage, threat: e.effectiveDamage
+          effectiveDamage: e.effectiveDamage, threat: e.threat
         });
       }
     });
