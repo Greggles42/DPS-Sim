@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>gSim — Overhaul (Final)</title>
+<link href="https://api.fontshare.com/v2/css?f[]=zodiak@400,700&f[]=satoshi@400,500,700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  html, body { margin: 0; padding: 0; background: #07070a; overflow: hidden; font-family: 'Satoshi', system-ui, sans-serif; }
+  * { box-sizing: border-box; }
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: rgba(212,175,55,0.2); border-radius: 4px; }
+  ::-webkit-scrollbar-thumb:hover { background: rgba(212,175,55,0.35); }
+</style>
+</head>
+<body>
+<div data-screen-label="gSim Overhaul" id="root"></div>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<script type="text/babel" src="ios-frame.jsx"></script>
+<script type="text/babel" src="final/theme.jsx"></script>
+<script type="text/babel" src="final/desktop.jsx"></script>
+<script type="text/babel" src="final/mobile.jsx"></script>
+
+<script type="text/babel">
+const { IOSDevice, DesktopCommandFinal, MobileStepperFinal, GSIM_THEME } = window;
+const T = GSIM_THEME;
+
+const TWEAKS = /*EDITMODE-BEGIN*/{
+  "view": "split",
+  "desktopScale": "fit",
+  "showAnnotations": true
+}/*EDITMODE-END*/;
+
+function useTweaks() {
+  const [t, setT] = React.useState(TWEAKS);
+  React.useEffect(() => {
+    const onMsg = (e) => {
+      if (e.data?.type === '__activate_edit_mode') setPanel(true);
+      if (e.data?.type === '__deactivate_edit_mode') setPanel(false);
+    };
+    window.addEventListener('message', onMsg);
+    window.parent.postMessage({ type: '__edit_mode_available' }, '*');
+    return () => window.removeEventListener('message', onMsg);
+  }, []);
+  const [panel, setPanel] = React.useState(false);
+  const set = (patch) => {
+    const next = { ...t, ...patch };
+    setT(next);
+    window.parent.postMessage({ type: '__edit_mode_set_keys', edits: patch }, '*');
+  };
+  return { t, set, panel };
+}
+
+function TweakPanel({ t, set }) {
+  return (
+    <div style={{
+      position: 'fixed', bottom: 20, right: 20, zIndex: 1000,
+      background: 'rgba(15,15,18,0.96)', border: `1px solid ${T.GOLD_BORDER}`,
+      borderRadius: 8, padding: 16, minWidth: 220,
+      backdropFilter: 'blur(12px)', boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+      fontFamily: T.FONT_BODY, color: T.TEXT,
+    }}>
+      <div style={{ fontFamily: T.FONT_DISPLAY, fontSize: 10, letterSpacing: '0.2em', color: T.GOLD, textTransform: 'uppercase', fontWeight: 700, marginBottom: 12 }}>Tweaks</div>
+
+      <div style={{ fontSize: 9, color: T.MUTED, letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 6 }}>View</div>
+      <div style={{ display: 'flex', gap: 4, marginBottom: 14 }}>
+        {[['split','Split'],['desktop','Desktop'],['mobile','Mobile']].map(([v, l]) => (
+          <div key={v} onClick={() => set({ view: v })} style={{
+            flex: 1, padding: '6px 8px', fontSize: 10, textAlign: 'center',
+            border: `1px solid ${t.view === v ? T.GOLD : T.BORDER}`,
+            background: t.view === v ? T.GOLD_FAINT : 'transparent',
+            color: t.view === v ? T.GOLD : T.MUTED, borderRadius: 3, cursor: 'pointer',
+            fontFamily: T.FONT_DISPLAY, letterSpacing: '0.1em', textTransform: 'uppercase', fontWeight: 600,
+          }}>{l}</div>
+        ))}
+      </div>
+
+      <div style={{ fontSize: 9, color: T.MUTED, letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 6 }}>Desktop Scale</div>
+      <div style={{ display: 'flex', gap: 4, marginBottom: 14 }}>
+        {[['fit','Fit'],['full','1:1']].map(([v, l]) => (
+          <div key={v} onClick={() => set({ desktopScale: v })} style={{
+            flex: 1, padding: '6px 8px', fontSize: 10, textAlign: 'center',
+            border: `1px solid ${t.desktopScale === v ? T.GOLD : T.BORDER}`,
+            background: t.desktopScale === v ? T.GOLD_FAINT : 'transparent',
+            color: t.desktopScale === v ? T.GOLD : T.MUTED, borderRadius: 3, cursor: 'pointer',
+            fontFamily: T.FONT_DISPLAY, letterSpacing: '0.1em', textTransform: 'uppercase', fontWeight: 600,
+          }}>{l}</div>
+        ))}
+      </div>
+
+      <div onClick={() => set({ showAnnotations: !t.showAnnotations })} style={{
+        display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer',
+        padding: '8px 10px', border: `1px solid ${T.BORDER}`, borderRadius: 3,
+      }}>
+        <div style={{ width: 14, height: 14, borderRadius: 2, border: `1px solid ${t.showAnnotations ? T.GOLD : T.BORDER}`, background: t.showAnnotations ? T.GOLD : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', color: T.BG, fontSize: 9, fontWeight: 800 }}>{t.showAnnotations && '✓'}</div>
+        <span style={{ fontSize: 11 }}>Show annotations</span>
+      </div>
+    </div>
+  );
+}
+
+function DesktopStage({ scale = 'fit' }) {
+  const ref = React.useRef(null);
+  const [s, setS] = React.useState(1);
+  React.useEffect(() => {
+    if (scale === 'full') { setS(1); return; }
+    const fit = () => {
+      if (!ref.current) return;
+      const { clientWidth: w, clientHeight: h } = ref.current;
+      setS(Math.min(w / 1440, h / 900, 1));
+    };
+    fit();
+    const ro = new ResizeObserver(fit);
+    if (ref.current) ro.observe(ref.current);
+    return () => ro.disconnect();
+  }, [scale]);
+  return (
+    <div ref={ref} style={{ width: '100%', height: '100%', overflow: scale === 'full' ? 'auto' : 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{ width: 1440, height: 900, transform: `scale(${s})`, transformOrigin: 'center center', flexShrink: 0, boxShadow: '0 20px 80px rgba(0,0,0,0.5)', borderRadius: 6 }}>
+        <DesktopCommandFinal />
+      </div>
+    </div>
+  );
+}
+
+function MobileStage() {
+  const ref = React.useRef(null);
+  const [s, setS] = React.useState(1);
+  React.useEffect(() => {
+    const fit = () => {
+      if (!ref.current) return;
+      const { clientWidth: w, clientHeight: h } = ref.current;
+      setS(Math.min(w / 440, h / 920, 1));
+    };
+    fit();
+    const ro = new ResizeObserver(fit);
+    if (ref.current) ro.observe(ref.current);
+    return () => ro.disconnect();
+  }, []);
+  return (
+    <div ref={ref} style={{ width: '100%', height: '100%', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{ width: 402, height: 874, transform: `scale(${s})`, transformOrigin: 'center center', flexShrink: 0 }}>
+        <IOSDevice dark={true}>
+          <MobileStepperFinal />
+        </IOSDevice>
+      </div>
+    </div>
+  );
+}
+
+function Annotation({ children, style }) {
+  return (
+    <div style={{
+      position: 'absolute', padding: '8px 12px',
+      background: 'rgba(212,175,55,0.08)', border: `1px solid ${T.GOLD_BORDER}`,
+      borderRadius: 4, fontSize: 11, color: T.TEXT_DIM,
+      fontFamily: T.FONT_BODY, lineHeight: 1.4, maxWidth: 260,
+      backdropFilter: 'blur(8px)',
+      ...style,
+    }}>{children}</div>
+  );
+}
+
+function SectionHeader({ label, title, note }) {
+  return (
+    <div style={{ padding: '14px 24px 10px', borderBottom: `1px solid ${T.BORDER}`, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'baseline', gap: 16, flexShrink: 0 }}>
+      <div style={{ fontFamily: T.FONT_DISPLAY, fontSize: 9, letterSpacing: '0.3em', color: T.CRIMSON === '#8b0000' ? '#c57171' : T.CRIMSON, textTransform: 'uppercase', fontWeight: 700 }}>{label}</div>
+      <div style={{ fontFamily: T.FONT_SERIF, fontSize: 16, color: T.TEXT, fontWeight: 600 }}>{title}</div>
+      {note && <div style={{ fontSize: 11, color: T.MUTED, marginLeft: 'auto' }}>{note}</div>}
+    </div>
+  );
+}
+
+function App() {
+  const { t, set, panel } = useTweaks();
+
+  return (
+    <div style={{ width: '100vw', height: '100vh', background: T.BG_2, color: T.TEXT, display: 'flex', flexDirection: 'column', overflow: 'hidden', backgroundImage: 'radial-gradient(ellipse at top, rgba(212,175,55,0.04), transparent 50%), radial-gradient(ellipse at bottom, rgba(139,0,0,0.04), transparent 50%)' }}>
+      {/* Top strip */}
+      <div style={{ padding: '12px 20px', borderBottom: `1px solid ${T.BORDER}`, display: 'flex', alignItems: 'center', gap: 16, flexShrink: 0, background: 'rgba(0,0,0,0.6)' }}>
+        <div>
+          <div style={{ fontFamily: T.FONT_DISPLAY, fontSize: 10, letterSpacing: '0.3em', color: '#c57171', textTransform: 'uppercase', fontWeight: 700 }}>gSim · UI Overhaul · Final</div>
+          <div style={{ fontFamily: T.FONT_SERIF, fontSize: 18, color: T.TEXT, fontWeight: 700, marginTop: 2 }}>Desktop Command Console + Mobile Tabbed Stepper</div>
+        </div>
+        <div style={{ flex: 1 }} />
+        <div style={{ fontSize: 11, color: T.MUTED, maxWidth: 420, lineHeight: 1.4, textAlign: 'right' }}>
+          Both directions share one mental model: edit on the left, watch DPS update on a persistent readout.
+        </div>
+      </div>
+
+      <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
+        {/* Desktop side */}
+        {(t.view === 'split' || t.view === 'desktop') && (
+          <div style={{ flex: t.view === 'split' ? '1 1 0' : 1, display: 'flex', flexDirection: 'column', minWidth: 0, borderRight: t.view === 'split' ? `1px solid ${T.BORDER}` : 'none' }}>
+            <SectionHeader label="Direction A" title="Command Console" note="1440 × 900 · Advanced" />
+            <div style={{ flex: 1, position: 'relative', background: 'rgba(0,0,0,0.3)', padding: 14, minHeight: 0 }}>
+              <DesktopStage scale={t.desktopScale} />
+              {t.showAnnotations && t.view === 'desktop' && (
+                <>
+                  <Annotation style={{ top: 40, left: 20 }}>
+                    <strong style={{ color: T.GOLD, fontFamily: T.FONT_DISPLAY, fontSize: 9, letterSpacing: '0.14em' }}>PERSISTENT HUD</strong><br/>
+                    TPS + DPS pinned to the header — never leaves your sight as you tweak gear or buffs.
+                  </Annotation>
+                  <Annotation style={{ top: 40, right: 20 }}>
+                    <strong style={{ color: T.GOLD, fontFamily: T.FONT_DISPLAY, fontSize: 9, letterSpacing: '0.14em' }}>EASY / ADVANCED</strong><br/>
+                    Toggle reshapes the form. Easy mode shows a Worn Haste slider; Advanced replaces it with a manual input.
+                  </Annotation>
+                </>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Mobile side */}
+        {(t.view === 'split' || t.view === 'mobile') && (
+          <div style={{ flex: t.view === 'split' ? '0 0 460px' : 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+            <SectionHeader label="Pattern 1" title="Tabbed Stepper" note="iPhone 16 Pro · 402 × 874" />
+            <div style={{ flex: 1, position: 'relative', background: 'rgba(0,0,0,0.3)', padding: 14, minHeight: 0, display: 'flex' }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <MobileStage />
+              </div>
+              {t.showAnnotations && t.view === 'mobile' && (
+                <div style={{ width: 260, paddingLeft: 20, display: 'flex', flexDirection: 'column', gap: 10, justifyContent: 'center' }}>
+                  <Annotation style={{ position: 'relative' }}>
+                    <strong style={{ color: T.GOLD, fontFamily: T.FONT_DISPLAY, fontSize: 9, letterSpacing: '0.14em' }}>4 TAB STEPPER</strong><br/>
+                    Build · Sim · Report · History. Each tab is a single scroll column — no overlapping panels, one-handed reachable.
+                  </Annotation>
+                  <Annotation style={{ position: 'relative' }}>
+                    <strong style={{ color: T.GOLD, fontFamily: T.FONT_DISPLAY, fontSize: 9, letterSpacing: '0.14em' }}>CURRENT DPS IN HEADER</strong><br/>
+                    Persistent readout top-right so you never lose sight of the number while switching tabs.
+                  </Annotation>
+                  <Annotation style={{ position: 'relative' }}>
+                    <strong style={{ color: T.GOLD, fontFamily: T.FONT_DISPLAY, fontSize: 9, letterSpacing: '0.14em' }}>EASY/ADV IN BUILD</strong><br/>
+                    Worn Haste swaps between slider (easy) and input (advanced) — same rule as desktop.
+                  </Annotation>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Split-view annotation strip */}
+      {t.showAnnotations && t.view === 'split' && (
+        <div style={{ padding: '10px 20px', background: 'rgba(0,0,0,0.6)', borderTop: `1px solid ${T.BORDER}`, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, fontSize: 11, color: T.TEXT_DIM, flexShrink: 0 }}>
+          <div>
+            <span style={{ color: T.GOLD, fontFamily: T.FONT_DISPLAY, fontSize: 9, letterSpacing: '0.2em', fontWeight: 700, marginRight: 6 }}>DESKTOP</span>
+            Persistent TPS/DPS HUD · Easy/Advanced toggle swaps Worn Haste slider ↔ input · full equipped-items card (20 slots, 2-col density) preserved from the original.
+          </div>
+          <div>
+            <span style={{ color: T.GOLD, fontFamily: T.FONT_DISPLAY, fontSize: 9, letterSpacing: '0.2em', fontWeight: 700, marginRight: 6 }}>MOBILE</span>
+            Tabs below, DPS pinned above. Try the tab bar — Build / Sim / Report / History each render different content. Easy/Advanced haste toggle lives in Build.
+          </div>
+        </div>
+      )}
+
+      {panel && <TweakPanel t={t} set={set} />}
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>

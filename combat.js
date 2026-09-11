@@ -258,6 +258,7 @@
 
   // ----- Melee critical hit chance (client: DEX, class, AA, discipline) -----
   // critChance is in percent (0–100). Warrior has innate base; Combat Fury 1/2/3 add flat +2%/+4%/+6% (critChanceMult) on top.
+  // (Ingenuity does NOT touch this — it's a proc/spell crit chance AA, see getProcCritAA.)
   function getCritChance(level, classId, dex, clientBaseCritChance, critChanceMult, isArchery) {
     let critChance = (clientBaseCritChance != null ? clientBaseCritChance : 0);
     const dexCap = Math.min(dex != null ? dex : 255, 255);
@@ -582,23 +583,35 @@
   }
 
   /**
-   * Spell Casting Fury (Paladin, Shadowknight, Ranger, Bard, Beastlord): 2/4/7% spell crit, +33/66/100% damage on crit.
-   * Applies to proc spell damage. Returns { apply, critChance, multPercent }.
+   * Proc/spell crit chance (SE_CriticalSpellChance, SPA 294): rolls a crit chance against
+   * proc spell damage, same server effect slot used by two mutually-exclusive AAs:
+   *  - Spell Casting Fury (Paladin/Shadowknight/Ranger/Bard/Beastlord): 2/4/7% crit chance,
+   *    with the crit damage bonus *reduced* to +33%/+66% on ranks 1/2 (rank 3 is a full double).
+   *  - Ingenuity (Warrior/Monk/Rogue): 1/2/3% crit chance, always a full double on crit —
+   *    the server's damage-mult reduction only checks the SCF AA specifically, so Ingenuity
+   *    procs never get scaled down the way SCF ranks 1/2 do.
+   * Returns { apply, critChance, multPercent }.
    */
-  function getSpellCastingFury(options) {
-    const rank = options.spellCastingFury | 0;
-    if (rank < 1 || rank > 3) return { apply: false, critChance: 0, multPercent: 0 };
+  function getProcCritAA(options) {
     const classId = (options.classId || '').toLowerCase();
+    const scfRank = options.spellCastingFury | 0;
     const scfClasses = ['paladin', 'shadowknight', 'ranger', 'bard', 'beastlord'];
-    if (scfClasses.indexOf(classId) < 0) return { apply: false, critChance: 0, multPercent: 0 };
-    return { apply: true, critChance: [2, 4, 7][rank - 1], multPercent: [33, 66, 100][rank - 1] };
+    if (scfRank >= 1 && scfRank <= 3 && scfClasses.indexOf(classId) >= 0) {
+      return { apply: true, critChance: [2, 4, 7][scfRank - 1], multPercent: [33, 66, 100][scfRank - 1] };
+    }
+    const ingRank = options.ingenuityRank | 0;
+    const ingClasses = ['warrior', 'monk', 'rogue'];
+    if (ingRank >= 1 && ingRank <= 3 && ingClasses.indexOf(classId) >= 0) {
+      return { apply: true, critChance: [1, 2, 3][ingRank - 1], multPercent: 100 };
+    }
+    return { apply: false, critChance: 0, multPercent: 0 };
   }
 
-  function applySpellCastingFuryProc(damage, options, rng) {
-    const scf = getSpellCastingFury(options);
-    if (!scf.apply || damage <= 0) return { damage: damage, isCrit: false };
-    if (rng() * 100 >= scf.critChance) return { damage: damage, isCrit: false };
-    return { damage: Math.floor(damage * (100 + scf.multPercent) / 100), isCrit: true };
+  function applyProcCrit(damage, options, rng) {
+    const cfg = getProcCritAA(options);
+    if (!cfg.apply || damage <= 0) return { damage: damage, isCrit: false };
+    if (rng() * 100 >= cfg.critChance) return { damage: damage, isCrit: false };
+    return { damage: Math.floor(damage * (100 + cfg.multPercent) / 100), isCrit: true };
   }
 
   // ----- Slay Undead (Paladin AA, 3 ranks) -----
@@ -632,9 +645,14 @@
     return { damage: slayDmg, isSlay: true };
   }
 
-  // ----- Special attacks (Flying Kick, Backstab, Kick, Bash, etc.) -----
-  // Per EQMacEmu special_attacks.cpp: Bash (Warrior/Paladin/SK/Cleric), Slam (Ogre/Troll/Barbarian = Bash without shield), Kick (Warrior/Ranger/Beastlord), Flying Kick (Monk), Backstab (Rogue).
-  // Flying Kick uses skill/level-based base only; Kick/Bash use GetSkillBaseDamage (skill-based base, not weapon).
+  // ----- Special attacks (Flying Kick, Backstab, Kick, Bash, Dragon Punch, Eagle Strike, Tiger Claw, Round Kick) -----
+  // Per EQMacEmu special_attacks.cpp: Bash (Warrior/Paladin/SK/Cleric), Slam (Ogre/Troll/Barbarian = Bash without shield),
+  // Kick (Warrior/Ranger/Beastlord), and the monk toolkit — Flying Kick, Dragon Punch, Eagle Strike, Tiger Claw, Round Kick
+  // (Monk only) — all use EQ::skills::GetSkillBaseDamage (a skill-based base, not weapon damage), scaled by the mob's
+  // actual current skill in that specific skill (not the general weapon/Offense skill): base + 1 for each threshold the
+  // skill has reached at 25/75/125/175 (skills.cpp GetSkillBaseDamage). Offense rating and to-hit for these skills also
+  // use that same specific skill (Mob::GetOffense(skill) / Mob::GetToHit(skill)), not the character's weapon skill.
+  // Backstab is the one exception — it already has its own dedicated skill-based formula below.
   // Base reuse times (seconds); player haste reduces effective reuse: effectiveReuseSec = baseReuseSec / (1 + hastePercent/100)
   var SPECIAL_ATTACK_REUSE_TIMES = {
     FeignDeathReuseTime: 9,
@@ -661,15 +679,32 @@
     LayOnHandsReuseTimeNPC: 2400,
     FrenzyReuseTime: 10,
   };
+  // skillBaseAtMin: EQ::skills::GetSkillBaseDamage's per-skill base value (before threshold bonuses).
+  // The actual base damage used in a fight is computed at runtime from the real (gear-mod-adjusted)
+  // skill value via getSkillBaseDamage() below — see options.specialSkill.
   const SPECIAL_ATTACKS_BY_TYPE = {
-    flying_kick: { name: 'Flying Kick', reuseSec: SPECIAL_ATTACK_REUSE_TIMES.FlyingKickReuseTime, useWeaponDamage: false, skillBaseDamage: 29, minDamageFormula: 'level*4/5' },
-    backstab: { name: 'Backstab', reuseSec: SPECIAL_ATTACK_REUSE_TIMES.BackstabReuseTime, fromBehindOnly: true },
-    kick: { name: 'Kick', reuseSec: SPECIAL_ATTACK_REUSE_TIMES.KickReuseTime, useWeaponDamage: false, skillBaseDamage: 20 },
-    bash: { name: 'Bash/Slam', reuseSec: SPECIAL_ATTACK_REUSE_TIMES.BashReuseTime, useWeaponDamage: false, skillBaseDamage: 15 },
+    flying_kick:  { name: 'Flying Kick',  reuseSec: SPECIAL_ATTACK_REUSE_TIMES.FlyingKickReuseTime,  useWeaponDamage: false, skillBaseAtMin: 25, minDamageFormula: 'level*4/5' },
+    backstab:     { name: 'Backstab',     reuseSec: SPECIAL_ATTACK_REUSE_TIMES.BackstabReuseTime,    fromBehindOnly: true },
+    kick:         { name: 'Kick',         reuseSec: SPECIAL_ATTACK_REUSE_TIMES.KickReuseTime,        useWeaponDamage: false, skillBaseAtMin: 3 },
+    bash:         { name: 'Bash/Slam',    reuseSec: SPECIAL_ATTACK_REUSE_TIMES.BashReuseTime,        useWeaponDamage: false, skillBaseAtMin: 2, shieldBonus: true },
+    dragon_punch: { name: 'Dragon Punch', reuseSec: SPECIAL_ATTACK_REUSE_TIMES.TailRakeReuseTime,    useWeaponDamage: false, skillBaseAtMin: 12 },
+    eagle_strike: { name: 'Eagle Strike', reuseSec: SPECIAL_ATTACK_REUSE_TIMES.EagleStrikeReuseTime, useWeaponDamage: false, skillBaseAtMin: 7 },
+    tiger_claw:   { name: 'Tiger Claw',   reuseSec: SPECIAL_ATTACK_REUSE_TIMES.TigerClawReuseTime,   useWeaponDamage: false, skillBaseAtMin: 4 },
+    round_kick:   { name: 'Round Kick',   reuseSec: SPECIAL_ATTACK_REUSE_TIMES.RoundKickReuseTime,   useWeaponDamage: false, skillBaseAtMin: 5 },
   };
+  /** EQ::skills::GetSkillBaseDamage: base + 1 for each threshold (25/75/125/175) the skill has reached, capped by base's own max at skill 175+. */
+  function getSkillBaseDamage(base, skillValue) {
+    const v = skillValue == null ? 0 : Math.max(0, skillValue);
+    let b = base;
+    if (v >= 25) b++;
+    if (v >= 75) b++;
+    if (v >= 125) b++;
+    if (v >= 175) b++;
+    return b;
+  }
   function canClassUseSpecialType(classId, type) {
     const c = (classId || '').toLowerCase();
-    if (type === 'flying_kick') return c === 'monk';
+    if (type === 'flying_kick' || type === 'dragon_punch' || type === 'eagle_strike' || type === 'tiger_claw' || type === 'round_kick') return c === 'monk';
     if (type === 'backstab') return c === 'rogue';
     if (type === 'kick') return c === 'warrior' || c === 'ranger' || c === 'beastlord';
     if (type === 'bash') return c === 'warrior' || c === 'paladin' || c === 'shadowknight' || c === 'cleric';
@@ -989,7 +1024,7 @@
           procDamageThisShot = 0;
         } else {
           let actualProcDmg = Math.floor(procDmg * effectiveness / 100);
-          const scfResult = applySpellCastingFuryProc(actualProcDmg, options, procRng);
+          const scfResult = applyProcCrit(actualProcDmg, options, procRng);
           actualProcDmg = scfResult.damage;
           if (scfResult.isCrit) {
             report.ranged.spellProcCrits++;
@@ -1286,7 +1321,7 @@
     if (r.procResistDamageLost != null && r.procResistDamageLost > 0) {
       lines.push(padLine('    Proc damage lost (resists):', String(r.procResistDamageLost)));
     }
-    if (r.spellProcCrits != null) lines.push(padLine('    Proc spell crits (SCF):', String(r.spellProcCrits)));
+    if (r.spellProcCrits != null) lines.push(padLine('    Proc spell crits (SCF/Ingenuity):', String(r.spellProcCrits)));
     if (r.maxSpellProcCritDmg != null && r.maxSpellProcCritDmg > 0) lines.push(padLine('    Max spell proc crit dmg:', String(r.maxSpellProcCritDmg)));
     lines.push('');
 
@@ -1383,7 +1418,9 @@
    * @param {number} [options.dex=255] - dexterity for proc
    * @param {boolean} [options.fromBehind] - if true, skip block/parry/dodge/riposte only
    * @param {boolean} [options.specialAttacks] - if true, fire class special on cooldown
-   * @param {string} [options.specialAttackType] - 'flying_kick'|'backstab'|'kick'|'bash'; must be valid for class (Warrior: kick/bash; Pally/SK/Cleric: bash; Ranger/Beastlord: kick; Monk: flying_kick; Rogue: backstab)
+   * @param {string} [options.specialAttackType] - 'flying_kick'|'backstab'|'kick'|'bash'|'dragon_punch'|'eagle_strike'|'tiger_claw'|'round_kick'; must be valid for class (Warrior: kick/bash; Pally/SK/Cleric: bash; Ranger/Beastlord: kick; Monk: flying_kick/dragon_punch/eagle_strike/tiger_claw/round_kick; Rogue: backstab)
+   * @param {number} [options.specialSkill=252] - current skill value (already gear-mod-adjusted) for the chosen non-backstab special; drives its base damage (GetSkillBaseDamage), offense rating, and to-hit
+   * @param {number} [options.bashShieldAC=0] - AC of the shield in the secondary slot; only applies when specialAttackType is 'bash' (Mob::DoBash shield bonus)
    * @param {number} [options.backstabModPercent] - increase effective backstab skill by this % (e.g. 20 for 20%); effective skill capped at 252
    * @param {number} [options.backstabSkill] - backstab skill for base damage (skill*0.02+2)*weapon_damage; also enforces minHit by level
    * @param {number} [options.backstabReuseSec] - override backstab base reuse time in seconds (default: 10); haste is applied to this base
@@ -1701,6 +1738,8 @@
         attemptedAttacks: specialConfig.fromBehindOnly && options.classId === 'rogue' ? 0 : undefined,
         backstabSkill: specialConfig.fromBehindOnly ? Math.min(255, options.backstabSkill != null ? options.backstabSkill : 225) : undefined,
         backstabModPercent: specialConfig.fromBehindOnly ? (options.backstabModPercent || 0) : undefined,
+        specialSkill: (specialConfig.skillBaseAtMin != null) ? Math.min(252, Math.max(0, options.specialSkill != null ? options.specialSkill : 252)) : undefined,
+        specialSkillBaseDamage: (specialConfig.skillBaseAtMin != null) ? getSkillBaseDamage(specialConfig.skillBaseAtMin, Math.min(252, Math.max(0, options.specialSkill != null ? options.specialSkill : 252))) : undefined,
       } : null,
       masterWu: (specialType === 'flying_kick' && masterWuRank > 0) ? {
         rank: masterWuRank,
@@ -1749,6 +1788,10 @@
       if (st === 'flying_kick') return 'flying kick';
       if (st === 'kick') return 'kick';
       if (st === 'bash') return 'bash';
+      if (st === 'dragon_punch') return 'dragon punch';
+      if (st === 'eagle_strike') return 'eagle strike';
+      if (st === 'tiger_claw') return 'tiger claw';
+      if (st === 'round_kick') return 'round kick';
       return 'attack';
     }
     const w1Verb = options.captureCombatLog ? getMeleeAttackVerb(options.weapon1Type) : '';
@@ -1938,8 +1981,15 @@
         const backstabSkill = options.backstabSkill != null ? options.backstabSkill : 225;
         const backstabModPct = options.backstabModPercent || 0;
         const backstabEffectiveSkill = Math.min(252, Math.floor(backstabSkill * (100 + backstabModPct) / 100));
+        // Kick/Bash/Dragon Punch/Eagle Strike/Tiger Claw/Round Kick each roll to-hit off their OWN skill
+        // (Mob::GetToHit(skill): 7 + Offense skill + that specific skill), not the weapon skill — options.specialSkill
+        // is already gear-mod-adjusted by the caller (same pattern as offenseSkill/doubleAttackSkill/dualWieldSkill).
+        const isSkillDrivenSpecial = !isRogueBackstab && specialConfig.skillBaseAtMin != null;
+        const specialSkillValue = isSkillDrivenSpecial ? Math.min(252, Math.max(0, options.specialSkill != null ? options.specialSkill : 252)) : null;
         // GetToHit(skill): toHit = 7 + Offense SKILL + effective backstab skill (weapon mod applied, capped at 252).
-        const backstabToHit = isRogueBackstab ? (7 + OFFENSE_SKILL + backstabEffectiveSkill) : toHit;
+        const backstabToHit = isRogueBackstab ? (7 + OFFENSE_SKILL + backstabEffectiveSkill)
+          : isSkillDrivenSpecial ? (7 + OFFENSE_SKILL + specialSkillValue + toHitBonus)
+          : toHit;
 
         // Backstab: do double attack check first. If it fails → single backstab (one to-hit roll). If it succeeds → double backstab (normal + bonus attempt, two to-hit rolls).
         const isDoubleBackstabRound = isRogueBackstab && options.classId === 'rogue' && level > 54 && report.special.doubleBackstabs !== undefined && checkDoubleAttack(doubleAttackEffective, specialRng, options.classId);
@@ -1972,9 +2022,18 @@
             let backstabBase = applyDisciplineDamageMod(backstabBaseRaw, duelistBackstabRound);
             baseDmg = calcMeleeDamage(backstabBase, backstabOffenseRating, mitigation, specialRng, 0);
             baseDmg = Math.max(1, baseDmg);
-          } else if (specialConfig.useWeaponDamage === false && specialConfig.skillBaseDamage != null) {
-            const skillBase = specialConfig.skillBaseDamage;
-            baseDmg = calcMeleeDamage(skillBase, offenseRating, mitigation, specialRng, 0);
+          } else if (isSkillDrivenSpecial) {
+            // Mob::GetOffense(skill): specific skill + STR bonus + worn/spell ATK — not the weapon-based offenseRating.
+            const specialOffenseRatingLocal = specialSkillValue + strBonus + wornAttack + spellAttack;
+            specialOffenseRating = specialOffenseRatingLocal;
+            let skillBase = getSkillBaseDamage(specialConfig.skillBaseAtMin, specialSkillValue);
+            // Bash only: a shield in the secondary slot adds its AC to the base, capped at base + level/5 + 2
+            // (special_attacks.cpp Mob::DoBash). Furious Bash focus and Slam (racial bash w/o shield) are not modeled.
+            if (specialConfig.shieldBonus && options.bashShieldAC > 0) {
+              const bashCap = skillBase + Math.floor(level / 5) + 2;
+              skillBase = Math.min(bashCap, skillBase + options.bashShieldAC);
+            }
+            baseDmg = calcMeleeDamage(skillBase, specialOffenseRatingLocal, mitigation, specialRng, 0);
             if (specialConfig.minDamageFormula === 'level*4/5') {
               const fkMin = Math.floor(level * 4 / 5);
               baseDmg = Math.max(1, Math.max(baseDmg, fkMin));
@@ -2438,7 +2497,7 @@
             addRuneHate(w1.procSpellRuneValue, 1, procRng);
           } else {
             let actualDmg = Math.floor(procDmg * effectiveness / 100);
-            const scfResult1 = applySpellCastingFuryProc(actualDmg, options, procRng);
+            const scfResult1 = applyProcCrit(actualDmg, options, procRng);
             actualDmg = scfResult1.damage;
             if (scfResult1.isCrit) {
               report.weapon1.spellProcCrits++;
@@ -2537,7 +2596,7 @@
                   addRuneHate(w2.procSpellRuneValue, 2, procRng);
                 } else {
                   let actualDmg = Math.floor(procDmg * effectiveness / 100);
-                  const scfResult2 = applySpellCastingFuryProc(actualDmg, options, procRng);
+                  const scfResult2 = applyProcCrit(actualDmg, options, procRng);
                   actualDmg = scfResult2.damage;
                   if (scfResult2.isCrit) {
                     report.weapon2.spellProcCrits++;
@@ -2678,7 +2737,7 @@
               addRuneHate(w2.procSpellRuneValue, 2, procRng);
             } else {
               let actualDmg = Math.floor(procDmg * effectiveness / 100);
-              const scfResult2 = applySpellCastingFuryProc(actualDmg, options, procRng);
+              const scfResult2 = applyProcCrit(actualDmg, options, procRng);
               actualDmg = scfResult2.damage;
               if (scfResult2.isCrit) {
                 report.weapon2.spellProcCrits++;
@@ -3090,7 +3149,7 @@
     if (w1.procResistDamageLost != null && w1.procResistDamageLost > 0) {
       lines.push(padLine('    Proc damage lost (resists):', String(w1.procResistDamageLost)));
     }
-    if (w1.spellProcCrits != null) lines.push(padLine('    Proc spell crits (SCF):', String(w1.spellProcCrits)));
+    if (w1.spellProcCrits != null) lines.push(padLine('    Proc spell crits (SCF/Ingenuity):', String(w1.spellProcCrits)));
     if (w1.maxSpellProcCritDmg != null && w1.maxSpellProcCritDmg > 0) lines.push(padLine('    Max spell proc crit dmg:', String(w1.maxSpellProcCritDmg)));
     if (w2.swings > 0) {
       lines.push('');
@@ -3113,7 +3172,7 @@
       if (w2.procResistDamageLost != null && w2.procResistDamageLost > 0) {
         lines.push(padLine('    Proc damage lost (resists):', String(w2.procResistDamageLost)));
       }
-      if (w2.spellProcCrits != null) lines.push(padLine('    Proc spell crits (SCF):', String(w2.spellProcCrits)));
+      if (w2.spellProcCrits != null) lines.push(padLine('    Proc spell crits (SCF/Ingenuity):', String(w2.spellProcCrits)));
       if (w2.maxSpellProcCritDmg != null && w2.maxSpellProcCritDmg > 0) lines.push(padLine('    Max spell proc crit dmg:', String(w2.maxSpellProcCritDmg)));
     }
     if (report.special) {
@@ -3136,6 +3195,8 @@
         lines.push(padLine('    Number of backstab rounds:', String(a)));
         if (sp.doubleBackstabs !== undefined) lines.push(padLine('    Backstab swings:', String(totalBackstabAttempts)));
       } else {
+        if (sp.specialSkill != null) lines.push(padLine(`    ${sp.name} skill:`, String(sp.specialSkill)));
+        if (sp.specialSkillBaseDamage != null) lines.push(padLine('    Base damage (from skill):', String(sp.specialSkillBaseDamage)));
         lines.push(padLine('    Attempts:', String(a)));
       }
       if (sp.doubleBackstabs !== undefined) {

@@ -1733,6 +1733,10 @@
       text-align: left;
     }
     .aa-info:hover::after { opacity: 1; }
+    /* Edge clamping: applied via JS when the centered tooltip would clip
+       off the left/right edge of the viewport. */
+    .aa-info.tip-edge-left::after { left: 0; transform: none; }
+    .aa-info.tip-edge-right::after { left: auto; right: 0; transform: none; }
     .aa-seg { display: flex; gap: 1px; }
     .aa-seg-btn {
       padding: 0.15rem 0.35rem;
@@ -2057,6 +2061,64 @@
       .landing-splash-image { max-height: 70vh; }
     }
 
+    /* What's New popup: shown once per new release to returning visitors */
+    .whats-new-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 9998;
+      background: rgba(5, 5, 8, 0.72);
+      align-items: center;
+      justify-content: center;
+      padding: 1.5rem;
+    }
+    .whats-new-overlay.whats-new-overlay--visible { display: flex; }
+    .whats-new-card {
+      background: #14141a;
+      border: 1px solid rgba(212, 175, 55, 0.35);
+      border-radius: 8px;
+      box-shadow: 0 16px 50px rgba(0,0,0,0.6);
+      max-width: 560px;
+      width: 100%;
+      max-height: 80vh;
+      display: flex;
+      flex-direction: column;
+      padding: 1.25rem 1.5rem;
+    }
+    .whats-new-title {
+      font-family: 'Cinzel', serif;
+      font-weight: 700;
+      color: #d4af37;
+      font-size: 1.15rem;
+      margin: 0 0 0.75rem;
+    }
+    .whats-new-list {
+      overflow-y: auto;
+      margin: 0;
+      padding-left: 1.25rem;
+      font-size: 0.88rem;
+      line-height: 1.5;
+      color: var(--muted, #b8b8c0);
+    }
+    .whats-new-list li { margin-bottom: 0.75rem; }
+    .whats-new-list li:last-child { margin-bottom: 0; }
+    .whats-new-actions {
+      display: flex;
+      justify-content: flex-end;
+      margin-top: 1rem;
+    }
+    .whats-new-close-btn {
+      background: #d4af37;
+      color: #14141a;
+      border: none;
+      border-radius: 4px;
+      padding: 0.45rem 1.1rem;
+      font-weight: 700;
+      cursor: pointer;
+      font-size: 0.85rem;
+    }
+    .whats-new-close-btn:hover { background: #e6c250; }
+
   </style>
 </head>
 <body data-ui-mode="easy" class="app-body">
@@ -2066,6 +2128,15 @@
       <img src="resources/gSim easy advanced.png" alt="Choose Easy mode or Advanced mode" class="landing-splash-image" draggable="false">
       <button type="button" class="landing-splash-hit landing-splash-hit--easy" id="landing-splash-easy" aria-label="Choose Easy mode"></button>
       <button type="button" class="landing-splash-hit landing-splash-hit--advanced" id="landing-splash-advanced" aria-label="Choose Advanced mode"></button>
+    </div>
+  </div>
+  <div id="whats-new-overlay" class="whats-new-overlay" role="dialog" aria-modal="true" aria-labelledby="whats-new-title">
+    <div class="whats-new-card">
+      <h2 id="whats-new-title" class="whats-new-title">What's new</h2>
+      <ul id="whats-new-list" class="whats-new-list"></ul>
+      <div class="whats-new-actions">
+        <button type="button" class="whats-new-close-btn" id="whats-new-close">Got it</button>
+      </div>
     </div>
   </div>
   <header class="app-header flex items-center justify-between gap-4 px-4 md:px-8 z-50">
@@ -2435,9 +2506,14 @@
             <label class="checkbox-label char-checkbox" title="Checkbox: include Duelist in the sim. Shift+click (while checked): toggle permanent full-fight mode (unrealistic; label notes when on)."><input type="checkbox" id="duelist"> <span id="duelist-disc-label-text">Duelist (12s random window: double melee damage)</span></label>
           </div>
         </div>
+        <div id="special-skill-row" style="display: none;">
+          <div class="char-secondary-row">
+            <div class="char-field char-field-num"><label for="special-skill" id="special-skill-label" class="small-label">Kick skill</label><input type="number" id="special-skill" min="0" max="252" value="252" placeholder="252" title="Current skill in this special attack. Drives its base damage, offense rating, and to-hit (EQ::skills::GetSkillBaseDamage / Mob::GetOffense / Mob::GetToHit). Worn +skill % gear mods are applied on top automatically."></div>
+            <div id="bash-shield-ac-wrap" class="char-field char-field-num" style="display:none;"><label for="bash-shield-ac" class="small-label">Shield AC</label><input type="number" id="bash-shield-ac" min="0" value="0" placeholder="0" title="AC of the shield in the secondary slot. Bash adds this straight to its base damage, capped at base + level/5 + 2 (Mob::DoBash)."></div>
+          </div>
+        </div>
         <div id="fistweaving-row" style="display: none;">
           <label class="checkbox-label char-checkbox"><input type="checkbox" id="fistweaving"> Force Fistweaving (2H Only)</label>
-          <label class="checkbox-label char-checkbox"><input type="checkbox" id="fistweaving-nonepic"> Non-Epic FW</label>
           <div class="char-field char-field-num" style="margin-top:0.5rem;">
             <label for="fistweaving-reaction-delay-ms" class="small-label">Fistweave reaction delay (ms)</label>
             <input type="number" id="fistweaving-reaction-delay-ms" min="0" max="1000" step="10" value="200">
@@ -3369,6 +3445,11 @@
     <details id="version-log-details">
     <summary style="cursor:pointer; font-size:1.17em; font-weight:bold; margin:0; list-style:revert;">Version log</summary>
     <ul style="font-size: 0.9rem; color: var(--muted); margin: 0.5rem 0 0; padding-left: 1.25rem;">
+      <li><strong>1.89</strong> — New <strong>What's New</strong> popup: returning visitors who last used an older gSim version now see a small dialog on page load summarizing everything that changed since their last visit, pulled directly from this Version log (no separate list to maintain). It only appears once per release you haven't seen yet — first-ever visitors and anyone already on the latest version won't see it. Dismiss with the "Got it" button.</li>
+      <li><strong>1.88</strong> — Removed the Monk <strong>Non-Epic FW</strong> checkbox — non-epic fistweaving (bare fists, 27-decisecond swing, 14 base damage) is now the sim's only fistweave mode, applied automatically whenever <strong>Force Fistweaving</strong> is checked for a monk, since it's the general case (the Epic 1.0 fist weapon's faster/lighter numbers were a rarely-used alternate the checkbox exposed). No output change for anyone who already had it checked. Mechanics guide updated.</li>
+      <li><strong>1.87</strong> — Melee tab's <strong>Special attack</strong> dropdown gains <strong>Dragon Punch</strong>, <strong>Eagle Strike</strong>, <strong>Tiger Claw</strong>, and <strong>Round Kick</strong> for Monks (previously only Flying Kick was selectable; the other three only appeared as Technique of Master Wu's random extra strikes). All non-Backstab specials — Kick, Bash, Flying Kick, and the four new Monk skills — are now genuinely skill-driven: base damage, offense rating, and to-hit are computed from that special's own actual skill value (a new "&lt;Special&gt; skill" field, default 252) via the server's real <code>GetSkillBaseDamage</code>/<code>GetOffense</code>/<code>GetToHit</code> formulas, instead of Kick and Bash's previous fixed damage constants (which didn't match the server formula at any skill level) or Flying Kick's assumed-max-skill constant. Worn +skill% gear mods for all seven apply automatically (same non-stacking rule as other worn skill mods). Bash also gains its real shield-AC bonus (a new "Shield AC" field appears when Bash is selected) — the dominant source of real Bash damage, previously unmodeled. Mechanics guide updated (new section 7.5.1).</li>
+      <li><strong>1.86</strong> — Extended worn skill-mod support (added in 1.85 for Archery) to the rest of the skills the sim models: <strong>Offense</strong>, <strong>Double Attack</strong>, and <strong>Dual Wield</strong> on the Melee tab, and <strong>Defense</strong>, <strong>Dodge</strong>, <strong>Parry</strong>, <strong>Riposte</strong>, and <strong>Block</strong> on the Tanking tab. Import Inventory now scans every equipped item for these skillmodtype/skillmodvalue bonuses too, keeping only the highest per skill (server bonuses.cpp rule — same non-stacking behavior as the existing weapon/Backstab/Archery mods), and applies it on top of whatever base skill value is entered. The Equipped Items summary lists each one found under a "Worn +&lt;Skill&gt; %" line with a non-stacking note when multiple items carry the same mod. Mechanics guide updated.</li>
+      <li><strong>1.85</strong> — Fix: worn <strong>+Archery %</strong> item modifiers (e.g. Eye of the Frenzied Owlbear, or a bow like Bow of Flames) were being <em>summed</em> across every equipped item that carries one instead of only the highest applying — per server bonuses.cpp, skill mods of the same type don't stack, matching how melee weapon-skill mods (Shadowed Torment, etc.) already worked. Import Inventory's gear scan, the Rank Weapons tool, and the ranged-weapon item-search swap/clear logic all now take the max instead of adding, and the Equipped Items summary's "Worn +Archery %" line notes when multiple items carry the mod that only the highest applies (same wording as the existing Worn Haste note). Archery skill in the report is now only ever boosted by one worn mod at a time.</li>
       <li><strong>1.84</strong> — Rotation tab TPS fix: per-cast threat was being computed as the actual damage dealt (post-resist, post-crit), so a full resist wrongly zeroed out that cast's threat and a crit wrongly inflated it. Per EQMacEmu (<code>Mob::CheckAggroAmount</code> / <code>Mob::ResistSpell</code>), a detrimental cast's hate comes from the spell's plain listed/base damage regardless of resist or crit outcome — resists and crits only change the damage dealt, never the threat generated. Threat is now computed from that base value; DPS is unaffected. Also fixed the DPS-over-time chart's TPS line, which was deriving per-wave threat from actual (not base) damage for rains/DoTs. Separately fixed the <strong>Target Mob</strong> fields (level, MR/FR/CR/PR/DR) drifting out of sync between tabs — e.g. Easy Mode's "raid target" preset bumped Melee's resists to 75 but left the Rotation tab's copy at its old value, so the Rotation sim silently kept using stale (often lower) resists. Every place that sets the target mob now routes through one shared function that updates the Melee, Ranged, and Rotation copies together, and clearing the target (or having none selected) resets all three to the same generic level-matched defaults (MR/FR/CR/PR/DR 35, matching Melee's own default) instead of just Melee's. Also fixed inventory import (Import Inventory / Quarmy files): AA ranks from the file were silently failing to apply to the Alternate Advancement panel — a <code>ReferenceError</code> partway through processing the imported AAs (a leftover scoping bug — the import code lived in a different script closure than the AA Configurator's underlying data) aborted before the panel could be refreshed, even though the imported AAs still listed correctly under "AAs imported" on the Equipped Items card. AAs imported from a file now check off correctly. Also fixed <strong>Spell Casting Subtlety</strong> being modeled as a 1-rank on/off AA in the Configurator when it's actually a 3-rank AA — real exports were importing rank 3 into it, which couldn't match any of the old 0/1 buttons and showed as unchecked. Mechanics guide updated.</li>
       <li><strong>1.83</strong> — AA Configurator fix: <strong>Quick Damage</strong> and <strong>Spell Casting Fury Mastery</strong> were incorrectly offered to every caster/hybrid class (same list as their prereq, Spell Casting Fury) — per this server's AA table, these two follow-up AAs are restricted much more narrowly (Quick Damage: Druid/Wizard/Magician; Spell Casting Fury Mastery: Wizard only), so e.g. Bard was wrongly showing both. Class lists corrected; both AAs also zero out for the excluded classes in computed sim output, not just the configurator UI. Mechanics guide updated.</li>
       <li><strong>1.82</strong> — Buff Panel: fixed <strong>Dance of the Blade</strong> — its third effect was mislabeled as +30 AC, it's actually +30 STR. Also fixed it being incorrectly suppressed (via SAI stacking group) when <strong>Ancient: Feral Avatar</strong>, <strong>Avatar</strong>, or <strong>Ferine Avatar</strong> was also up — real EQ stacking compares each spell's effects slot-by-slot, and Dance of the Blade's ATK/STR sit in effect slots that don't collide with those spells', so they stack in-game and now stack in the sim too.</li>
@@ -3951,7 +4032,7 @@
       }
 
       // When releasing: 1) Bump VERSION below. 2) Add a new <li> at the top of the Version log section above.
-      const VERSION = '1.82';
+      const VERSION = '1.89';
       const versionEl = $('app-version');
       if (versionEl) versionEl.textContent = 'v' + VERSION;
 
@@ -4359,9 +4440,14 @@
         if (kickEl && !kickReuseManual) kickEl.value = eff8.toFixed(2);
         if (bashEl && !bashReuseManual) bashEl.value = eff8.toFixed(2);
       }
+      const SPECIAL_TYPE_LABELS = { flying_kick: 'Flying Kick', backstab: 'Backstab', kick: 'Kick', bash: 'Bash/Slam', dragon_punch: 'Dragon Punch', eagle_strike: 'Eagle Strike', tiger_claw: 'Tiger Claw', round_kick: 'Round Kick' };
+      // Skill-driven specials (everything except Backstab, which has its own dedicated skill field/formula)
+      // share one "special-skill" input — only one can be active at a time via the dropdown — and the
+      // matching worn-skill-mod key used to look up window.gearOtherSkillMods (see getGearOtherSkillModPercent).
+      const SPECIAL_TYPE_SKILL_KEY = { kick: 'kick', bash: 'bash', flying_kick: 'flyingkick', dragon_punch: 'dragonpunch', eagle_strike: 'eaglestrike', tiger_claw: 'tigerclaw', round_kick: 'roundkick' };
       function getSpecialTypesForClass(classId) {
         if (!classId || !EQCombat.canClassUseSpecialType) return [];
-        const types = ['flying_kick', 'backstab', 'kick', 'bash'];
+        const types = ['flying_kick', 'backstab', 'kick', 'bash', 'dragon_punch', 'eagle_strike', 'tiger_claw', 'round_kick'];
         return types.filter(function (t) { return EQCombat.canClassUseSpecialType(classId, t); });
       }
       function updateSpecialAttackDropdown() {
@@ -4370,9 +4456,8 @@
         if (!select) return;
         const validTypes = getSpecialTypesForClass(classId);
         const defaultType = EQCombat.getDefaultSpecialTypeForClass ? EQCombat.getDefaultSpecialTypeForClass(classId) : (classId === 'rogue' ? 'backstab' : classId === 'monk' ? 'flying_kick' : 'none');
-        const labels = { flying_kick: 'Flying Kick', backstab: 'Backstab', kick: 'Kick', bash: 'Bash/Slam' };
         select.innerHTML = '<option value="none">None</option>';
-        validTypes.forEach(function (t) { select.appendChild(new Option(labels[t] || t, t)); });
+        validTypes.forEach(function (t) { select.appendChild(new Option(SPECIAL_TYPE_LABELS[t] || t, t)); });
         const newVal = validTypes.indexOf(defaultType) >= 0 ? defaultType : 'none';
         select.value = newVal;
         updateSpecialReuseVisibility();
@@ -4389,6 +4474,13 @@
         if (flyingKickWrap) flyingKickWrap.style.display = type === 'flying_kick' ? 'block' : 'none';
         if (kickWrap) kickWrap.style.display = type === 'kick' ? 'block' : 'none';
         if (bashWrap) bashWrap.style.display = type === 'bash' ? 'block' : 'none';
+        const skillRow = $('special-skill-row');
+        const skillKey = SPECIAL_TYPE_SKILL_KEY[type];
+        if (skillRow) skillRow.style.display = skillKey ? '' : 'none';
+        const skillLabel = $('special-skill-label');
+        if (skillLabel) skillLabel.textContent = (SPECIAL_TYPE_LABELS[type] || 'Special') + ' skill';
+        const bashShieldWrap = $('bash-shield-ac-wrap');
+        if (bashShieldWrap) bashShieldWrap.style.display = type === 'bash' ? '' : 'none';
         updateSpecialReuseDisplay();
       }
 
@@ -4728,7 +4820,7 @@
         if (prefix === 'w2' && isW1TwoHanded()) {
           const cls = ($('class').value || '').toLowerCase();
           const isTwWeaveClass = ['warrior','ranger','beastlord'].indexOf(cls) >= 0;
-          const allowOh = (cls === 'monk' && $('fistweaving') && $('fistweaving').checked && $('fistweaving-nonepic') && $('fistweaving-nonepic').checked)
+          const allowOh = (cls === 'monk' && $('fistweaving') && $('fistweaving').checked)
             || (isTwWeaveClass && $('twohand-weave') && $('twohand-weave').checked);
           if (!allowOh) {
             span.textContent = 'Unavailable';
@@ -4920,7 +5012,7 @@
           if (prefix === 'w1' && (p.is2H || pType2H)) {
             const clsP = ($('class') ? $('class').value : '').toLowerCase();
             const twWeaveP = ['warrior','ranger','beastlord'].indexOf(clsP) >= 0 && $('twohand-weave') && $('twohand-weave').checked;
-            const fwNonEpicP = clsP === 'monk' && $('fistweaving') && $('fistweaving').checked && $('fistweaving-nonepic') && $('fistweaving-nonepic').checked;
+            const fwNonEpicP = clsP === 'monk' && $('fistweaving') && $('fistweaving').checked;
             if (!twWeaveP && !fwNonEpicP) applyWeaponPreset('w2', 'unequipped');
           }
           if (prefix === 'w1') {
@@ -5012,6 +5104,7 @@
         speedOfTheKnight: 0,
         ragingFlurry: 0,
         tacticalMastery: 0,
+        ingenuity: 0,
       };
       // Exposed so code in other top-level IIFEs (e.g. the inventory-import
       // handler further down, which lives in its own closure) can read/write
@@ -5048,6 +5141,7 @@
           slayUndead: aaVal('slayUndead'),
           archeryMastery: amRank || 1,
           spellCastingFury: aaVal('spellCastingFury'),
+          ingenuityRank: aaVal('ingenuity'),
           spellCastingFuryMasteryRank: aaVal('spellCastingFuryMastery'),
           quickDamageRank: aaVal('quickDamage'),
           furyOfTheAgesRank: aaVal('furyOfTheAges'),
@@ -5142,6 +5236,7 @@
           spellCastingSubtlety:     'Reduces the hate/aggro generated by your spells. Not modeled — no spell aggro calculation in this sim.',
           innateEnlightenment:      'Caster sibling to Planar Power — raises the INT/WIS stat cap per rank. Exact amount not verifiable from this server\'s data.',
           furyOfMagic:              'Magician upgrade to Spell Casting Fury (requires it maxed). Exact bonus not verifiable from this server\'s data.',
+          ingenuity:        'Grants a chance for your weapon procs to critically hit for double damage (1%/2%/3% per rank). Does not affect regular melee swing crit chance — that\'s Combat Fury. Warrior/Monk/Rogue only.',
         };
 
         function rowHtml(aa, classId2) {
@@ -5219,6 +5314,25 @@
           }
           // Update ambidexterity label suffix if needed
           if (aaId === 'ambidexterity') buildAAConfiguratorUI();
+        };
+
+        // Keep the AA tooltip anchored on-screen: the default (centered on
+        // the info icon) clips off the right or left edge of the browser
+        // window for rows near a panel edge (e.g. Ingenuity in a full
+        // pop_ability grid). Recompute per-hover since rows reflow by class/era.
+        body.onmouseover = function (e) {
+          var info = e.target.closest('.aa-info');
+          if (!info) return;
+          info.classList.remove('tip-edge-left', 'tip-edge-right');
+          var rect = info.getBoundingClientRect();
+          var tipWidth = 220; // keep in sync with .aa-info::after width
+          var margin = 8;
+          var center = rect.left + rect.width / 2;
+          if (center - tipWidth / 2 < margin) {
+            info.classList.add('tip-edge-left');
+          } else if (center + tipWidth / 2 > window.innerWidth - margin) {
+            info.classList.add('tip-edge-right');
+          }
         };
       }
 
@@ -5707,7 +5821,7 @@
         applyBaneForTarget(weapon1, isTargetSelected);
         applyBaneForTarget(weapon2, isTargetSelected);
         const hasMainHand = (weapon1.damage >= 1 && weapon1.delay >= 10) || (weapon1.noDamageVsTarget && weapon1.delay >= 10);
-        const dualWieldSkillForValidation = parseInt($('dual-wield').value, 10) || 0;
+        const dualWieldSkillForValidation = applyWeaponSkillModPercent(parseInt($('dual-wield').value, 10) || 0, getGearOtherSkillModPercent('dualwield'));
         const hasOffhand = (weapon2.damage >= 1 && weapon2.delay >= 10 && dualWieldSkillForValidation >= 1) || (weapon2.noDamageVsTarget && weapon2.delay >= 10 && dualWieldSkillForValidation >= 1);
         if (!hasMainHand && !hasOffhand) {
           $('report').textContent = 'Set Weapon 1 (Damage >= 1, Delay >= 10) or Weapon 2 with Dual Wield skill.';
@@ -5720,8 +5834,8 @@
         const hastePercent = getMeleeTotalHastePercent(); // spell-haste input already reflects buff haste
         const wornAttack = (parseInt($('worn-attack').value, 10) || 0) + (buffFx ? buffFx.wornAtk || 0 : 0);
         const spellAttack = (parseInt($('spell-attack').value, 10) || 0) + (buffFx ? buffFx.atk || 0 : 0);
-        let doubleAttackSkill = parseInt($('double-attack').value, 10) || 0;
-        let dualWieldSkill = parseInt($('dual-wield').value, 10) || 0;
+        let doubleAttackSkill = applyWeaponSkillModPercent(parseInt($('double-attack').value, 10) || 0, getGearOtherSkillModPercent('doubleattack'));
+        let dualWieldSkill = applyWeaponSkillModPercent(parseInt($('dual-wield').value, 10) || 0, getGearOtherSkillModPercent('dualwield'));
         const level = parseInt($('level').value, 10) || 60;
         const targetAC = parseInt($('target-ac').value, 10) || 550;
         const mobLevel = parseInt($('mob-level').value, 10) || 60;
@@ -5744,14 +5858,14 @@
         const specialAttackType = ($('special-attack-type').value || 'none');
         const specialAttacks = specialAttackType !== 'none';
 
-        const fwNonEpicMonk = classId === 'monk' && hasMainHand && weapon1.is2H && $('fistweaving').checked && $('fistweaving-nonepic') && $('fistweaving-nonepic').checked;
+        const fwNonEpicMonk = classId === 'monk' && hasMainHand && weapon1.is2H && $('fistweaving').checked;
         const twWeaveActive = ['warrior','ranger','beastlord'].indexOf(classId) >= 0 && hasMainHand && weapon1.is2H && $('twohand-weave') && $('twohand-weave').checked;
         let useWeapon2 = weapon2.damage > 0 && weapon2.delay > 0 && dualWieldSkill > 0;
         if (hasMainHand && weapon1.is2H) {
           useWeapon2 = !!((fwNonEpicMonk || twWeaveActive) && useWeapon2 && !weapon2.is2H);
         }
 
-        const offenseSkill = Math.min(255, Math.max(0, parseInt($('offense-skill').value, 10) || 252));
+        const offenseSkill = applyWeaponSkillModPercent(Math.min(255, Math.max(0, parseInt($('offense-skill').value, 10) || 252)), getGearOtherSkillModPercent('offense'));
         const skillKey = hasMainHand
           ? skillKeyForCap(w1WeaponType, weapon1.is2H)
           : skillKeyForCap(w2WeaponType, weapon2.is2H);
@@ -5870,6 +5984,8 @@
           fromBehind,
           specialAttacks,
           specialAttackType: specialAttacks ? specialAttackType : undefined,
+          specialSkill: specialAttacks ? getSpecialSkillEffective(specialAttackType) : undefined,
+          bashShieldAC: (specialAttacks && specialAttackType === 'bash') ? (parseInt(($('bash-shield-ac') && $('bash-shield-ac').value) || '0', 10) || 0) : undefined,
           classId: classId || undefined,
           weaponSkillForToHit: weaponSkillForToHit,
           weaponSkillKeyForToHit: skillKey,
@@ -5888,9 +6004,10 @@
           duelistPermanent: classId === 'rogue' && $('duelist') && $('duelist').checked && $('duelist').getAttribute('data-permanent-disc') === '1',
           innerFlamePermanent: classId === 'monk' && $('innerflame') && $('innerflame').checked && $('innerflame').getAttribute('data-permanent-disc') === '1',
           spellCastingFury: aaOpts.spellCastingFury,
+          ingenuityRank: aaOpts.ingenuityRank,
           slayUndead: aaOpts.slayUndead,
           fistweaving: hasMainHand && classId === 'monk' && weapon1.is2H && $('fistweaving').checked,
-          fistweavingNonEpic: ($('fistweaving-nonepic') && $('fistweaving-nonepic').checked) || false,
+          fistweavingNonEpic: true,
           twoHandWeave: twWeaveActive && useWeapon2,
           fistweavingReactionDelayMs: (() => {
             const el = twWeaveActive ? $('twohand-weave-reaction-delay-ms') : $('fistweaving-reaction-delay-ms');
@@ -6829,8 +6946,8 @@
         await ensureLocalSpellDataLoaded();
         const level = parseInt($('level').value, 10) || 60;
         const durationSec = parseInt($('duration').value, 10) || 6000;
-        const dualWieldSkillForm = parseInt($('dual-wield').value, 10) || 0;
-        const offenseSkill = Math.min(255, Math.max(0, parseInt($('offense-skill').value, 10) || 252));
+        const dualWieldSkillForm = applyWeaponSkillModPercent(parseInt($('dual-wield').value, 10) || 0, getGearOtherSkillModPercent('dualwield'));
+        const offenseSkill = applyWeaponSkillModPercent(Math.min(255, Math.max(0, parseInt($('offense-skill').value, 10) || 252)), getGearOtherSkillModPercent('offense'));
         const targetAC = parseInt($('target-ac').value, 10) || 550;
         const mobLevel = parseInt($('mob-level').value, 10) || 60;
         const targetMR = parseResist('target-mr');
@@ -6869,7 +6986,7 @@
           ambidexterity: rankAaOpts.ambidexterity,
           critDmgDebugDmgBonus: (function () { var el = $('crit-dmg-debug-dmg-bonus'); return !!(el && ((typeof el.checked === 'boolean' && el.checked) || String(el.value) === '1' || String(el.value).toLowerCase() === 'true')); })(),
           roundMultUp: (function () { var el = $('round-mult-up'); return !!(el && ((typeof el.checked === 'boolean' && el.checked) || String(el.value) === '1' || String(el.value).toLowerCase() === 'true')); })(),
-          doubleAttackSkill: parseInt($('double-attack').value, 10) || 0,
+          doubleAttackSkill: applyWeaponSkillModPercent(parseInt($('double-attack').value, 10) || 0, getGearOtherSkillModPercent('doubleattack')),
           level,
           targetAC,
           mobLevel,
@@ -6889,6 +7006,8 @@
           fromBehind,
           specialAttacks: rankSpecialAttacks,
           specialAttackType: rankSpecialAttacks ? rankSpecialAttackType : undefined,
+          specialSkill: rankSpecialAttacks ? getSpecialSkillEffective(rankSpecialAttackType) : undefined,
+          bashShieldAC: (rankSpecialAttacks && rankSpecialAttackType === 'bash') ? (parseInt(($('bash-shield-ac') && $('bash-shield-ac').value) || '0', 10) || 0) : undefined,
           classId: classId,
           backstabModPercent: classId === 'rogue' ? 0 : undefined,
           backstabSkill: classId === 'rogue' ? (
@@ -6901,6 +7020,7 @@
           duelistPermanent: classId === 'rogue' && $('duelist') && $('duelist').checked && $('duelist').getAttribute('data-permanent-disc') === '1',
           innerFlamePermanent: classId === 'monk' && $('innerflame') && $('innerflame').checked && $('innerflame').getAttribute('data-permanent-disc') === '1',
           spellCastingFury: rankAaOpts.spellCastingFury || 0,
+          ingenuityRank: rankAaOpts.ingenuityRank || 0,
           slayUndead: rankAaOpts.slayUndead || 0,
           flurryRank: rankAaOpts.flurryRank || 0,
           masterWuRank: rankAaOpts.masterWuRank || 0,
@@ -6920,7 +7040,7 @@
           flyingKickReuseEffectiveSec: (flyingKickReuseManual && (() => { const v = parseFloat($('flyingkick-reuse-sec').value); return v > 0 && !isNaN(v) ? v : undefined; })()) || undefined,
           kickReuseEffectiveSec: (kickReuseManual && (() => { const v = parseFloat($('kick-reuse-sec').value); return v > 0 && !isNaN(v) ? v : undefined; })()) || undefined,
           bashReuseEffectiveSec: (bashReuseManual && (() => { const v = parseFloat($('bash-reuse-sec').value); return v > 0 && !isNaN(v) ? v : undefined; })()) || undefined,
-          fistweavingNonEpic: ($('fistweaving-nonepic') && $('fistweaving-nonepic').checked) || false,
+          fistweavingNonEpic: true,
           twoHandWeave: false,
           fistweavingReactionDelayMs: (() => {
             const isTwWeaveClass = ['warrior','ranger','beastlord'].indexOf(classId) >= 0;
@@ -7138,7 +7258,7 @@
           if (secOk) secondaryWeapons.push(id);
         });
         const canDualWield = classConfig && (classConfig.dualWield != null && classConfig.dualWield > 0);
-        var rankMonkFwNonEpic = classId === 'monk' && $('fistweaving') && $('fistweaving').checked && $('fistweaving-nonepic') && $('fistweaving-nonepic').checked;
+        var rankMonkFwNonEpic = classId === 'monk' && $('fistweaving') && $('fistweaving').checked;
         var rankTwoHandWeave = ['warrior','ranger','beastlord'].indexOf(classId) >= 0 && $('twohand-weave') && $('twohand-weave').checked;
         const combinations = [];
         primaryWeapons.forEach(function (primaryId) {
@@ -7335,7 +7455,7 @@
                 backstabModPercent: comboWornBackstab.backstabModPercent,
                 backstabSkill: rankBaseBackstabSkill,
                 fistweaving: classId === 'monk' && is2H && $('fistweaving').checked,
-                fistweavingNonEpic: ($('fistweaving-nonepic') && $('fistweaving-nonepic').checked) || false,
+                fistweavingNonEpic: true,
                 twoHandWeave: false
               });
               try {
@@ -7480,7 +7600,7 @@
                     backstabModPercent: comboWornBackstabOff.backstabModPercent,
                     backstabSkill: rankBaseBackstabSkill,
                     fistweaving: false,
-                    fistweavingNonEpic: ($('fistweaving-nonepic') && $('fistweaving-nonepic').checked) || false,
+                    fistweavingNonEpic: true,
                     twoHandWeave: false
                   });
                   var r2 = EQCombat.runFight(opts);
@@ -7560,7 +7680,7 @@
                   backstabModPercent: comboWornBackstab.backstabModPercent,
                   backstabSkill: rankBaseBackstabSkill,
                   fistweaving: false,
-                  fistweavingNonEpic: ($('fistweaving-nonepic') && $('fistweaving-nonepic').checked) || false,
+                  fistweavingNonEpic: true,
                   twoHandWeave: false
                 });
               } else {
@@ -7584,7 +7704,7 @@
                   backstabModPercent: comboWornBackstab.backstabModPercent,
                   backstabSkill: rankBaseBackstabSkill,
                   fistweaving: classId === 'monk' && is2H && $('fistweaving').checked,
-                  fistweavingNonEpic: ($('fistweaving-nonepic') && $('fistweaving-nonepic').checked) || false,
+                  fistweavingNonEpic: true,
                   twoHandWeave: rankTwoHandWeave && is2H,
                   fistweavingOffhandLabel: undefined
                 });
@@ -7876,7 +7996,7 @@
                 backstabModPercent: comboWornBackstabTop.backstabModPercent,
                 backstabSkill: rankBaseBackstabSkill,
                 fistweaving: classId === 'monk' && is2H && $('fistweaving').checked,
-                fistweavingNonEpic: ($('fistweaving-nonepic') && $('fistweaving-nonepic').checked) || false,
+                fistweavingNonEpic: true,
                 twoHandWeave: rankTwoHandWeave && is2H,
                 fistweavingOffhandLabel: undefined
               });
@@ -8106,7 +8226,7 @@
               procLevel: (bow.procLevel != null && !Number.isNaN(Number(bow.procLevel)) && Number(bow.procLevel) > 0) ? Number(bow.procLevel) : undefined,
               elemType: bow.elemType || undefined,
               elemDamage: (bow.elemDamage != null ? bow.elemDamage : 0) || 0,
-              archeryModPercent: ((bow.archeryModPercent != null && !Number.isNaN(Number(bow.archeryModPercent))) ? Number(bow.archeryModPercent) : 0) + (parseInt(($('ranged-worn-archery-mod-gear-only') && $('ranged-worn-archery-mod-gear-only').value) || '0', 10) || 0)
+              archeryModPercent: Math.max((bow.archeryModPercent != null && !Number.isNaN(Number(bow.archeryModPercent))) ? Number(bow.archeryModPercent) : 0, parseInt(($('ranged-worn-archery-mod-gear-only') && $('ranged-worn-archery-mod-gear-only').value) || '0', 10) || 0)
             };
             if (bow.procBuffDurationTicks != null && bow.procBuffDurationTicks > 0)
               rangedWeapon.procBuffDurationTicks = bow.procBuffDurationTicks;
@@ -8389,7 +8509,7 @@
               procLevel: (bow.procLevel != null && !Number.isNaN(Number(bow.procLevel)) && Number(bow.procLevel) > 0) ? Number(bow.procLevel) : undefined,
               elemType: bow.elemType || undefined,
               elemDamage: (bow.elemDamage != null ? bow.elemDamage : 0) || 0,
-              archeryModPercent: ((bow.archeryModPercent != null && !Number.isNaN(Number(bow.archeryModPercent))) ? Number(bow.archeryModPercent) : 0) + (parseInt(($('ranged-worn-archery-mod-gear-only') && $('ranged-worn-archery-mod-gear-only').value) || '0', 10) || 0)
+              archeryModPercent: Math.max((bow.archeryModPercent != null && !Number.isNaN(Number(bow.archeryModPercent))) ? Number(bow.archeryModPercent) : 0, parseInt(($('ranged-worn-archery-mod-gear-only') && $('ranged-worn-archery-mod-gear-only').value) || '0', 10) || 0)
             };
             if (bow.procBuffDurationTicks != null && bow.procBuffDurationTicks > 0)
               rangedWeapon.procBuffDurationTicks = bow.procBuffDurationTicks;
@@ -8779,6 +8899,45 @@
       var splashAdvBtn = $('landing-splash-advanced');
       if (splashEasyBtn) splashEasyBtn.addEventListener('click', function () { chooseUiModeFromSplash(UI_MODES.EASY); });
       if (splashAdvBtn) splashAdvBtn.addEventListener('click', function () { chooseUiModeFromSplash(UI_MODES.ADVANCED); });
+
+      // What's New popup: tells a returning visitor what changed since their last visit,
+      // pulled straight from the Version log list below so there's only one place to write notes.
+      var SEEN_VERSION_KEY = 'gsim_seen_version';
+      function showWhatsNewPopup() {
+        var logItems = document.querySelectorAll('#version-log-details li');
+        if (!logItems.length) return;
+        var seenRaw = null;
+        try { seenRaw = localStorage.getItem(SEEN_VERSION_KEY); } catch (e) {}
+        var currentNum = parseFloat(VERSION);
+        try { localStorage.setItem(SEEN_VERSION_KEY, VERSION); } catch (e) {}
+        if (!seenRaw) return; // first-ever visit: nothing to compare against, don't show a changelog
+        var seenNum = parseFloat(seenRaw);
+        if (!isFinite(seenNum) || !isFinite(currentNum) || seenNum >= currentNum) return;
+        var newItems = [];
+        logItems.forEach(function (li) {
+          var strongEl = li.querySelector('strong');
+          var entryNum = strongEl ? parseFloat(strongEl.textContent) : NaN;
+          if (isFinite(entryNum) && entryNum > seenNum && entryNum <= currentNum) newItems.push(li);
+        });
+        if (!newItems.length) return;
+        var listEl = $('whats-new-list');
+        if (!listEl) return;
+        listEl.innerHTML = '';
+        newItems.forEach(function (li) {
+          var item = document.createElement('li');
+          item.innerHTML = li.innerHTML;
+          listEl.appendChild(item);
+        });
+        var overlay = $('whats-new-overlay');
+        if (overlay) overlay.classList.add('whats-new-overlay--visible');
+      }
+      function hideWhatsNewPopup() {
+        var overlay = $('whats-new-overlay');
+        if (overlay) overlay.classList.remove('whats-new-overlay--visible');
+      }
+      var whatsNewCloseBtn = $('whats-new-close');
+      if (whatsNewCloseBtn) whatsNewCloseBtn.addEventListener('click', hideWhatsNewPopup);
+      showWhatsNewPopup();
 
       var EASY_CLASS_ORDER = ['bard','beastlord','cleric','druid','enchanter','magician','monk','necromancer','paladin','ranger','rogue','shadowknight','shaman','warrior','wizard'];
       var EASY_CLASS_ICONS = {
@@ -10007,7 +10166,7 @@
         const twRow = $('twohand-weave-row');
         if (twRow) twRow.style.display = (['warrior','ranger','beastlord'].indexOf(classId) >= 0) ? '' : 'none';
       }
-      ['fistweaving', 'fistweaving-nonepic', 'twohand-weave'].forEach(function (fid) {
+      ['fistweaving', 'twohand-weave'].forEach(function (fid) {
         var fel = $(fid);
         if (fel) fel.addEventListener('change', function () { updateWeapon2Disabled(); });
       });
@@ -10015,7 +10174,7 @@
         const is2H = isW1TwoHanded();
         const classId = ($('class').value || '').toLowerCase();
         const isTwWeaveClass = ['warrior','ranger','beastlord'].indexOf(classId) >= 0;
-        const allowOhWith2H = (classId === 'monk' && is2H && $('fistweaving') && $('fistweaving').checked && $('fistweaving-nonepic') && $('fistweaving-nonepic').checked)
+        const allowOhWith2H = (classId === 'monk' && is2H && $('fistweaving') && $('fistweaving').checked)
           || (isTwWeaveClass && is2H && $('twohand-weave') && $('twohand-weave').checked);
         if (is2H && !allowOhWith2H) applyWeaponPreset('w2', 'unequipped');
         const section = $('weapon2-section');
@@ -10049,6 +10208,28 @@
         var mod = Number(modPercent) || 0;
         if (mod <= 0) return baseSkill;
         return Math.min(252, Math.floor(Number(baseSkill) * (100 + mod) / 100));
+      }
+      // Exposed globally (generic — not weapon-specific despite the name) so other script closures
+      // — e.g. the Tanking tab's IIFE, which scans gear in a separate closure — can apply the same
+      // server formula (Client::GetSkill: skill * (100+mod)/100, capped at 252) without duplicating it.
+      window.applyWeaponSkillModPercent = applyWeaponSkillModPercent;
+      /** Highest worn Block/Defense/Dodge/DoubleAttack/DualWield/Offense/Parry/Riposte mod (skillmodtype
+          11/15/19/20/22/33/34/37) across all equipped gear, refreshed on every inventory import by
+          _applyInventoryFromEquippedSlots (Tanking tab closure). Same max-not-sum rule as gearMeleeSkillMods. */
+      window.gearOtherSkillMods = window.gearOtherSkillMods || {};
+      function getGearOtherSkillModPercent(skillKey) {
+        var v = (window.gearOtherSkillMods || {})[skillKey];
+        return (v != null && !isNaN(Number(v)) && Number(v) > 0) ? Number(v) : 0;
+      }
+      /** Effective (gear-mod-adjusted) skill value for whichever skill-driven special attack is currently
+          selected — reads the shared #special-skill input and folds in window.gearOtherSkillMods for that
+          type's skill key (SPECIAL_TYPE_SKILL_KEY). Returns undefined for 'none'/'backstab' (backstab has
+          its own dedicated #backstab-skill field/formula). */
+      function getSpecialSkillEffective(specialType) {
+        var key = SPECIAL_TYPE_SKILL_KEY[specialType];
+        if (!key) return undefined;
+        var base = Math.min(252, Math.max(0, parseInt(($('special-skill') && $('special-skill').value) || '252', 10) || 0));
+        return applyWeaponSkillModPercent(base, getGearOtherSkillModPercent(key));
       }
       function skillKeyForCap(typeOrNull, is2H) {
         const t = (typeOrNull || '').toLowerCase();
@@ -10157,10 +10338,11 @@
         $('ranged-proc-damage').value = '0';
         var ram = $('ranged-archery-mod');
         if (ram) {
-          var _oldBowMod = parseInt(ram.value, 10) || 0;
           ram.value = '0';
+          // Worn archery mods don't stack — with the bow's own mod gone, the field falls back to
+          // the highest mod from the rest of the gear (rings, ammo, etc.), not zero minus the bow.
           var wamEl2 = $('ranged-worn-archery-mod');
-          if (wamEl2) wamEl2.value = String(Math.max(0, (parseInt(wamEl2.value, 10) || 0) - _oldBowMod));
+          if (wamEl2) wamEl2.value = String(parseInt(($('ranged-worn-archery-mod-gear-only') && $('ranged-worn-archery-mod-gear-only').value) || '0', 10) || 0);
         }
         var modNote = $('ranged-archery-mod-note'); if (modNote) { modNote.textContent = ''; modNote.style.display = 'none'; }
         $('ranged-elem-type').value = '';
@@ -10541,7 +10723,7 @@
           if (is2H) {
             const cls2h = ($('class') ? $('class').value : '').toLowerCase();
             const twWeave2h = ['warrior','ranger','beastlord'].indexOf(cls2h) >= 0 && $('twohand-weave') && $('twohand-weave').checked;
-            const fwNonEpic2h = cls2h === 'monk' && $('fistweaving') && $('fistweaving').checked && $('fistweaving-nonepic') && $('fistweaving-nonepic').checked;
+            const fwNonEpic2h = cls2h === 'monk' && $('fistweaving') && $('fistweaving').checked;
             if (!twWeave2h && !fwNonEpic2h) applyWeaponPreset('w2', 'unequipped');
           }
           updateWeapon2Disabled();
@@ -10589,13 +10771,13 @@
             if (!isNaN(v)) archeryModVal = v;
           }
           var newBowMod = (archeryModVal != null && !isNaN(archeryModVal)) ? Math.floor(archeryModVal) : 0;
-          var oldBowMod = parseInt(rangedArcheryModEl.value, 10) || 0;
           rangedArcheryModEl.value = String(newBowMod);
-          // Keep the visible worn archery mod box in sync: swap old bow contribution for new one
+          // Keep the visible worn archery mod box in sync: worn archery mods don't stack, so the
+          // total is the higher of the new bow's own mod and the rest of the gear's highest mod.
           var wamEl = $('ranged-worn-archery-mod');
           if (wamEl) {
-            var wamCurrent = parseInt(wamEl.value, 10) || 0;
-            wamEl.value = String(Math.max(0, wamCurrent - oldBowMod + newBowMod));
+            var gearOnlyMod = parseInt(($('ranged-worn-archery-mod-gear-only') && $('ranged-worn-archery-mod-gear-only').value) || '0', 10) || 0;
+            wamEl.value = String(Math.max(newBowMod, gearOnlyMod));
           }
         }
         rangedWeaponDisplayName = (weapon.name || '').trim() || 'Custom';
@@ -11442,10 +11624,11 @@
           rangedFromItemSearch = false;
           var ram = $('ranged-archery-mod');
           if (ram) {
-            var _oldBowModMan = parseInt(ram.value, 10) || 0;
             ram.value = '0';
+            // Worn archery mods don't stack — with the bow's own mod cleared, fall back to the
+            // highest mod from the rest of the gear rather than subtracting the bow's old value.
             var _wamManEl = $('ranged-worn-archery-mod');
-            if (_wamManEl && _oldBowModMan > 0) _wamManEl.value = String(Math.max(0, (parseInt(_wamManEl.value, 10) || 0) - _oldBowModMan));
+            if (_wamManEl) _wamManEl.value = String(parseInt(($('ranged-worn-archery-mod-gear-only') && $('ranged-worn-archery-mod-gear-only').value) || '0', 10) || 0);
           }
           var modNote = $('ranged-archery-mod-note'); if (modNote) { modNote.textContent = ''; modNote.style.display = 'none'; }
           var rpsiMan = $('ranged-proc-spell-id'); if (rpsiMan) rpsiMan.value = '';
@@ -12161,6 +12344,7 @@
     203: 'speedOfTheKnight',
     206: 'masterWu',
     213: 'tacticalMastery',
+    210: 'ingenuity',
     215: 'furyOfMagic',
     224: 'mentalClarity'
   };
@@ -12261,6 +12445,7 @@
     var atkItems    = [];   // { name, atk, spellName }
     var archeryModItems = []; // { name, mod }
     var rangeSlotArcheryMod = 0; // tracked separately so it isn't double-counted with ranged-archery-mod
+    var gearOnlyArcheryMod = 0; // highest worn archery mod seen outside the Range slot (rings, ammo, etc.)
     // Melee weapon-skill mods (skillmodtype 0/1/2/3/36 = 1H Blunt/1H Slash/2H Blunt/2H Slash/Piercing), keyed by
     // EQ skill ID. Any equipped item can carry one (not just weapons). Server bonuses.cpp keeps the HIGHEST
     // value per skill across all equipped items — it does not stack — so this tracks a max, not a sum.
@@ -12268,6 +12453,21 @@
     // Local copy of the melee tab's SKILL_ID_TO_MELEE_KEY — this function runs in a different closure,
     // so it can't reach that IIFE's top-level vars. Kept in sync manually with SKILL_ID_FOR_KEY there.
     var SKILL_ID_TO_MELEE_KEY = { 0: '1hb', 1: '1hs', 2: '2hb', 3: '2hs', 36: '1hp' };
+    // Other worn skill mods the sim actually consumes: Block/Defense/Dodge/DoubleAttack/DualWield/
+    // Offense/Parry/Riposte (EQ::skills::SkillType ids 11/15/19/20/22/33/34/37), plus the skill-driven
+    // special attacks — Bash/Kick/Flying Kick/Dragon Punch/Eagle Strike/Tiger Claw/Round Kick (ids
+    // 10/30/26/21/23/52/38). Same server rule as the melee/archery mods above — bonuses.cpp keeps the
+    // single highest value per skill, not a sum.
+    var OTHER_SKILL_ID_TO_KEY = {
+      11: 'block', 15: 'defense', 19: 'dodge', 20: 'doubleattack', 22: 'dualwield', 33: 'offense', 34: 'parry', 37: 'riposte',
+      10: 'bash', 30: 'kick', 26: 'flyingkick', 21: 'dragonpunch', 23: 'eaglestrike', 52: 'tigerclaw', 38: 'roundkick'
+    };
+    var OTHER_SKILL_KEY_LABEL = {
+      block: 'Block', defense: 'Defense', dodge: 'Dodge', doubleattack: 'Double Attack', dualwield: 'Dual Wield', offense: 'Offense', parry: 'Parry', riposte: 'Riposte',
+      bash: 'Bash', kick: 'Kick', flyingkick: 'Flying Kick', dragonpunch: 'Dragon Punch', eaglestrike: 'Eagle Strike', tigerclaw: 'Tiger Claw', roundkick: 'Round Kick'
+    };
+    var gearOtherSkillMods = {}; // { skillKey: highest % seen across all equipped items }
+    var otherSkillModItems = []; // { name, key, mod } — every item carrying one, for the summary display
     var classMask   = 0x7FFF; // intersection starts at ALL_CLASSES, narrow down
     var hasClassConstraint = false;
 
@@ -12350,13 +12550,21 @@
           if (fx.ds    > 0) totals.damageShield += fx.ds;
         }
 
-        // Worn archery skill modifier — include all slots for display, but track Range separately
+        // Worn archery skill modifier — per server bonuses.cpp, worn skill mods of the same type
+        // (skillmodtype 7 = Archery) do NOT stack across items; only the single highest value applies
+        // (e.g. Eye of the Frenzied Owlbear +4% vs. Bow of Flames +X% — only the larger one counts).
+        // Track the max overall, and separately the max from non-Range slots (gear-only), so the bow's
+        // own mod and the rest of the gear's mod can still be maxed against each other, not summed.
         if (parseInt(item.skillmodtype) === 7) {
           var _wornArchMod = parseInt(item.skillmodvalue) || 0;
           if (_wornArchMod > 0) {
-            totals.archeryMod += _wornArchMod;
             archeryModItems.push({ name: entry.name, mod: _wornArchMod });
-            if (slot === 'Range') rangeSlotArcheryMod = _wornArchMod;
+            if (_wornArchMod > totals.archeryMod) totals.archeryMod = _wornArchMod;
+            if (slot === 'Range') {
+              rangeSlotArcheryMod = _wornArchMod;
+            } else if (_wornArchMod > gearOnlyArcheryMod) {
+              gearOnlyArcheryMod = _wornArchMod;
+            }
           }
         }
         // Melee weapon-skill mod on this item (any slot) — keep the highest value seen per skill type.
@@ -12365,6 +12573,18 @@
           var _meleeModVal = parseInt(item.skillmodvalue) || 0;
           if (_meleeModVal > (gearMeleeSkillMods[_meleeModType] || 0)) {
             gearMeleeSkillMods[_meleeModType] = _meleeModVal;
+          }
+        }
+        // Other worn skill mods (Block/Defense/Dodge/DoubleAttack/DualWield/Offense/Parry/Riposte) —
+        // same highest-value-wins rule, tracked separately from the weapon-skill map above.
+        var _otherModKey = OTHER_SKILL_ID_TO_KEY[_meleeModType];
+        if (_otherModKey != null) {
+          var _otherModVal = parseInt(item.skillmodvalue) || 0;
+          if (_otherModVal > 0) {
+            otherSkillModItems.push({ name: entry.name, key: _otherModKey, mod: _otherModVal });
+            if (_otherModVal > (gearOtherSkillMods[_otherModKey] || 0)) {
+              gearOtherSkillMods[_otherModKey] = _otherModVal;
+            }
           }
         }
 
@@ -12402,20 +12622,21 @@
     // weapon's own embedded mod rather than stacking — refreshWeaponSkillModsFromCurrentWeapons()
     // and the report both re-read window.gearMeleeSkillMods via getGearMeleeSkillModPercent().
     window.gearMeleeSkillMods = gearMeleeSkillMods;
+    window.gearOtherSkillMods = gearOtherSkillMods;
     if (typeof refreshWeaponSkillModsFromCurrentWeapons === 'function') refreshWeaponSkillModsFromCurrentWeapons();
 
-    // Auto-fill worn archery mod field with full total (bow + gear).
-    // Also track the gear-only portion separately for the rank/comparison sim.
-    var _gearOnlyArchMod = Math.max(0, (totals.archeryMod || 0) - rangeSlotArcheryMod);
+    // Auto-fill worn archery mod field with the highest single mod (bow vs. gear — they don't stack).
+    // Also track the gear-only portion (max across non-Range slots) separately for the rank/comparison sim.
+    var _gearOnlyArchMod = gearOnlyArcheryMod;
     var _gearOnlyEl = document.getElementById('ranged-worn-archery-mod-gear-only');
     if (_gearOnlyEl) _gearOnlyEl.value = String(_gearOnlyArchMod);
     if (!_rangedWornArcheryModUserSet) {
       var _wamEl = document.getElementById('ranged-worn-archery-mod');
       if (_wamEl) _wamEl.value = String(totals.archeryMod || 0);
     }
-    // Prime ranged-archery-mod with the bow's mod now, so that when applyRangedWeaponFromSearch
-    // fires below (for the Range slot), its swap logic sees oldBowMod=rangeSlotArcheryMod
-    // and newBowMod=rangeSlotArcheryMod, resulting in a net-zero change to ranged-worn-archery-mod.
+    // Prime ranged-archery-mod with the bow's own mod now, so the "from weapon" display and any
+    // later swap via applyRangedWeaponFromSearch (which maxes newBowMod against the gear-only field
+    // above) start from the right baseline.
     var _ramEl = document.getElementById('ranged-archery-mod');
     if (_ramEl) _ramEl.value = String(rangeSlotArcheryMod);
 
@@ -12736,7 +12957,33 @@
         summLines.push(archeryModItems.map(function(it) {
           return '<span><em>' + it.name + '</em> <em style="color:#7eb8c9;">(+' + it.mod + '%)</em></span>';
         }).join(', '));
+        if (archeryModItems.length > 1) {
+          summLines.push(' &mdash; <span style="font-size:0.72rem;">Worn +Archery % does not stack; only the highest applies.</span>');
+        }
         summLines.push('</div>');
+      }
+
+      // Other worn skill mods (Block/Defense/Dodge/DoubleAttack/DualWield/Offense/Parry/Riposte) —
+      // grouped by skill, one line per skill type, same non-stacking rule as archery above.
+      if (otherSkillModItems.length > 0) {
+        var _byOtherKey = {};
+        otherSkillModItems.forEach(function (it) {
+          (_byOtherKey[it.key] = _byOtherKey[it.key] || []).push(it);
+        });
+        Object.keys(_byOtherKey).sort().forEach(function (key) {
+          var items = _byOtherKey[key];
+          var label = OTHER_SKILL_KEY_LABEL[key] || key;
+          summLines.push('<div style="margin-top:0.4rem;font-size:0.8rem;color:var(--muted);">');
+          summLines.push('<strong style="color:#d4af37;">Worn +' + label + ' %:</strong> ');
+          summLines.push('<span style="color:#7eb8c9;">+' + (gearOtherSkillMods[key] || 0) + '%</span> &mdash; ');
+          summLines.push(items.map(function (it) {
+            return '<span><em>' + it.name + '</em> <em style="color:#7eb8c9;">(+' + it.mod + '%)</em></span>';
+          }).join(', '));
+          if (items.length > 1) {
+            summLines.push(' &mdash; <span style="font-size:0.72rem;">Worn +' + label + ' % does not stack; only the highest applies.</span>');
+          }
+          summLines.push('</div>');
+        });
       }
 
       // Character name + class + level (from explicit charInfo) or bitmask-detected class
@@ -12943,10 +13190,12 @@
   window.updateTankHP = updateTankHP;
 
   // ---- Defensive skill defaults ----
-  // Defence, dodge, parry, riposte and block are not granted by items, so an
-  // imported character has no way to fill them. Default each to the class/level
-  // cap — a maxed tank is the sensible starting assumption — and leave them
-  // editable for anyone who has not capped a skill yet.
+  // Base training in Defense/Dodge/Parry/Riposte/Block isn't tracked by Import Inventory (it comes
+  // from trainers, not gear), so an imported character has no way to fill these base values. Default
+  // each to the class/level cap — a maxed tank is the sensible starting assumption — and leave them
+  // editable for anyone who has not capped a skill yet. Worn item mods to these skills (e.g. a shield
+  // "of Blocking") ARE picked up from gear and folded in separately at simulation time — see
+  // withGearSkillMod / window.gearOtherSkillMods below.
   var DEF_SKILL_INPUTS = {
     defense: 'defense-skill', dodge: 'dodge-skill', parry: 'parry-skill',
     riposte: 'riposte-skill', block: 'block-skill'
@@ -13002,6 +13251,15 @@
       var el = document.getElementById(id);
       return el ? !!el.checked : false;
     }
+    // Applies a worn Defense/Dodge/Parry/Riposte/Block skill mod (tracked in window.gearOtherSkillMods
+    // by _applyInventoryFromEquippedSlots) using the same server formula as weapon/archery skill mods
+    // (window.applyWeaponSkillModPercent, defined in the main setup closure and exposed on window since
+    // this Tanking IIFE is a separate closure).
+    function withGearSkillMod(baseVal, key) {
+      var mod = (window.gearOtherSkillMods || {})[key] || 0;
+      var fn = window.applyWeaponSkillModPercent;
+      return (typeof fn === 'function') ? fn(baseVal, mod) : baseVal;
+    }
 
     // Resolve buffs using the same model as the melee tab
     var buffFx = (typeof window.getBuffEffects === 'function') ? window.getBuffEffects() : null;
@@ -13051,11 +13309,14 @@
       playerSpellAC:        v('tank-player-spell-ac', 0) + (buffFx ? buffFx.ac || 0 : 0),
       playerAGI:            statWithBuff('agi', 'agi', 100, 255),
       playerCarriedWeight:  v('tank-carried-weight', 0),
-      playerDefenseSkill:   v('defense-skill', 0),
-      playerDodgeSkill:     v('dodge-skill', 0),
-      playerParrySkill:     v('parry-skill', 0),
-      playerRiposteSkill:   v('riposte-skill', 0),
-      playerBlockSkill:     v('block-skill', 0),
+      // Worn Defense/Dodge/Parry/Riposte/Block % mods (skillmodtype 15/19/34/37/11) fold in here —
+      // same server rule as weapon/archery mods: highest single item wins, not a sum (see
+      // withGearSkillMod below, and window.gearOtherSkillMods populated by the inventory scan).
+      playerDefenseSkill:   withGearSkillMod(v('defense-skill', 0), 'defense'),
+      playerDodgeSkill:     withGearSkillMod(v('dodge-skill', 0), 'dodge'),
+      playerParrySkill:     withGearSkillMod(v('parry-skill', 0), 'parry'),
+      playerRiposteSkill:   withGearSkillMod(v('riposte-skill', 0), 'riposte'),
+      playerBlockSkill:     withGearSkillMod(v('block-skill', 0), 'block'),
       playerHPTotal:        v('tank-player-hp', 5000),  // buff HP already baked in by updateTankHP
       playerHPRegen:        v('tank-player-hp-regen', 0),
       healerHPS:            v('tank-healer-hps', 0),

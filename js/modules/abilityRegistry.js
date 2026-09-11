@@ -525,6 +525,29 @@
       rankLabels: ['Off', '1 (+2%)', '2 (+4%)', '3 (+6%)', '4 (+8%)', '5 (+10%)']
     },
     {
+      id: 'ingenuity',
+      label: 'Ingenuity',
+      era: 'pop',
+      section: 'pop_ability',
+      ranks: 3,
+      // altadv_vars.csv classes bitmask 642 = Warrior(2) + Monk(128) + Rogue(512)
+      // (bit for class id c is 1<<c; cross-checked against Ferocity's 658 =
+      // Warrior+Ranger+Monk+Rogue and Combat Fury's 33722, both of which
+      // decode cleanly under this scheme). SPA 294 = SE_CriticalSpellChance,
+      // base1=3 at rank 3 -> +1% crit chance per rank. This is the *proc/spell*
+      // crit slot (Client::GetActSpellDamage's aabonuses.CriticalSpellChance),
+      // the same one Spell Casting Fury uses for its 5 hybrid classes — not
+      // melee swing crit chance (that's SE_CriticalHitChance/169, Combat
+      // Fury's slot). Unlike SCF ranks 1/2, the server's crit-damage-mult
+      // reduction only checks the SCF AA by name, so Ingenuity procs always
+      // land as a full double, regardless of rank.
+      classes: ['warrior', 'monk', 'rogue'],
+      simOption: 'ingenuityRank',
+      category: 'combat',
+      description: 'Rank 1/2/3: 1%/2%/3% chance for a weapon proc to critically hit (double damage). Does not affect regular melee swing crit chance.',
+      rankLabels: ['Off', '1 (1% proc crit)', '2 (2% proc crit)', '3 (3% proc crit)']
+    },
+    {
       id: 'lightningReflexes',
       label: 'Lightning Reflexes',
       era: 'pop',

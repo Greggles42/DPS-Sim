@@ -315,6 +315,9 @@
         The Weapon 1/Weapon 2 cards on the Melee tab show this the same way they already show Backstab and Archery mods: whenever the equipped weapon (or gear) carries a skill mod for that weapon's own type, the small skill line under the weapon name adds e.g. "2HS +3% (225→231)" — the percentage and the resulting base→post-modifier skill, using your currently-set base skill for that weapon type (or the class/level cap if you haven't set one).
       </p>
       <p>
+        The same mechanic also covers the non-weapon skills the sim models: <strong>Offense</strong>, <strong>Double Attack</strong>, and <strong>Dual Wield</strong> on the Melee tab; <strong>Defense</strong>, <strong>Dodge</strong>, <strong>Parry</strong>, <strong>Riposte</strong>, and <strong>Block</strong> on the Tanking tab; and <strong>Kick</strong>, <strong>Bash</strong>, <strong>Flying Kick</strong>, <strong>Dragon Punch</strong>, <strong>Eagle Strike</strong>, <strong>Tiger Claw</strong>, and <strong>Round Kick</strong> for whichever special attack is selected (see section 7.5.1). Import Inventory scans every equipped item for these skill mods too, keeping only the highest value seen per skill (a Dodge-mod ring and a Dodge-mod cloak don't add together — only the bigger one counts), and the Equipped Items summary lists each one it finds under a "Worn +&lt;Skill&gt; %" line, with a note when more than one item carries the same mod. Base training in these skills still has to be entered by hand (trainers grant it, not gear, so it isn't in an inventory export) — the gear mod is applied on top of whatever base skill value is in each field.
+      </p>
+      <p>
         When dual wielding, the mainhand and offhand weapons roll to-hit and offense rating using <em>their own</em> weapon skill — a 1H Slash mainhand paired with a 1H Blunt offhand uses each weapon's own skill (and its own item skill mod, if any) independently. Whenever a genuine offhand weapon is equipped, the report breaks the skill and offense rating out into "MH" and "OH" lines. (Fistweaving and two-hand weaving reswing the same mainhand weapon, so they use one shared skill line instead.)
       </p>
       <p>
@@ -440,6 +443,28 @@
     </div>
 
     <div class="card">
+      <h2>7.4b) Melee Critical Hit Chance <span class="badge badge-game">In-Game Mechanic</span></h2>
+      <p>
+        Warriors have an innate chance to critically hit with weapons starting at level 12
+        (<code>0.5% + DEX/90%</code>). Every other class only gets melee crit chance from AAs — with none
+        trained, their critical hit chance is 0%.
+      </p>
+      <p>
+        <strong>Combat Fury AA</strong> (War/Pal/Rng/SHD/Monk/Brd/Rog/Bst, Luclin): rank 1/2/3 adds a flat
+        +2%/+4%/+6% crit chance. On non-Warriors, training any rank also unlocks a small DEX-scaled base
+        crit chance (<code>0.275% + DEX/150%</code>) on top of the flat bonus — this is what lets other
+        classes "catch up" toward the Warrior's innate crit, though Warriors remain ahead.
+      </p>
+      <div class="formula">critChance = innateBase(class, DEX) + combatFuryBonus</div>
+      <p class="muted">
+        This flat total is what the sim exposes as <code>critChanceMult</code>. It does not affect crit
+        damage — only the roll chance; crit damage size is a fixed multiplier applied separately.
+        Note: <strong>Ingenuity</strong> (War/Monk/Rog) sounds like it belongs here but doesn't — it's a
+        weapon-proc crit chance AA, not a melee swing crit chance AA. See Section 9.1.
+      </p>
+    </div>
+
+    <div class="card">
       <h2>7.5) Double Attack, Triple Attack, and Dual Wield <span class="badge badge-game">In-Game Mechanic</span></h2>
 
       <h3>Double attack (main-hand extra swing)</h3>
@@ -512,6 +537,37 @@
     </div>
 
     <div class="card">
+      <h2>7.5.1) Skill-driven special attacks: Kick, Bash, Flying Kick, Dragon Punch, Eagle Strike, Tiger Claw, Round Kick <span class="badge badge-game">In-Game Mechanic</span></h2>
+      <p>
+        The Melee tab's <strong>Special attack</strong> dropdown lets each class fire its class-specific special on cooldown, alongside normal weapon swings: <strong>Kick</strong> (Warrior/Ranger/Beastlord), <strong>Bash/Slam</strong> (Warrior/Paladin/Shadow Knight/Cleric), and the Monk's <strong>Flying Kick</strong>, <strong>Dragon Punch</strong>, <strong>Eagle Strike</strong>, <strong>Tiger Claw</strong>, and <strong>Round Kick</strong> (Monk chooses one at a time to simulate). Unlike a normal weapon swing, none of these use your weapon's damage or weapon-type skill — each is driven entirely by its own dedicated skill, exactly as <code>EQMacEmu special_attacks.cpp</code> and <code>attack.cpp</code> compute it server-side:
+      </p>
+      <div class="formula">baseDamage = skillBase + 1 for each threshold the skill has reached at 25 / 75 / 125 / 175</div>
+      <div class="formula">offenseRating = specialSkill + STR_bonus + wornATK + spellATK</div>
+      <div class="formula">toHit = 7 + offenseSkill + specialSkill + toHitBonus</div>
+      <p>
+        <code>specialSkill</code> is the actual current skill value entered in the "&lt;Special&gt; skill" field next to the dropdown (default 252, i.e. assume capped) — worn +skill% item mods for that specific skill are folded in automatically using the same non-stacking rule as every other worn skill mod (see the worn skill-mod section above): only the single highest item carrying that skill's mod counts.
+      </p>
+      <table>
+        <thead><tr><th>Skill</th><th><code>skillBase</code></th><th>Base damage range (skill 0→252)</th><th>Min damage</th></tr></thead>
+        <tbody>
+          <tr><td>Bash/Slam</td><td>2</td><td>2 – 6 (before shield bonus)</td><td>1</td></tr>
+          <tr><td>Kick</td><td>3</td><td>3 – 7</td><td>1</td></tr>
+          <tr><td>Round Kick</td><td>5</td><td>5 – 9</td><td>1</td></tr>
+          <tr><td>Tiger Claw</td><td>4</td><td>4 – 8</td><td>1</td></tr>
+          <tr><td>Eagle Strike</td><td>7</td><td>7 – 11</td><td>1</td></tr>
+          <tr><td>Dragon Punch</td><td>12</td><td>12 – 16</td><td>1</td></tr>
+          <tr><td>Flying Kick</td><td>25</td><td>25 – 29</td><td>max(1, level × 4 / 5)</td></tr>
+        </tbody>
+      </table>
+      <p>
+        <strong>Bash's shield bonus:</strong> a shield in the secondary slot adds its AC straight onto Bash's base damage, capped at <code>base + floor(level/5) + 2</code> — enter the shield's AC in the "Shield AC" field that appears when Bash is selected. This is usually where most of a warrior/paladin/shadowknight's bash damage actually comes from; a bare-fisted or 2H-weapon bash (no shield) only gets the raw skill-based base above. Furious Bash (item focus) and the racial Slam ability (Ogre/Troll/Barbarian bash without a shield) are not modeled.
+      </p>
+      <p class="muted">
+        Backstab uses its own separate formula (see the Backstab section) and is not part of this shared mechanic.
+      </p>
+    </div>
+
+    <div class="card">
       <h2>7.6) Technique of Master Wu (Monk, PoP) <span class="badge badge-game">In-Game Mechanic</span></h2>
       <p>
         After each Flying Kick attempt (hit or miss), if <strong>Technique of Master Wu</strong> is trained, two independent rolls determine whether bonus strikes fire.
@@ -538,7 +594,7 @@
         </tbody>
       </table>
       <p>
-        Eagle Strike, Tiger Claw, and Round Kick are assumed at max skill (225). Each extra strike rolls its own hit/miss check, damage roll, and crit roll independently.
+        Wu's random extra strikes always assume max skill (225) for whichever of the four it picks, regardless of the skill value entered for your manually-selected special above — modeling Wu's picks off your own configured skill would require tracking all four skills independently rather than the one currently selected. Each extra strike rolls its own hit/miss check, damage roll, and crit roll independently.
       </p>
       <p>
         The report's <em>Technique of Master Wu</em> section shows: Flying Kicks with Wu active, main-roll trigger count, extra strikes attempted/landed per skill, total Wu damage, Wu DPS, and average Wu damage per FK use compared to the average base FK hit.
@@ -637,8 +693,11 @@
       <h2>7.10) 2H Weave / Monk Non-Epic Fistweave (Equipped Offhand) <span class="badge badge-game">In-Game Mechanic</span></h2>
       <p>
         Warriors, Rangers, and Beastlords can "weave" a 1H offhand weapon alongside a two-handed primary by enabling
-        <strong>2H Weave</strong>. Monks using a 2H weapon with a 1H weapon in the offhand slot and Non-Epic Fistweave
-        checked use the same mechanic. In both cases, every mainhand round produces one weave opportunity.
+        <strong>2H Weave</strong>. Monks using a 2H weapon with a 1H weapon in the offhand slot use the same mechanic
+        whenever <strong>Force Fistweaving</strong> is checked — the sim always assumes non-epic fistweaving (bare fists,
+        27-decisecond swing, 14 base damage when not weaving an offhand weapon), since that's the general case; the
+        Epic 1.0 fist weapon's faster/lighter numbers (16 decisecond, 9 base) aren't exposed in the UI. In both cases,
+        every mainhand round produces one weave opportunity.
       </p>
       <p>
         Each weave opportunity resolves as follows:
@@ -723,6 +782,33 @@
       </p>
       <p>
         <strong>Soul Abrasion AA</strong> (Shadow Knight, Luclin, ranks 1–3): multiplies the base proc spell damage by 1.10 / 1.20 / 1.30 before the resist roll and damage calculation. Applied to both primary and offhand proc weapons.
+      </p>
+
+      <h3>9.1) Proc spell crit chance — Spell Casting Fury / Ingenuity <span class="badge badge-game">In-Game Mechanic</span></h3>
+      <p>
+        Weapon procs are spell casts, so they roll against the same server crit-chance slot
+        (<code>aabonuses.CriticalSpellChance</code>) as direct-cast nukes/DoTs. Two AAs feed this slot, and a
+        class only ever has one of them — they're never both active at once:
+      </p>
+      <ul>
+        <li>
+          <strong>Spell Casting Fury</strong> (Paladin/Shadowknight/Ranger/Bard/Beastlord, Luclin): rank 1/2/3
+          gives a 2%/4%/7% chance for the proc to crit. On a crit, the damage bonus is <em>reduced</em> at low
+          ranks — +33% at rank 1, +66% at rank 2 — and only reaches a full double (+100%) at rank 3.
+        </li>
+        <li>
+          <strong>Ingenuity</strong> (Warrior/Monk/Rogue, PoP): rank 1/2/3 gives a 1%/2%/3% chance for the proc
+          to crit. Unlike Spell Casting Fury, there's no rank-based damage reduction here — the server's
+          reduced-multiplier logic checks specifically for the Spell Casting Fury AA, so an Ingenuity crit is
+          always a full double, even at rank 1.
+        </li>
+      </ul>
+      <div class="formula">procCritChance = SCF ? [2, 4, 7][rank-1] : Ingenuity ? [1, 2, 3][rank-1] : 0</div>
+      <div class="formula">procCritDamage = SCF ? floor(dmg × (100 + [33, 66, 100][rank-1]) / 100) : floor(dmg × 2)</div>
+      <p class="muted">
+        The report's <em>Proc spell crits (SCF/Ingenuity)</em> line under each weapon's Procs &amp; Specials
+        section counts how many procs landed a crit under either AA. This is separate from — and does not
+        affect — regular melee swing crit chance (Combat Fury, Section 7.4b).
       </p>
     </div>
 
@@ -1285,7 +1371,7 @@
         <tbody>
           <tr><td>Classic / Kunark / Velious</td><td>None — AA system not yet available.</td></tr>
           <tr><td>Luclin</td><td>Archetype AAs (Combat Fury, Combat Stability, Combat Agility, Natural Durability, Spell Casting Fury, Mental Clarity, Channeling Focus, Spell Casting Reinforcement [not Wizard], Spell Casting Expertise, Spell Casting Deftness, Spell Casting Subtlety) and Class AAs (Ambidexterity, Flurry, Slay Undead, Archery Mastery, Double Riposte, Return Kick, Two Hand Bash [Pal/SHD], Soul Abrasion [SHD], Spell Casting Fury Mastery, Quick Damage, Spell Casting Mastery).</td></tr>
-          <tr><td>Planes of Power</td><td>All Luclin AAs plus: Planar Power, Planar Durability [War/Pal/SHD], Technique of Master Wu, Fury of the Ages, Ferocity, Knight's Advantage [Pal/SHD], Speed of the Knight [Pal/SHD], Raging Flurry [War], Tactical Mastery [War], Bestial Frenzy, Harmonious Attack, Flash of Steel, Innate Defense, Lightning Reflexes, Punishing Blade.</td></tr>
+          <tr><td>Planes of Power</td><td>All Luclin AAs plus: Planar Power, Planar Durability [War/Pal/SHD], Technique of Master Wu, Fury of the Ages, Ferocity, Knight's Advantage [Pal/SHD], Speed of the Knight [Pal/SHD], Raging Flurry [War], Tactical Mastery [War], Bestial Frenzy, Harmonious Attack, Flash of Steel, Innate Defense, Lightning Reflexes, Punishing Blade, Ingenuity [War/Monk/Rog].</td></tr>
         </tbody>
       </table>
       <p>

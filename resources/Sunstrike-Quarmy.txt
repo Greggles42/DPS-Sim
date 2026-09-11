@@ -1,0 +1,397 @@
+Character	Name	LastName	Level	Class	Race	Gender	Deity	Guild	GuildRank	BaseSTR	BaseSTA	BaseCHA	BaseDEX	BaseINT	BaseAGI	BaseWIS
+Character	Sunstrike		60	12	6	1	213	Dungeons and Dragons	0	60	100	60	75	114	90	83
+Location	Name	ID	Count	Slots
+Ear	Sigil Earring of Veracity	29861	1	0
+Head	Cap of the Silent Star	28892	1	0
+Face	Blood Veil of the Shissar	26582	1	0
+Ear	Umbracite Hoop	28944	1	0
+Neck	Shade Stone Amulet	28901	1	0
+Shoulders	Shaded Amice	28883	1	0
+Arms	Living Symbol	28889	1	0
+Back	Gebron's Demented Cloak	8359	1	0
+Wrist	Zombie Flesh Bracer	1559	1	0
+Wrist	Bracer of the Silent Star	28891	1	0
+Range	Scepter of Calekor	28983	1	0
+Hands	Silver Skin Gauntlets	28972	1	0
+Primary	Stein of Falling Tears	28978	1	0
+Secondary	Book of Contemplation	28915	1	0
+Fingers	Ring of the Shissar	19719	1	0
+Fingers	Ring of Flamewarding	28905	1	0
+Chest	Mana Robe	1606	1	0
+Legs	Yttrium Wrapped Leggings	8289	1	0
+Feet	Boots of the Wind	28934	1	0
+Waist	Belt of Dark Thought	28916	1	0
+Ammo	Black Silken Bridle	21812	1	0
+General1	Box of Abu-Kar	11703	1	10
+General1-Slot1	Staff of the Four	14341	1	0
+General1-Slot2	Iceshatter	28819	1	0
+General1-Slot3	Gargoyle Eye	10014	10	0
+General1-Slot4	Owlbear Bone Club	7146	1	0
+General1-Slot5	Empty	0	0	0
+General1-Slot6	Zlandicar's Heart	26009	1	0
+General1-Slot7	Empty	0	0	0
+General1-Slot8	Bracelet of the Shadow Hive	28906	1	0
+General1-Slot9	Katta Staff of Peace	26525	1	0
+General1-Slot10	Manarock	2970	1	0
+General2	Deluxe Toolbox	17877	1	10
+General2-Slot1	Empty	0	0	0
+General2-Slot2	Emerald	10029	1	0
+General2-Slot3	Crimson Potion	14518	1	0
+General2-Slot4	Crimson Potion	14518	1	0
+General2-Slot5	Crimson Potion	14518	1	0
+General2-Slot6	Crimson Potion	14518	1	0
+General2-Slot7	Crimson Potion	14518	1	0
+General2-Slot8	Crimson Potion	14518	1	0
+General2-Slot9	Empty	0	0	0
+General2-Slot10	Empty	0	0	0
+General3	Deluxe Toolbox	17877	1	10
+General3-Slot1	Green Flower of Functionality	6816	1	0
+General3-Slot2	Black Flower of Functionality	6817	1	0
+General3-Slot3	Red Flower of Functionality	6813	1	0
+General3-Slot4	White Flower of Functionality	6815	1	0
+General3-Slot5	Blue Flower of Functionality	6814	1	0
+General3-Slot6	Flowing Gossamer Cloak	30540	1	0
+General3-Slot7	Fishbone Earring	10313	1	0
+General3-Slot8	Empty	0	0	0
+General3-Slot9	Guise of the Deceiver	2469	1	0
+General3-Slot10	North Wing Key	28877	1	0
+General4	Treasure Hunter`s Satchel	17702	1	10
+General4-Slot1	Amulet of Necropotence	11646	1	0
+General4-Slot2	Steel Knuckles	30979	1	0
+General4-Slot3	Jade Skull Ring	7826	1	0
+General4-Slot4	Journeyman's Boots	2300	1	0
+General4-Slot5	Puppet Strings	11643	10	0
+General4-Slot6	Empty	0	0	0
+General4-Slot7	Holgresh Elder Beads	24890	1	0
+General4-Slot8	Empty	0	0	0
+General4-Slot9	Opal	10030	11	0
+General4-Slot10	Empty	0	0	0
+General5	Deluxe Toolbox	17877	1	10
+General5-Slot1	Midnight Mallet	10081	2	0
+General5-Slot2	Earring of the Frozen Skull	1744	2	0
+General5-Slot3	Empty	0	0	0
+General5-Slot4	Summoned: Globe of Water	13079	20	0
+General5-Slot5	Summoned: Black Bread	13078	19	0
+General5-Slot6	Water Flask	13006	20	0
+General5-Slot7	Grimling Smoked Jerky	22870	9	0
+General5-Slot8	Empty	0	0	0
+General5-Slot9	Misty Thicket Picnic	9662	5	0
+General5-Slot10	Fuzzlecutter Formula 5000	12260	13	0
+General6	Deluxe Toolbox	17877	1	10
+General6-Slot1	Empty	0	0	0
+General6-Slot2	Arx Key	3650	1	0
+General6-Slot3	Empty	0	0	0
+General6-Slot4	Boots of Silent Dreams	28881	1	0
+General6-Slot5	Empty	0	0	0
+General6-Slot6	Jade	10023	7	0
+General6-Slot7	Eye of Innoruuk	20656	1	0
+General6-Slot8	Empty	0	0	0
+General6-Slot9	Peridot	10028	20	0
+General6-Slot10	Peridot	10028	19	0
+General7	Bag of Sewn Evil-Eye	17354	1	8
+General7-Slot1	Amulet of the Void	27710	1	0
+General7-Slot2	Sage's Robe	31057	1	0
+General7-Slot3	Necklace of Endless Concepts	28946	1	0
+General7-Slot4	Robe of the Kedge	1253	1	0
+General7-Slot5	Wito xi Tetoracu	26531	1	0
+General7-Slot6	Shainai's Nightie	30858	1	0
+General7-Slot7	Koadic's Robe of Heightened Focus	26604	1	0
+General7-Slot8	Bile Stained Robes	26528	1	0
+General8	Staff of Temperate Flux	6342	1	0
+General-Coin	Currency	0	199865	0
+Held	Empty	0	0	0
+Bank1	Trader's Satchel	17899	1	10
+Bank1-Slot1	High Quality Cat Pelt	12086	1	0
+Bank1-Slot2	Medium Quality Bear Skin	13751	1	0
+Bank1-Slot3	Damaged Hopper Hide	2749	16	0
+Bank1-Slot4	Flawless Rockhopper Hide	6178	5	0
+Bank1-Slot5	High Quality Rockhopper Hide	2787	16	0
+Bank1-Slot6	Low Quality Rockhopper Hide	2788	20	0
+Bank1-Slot7	Superb Rockhopper Hide	6099	10	0
+Bank1-Slot8	Low Quality Wolf Skin	13753	4	0
+Bank1-Slot9	Low Quality Cat Pelt	12084	2	0
+Bank1-Slot10	Medium Quality Rockhopper Hide	2786	14	0
+Bank2	Trader's Satchel	17899	1	10
+Bank2-Slot1	Low Quality Bear Skin	13750	1	0
+Bank2-Slot2	Greyhopper Hide	7780	6	0
+Bank2-Slot3	High Quality Bear Skin	13752	1	0
+Bank2-Slot4	High Quality Wolf Skin	13755	1	0
+Bank2-Slot5	High Quality Bear Skin	13752	3	0
+Bank2-Slot6	Medium Quality Cat Pelt	12085	5	0
+Bank2-Slot7	Low Quality Bear Skin	13750	4	0
+Bank2-Slot8	Unrefined Sapphire	8888	5	0
+Bank2-Slot9	Unrefined Emerald	8889	4	0
+Bank2-Slot10	Cloak of Crystalline Waters	22819	1	0
+Bank3	Trader's Satchel	17899	1	10
+Bank3-Slot1	Small Brick of Velium	22093	1	0
+Bank3-Slot2	Prelates Lantern	27935	1	0
+Bank3-Slot3	Small Brick of Acrylia Ore	10423	1	0
+Bank3-Slot4	Small Brick of Acrylia Ore	10423	1	0
+Bank3-Slot5	Small Brick of Acrylia Ore	10423	1	0
+Bank3-Slot6	Large Brick of Velium	22094	1	0
+Bank3-Slot7	Small Piece of Acrylia	6098	6	0
+Bank3-Slot8	Runed Morning Star	6606	1	0
+Bank3-Slot9	Blood Point	7249	1	0
+Bank3-Slot10	Blood Point	7249	1	0
+Bank4	Trader's Satchel	17899	1	10
+Bank4-Slot1	Small Brick of Velium	22093	1	0
+Bank4-Slot2	Block of Acrylia Ore	10420	1	0
+Bank4-Slot3	Small Brick of Velium	22093	1	0
+Bank4-Slot4	Small Brick of Velium	22093	1	0
+Bank4-Slot5	Small Brick of Velium	22093	1	0
+Bank4-Slot6	Small Brick of Velium	22093	1	0
+Bank4-Slot7	Small Brick of Velium	22093	1	0
+Bank4-Slot8	Small Brick of Velium	22093	1	0
+Bank4-Slot9	Small Brick of Velium	22093	1	0
+Bank4-Slot10	Small Brick of Velium	22093	1	0
+Bank5	Unrefined Diamond	8887	2	0
+Bank6	Backpack	17005	1	8
+Bank6-Slot1	Small Brick of Velium	22093	1	0
+Bank6-Slot2	Small Brick of Velium	22093	1	0
+Bank6-Slot3	Small Brick of Velium	22093	1	0
+Bank6-Slot4	Small Brick of Velium	22093	1	0
+Bank6-Slot5	Small Brick of Velium	22093	1	0
+Bank6-Slot6	Small Brick of Velium	22093	1	0
+Bank6-Slot7	Small Brick of Velium	22093	1	0
+Bank6-Slot8	Small Brick of Velium	22093	1	0
+Bank7	Stained Red Robe*	13584	1	0
+Bank8	Trader's Satchel	17899	1	10
+Bank8-Slot1	Spell: Firetree's Familiar Augment	7656	1	0
+Bank8-Slot2	Sanguine Eyepatch	28963	1	0
+Bank8-Slot3	Chipped Black Marble	25819	1	0
+Bank8-Slot4	Shaded shield	32157	1	0
+Bank8-Slot5	Maelin's Annual Concoction	2627	14	0
+Bank8-Slot6	Jualicns Token	1908	1	0
+Bank8-Slot7	Dream Weaver Choker	26199	1	0
+Bank8-Slot8	Rod of Oblations	10383	1	0
+Bank8-Slot9	Corrupted Shissar Dagger	7963	1	0
+Bank8-Slot10	Empty	0	0	0
+Bank9	Backpack	17005	1	8
+Bank9-Slot1	Greyhopper Hide	7780	9	0
+Bank9-Slot2	Small Cloth Shawl	1017	1	0
+Bank9-Slot3	Reet Froglok Crown	11276	1	0
+Bank9-Slot4	Velium Hound Fur	24895	2	0
+Bank9-Slot5	Dream Weaver Pantaloons	26207	1	0
+Bank9-Slot6	Strands of Power	7465	1	0
+Bank9-Slot7	First Half of Al`Tarlkals Tome	31443	1	0
+Bank9-Slot8	Empty	0	0	0
+Bank10	Trader's Satchel	17899	1	10
+Bank10-Slot1	Shaderock Crown	32178	1	0
+Bank10-Slot2	Eye of the Owlbear Mother	7149	1	0
+Bank10-Slot3	Netted Kelp Sleeves	31507	1	0
+Bank10-Slot4	Ivandyr's Hoop	10082	6	0
+Bank10-Slot5	Medium Quality Wolf Skin	13754	2	0
+Bank10-Slot6	Decanter of the Apothecary	8097	1	0
+Bank10-Slot7	Bixie Crunchies	13464	1	0
+Bank10-Slot8	Spell: Tears of Druzzil	19319	1	0
+Bank10-Slot9	Spell: Velocity	19348	1	0
+Bank10-Slot10	Undead Dragongut Strings	20526	1	0
+Bank11	Backpack	17005	1	8
+Bank11-Slot1	Metal Bits	16905	20	0
+Bank11-Slot2	Itraer Insignia	26546	1	0
+Bank11-Slot3	Sage Headdress of Consciousness	26517	1	0
+Bank11-Slot4	Spell: Dictate	19406	1	0
+Bank11-Slot5	Spell: Aegis of Ro	15863	1	0
+Bank11-Slot6	Empty	0	0	0
+Bank11-Slot7	Spell: Mala	19418	1	0
+Bank11-Slot8	Solist's Icy Wand	14740	1	0
+Bank12	Shralok Pack	17401	1	8
+Bank12-Slot1	Crushed Flame Emerald	25838	1	0
+Bank12-Slot2	Owlbear Feathered Cap	7148	1	0
+Bank12-Slot3	Fine Steel Morning Star	6351	1	0
+Bank12-Slot4	Fine Steel Short Sword	5352	1	0
+Bank12-Slot5	Thick Banded Belt	2406	1	0
+Bank12-Slot6	Fine Steel Dagger	7350	1	0
+Bank12-Slot7	Fine Steel Dagger	7350	1	0
+Bank12-Slot8	Embroidered Black Cape	1401	1	0
+Bank13	The Scepter of Shadows	22198	1	0
+Bank14	Light Burlap Sack	17353	1	8
+Bank14-Slot1	Serrated Bone Dirk	7502	1	0
+Bank14-Slot2	Serrated Bone Dirk	7502	1	0
+Bank14-Slot3	Serrated Bone Dirk	7502	1	0
+Bank14-Slot4	Serrated Bone Dirk	7502	1	0
+Bank14-Slot5	Serrated Bone Dirk	7502	1	0
+Bank14-Slot6	Serrated Bone Dirk	7502	1	0
+Bank14-Slot7	Serrated Bone Dirk	7502	1	0
+Bank14-Slot8	Serrated Bone Dirk	7502	1	0
+Bank15	Spell: Tears of Druzzil	19319	1	0
+Bank16	Spell: Tricksters Augmentation	7666	1	0
+Bank17	Deck of Spontaneous Generation	17054	1	4
+Bank17-Slot1	Empty	0	0	0
+Bank17-Slot2	Empty	0	0	0
+Bank17-Slot3	Empty	0	0	0
+Bank17-Slot4	Empty	0	0	0
+Bank18	Icicle Boots	31160	1	0
+Bank19	Spell: Firetree's Familiar Augment	7656	1	0
+Bank20	Vial of the Morning Mist	4604	1	0
+Bank21	Icicle Bracelet	31157	1	0
+Bank22	Trakanon's Tooth	7276	1	0
+Bank23	Deck of Spontaneous Generation	17054	1	4
+Bank23-Slot1	Piece of a medallion	19957	1	0
+Bank23-Slot2	Piece of a medallion	19963	1	0
+Bank23-Slot3	Piece of a medallion	19960	1	0
+Bank23-Slot4	Piece of a medallion	19959	1	0
+Bank24	Iksar Hide Cap	5799	1	0
+Bank25	White-tipped Spiroc Feather	20958	1	0
+Bank26	Supple Scale Armband	1618	1	0
+Bank27	Jagged Stone Battle Axe	3347	1	0
+Bank28	Backpack	17005	1	8
+Bank28-Slot1	Transient Arms	32301	1	0
+Bank28-Slot2	Rusty Mace	6011	1	0
+Bank28-Slot3	Validus Custodus Battle Axe	14866	1	0
+Bank28-Slot4	Ancient Fishing Pole	24727	1	0
+Bank28-Slot5	Words of Wealth	18008	2	0
+Bank28-Slot6	a Wily Warlock doll	29652	5	0
+Bank28-Slot7	Greyhopper Hide	7780	20	0
+Bank28-Slot8	Low Quality Rockhopper Hide	2788	10	0
+Bank29	Fishing Pole	13100	1	0
+Bank30	Spell: Thunder of Karana	7686	1	0
+SharedBank1	Backpack	17005	1	8
+SharedBank1-Slot1	Red Dragon Scales	11622	1	0
+SharedBank1-Slot2	Eye of Narandi	1745	1	0
+SharedBank1-Slot3	Gauntlets of Mortality	26026	1	0
+SharedBank1-Slot4	Oakleaf Girdle	30377	1	0
+SharedBank1-Slot5	Crown of Elemental Mastery	20764	1	0
+SharedBank1-Slot6	a red crown	24555	1	0
+SharedBank1-Slot7	Shield of Rainbow Hues	11644	1	0
+SharedBank1-Slot8	Ry`Gorr Oracle Shield	30166	1	0
+SharedBank2	Backpack	17005	1	8
+SharedBank2-Slot1	Fishing Pole	13100	1	0
+SharedBank2-Slot2	Empty	0	0	0
+SharedBank2-Slot3	Lizard Bone Earring	27948	1	0
+SharedBank2-Slot4	McVaxius` Horn of War	11607	1	0
+SharedBank2-Slot5	Crimson Potion	14518	1	0
+SharedBank2-Slot6	Peridot	10028	8	0
+SharedBank2-Slot7	Velium Mastodon Fur Cloak	26999	1	0
+SharedBank2-Slot8	Wood Elf Parts	13421	1	0
+SharedBank3	Backpack	17005	1	8
+SharedBank3-Slot1	Mask of Obtenebration	2738	1	0
+SharedBank3-Slot2	Mask of Tinkering	1135	1	0
+SharedBank3-Slot3	Spell: Pillar of Lightning	19326	1	0
+SharedBank3-Slot4	Golem Metal Wand	14313	5	0
+SharedBank3-Slot5	Hintol`s Fishbringer Bait	22858	20	0
+SharedBank3-Slot6	Golem Metal Wand	14313	5	0
+SharedBank3-Slot7	Hintol`s Fishbringer Bait	22858	20	0
+SharedBank3-Slot8	Hintol`s Fishbringer Bait	22858	20	0
+SharedBank4	Deluxe Toolbox	17877	1	10
+SharedBank4-Slot1	Arrow	8005	20	0
+SharedBank4-Slot2	Crimson Potion	14518	1	0
+SharedBank4-Slot3	Arrow	8005	20	0
+SharedBank4-Slot4	Crimson Potion	14518	1	0
+SharedBank4-Slot5	Spell: Monster Summoning III	30404	1	0
+SharedBank4-Slot6	Crimson Potion	14518	1	0
+SharedBank4-Slot7	Spell: Regrowth of Dar Khura	7628	1	0
+SharedBank4-Slot8	Empty	0	0	0
+SharedBank4-Slot9	Dawnshroud Cider	29851	4	0
+SharedBank4-Slot10	A Phosphorescent Fiber	19808	1	0
+SharedBank5	Deluxe Toolbox	17877	1	10
+SharedBank5-Slot1	Crimson Potion	14518	1	0
+SharedBank5-Slot2	Crimson Potion	14518	1	0
+SharedBank5-Slot3	Crimson Potion	14518	1	0
+SharedBank5-Slot4	Spell: Zevfeer's Theft of Vitae	7650	1	0
+SharedBank5-Slot5	Empty	0	0	0
+SharedBank5-Slot6	Spell: Greater Vocaration: Fire	19367	1	0
+SharedBank5-Slot7	Spell: Banishment	19262	1	0
+SharedBank5-Slot8	Spell: Paralyzing Earth	16444	1	0
+SharedBank5-Slot9	Spell: Vengeance of Al`Kabor	19342	1	0
+SharedBank5-Slot10	Spell: Pouch of Quellious	19361	1	0
+SharedBank6	Backpack	17005	1	8
+SharedBank6-Slot1	a black throne	24550	1	0
+SharedBank6-Slot2	a blue throne	24558	2	0
+SharedBank6-Slot3	a red throne	24554	5	0
+SharedBank6-Slot4	a white throne	24562	1	0
+SharedBank6-Slot5	a black crown	24551	16	0
+SharedBank6-Slot6	a blue crown	24559	20	0
+SharedBank6-Slot7	a red crown	24555	20	0
+SharedBank6-Slot8	a white crown	24563	6	0
+SharedBank7	Backpack	17005	1	8
+SharedBank7-Slot1	Spell: Aegis	19227	1	0
+SharedBank7-Slot2	Spell: Mala	19418	1	0
+SharedBank7-Slot3	Spell: Markar`s Discord	19331	1	0
+SharedBank7-Slot4	Spell: Mark of Karn	19218	1	0
+SharedBank7-Slot5	Empty	0	0	0
+SharedBank7-Slot6	Spell: Word of Restoration	19221	1	0
+SharedBank7-Slot7	Band of Flesh	10352	1	0
+SharedBank7-Slot8	Black Sapphire Electrum Earring	14701	1	0
+SharedBank8	Deluxe Toolbox	17877	1	10
+SharedBank8-Slot1	a black squire	24553	20	0
+SharedBank8-Slot2	a blue squire	24561	20	0
+SharedBank8-Slot3	a red squire	24557	20	0
+SharedBank8-Slot4	a white squire	24565	20	0
+SharedBank8-Slot5	a black knight	24552	2	0
+SharedBank8-Slot6	a blue knight	24560	20	0
+SharedBank8-Slot7	a red knight	24556	20	0
+SharedBank8-Slot8	a white knight	24564	20	0
+SharedBank8-Slot9	a red knight	24556	12	0
+SharedBank8-Slot10	a blue knight	24560	12	0
+SharedBank9	Backpack	17005	1	8
+SharedBank9-Slot1	a Wily Warlock doll	29652	5	0
+SharedBank9-Slot2	Cone of the Mystics	14746	1	0
+SharedBank9-Slot3	A Maleficent Necromancer Doll	29654	5	0
+SharedBank9-Slot4	Imbued Granite Spaulders	4394	1	0
+SharedBank9-Slot5	Crimson Potion	14518	1	0
+SharedBank9-Slot6	Ulthork Hide	30092	1	0
+SharedBank9-Slot7	Ulthork Hide	30092	1	0
+SharedBank9-Slot8	Ulthork Hide	30092	1	0
+SharedBank10	Bag of Sewn Evil-Eye	17354	1	8
+SharedBank10-Slot1	Rubicite Boots	11511	1	0
+SharedBank10-Slot2	Holgresh Mojo Stick	24884	2	0
+SharedBank10-Slot3	Puppet Strings	11643	10	0
+SharedBank10-Slot4	Festering Cloak	1343	1	0
+SharedBank10-Slot5	Ring of Frost	30015	1	0
+SharedBank10-Slot6	Spell: Zumaik`s Animation	19389	1	0
+SharedBank10-Slot7	Spell: Pillar of Lightning	19326	1	0
+SharedBank10-Slot8	Spell: Upheaval	19205	1	0
+SharedBank11	Empty	0	0	0
+SharedBank12	Empty	0	0	0
+SharedBank13	Empty	0	0	0
+SharedBank14	Empty	0	0	0
+SharedBank15	Empty	0	0	0
+SharedBank16	Empty	0	0	0
+SharedBank17	Empty	0	0	0
+SharedBank18	Empty	0	0	0
+SharedBank19	Empty	0	0	0
+SharedBank20	Empty	0	0	0
+SharedBank21	Empty	0	0	0
+SharedBank22	Empty	0	0	0
+SharedBank23	Empty	0	0	0
+SharedBank24	Empty	0	0	0
+SharedBank25	Empty	0	0	0
+SharedBank26	Empty	0	0	0
+SharedBank27	Empty	0	0	0
+SharedBank28	Empty	0	0	0
+SharedBank29	Empty	0	0	0
+SharedBank30	Empty	0	0	0
+Bank-Coin	Currency	0	114814344	0
+AAIndex	Rank
+2	5
+3	2
+4	5
+8	5
+9	5
+10	5
+11	5
+12	5
+13	3
+15	3
+20	3
+23	3
+24	3
+25	3
+26	3
+27	3
+28	3
+33	3
+34	3
+42	3
+43	1
+44	3
+52	1
+53	1
+114	3
+117	1
+211	3
+224	3
+225	3
+226	1
+Checksum	2460429843
