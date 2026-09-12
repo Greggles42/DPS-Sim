@@ -8886,14 +8886,17 @@
         storeUiModeChoice(mode);
         setUiMode(mode);
         hideLandingSplash();
+        showWhatsNewPopup();
       }
       var storedUiMode = getStoredUiModeChoice();
+      var landingSplashShown = false;
       if (storedUiMode) {
         setUiMode(storedUiMode);
       } else {
         setUiMode(UI_MODES.EASY);
         var splashEl = $('landing-splash');
         if (splashEl) splashEl.classList.add('landing-splash--visible');
+        landingSplashShown = true;
       }
       var splashEasyBtn = $('landing-splash-easy');
       var splashAdvBtn = $('landing-splash-advanced');
@@ -8937,7 +8940,9 @@
       }
       var whatsNewCloseBtn = $('whats-new-close');
       if (whatsNewCloseBtn) whatsNewCloseBtn.addEventListener('click', hideWhatsNewPopup);
-      showWhatsNewPopup();
+      // If the landing splash is up, defer until it's dismissed (chooseUiModeFromSplash)
+      // so the two dialogs don't stack/overlap; otherwise show right away.
+      if (!landingSplashShown) showWhatsNewPopup();
 
       var EASY_CLASS_ORDER = ['bard','beastlord','cleric','druid','enchanter','magician','monk','necromancer','paladin','ranger','rogue','shadowknight','shaman','warrior','wizard'];
       var EASY_CLASS_ICONS = {
