@@ -78,21 +78,24 @@
     ac: 99999, hp: 99999, mana: 99999, resist: 99999, regen: 99999
   };
 
-  var MAIN_STAT_KEYS_FOR_DEFAULT_TARGET = ['str', 'dex', 'agi', 'sta', 'int', 'wis'];
+  // Planes of Power raises worn haste gear up to 46% (the highest worn-haste
+  // item in the era; not itself a server-side cap) and raises the achievable
+  // stat cap to 305 (level 65 + Planar Power rank 5 — see getStatCaps)
+  // regardless of whether Planar Power is actually set yet. Without this,
+  // the optimizer's marginal-gain scoring sees zero benefit to a 46%-haste
+  // PoP item over an already-41%-haste pick (both clamp to the same 41
+  // target), so genuine PoP upgrades silently lose ties and never surface —
+  // same effect for the main stats capped at the old 255 ceiling.
+  var PRIORITY_TARGET_ERA_OVERRIDES = {
+    pop: { haste: 46, str: 305, dex: 305, agi: 305, sta: 305, int: 305, wis: 305 }
+  };
 
-  // Planes of Power raises the achievable stat cap to 305 (level 65 + Planar
-  // Power rank 5 — see getStatCaps) regardless of whether Planar Power is
-  // actually set yet, so default the priority-list targets to that ceiling
-  // whenever PoP is the selected era. Earlier eras keep the 255 base cap.
   function getStatDefaultTargets() {
-    var isPop = getCurrentEraId() === 'pop';
-    if (!isPop) return STAT_DEFAULT_TARGETS;
+    var overrides = PRIORITY_TARGET_ERA_OVERRIDES[getCurrentEraId()];
+    if (!overrides) return STAT_DEFAULT_TARGETS;
     var targets = {};
     Object.keys(STAT_DEFAULT_TARGETS).forEach(function (stat) {
-      targets[stat] = STAT_DEFAULT_TARGETS[stat];
-    });
-    MAIN_STAT_KEYS_FOR_DEFAULT_TARGET.forEach(function (stat) {
-      targets[stat] = 305;
+      targets[stat] = overrides[stat] !== undefined ? overrides[stat] : STAT_DEFAULT_TARGETS[stat];
     });
     return targets;
   }
@@ -473,7 +476,10 @@
     }
     return {
       str: cap, dex: cap, agi: cap, sta: cap, int: cap, wis: cap,
-      haste: HASTE_TARGET,
+      // PoP worn haste items reach 46% — using the higher cap here is what
+      // lets the optimizer actually value that extra 5% instead of scoring
+      // it as zero marginal gain over an older 41%-haste item.
+      haste: getCurrentEraId() === 'pop' ? 46 : HASTE_TARGET,
       atk:   ATK_CAP,
       ft:    FT_CAP,
       ac: 99999, hp: 99999, mana: 99999, resist: 99999, regen: 99999
@@ -1524,10 +1530,21 @@
   function syncPriorityTargetsToEra() {
     if (!_priorityList) return;
     var newTargets = getStatDefaultTargets();
-    var oldOther = newTargets.str === 305 ? 255 : 305;
-    MAIN_STAT_KEYS_FOR_DEFAULT_TARGET.forEach(function (stat) {
+    // A stat's "other" value is whichever of (base default, every era
+    // override) isn't the one currently in effect — e.g. haste's other
+    // value is 41 when PoP (45) is current, or 45 when base (41) is current.
+    Object.keys(STAT_DEFAULT_TARGETS).forEach(function (stat) {
+      var candidates = [STAT_DEFAULT_TARGETS[stat]];
+      Object.keys(PRIORITY_TARGET_ERA_OVERRIDES).forEach(function (eraId) {
+        var v = PRIORITY_TARGET_ERA_OVERRIDES[eraId][stat];
+        if (v !== undefined && candidates.indexOf(v) === -1) candidates.push(v);
+      });
+      if (candidates.length < 2) return;
       var entry = _priorityList.find(function (e) { return e.stat === stat; });
-      if (entry && entry.target === oldOther) entry.target = newTargets[stat];
+      if (!entry) return;
+      if (candidates.indexOf(entry.target) !== -1 && entry.target !== newTargets[stat]) {
+        entry.target = newTargets[stat];
+      }
     });
   }
 
