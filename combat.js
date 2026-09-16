@@ -774,7 +774,7 @@
     const avoidance = options.avoidance != null ? options.avoidance : getAvoidanceNPC(mobLevel);
     const mitigation = getMitigation(mobLevel, targetAC, 0, 0);
     // Archery uses DEX for offense rating (EQ: SkillArchery/SkillThrowing use DEX; others use STR)
-    const maxDex = options.maxDex != null ? Math.min(255, Math.max(0, options.maxDex)) : 255;
+    const maxDex = options.maxDex != null ? Math.max(0, options.maxDex) : 255;
     const dex = Math.min(options.dex != null ? options.dex : 255, maxDex);
     const dexBonus = dex >= 75 ? Math.floor((2 * dex - 150) / 3) : 0;
     const wornAttack = options.wornAttack != null ? options.wornAttack : 0;

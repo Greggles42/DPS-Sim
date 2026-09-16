@@ -78,6 +78,25 @@
     ac: 99999, hp: 99999, mana: 99999, resist: 99999, regen: 99999
   };
 
+  var MAIN_STAT_KEYS_FOR_DEFAULT_TARGET = ['str', 'dex', 'agi', 'sta', 'int', 'wis'];
+
+  // Planes of Power raises the achievable stat cap to 305 (level 65 + Planar
+  // Power rank 5 — see getStatCaps) regardless of whether Planar Power is
+  // actually set yet, so default the priority-list targets to that ceiling
+  // whenever PoP is the selected era. Earlier eras keep the 255 base cap.
+  function getStatDefaultTargets() {
+    var isPop = getCurrentEraId() === 'pop';
+    if (!isPop) return STAT_DEFAULT_TARGETS;
+    var targets = {};
+    Object.keys(STAT_DEFAULT_TARGETS).forEach(function (stat) {
+      targets[stat] = STAT_DEFAULT_TARGETS[stat];
+    });
+    MAIN_STAT_KEYS_FOR_DEFAULT_TARGET.forEach(function (stat) {
+      targets[stat] = 305;
+    });
+    return targets;
+  }
+
   // Role default priority orders — used to seed _priorityList from presets
   var ROLE_DEFAULT_ORDERS = {
     meleeDPS:   ['haste','atk','str','dex','agi','sta','hp','ac','resist','regen','ft','mana','int','wis'],
@@ -173,10 +192,11 @@
   function buildDefaultPriorityList(roleKey) {
     var order   = ROLE_DEFAULT_ORDERS[roleKey] || ROLE_DEFAULT_ORDERS.meleeDPS;
     var enabled = ROLE_DEFAULT_ENABLED[roleKey] || ROLE_DEFAULT_ENABLED.meleeDPS;
+    var targets = getStatDefaultTargets();
     return order.map(function (stat) {
       return {
         stat:    stat,
-        target:  STAT_DEFAULT_TARGETS[stat] !== undefined ? STAT_DEFAULT_TARGETS[stat] : 99999,
+        target:  targets[stat] !== undefined ? targets[stat] : 99999,
         enabled: !!enabled[stat]
       };
     });
@@ -437,9 +457,20 @@
 
   // ── Stat caps ──────────────────────────────────────────────────────────────
 
-  function getStatCaps(planarPowerRank) {
-    var bonus = (planarPowerRank || 0) * 5;
-    var cap   = BASE_STAT_CAP + bonus;
+  function getStatCaps(planarPowerRank, level) {
+    var lvl = level || 60;
+    var cap;
+    if (getCurrentEraId() === 'pop') {
+      // BIS gear takes a while to farm — by the time a PoP character has it,
+      // they've almost certainly also picked up Planar Power rank 5, so the
+      // optimizer targets the full 305 cap regardless of what's actually set.
+      cap = 305;
+    } else {
+      // zone/client_mods.cpp Client::GetMaxStat(): +5 per level above 60
+      // (auto, levels 61-65), plus +5/rank from Planar Power AA on top of that.
+      var levelBonus = lvl > 60 ? (Math.min(lvl, 65) - 60) * 5 : 0;
+      cap = BASE_STAT_CAP + (planarPowerRank || 0) * 5 + levelBonus;
+    }
     return {
       str: cap, dex: cap, agi: cap, sta: cap, int: cap, wis: cap,
       haste: HASTE_TARGET,
@@ -705,7 +736,7 @@
    * the optimizer naturally hits higher-priority caps first.
    */
   function computeBISSet(corpus, charInfo) {
-    var caps      = getStatCaps(charInfo.planarPowerRank);
+    var caps      = getStatCaps(charInfo.planarPowerRank, charInfo.level);
     var base      = charInfo.baseStats || {};
     var accumulated = {};
     var result      = {};
@@ -764,7 +795,7 @@
    * and return top N candidates. Lore items equipped in other slots are excluded.
    */
   function computeUpgrades(corpus, equippedItems, charInfo) {
-    var caps = getStatCaps(charInfo.planarPowerRank);
+    var caps = getStatCaps(charInfo.planarPowerRank, charInfo.level);
     var base = charInfo.baseStats || {};
     var result = {};
 
@@ -821,7 +852,7 @@
    */
   function computeGapData(bisSet, equippedItems) {
     var charInfo   = getCharInfoFromUI();
-    var caps       = getStatCaps(charInfo.planarPowerRank);
+    var caps       = getStatCaps(charInfo.planarPowerRank, charInfo.level);
     var baseStats  = charInfo.baseStats || {};
     var hasEquipped = false;
     var curTotals  = { ac: 0, hp: 0, mana: 0, str: 0, dex: 0, agi: 0, sta: 0, int: 0, wis: 0, atk: 0, haste: 0, ft: 0, resist: 0, regen: 0 };
@@ -893,7 +924,7 @@
     var raceId  = raceEl  ? raceEl.value  : 'human';
     var level   = levelEl ? (parseInt(levelEl.value) || 60) : 60;
 
-    var ppBtn  = document.querySelector('.aa-seg-btn.active[data-aa-id="planarPower"]');
+    var ppBtn  = document.querySelector('.aa-seg-btn.aa-active[data-aa-id="planarPower"]');
     var ppRank = ppBtn ? (parseInt(ppBtn.dataset.aaRank) || 0) : 0;
 
     // Base stats = race base + allocated creation pts; excludes gear.
@@ -946,9 +977,10 @@
         var present = {};
         loaded.forEach(function (e) { if (e && e.stat) present[e.stat] = true; });
         // Append any stat keys missing from saved list (new stats added in later versions)
+        var defaultTargets = getStatDefaultTargets();
         STAT_KEYS.forEach(function (s) {
           if (!present[s]) {
-            loaded.push({ stat: s, target: STAT_DEFAULT_TARGETS[s] || 99999, enabled: false });
+            loaded.push({ stat: s, target: defaultTargets[s] || 99999, enabled: false });
           }
         });
         _priorityList = loaded;
@@ -1138,7 +1170,7 @@
   }
 
   function renderUpgradeAdvisorTab(upgrades, gapData) {
-    var caps = getStatCaps(getCharInfoFromUI().planarPowerRank);
+    var caps = getStatCaps(getCharInfoFromUI().planarPowerRank, getCharInfoFromUI().level);
     var gap  = gapData && gapData.hasEquipped ? renderGapSummary(gapData) : '';
     var html = gap;
 
@@ -1483,10 +1515,31 @@
     });
   }
 
+  // Snap any main-stat priority target still sitting on the *other* era's
+  // default cap (255 non-PoP / 305 PoP) over to the current era's default —
+  // leaves any value the user actually customized (i.e. not equal to either
+  // default) untouched. Called on modal open and whenever the era changes,
+  // since bisAdvisor.js loads before window.getSelectedEra exists, so the
+  // very first _priorityList built at module-load time can't know the era.
+  function syncPriorityTargetsToEra() {
+    if (!_priorityList) return;
+    var newTargets = getStatDefaultTargets();
+    var oldOther = newTargets.str === 305 ? 255 : 305;
+    MAIN_STAT_KEYS_FOR_DEFAULT_TARGET.forEach(function (stat) {
+      var entry = _priorityList.find(function (e) { return e.stat === stat; });
+      if (entry && entry.target === oldOther) entry.target = newTargets[stat];
+    });
+  }
+
   function wireControlEvents() {
     // Era selector
     var eraEl = $('bis-era-select');
-    if (eraEl) eraEl.addEventListener('change', recompute);
+    if (eraEl) {
+      eraEl.addEventListener('change', function () {
+        syncPriorityTargetsToEra();
+        recompute();
+      });
+    }
 
     // Exclude weapon haste toggle
     var exHasteEl = $('bis-exclude-weapon-haste');
@@ -1531,6 +1584,7 @@
     var overlay = $('bis-overlay');
     if (!overlay) return;
     loadPrefs();
+    syncPriorityTargetsToEra();
     _itemStatsCache = {};
 
     var controlsInner = $('bis-controls-inner');
