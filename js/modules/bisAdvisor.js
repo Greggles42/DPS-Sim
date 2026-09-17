@@ -704,15 +704,33 @@
     return (typeof lore === 'string' && lore.charAt(0) === '*') ? lore : null;
   }
 
+  /**
+   * Score a single candidate item for a slot, routing to weapon ratio scoring
+   * when applicable. Shared by scoreSlot (building the sorted candidate list)
+   * and the refinement pass (deciding whether to swap a slot's item) so that
+   * a currently-equipped weapon's own damage/delay ratio is scored the exact
+   * same way a candidate's is — otherwise a fair swap comparison is impossible.
+   */
+  function computeItemScore(item, slotKey, weights, dispWeights, currentStats, statCaps, baseStats) {
+    var s = getItemCombinedStats(item);
+    var profile        = _charInfo ? (CLASS_WEAPON_PROFILE[_charInfo.classId] || 'melee') : 'melee';
+    var useWeaponScore = WEAPON_SCORED_SLOTS[slotKey] && profile !== 'caster';
+    // For knights, Secondary may be a shield — scoreWeapon handles that gracefully (ratio=0)
+    if (useWeaponScore) {
+      return scoreWeapon(item, s, weights, dispWeights, currentStats, statCaps, baseStats);
+    }
+    return {
+      score:          scoreItem(s, weights, currentStats, statCaps, baseStats),
+      displayScore:   scoreItem(s, dispWeights, currentStats, statCaps, baseStats),
+      scoreBreakdown: computeDisplayBreakdown(s, dispWeights, currentStats, statCaps, baseStats),
+      isWeaponScored: useWeaponScore
+    };
+  }
+
   function scoreSlot(corpus, slotKey, currentStats, weights, statCaps, n, usedLore, baseStats) {
     var items       = getItemsForSlot(corpus, slotKey);
     var dispWeights = getActiveDisplayWeights(currentStats, statCaps, baseStats);
     if (weights.haste === 0) dispWeights.haste = 0; // honour weapon-haste exclusion in display too
-
-    // Determine whether to use weapon ratio scoring for this slot
-    var profile       = _charInfo ? (CLASS_WEAPON_PROFILE[_charInfo.classId] || 'melee') : 'melee';
-    var useWeaponScore = WEAPON_SCORED_SLOTS[slotKey] && profile !== 'caster';
-    // For knights, Secondary may be a shield — scoreWeapon handles that gracefully (ratio=0)
 
     var scored = [];
     for (var i = 0; i < items.length; i++) {
@@ -720,19 +738,9 @@
         var lk = getLoreKey(items[i]);
         if (lk && usedLore[lk]) continue;
       }
+      var r = computeItemScore(items[i], slotKey, weights, dispWeights, currentStats, statCaps, baseStats);
       var s = getItemCombinedStats(items[i]);
-      var score, displayScore, scoreBreakdown;
-      if (useWeaponScore) {
-        var ws     = scoreWeapon(items[i], s, weights, dispWeights, currentStats, statCaps, baseStats);
-        score          = ws.score;
-        displayScore   = ws.displayScore;
-        scoreBreakdown = ws.scoreBreakdown;
-      } else {
-        score          = scoreItem(s, weights, currentStats, statCaps, baseStats);
-        displayScore   = scoreItem(s, dispWeights, currentStats, statCaps, baseStats);
-        scoreBreakdown = computeDisplayBreakdown(s, dispWeights, currentStats, statCaps, baseStats);
-      }
-      scored.push({ item: items[i], stats: s, score: score, displayScore: displayScore, scoreBreakdown: scoreBreakdown });
+      scored.push({ item: items[i], stats: s, score: r.score, displayScore: r.displayScore, scoreBreakdown: r.scoreBreakdown });
     }
     scored.sort(function (a, b) { return b.score - a.score; });
     return scored.slice(0, n || 5);
@@ -753,63 +761,145 @@
   }
 
   /**
-   * Compute the BIS set using a greedy phase followed by iterative coordinate-descent
-   * refinement. Weights are computed dynamically per-slot from the priority list so
-   * the optimizer naturally hits higher-priority caps first.
+   * Total value of a fully-assembled set, using the exact same per-slot
+   * marginal-utility scoring as everywhere else (weights recomputed per slot
+   * from that slot's own excluded-context stats). Because this only depends
+   * on the final item assignment — not on what order slots were chosen in —
+   * it's a fair, order-independent yardstick for comparing two different
+   * complete builds (e.g. from different greedy seedings) against each other.
    */
-  function computeBISSet(corpus, charInfo) {
-    var caps      = getStatCaps(charInfo.planarPowerRank, charInfo.level);
-    var base      = charInfo.baseStats || {};
-    var accumulated = {};
-    var result      = {};
-    var usedLore    = {};
-
-    // Phase 1: greedy pass (slot priority order)
+  function computeTotalScore(resultSet, statCaps, baseStats) {
+    var total = 0;
     for (var i = 0; i < BIS_SLOT_PRIORITY.length; i++) {
-      var slotKey      = BIS_SLOT_PRIORITY[i];
-      var currentStats = sumStatsExcludingSlot(accumulated, slotKey);
+      var slotKey = BIS_SLOT_PRIORITY[i];
+      var entry   = resultSet[slotKey];
+      if (!entry || !entry.item) continue;
+      var ctx     = sumStatsExcludingSlot(resultSet, slotKey);
+      var weights = getActiveWeights(ctx, statCaps, baseStats);
+      if (_excludeWeaponHaste && WEAPON_RANGE_SLOTS[slotKey]) weights.haste = 0;
+      total += computeItemScore(entry.item, slotKey, weights, weights, ctx, statCaps, baseStats).score;
+    }
+    return total;
+  }
+
+  /** Greedy first pass: pick each slot's best item in the given visitation order. */
+  function greedyPass(corpus, caps, base, slotOrder) {
+    var result   = {};
+    var usedLore = {};
+    for (var i = 0; i < slotOrder.length; i++) {
+      var slotKey      = slotOrder[i];
+      var currentStats = sumStatsExcludingSlot(result, slotKey);
       var weights      = getActiveWeights(currentStats, caps, base);
       if (_excludeWeaponHaste && WEAPON_RANGE_SLOTS[slotKey]) weights.haste = 0;
       var top          = scoreSlot(corpus, slotKey, currentStats, weights, caps, 1, usedLore, base);
       if (top.length > 0) {
-        result[slotKey]      = top[0];
-        accumulated[slotKey] = { item: top[0].item };
+        result[slotKey] = top[0];
         var lk = getLoreKey(top[0].item);
         if (lk) usedLore[lk] = true;
       }
     }
+    return result;
+  }
 
-    // Phase 2: iterative coordinate-descent refinement (up to 5 passes)
-    var MAX_ITER = 5;
-    for (var iter = 0; iter < MAX_ITER; iter++) {
-      var improved = false;
+  var REFINE_TOPK      = 4;  // candidates tried per slot per visit, not just the single top-scored one
+  var REFINE_MAX_ITER  = 10;
+
+  /**
+   * Iterative refinement: repeatedly revisit every slot and try swapping in
+   * each of its top few candidates (not just the single best one under that
+   * moment's context), keeping whichever swap raises the *whole set's* total
+   * score the most. Trying more than one candidate per slot is what lets this
+   * escape the "first pick locked in forever" trap a strict 1-best-candidate
+   * pass falls into — a slot's 2nd or 3rd-ranked item can turn out to unlock
+   * a better combination once its effect on every other slot's cap room is
+   * accounted for. Stops once a full sweep makes no further improvement.
+   */
+  function refinePass(corpus, result, caps, base) {
+    var total = computeTotalScore(result, caps, base);
+    for (var iter = 0; iter < REFINE_MAX_ITER; iter++) {
+      var changed = false;
       for (var si = 0; si < BIS_SLOT_PRIORITY.length; si++) {
-        var sk        = BIS_SLOT_PRIORITY[si];
-        var ctxStats  = sumStatsExcludingSlot(result, sk);
-        var wts       = getActiveWeights(ctxStats, caps, base);
+        var sk       = BIS_SLOT_PRIORITY[si];
+        var ctxStats = sumStatsExcludingSlot(result, sk);
+        var wts      = getActiveWeights(ctxStats, caps, base);
         if (_excludeWeaponHaste && WEAPON_RANGE_SLOTS[sk]) wts.haste = 0;
-        var loreCtx   = buildUsedLore(result, sk);
-        var topNew    = scoreSlot(corpus, sk, ctxStats, wts, caps, 1, loreCtx, base);
-        if (!topNew.length) continue;
+        var loreCtx  = buildUsedLore(result, sk);
+        var candidates = scoreSlot(corpus, sk, ctxStats, wts, caps, REFINE_TOPK, loreCtx, base);
+        if (!candidates.length) continue;
 
-        // Re-score the currently assigned item under the same context for a fair comparison
         var curEntry  = result[sk];
-        var curScore  = curEntry
-          ? scoreItem(getItemCombinedStats(curEntry.item), wts, ctxStats, caps, base)
-          : 0;
+        var curId     = curEntry && curEntry.item ? String(curEntry.item.id || curEntry.item.Id || '') : null;
+        var bestEntry = null;
+        var bestTotal = total;
 
-        if (topNew[0].score > curScore) {
-          // Check lore conflict before committing
-          var newLore = getLoreKey(topNew[0].item);
+        for (var ci = 0; ci < candidates.length; ci++) {
+          var cand   = candidates[ci];
+          var candId = String(cand.item.id || cand.item.Id || '');
+          if (candId === curId) continue;
+          var newLore = getLoreKey(cand.item);
           if (newLore && loreCtx[newLore]) continue;
-          result[sk] = topNew[0];
-          improved   = true;
+
+          var saved = result[sk];
+          result[sk] = cand;
+          var trialTotal = computeTotalScore(result, caps, base);
+          result[sk] = saved;
+
+          if (trialTotal > bestTotal) {
+            bestTotal = trialTotal;
+            bestEntry = cand;
+          }
+        }
+
+        if (bestEntry) {
+          result[sk] = bestEntry;
+          total      = bestTotal;
+          changed    = true;
         }
       }
-      if (!improved) break;
+      if (!changed) break;
+    }
+    return { result: result, total: total };
+  }
+
+  /** Deterministic pseudo-shuffle (LCG) so repeated calls with the same seed reproduce the same order. */
+  function shuffledSlotOrder(seed) {
+    var arr = BIS_SLOT_PRIORITY.slice();
+    for (var i = arr.length - 1; i > 0; i--) {
+      seed = (seed * 9301 + 49297) % 233280;
+      var j = Math.floor((seed / 233280) * (i + 1));
+      var t = arr[i]; arr[i] = arr[j]; arr[j] = t;
+    }
+    return arr;
+  }
+
+  /**
+   * Compute the BIS set by trying several different greedy seedings (the
+   * greedy phase is order-dependent — whichever slot fills first "sees" an
+   * empty context and can lock in an item that a different fill order
+   * wouldn't have picked), refining each one with refinePass, then keeping
+   * whichever fully-assembled build scores highest overall. This is what
+   * approximates "search across loot permutations for the best full set"
+   * rather than committing to the first slot-by-slot pass through the list.
+   */
+  function computeBISSet(corpus, charInfo) {
+    var caps = getStatCaps(charInfo.planarPowerRank, charInfo.level);
+    var base = charInfo.baseStats || {};
+
+    var ATTEMPTS = 6;
+    var best      = null;
+    var bestTotal = -Infinity;
+
+    for (var a = 0; a < ATTEMPTS; a++) {
+      var order   = a === 0 ? BIS_SLOT_PRIORITY : shuffledSlotOrder(a * 7919 + 13);
+      var seeded  = greedyPass(corpus, caps, base, order);
+      var refined = refinePass(corpus, seeded, caps, base);
+      if (refined.total > bestTotal) {
+        bestTotal = refined.total;
+        best      = refined.result;
+      }
     }
 
-    return result;
+    return best;
   }
 
   /**
@@ -850,15 +940,15 @@
       var currentEntry = equippedItems[slotKey];
       var currentItem  = currentEntry && currentEntry.item ? currentEntry.item : null;
       var currentItemStats = currentItem ? getItemCombinedStats(currentItem) : null;
-      var currentScore = currentItem
-        ? scoreItem(currentItemStats, weights, currentStats, caps, base)
-        : 0;
-      var currentDisplayScore = currentItem
-        ? scoreItem(currentItemStats, dispWeights, currentStats, caps, base)
-        : 0;
-      var currentBreakdown = currentItem
-        ? computeDisplayBreakdown(currentItemStats, dispWeights, currentStats, caps, base)
+      // Use computeItemScore (not bare scoreItem) so a currently-equipped weapon's own
+      // damage/delay ratio is counted, same as every candidate — otherwise the "currently
+      // equipped" score for weapon slots is silently missing its ratio component.
+      var currentComputed = currentItem
+        ? computeItemScore(currentItem, slotKey, weights, dispWeights, currentStats, caps, base)
         : null;
+      var currentScore        = currentComputed ? currentComputed.score        : 0;
+      var currentDisplayScore = currentComputed ? currentComputed.displayScore : 0;
+      var currentBreakdown    = currentComputed ? currentComputed.scoreBreakdown : null;
 
       result[slotKey] = {
         current:    currentItem ? { item: currentItem, score: currentScore, displayScore: currentDisplayScore, scoreBreakdown: currentBreakdown, stats: currentItemStats } : null,
