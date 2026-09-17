@@ -210,6 +210,22 @@
   }
 
   /**
+   * True once a priority stat no longer needs weight from *other* slots.
+   * Every stat except haste is additive across gear, so it's "satisfied"
+   * once accumulated value reaches its target. Haste is different — only
+   * the single highest worn-haste item in the whole build ever applies
+   * (see sumStatsExcludingSlot), so as soon as ANY other slot already
+   * supplies some haste, every other slot gets zero real benefit from also
+   * having it; chasing it further there just crowds out lower-priority
+   * stats that slot could otherwise fill. So haste counts as "satisfied"
+   * the moment cur > 0, not only once it reaches its target.
+   */
+  function isStatSatisfied(stat, cur, target) {
+    if (stat === 'haste') return cur > 0;
+    return target < 9999 && cur >= target;
+  }
+
+  /**
    * Compute dynamic weights from the ordered priority list.
    * Top-ranked enabled stat gets the highest weight (quadratic decay down the list).
    * Once currentStats already meets a stat's target, weight drops to POST_CAP_FACTOR of full.
@@ -227,7 +243,7 @@
     for (var i = 0; i < n; i++) {
       var cur = (currentStats ? (currentStats[active[i].stat] || 0) : 0) +
                 (baseStats    ? (baseStats[active[i].stat]    || 0) : 0);
-      var atTarget = active[i].target < 9999 && cur >= active[i].target;
+      var atTarget = isStatSatisfied(active[i].stat, cur, active[i].target);
       if (!atTarget) {
         if (firstUncapped === -1)            firstUncapped  = i;
         else if (secondUncapped === -1) { secondUncapped = i; break; }
@@ -255,7 +271,7 @@
       var rank  = n - i;  // n = highest priority, 1 = lowest
       var cv    = (currentStats ? (currentStats[entry.stat] || 0) : 0) +
                   (baseStats    ? (baseStats[entry.stat]    || 0) : 0);
-      var atCap = entry.target < 9999 && cv >= entry.target;
+      var atCap = isStatSatisfied(entry.stat, cv, entry.target);
 
       var mult = (atCap)               ? T3 :
                  (i === firstUncapped) ? T1 :
@@ -282,7 +298,7 @@
       var rank  = n - i;
       var cv    = (currentStats ? (currentStats[entry.stat] || 0) : 0) +
                   (baseStats    ? (baseStats[entry.stat]    || 0) : 0);
-      var atCap = entry.target < 9999 && cv >= entry.target;
+      var atCap = isStatSatisfied(entry.stat, cv, entry.target);
       weights[entry.stat] = atCap ? Math.round(rank * rank * POST_CAP) : rank * rank;
     }
     return weights;
