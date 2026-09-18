@@ -1756,6 +1756,7 @@
           'Tiger Claw':   { attempts: 0, hits: 0, damage: 0 },
           'Round Kick':   { attempts: 0, hits: 0, damage: 0 },
         },
+        roundHitList: [], // combined damage per special-attack round: base Flying Kick + any Wu extra strikes that round
       } : null,
       fistweaving: ((options.classId === 'monk' && hasMainHand && w1.is2H && options.fistweaving) || twoHandWeaveMode) ? {
         weaveMode: twoHandWeaveMode ? 'twoHandWeave' : 'fistweave',
@@ -1976,6 +1977,7 @@
 
       // Special attack (Flying Kick / Backstab) on cooldown
       if (canFireSpecial && report.special && tMs >= nextSpecialAtMs) {
+        const _wuRoundDmgBefore = report.masterWu ? report.special.totalDamage : 0;
         report.special.attempts++;
         const isRogueBackstab = specialConfig.fromBehindOnly === true;
         const backstabSkill = options.backstabSkill != null ? options.backstabSkill : 225;
@@ -2128,6 +2130,10 @@
               extra--;
             }
           }
+        }
+
+        if (report.masterWu) {
+          report.masterWu.roundHitList.push(report.special.totalDamage - _wuRoundDmgBefore);
         }
 
         nextSpecialAtMs = tMs + specialCooldownMs;
@@ -2874,7 +2880,7 @@
         counts[v] = (counts[v] || 0) + 1;
         if (counts[v] > maxCount) { maxCount = counts[v]; mode = v; }
       }
-      return { min, max, mean, median, mode };
+      return { min, max, avgMin: min, avgMax: max, mean, median, mode };
     }
 
     report.weapon1.hitStats = hitStats(report.weapon1.hitList);
@@ -3112,16 +3118,20 @@
     // 5. Hit Damage Statistics
     lines.push('=== Hit Damage Statistics ===', '');
     lines.push(`  ${weapon1Label || 'Weapon 1'}`);
-    lines.push(padLine('    Max hit:', formatHitStat(s1.max != null ? s1.max : w1.maxDamage)));
-    lines.push(padLine('    Min hit:', formatHitStat(s1.min)));
+    lines.push(padLine('    Max hit (absolute):', formatHitStat(s1.max != null ? s1.max : w1.maxDamage)));
+    lines.push(padLine('    Max hit (average):', formatHitStat(s1.avgMax)));
+    lines.push(padLine('    Min hit (absolute):', formatHitStat(s1.min)));
+    lines.push(padLine('    Min hit (average):', formatHitStat(s1.avgMin)));
     lines.push(padLine('    Mean hit:', formatHitStat(s1.mean)));
     lines.push(padLine('    Median hit:', formatHitStat(s1.median)));
     lines.push(padLine('    Mode hit:', formatHitStat(s1.mode)));
     lines.push('');
     if (w2.swings > 0) {
       lines.push(`  ${weapon2Label || 'Weapon 2'}`);
-      lines.push(padLine('    Max hit:', formatHitStat(s2.max != null ? s2.max : w2.maxDamage)));
-      lines.push(padLine('    Min hit:', formatHitStat(s2.min)));
+      lines.push(padLine('    Max hit (absolute):', formatHitStat(s2.max != null ? s2.max : w2.maxDamage)));
+      lines.push(padLine('    Max hit (average):', formatHitStat(s2.avgMax)));
+      lines.push(padLine('    Min hit (absolute):', formatHitStat(s2.min)));
+      lines.push(padLine('    Min hit (average):', formatHitStat(s2.avgMin)));
       lines.push(padLine('    Mean hit:', formatHitStat(s2.mean)));
       lines.push(padLine('    Median hit:', formatHitStat(s2.median)));
       lines.push(padLine('    Mode hit:', formatHitStat(s2.mode)));

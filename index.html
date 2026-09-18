@@ -3451,6 +3451,7 @@
     <details id="version-log-details">
     <summary style="cursor:pointer; font-size:1.17em; font-weight:bold; margin:0; list-style:revert;">Version log</summary>
     <ul style="font-size: 0.9rem; color: var(--muted); margin: 0.5rem 0 0; padding-left: 1.25rem;">
+      <li><strong>1.94</strong> — Monk <strong>Technique of Master Wu</strong>: the damage-per-swing histogram and pie chart used to treat the base Flying Kick and its bonus Wu strikes as separate individual hits, which understated how much damage a single Flying Kick attempt could really produce once Wu's extra strikes are counted. When Master Wu is active, the histogram now shows <strong>"Special Abilities — damage per round"</strong> — one bar per Flying Kick round, combining the base kick with any bonus strikes that fired in that same round (a round where everything misses shows as 0). The pie chart's special-attack slice is now labeled <strong>"Special Abilities"</strong> instead of just "Flying Kick," and hovering over it (or its legend entry) shows a breakdown of damage by Flying Kick / Eagle Strike / Tiger Claw / Round Kick. Separately, the Melee report's <strong>Hit Damage Statistics</strong> section now distinguishes <strong>absolute</strong> max/min hit (the single highest/lowest hit seen across every run) from <strong>average</strong> max/min hit (the mean of each run's own max/min) — previously only the absolute values were shown under a single "Max hit"/"Min hit" line. Mechanics guide updated.</li>
       <li><strong>1.93</strong> — Gear Advisor rework: the BIS Set optimizer used to fill each slot's best item once, in a fixed order, and never reconsider earlier picks — so the recommended helm (for example) was always whatever looked best before any other slot was chosen, even when a different helm would have combined better with the rest of the set. It now runs several full passes that fill slots in different orders, then repeatedly revisits every slot trying each of its next-best candidates (not just its single top pick) and keeps whichever swap raises the whole set's total value, before keeping the best-scoring complete set across all passes. Also fixed a scoring bug where, during this refinement, a currently-equipped weapon's own damage/delay ratio wasn't counted when deciding whether to replace it (candidates were, since they went through separate scoring paths) — this affected both the BIS Set and Upgrade Advisor tabs for Primary/Secondary weapon slots. Mechanics guide updated.</li>
       <li><strong>1.92</strong> — Gear Advisor fix: when Haste% was priority #1 (the default for the Melee DPS/Ranged presets), the optimizer kept chasing it for every slot's candidates even after another slot already supplied a strong haste item — since only the single highest worn-haste item in a build ever applies in EQ, a second or third "also has haste" item never provided any real benefit, but the priority-tier scoring didn't know that and could still let a marginal leftover sliver of haste room outweigh a much bigger gain in a lower-priority stat, crowding out otherwise-better itemization. Haste now counts as satisfied for scoring purposes the moment any other slot supplies it at all (unlike every other stat, which stays additive toward its target), so once one slot secures haste, the rest of the build weights purely toward the remaining stat priorities.</li>
       <li><strong>1.91</strong> — Gear Advisor fix: PoP-tier worn-haste items were losing scoring ties to older, lower-haste gear because the optimizer's haste target was still the pre-PoP 41% cap — once a slot hit 41% haste, a genuine 44–46%-haste PoP item scored no marginal benefit over it (both clamp to the same target), so PoP haste gear could silently fail to surface as the BIS or top-upgrade pick even when it was the better item. The Gear Advisor's haste target/cap now raises to 46% (the highest worn-haste item available in the era, used here as a hard target rather than a server-enforced cap) whenever Planes of Power is the selected era, matching the same 305 stat-cap treatment added in 1.90. Mechanics guide updated.</li>
@@ -4042,7 +4043,7 @@
       }
 
       // When releasing: 1) Bump VERSION below. 2) Add a new <li> at the top of the Version log section above.
-      const VERSION = '1.93';
+      const VERSION = '1.94';
       const versionEl = $('app-version');
       if (versionEl) versionEl.textContent = 'v' + VERSION;
 
@@ -6094,6 +6095,8 @@
           const w2Hits = reports.reduce((s, r) => s + r.weapon2.hits, 0);
           const w1Mins = reports.map(r => r.weapon1.minDamage).filter(m => m != null && m !== Infinity);
           const w2Mins = reports.map(r => r.weapon2.minDamage).filter(m => m != null && m !== Infinity);
+          const w1Maxes = reports.filter(r => r.weapon1.hits > 0).map(r => r.weapon1.maxDamage);
+          const w2Maxes = reports.filter(r => r.weapon2.hits > 0).map(r => r.weapon2.maxDamage);
           const w1HitStats = reports.map(r => r.weapon1.hitStats).filter(Boolean);
           const w2HitStats = reports.map(r => r.weapon2.hitStats).filter(Boolean);
           report = {
@@ -6136,6 +6139,8 @@
               hitStats: w1HitStats.length ? {
                 min: w1Mins.length ? Math.min(...w1Mins) : null,
                 max: Math.max(...reports.map(r => r.weapon1.maxDamage)),
+                avgMin: w1Mins.length ? w1Mins.reduce((s, v) => s + v, 0) / w1Mins.length : null,
+                avgMax: w1Maxes.length ? w1Maxes.reduce((s, v) => s + v, 0) / w1Maxes.length : null,
                 mean: w1Hits ? reports.reduce((s, r) => s + r.weapon1.totalDamage, 0) / w1Hits : null,
                 median: w1HitStats.reduce((s, h) => s + (h.median != null ? h.median : 0), 0) / w1HitStats.length,
                 mode: w1HitStats.reduce((s, h) => s + (h.mode != null ? h.mode : 0), 0) / w1HitStats.length,
@@ -6173,6 +6178,8 @@
               hitStats: w2HitStats.length ? {
                 min: w2Mins.length ? Math.min(...w2Mins) : null,
                 max: reports.some(r => r.weapon2.hits > 0) ? Math.max(...reports.map(r => r.weapon2.maxDamage)) : null,
+                avgMin: w2Mins.length ? w2Mins.reduce((s, v) => s + v, 0) / w2Mins.length : null,
+                avgMax: w2Maxes.length ? w2Maxes.reduce((s, v) => s + v, 0) / w2Maxes.length : null,
                 mean: w2Hits ? reports.reduce((s, r) => s + r.weapon2.totalDamage, 0) / w2Hits : null,
                 median: w2HitStats.reduce((s, h) => s + (h.median != null ? h.median : 0), 0) / w2HitStats.length,
                 mode: w2HitStats.reduce((s, h) => s + (h.mode != null ? h.mode : 0), 0) / w2HitStats.length,
@@ -6264,6 +6271,7 @@
                     fkHits:       Math.round(reports.reduce((s, r) => s + (r.masterWu ? r.masterWu.fkHits       : 0), 0) / runs),
                     fkDamage:     Math.round(reports.reduce((s, r) => s + (r.masterWu ? r.masterWu.fkDamage     : 0), 0) / runs),
                     bySkill:      _bySkillAvg,
+                    roundHitList: reports[0].masterWu.roundHitList,
                   };
                 })()
               : null,
@@ -6496,13 +6504,16 @@
         const maxBins = 40;
         [ { list: report.weapon1.hitList, label: w1Label || 'Weapon 1 (Main Hand)' },
           { list: report.weapon2 && report.weapon2.hitList, label: w2Label || 'Weapon 2 (Offhand)' },
-          { list: report.special && report.special.hitList, label: report.special && report.special.name }
+          report.masterWu
+            ? { list: report.masterWu.roundHitList, label: 'Special Abilities', perRound: true }
+            : { list: report.special && report.special.hitList, label: report.special && report.special.name }
         ].forEach(function (hand) {
           if (!hand.list || hand.list.length === 0) return;
           const section = document.createElement('div');
           section.className = 'histogram-section';
           const h3 = document.createElement('h3');
-          h3.textContent = hand.label + ' — damage per swing';
+          const unitLabel = hand.perRound ? 'round' : 'swing';
+          h3.textContent = hand.label + ' — damage per ' + unitLabel;
           section.appendChild(h3);
           const data = buildHistogramBuckets(hand.list, maxBins);
           const chart = document.createElement('div');
@@ -6514,13 +6525,13 @@
             bar.style.flex = '1 1 auto';
             const pct = maxCount > 0 ? (b.count / maxCount) * 100 : 0;
             bar.style.height = Math.max(0, pct) + '%';
-            bar.title = (b.low === b.high ? b.low : b.low + '–' + b.high) + ' dmg: ' + b.count + ' hits';
+            bar.title = (b.low === b.high ? b.low : b.low + '–' + b.high) + ' dmg: ' + b.count + ' ' + unitLabel + 's';
             chart.appendChild(bar);
           });
           section.appendChild(chart);
           const legend = document.createElement('div');
           legend.className = 'histogram-legend';
-          legend.textContent = hand.list.length + ' hits, damage range ' + Math.min.apply(null, hand.list) + '–' + Math.max.apply(null, hand.list);
+          legend.textContent = hand.list.length + ' ' + unitLabel + 's, damage range ' + Math.min.apply(null, hand.list) + '–' + Math.max.apply(null, hand.list);
           section.appendChild(legend);
           container.appendChild(section);
         });
@@ -6545,7 +6556,21 @@
         const w2Procs = w2.procDamageTotal != null ? w2.procDamageTotal : 0;
         if (w2Procs > 0) segments.push({ key: 'w2Procs', value: w2Procs, label: 'Offhand procs', color: '#fbbf24' });
         const specialTotal = special && special.totalDamage != null ? special.totalDamage : 0;
-        if (specialTotal > 0) segments.push({ key: 'special', value: specialTotal, label: special && special.name ? special.name : 'Special attacks', color: '#c084fc' });
+        if (specialTotal > 0) {
+          let specialSeg = { key: 'special', value: specialTotal, label: special && special.name ? special.name : 'Special attacks', color: '#c084fc' };
+          if (report.masterWu) {
+            const wu = report.masterWu;
+            specialSeg.label = 'Special Abilities';
+            const fkTotal = (wu.fkDamage || 0) + (wu.bySkill && wu.bySkill['Flying Kick'] ? wu.bySkill['Flying Kick'].damage : 0);
+            specialSeg.breakdown = [
+              { label: 'Flying Kick', value: fkTotal },
+              { label: 'Eagle Strike', value: wu.bySkill && wu.bySkill['Eagle Strike'] ? wu.bySkill['Eagle Strike'].damage : 0 },
+              { label: 'Tiger Claw', value: wu.bySkill && wu.bySkill['Tiger Claw'] ? wu.bySkill['Tiger Claw'].damage : 0 },
+              { label: 'Round Kick', value: wu.bySkill && wu.bySkill['Round Kick'] ? wu.bySkill['Round Kick'].damage : 0 },
+            ].filter(function (b) { return b.value > 0; });
+          }
+          segments.push(specialSeg);
+        }
         const total = segments.reduce(function (s, seg) { return s + seg.value; }, 0);
         if (total <= 0) return;
 
@@ -6572,8 +6597,33 @@
           ctx.strokeStyle = 'rgba(0,0,0,0.25)';
           ctx.lineWidth = 1;
           ctx.stroke();
+          seg.startAngle = startAngle;
+          seg.endAngle = endAngle;
           startAngle = endAngle;
         });
+
+        function segmentTooltipText(seg) {
+          const pct = total > 0 ? ((seg.value / total) * 100).toFixed(1) : '0';
+          let text = seg.label + ': ' + seg.value + ' (' + pct + '%)';
+          if (seg.breakdown && seg.breakdown.length > 0) {
+            seg.breakdown.forEach(function (b) {
+              const subPct = seg.value > 0 ? ((b.value / seg.value) * 100).toFixed(1) : '0';
+              text += '\n  ' + b.label + ': ' + b.value + ' (' + subPct + '% of ' + seg.label + ')';
+            });
+          }
+          return text;
+        }
+        canvas.addEventListener('mousemove', function (ev) {
+          const rect = canvas.getBoundingClientRect();
+          const x = ev.clientX - rect.left - cx;
+          const y = ev.clientY - rect.top - cy;
+          if (Math.sqrt(x * x + y * y) > radius) { canvas.title = ''; return; }
+          let angle = Math.atan2(y, x);
+          if (angle < -Math.PI / 2) angle += Math.PI * 2;
+          const hit = segments.find(function (seg) { return angle >= seg.startAngle && angle < seg.endAngle; });
+          canvas.title = hit ? segmentTooltipText(hit) : '';
+        });
+        canvas.addEventListener('mouseleave', function () { canvas.title = ''; });
 
         const wrap = document.createElement('div');
         wrap.className = 'damage-pie-wrap';
@@ -6588,7 +6638,17 @@
           dt.style.borderLeftStyle = 'solid';
           dt.style.paddingLeft = '0.4rem';
           dt.textContent = seg.label + ': ' + seg.value + ' (' + pct + '%)';
+          if (seg.breakdown && seg.breakdown.length > 0) dt.title = segmentTooltipText(seg);
           legend.appendChild(dt);
+          if (seg.breakdown && seg.breakdown.length > 0) {
+            seg.breakdown.forEach(function (b) {
+              const subPct = seg.value > 0 ? ((b.value / seg.value) * 100).toFixed(1) : '0';
+              const dd = document.createElement('dd');
+              dd.className = 'sub';
+              dd.textContent = b.label + ': ' + b.value + ' (' + subPct + '%)';
+              legend.appendChild(dd);
+            });
+          }
         });
         wrap.appendChild(legend);
         container.appendChild(wrap);
