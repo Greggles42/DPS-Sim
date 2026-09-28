@@ -793,7 +793,7 @@
     const ARCHERY_ABSOLUTE_CAP = 252;
     const accuracySkillBonus = 0;
     const archeryBaseWithAccuracy = Math.min(ARCHERY_ABSOLUTE_CAP, ARCHERY_SKILL_BASE + accuracySkillBonus);
-    const archeryModPercent = (!options.archerySkillFixed && bow.archeryModPercent != null && !Number.isNaN(Number(bow.archeryModPercent))) ? Number(bow.archeryModPercent) : 0;
+    const archeryModPercent = (bow.archeryModPercent != null && !Number.isNaN(Number(bow.archeryModPercent))) ? Number(bow.archeryModPercent) : 0;
     const ARCHERY_SKILL_MODIFIED = Math.floor(archeryBaseWithAccuracy * (100 + archeryModPercent) / 100);
     const ARCHERY_SKILL_EFFECTIVE = Math.min(252, ARCHERY_SKILL_MODIFIED);
     const baseToHit = 7 + OFFENSE_SKILL + ARCHERY_SKILL_EFFECTIVE;

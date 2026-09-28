@@ -940,6 +940,74 @@
         In practice, DEX past the 255 stat cap provides a small additional bonus to crit chance and proc chance (each extra DEX point above 255 is divided by 400 for crits, 200 for procs), but the main payoff from DEX comes from reaching 255.
       </p>
 
+      <h3>10.2.2) Archery Accuracy — Skill, Skill Mods, and Accuracy Spells <span class="badge badge-game">In-Game Mechanic</span></h3>
+      <p>
+        Archery to-hit uses the same skill-based formula as melee (see Section 5), but there are two different ways an item or spell can raise it, and they are not interchangeable:
+      </p>
+      <div class="formula">baseToHit = 7 + offenseSkill + archerySkillEffective</div>
+      <p>
+        <strong>Archery skill mods</strong> (from a bow or worn item's <code>SkillModType = Archery</code>) multiply your <em>archery skill number itself</em>, before it goes into the formula above:
+      </p>
+      <div class="formula">archerySkillEffective = min(252, archerySkill × (100 + skillModPercent) / 100)</div>
+      <p>
+        Because this only scales the archery-skill term, and that term is hard-capped at <strong>252</strong> (the server's skill cap for any skill), the mod's real benefit shrinks the closer your base skill already is to 252. A ranger below level 63 who is skill-capped at <code>min(240, level×4)</code> from training alone still gets real value from a skill mod (or from Trueshot's +12% skill bonus) to close that gap — but once effective skill is already sitting at 252, an additional skill mod contributes nothing further.
+      </p>
+      <p>
+        <strong>Hawk Eye / Falcon Eye / Eagle Eye</strong> (+10% / +20% / +40%) work differently: they multiply the <em>entire</em> <code>baseToHit</code> result, including the flat <code>+7</code> and your Offense skill, not just the archery-skill term:
+      </p>
+      <div class="formula">toHit = baseToHit × (100 + accuracyPct) / 100</div>
+      <p>
+        Because this scales the whole to-hit total rather than a capped sub-component, it keeps giving real accuracy value even when your archery skill is already maxed at 252 — the two effects stack, with the skill mod applied first (inside <code>archerySkillEffective</code>) and the accuracy spell applied second (on the finished <code>baseToHit</code>).
+      </p>
+      <p class="muted">
+        In the sim, entering a manual value in the ranged tab's "Archery skill" field does not disable a bow/gear archery skill mod — both the skill value and the mod are independent inputs that always combine, matching how <code>Mob::GetSkill()</code> applies <code>itembonuses.skillmod</code> on the server regardless of what the underlying trained skill value is.
+      </p>
+      <p><strong>Server source trail for the Hawk/Falcon/Eagle Eye numbers:</strong></p>
+      <ul>
+        <li>
+          <strong>Spell data</strong> (<code>utils/sql/git/required/2016_11_12_spells_part1.sql</code>): Hawk Eye (id 2592) has effect base value <code>10</code>, Falcon Eye (id 2596) <code>20</code>, Eagle Eye (id 2599) <code>40</code> — the exact percentages used above.
+        </li>
+        <li>
+          <strong>Effect type</strong> (<code>common/spdat.h</code>): <code>#define SE_HitChance 184</code> — all three buffs use this SPA, with <code>base2 = -1</code> (applies to all skills, not just Archery).
+        </li>
+        <li>
+          <strong>Bonus aggregation</strong> (<code>zone/bonuses.cpp</code>, <code>SE_HitChance</code> case): because <code>base2 == -1</code>, the value is added into the "all skills" slot — <code>HitChanceEffect[EQ::skills::HIGHEST_SKILL+1]</code> — rather than an archery-specific slot.
+        </li>
+        <li>
+          <strong>Applied to the roll</strong> (<code>zone/attack.cpp Mob::AvoidDamage</code>): <code>toHitPct</code> is summed from <code>itembonuses/spellbonuses/aabonuses.HitChanceEffect[skillinuse]</code> and their <code>[HIGHEST_SKILL+1]</code> ("all skills") counterparts, then applied as <code>toHit = toHit * (100 + toHitPct) / 100</code> — where <code>toHit</code> is the full <code>Mob::GetToHit()</code> result (<code>7 + GetSkill(SkillOffense) + GetSkill(skillinuse)</code>, <code>attack.cpp</code>), confirming the multiplier hits the whole to-hit total and not just the archery-skill term.
+        </li>
+      </ul>
+      <h4>Is there a hit-chance cap?</h4>
+      <p>
+        Not a hard one. Hit chance is a continuous curve based on your <code>toHit</code> versus the target's avoidance (Section 5's <code>getHitChance</code>), and it only approaches 100% asymptotically — it never truly caps:
+      </p>
+      <table>
+        <tr><th>toHit</th><th>Hit chance vs a level 60 mob (avoidance 460)</th></tr>
+        <tr><td>300</td><td>~40%</td></tr>
+        <tr><td>514 (max skills, no accuracy spell)</td><td>~63%</td></tr>
+        <tr><td>719 (max skills + Eagle Eye)</td><td>~73%</td></tr>
+        <tr><td>1000</td><td>~81%</td></tr>
+      </table>
+      <p class="muted">
+        So the practical "cap" on archery accuracy isn't the hit-chance formula itself — it's the 252 hard skill cap (and the ranger training cap below it) that bounds how far the skill-based part of <code>toHit</code> can go. An accuracy spell like Eagle Eye is the main way to keep pushing <code>toHit</code> higher once skill is maxed.
+      </p>
+      <h4>Worked example: level 60 Ranger, 240 base archery skill, 252 Offense skill, vs. a level 60 mob</h4>
+      <p>
+        A level 60 ranger's trainable archery skill caps at <code>min(240, level×4) = 240</code>, below the 252 hard cap — so an archery skill mod still has real room to work with here. Values below come directly from the simulator (<code>toHit = 7 + offenseSkill(252) + archerySkillEffective</code>, hit chance vs. a level 60 mob's 460 avoidance):
+      </p>
+      <table>
+        <tr><th>Scenario</th><th>archerySkillEffective</th><th>toHit</th><th>Hit chance</th></tr>
+        <tr><td>240 skill, 0% archery mod</td><td>240</td><td>499</td><td>~62.9%</td></tr>
+        <tr><td>240 skill, 3% archery mod</td><td>247</td><td>506</td><td>~63.1%</td></tr>
+        <tr><td>240 skill, 4% archery mod</td><td>249</td><td>508</td><td>~63.2%</td></tr>
+        <tr><td>240 skill, 0% mod + Hawk Eye (+10%)</td><td>240</td><td>548</td><td>~65.6%</td></tr>
+        <tr><td>240 skill, 0% mod + Falcon Eye (+20%)</td><td>240</td><td>598</td><td>~69.1%</td></tr>
+        <tr><td>240 skill, 0% mod + Eagle Eye (+40%)</td><td>240</td><td>698</td><td>~73.1%</td></tr>
+      </table>
+      <p class="muted">
+        Notice how modest the archery skill mods are here: going from 0% to a generous 4% mod only moves hit chance by about +0.3 points, because it's only multiplying the 240 skill term inside a much larger <code>toHit</code> total (7 + 252 + skill). Eagle Eye alone (+40% on the whole total) is worth roughly 13x more accuracy than the 4% skill mod in this example, because it scales the entire to-hit value rather than one sub-component of it.
+      </p>
+
       <h3>10.3) Quiver haste <span class="badge badge-game">In-Game Mechanic</span></h3>
       <p>
         Applied separately from standard haste (not subject to the 125% cap). If a quiver provides weight reduction (WR%), quiver haste = WR% ÷ 4 ÷ 100.
