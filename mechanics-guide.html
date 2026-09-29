@@ -360,7 +360,7 @@
         A lower avoidance value shifts the hit-chance formula in the attacker's favour, increasing landed-hit rate.
       </p>
       <p>
-        <strong>Hand-tuned NPC avoidance:</strong> a small number of raid bosses carry a flat additive bonus to avoidance in the server's <code>npc_types</code> data (<code>npc.cpp: bonusAvoidance = npc_type_data-&gt;avoidance</code>), added on top of the level-based formula in <code>Mob::GetAvoidance()</code>. Examples: Bertoxxulous +100, The Seventh Hammer +50, Carprin Deatharn +35, Rumblecrush/Doomshade +25. When you select one of these NPCs as your target (Melee, Ranged, or Ranking tabs), the simulator automatically adds this bonus to the formula avoidance for the hit-chance calculation — you don't need to enter anything manually.
+        <strong>Hand-tuned NPC avoidance:</strong> a small number of raid bosses carry a flat additive bonus to avoidance in the server's <code>npc_types</code> data (<code>npc.cpp: bonusAvoidance = npc_type_data-&gt;avoidance</code>), added on top of the level-based formula in <code>Mob::GetAvoidance()</code>. Examples: Bertoxxulous +100, The Seventh Hammer +50, Carprin Deatharn +35, Rumblecrush/Doomshade +25. When you select one of these NPCs as your target (Melee, Ranged, or Ranking tabs), the simulator automatically adds this bonus to the formula avoidance for the hit-chance calculation — you don't need to enter anything manually. The Melee and Ranged tabs' Target NPC search also surfaces this as a note directly under the search bar the moment you select such a target, so the modifier isn't silent.
       </p>
       <h3>Mitigation (damage size)</h3>
       <p>

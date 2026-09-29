@@ -2747,6 +2747,7 @@
         <input type="text" id="target-npc-search" placeholder="Search by name (e.g. grimling, dragon)..." autocomplete="off">
         <div id="target-npc-search-list" class="item-search-list" role="listbox"></div>
       </div>
+      <div id="target-npc-defense-note" class="hint" style="display:none;"></div>
       <p class="hint">If no specific target is selected from search, a generic target is used based on character level (target level = character level; AC scales linearly from 5 at level 1 to 200 at level 60).</p>
       <label>Attacking from</label>
       <div class="radio-group">
@@ -2959,6 +2960,7 @@
         <input type="text" id="ranged-target-npc-search" placeholder="Search by name (e.g. grimling, dragon)..." autocomplete="off">
         <div id="ranged-target-npc-search-list" class="item-search-list" role="listbox"></div>
       </div>
+      <div id="ranged-target-npc-defense-note" class="hint" style="display:none;"></div>
       <label>Attacking from</label>
       <div class="radio-group">
         <label><input type="radio" name="ranged-from-behind" value="0"><span class="radio-option-main">Front</span> <span class="radio-option-note">(use avoidance)</span></label>
@@ -3451,6 +3453,7 @@
     <details id="version-log-details">
     <summary style="cursor:pointer; font-size:1.17em; font-weight:bold; margin:0; list-style:revert;">Version log</summary>
     <ul style="font-size: 0.9rem; color: var(--muted); margin: 0.5rem 0 0; padding-left: 1.25rem;">
+      <li><strong>2.1</strong> — The Melee and Ranged tabs' Target NPC search now surfaces a target's hand-tuned <strong>avoidance</strong> bonus (see 2.0 below) directly under the search bar the moment you select it — e.g. picking Bertoxxulous shows "This target carries a hand-tuned +100 avoidance bonus on top of the level-based formula (harder to hit) — already factored into this simulation's hit chance." Previously this modifier was applied silently; now it's visible right where you pick the target, and the note disappears automatically for targets without one (or when the target is cleared).</li>
       <li><strong>2.0</strong> — <strong>Planes of Power is now the default era</strong> on first load — previously the era dropdown displayed "Planes of Power" as selected but the page actually initialized to Luclin defaults underneath it (a leftover default constant that never matched the visible dropdown), so new visitors got Luclin-era caps/AAs until they manually reselected PoP. Also added <strong>mob-specific defensive/avoidance modifiers</strong>: a handful of raid bosses carry a hand-tuned bonus to avoidance in the server data on top of the generic level-based formula (e.g. Bertoxxulous +100, The Seventh Hammer +50, Carprin Deatharn +35, Rumblecrush/Doomshade +25) — selecting one of these as your target on the Melee or Ranged tab (including the weapon-ranking tools) now factors that bonus into hit chance automatically, matching how the pet-combat simulator already handled it. Mechanics guide updated.</li>
       <li><strong>1.96</strong> — Fix: the ranged sim's own hit-chance model ignored the target NPC's real avoidance value entirely, always falling back to the generic level-based avoidance formula even when a specific mob with a hand-tuned avoidance bonus was selected. See 2.0 above — this and the following entry were folded into the 2.0 release.</li>
       <li><strong>1.95</strong> — Fix: a bow or worn item's <strong>+Archery skill %</strong> modifier stopped applying the moment you manually typed a value into the Ranged tab's <strong>Archery skill</strong> field — the field's "user has overridden this" flag was incorrectly also suppressing the separate, independent skill-mod bonus, silently understating accuracy for anyone who entered their own archery skill instead of leaving it on the level-based auto-cap. The two inputs are now always independent and combine, matching the server's <code>Mob::GetSkill()</code> applying <code>itembonuses.skillmod</code> regardless of the underlying trained skill value. Mechanics guide updated with a full breakdown of archery accuracy — skill vs. skill mods vs. Hawk/Falcon/Eagle Eye, with server source citations and a worked example.</li>
@@ -4061,7 +4064,7 @@
       }
 
       // When releasing: 1) Bump VERSION below. 2) Add a new <li> at the top of the Version log section above.
-      const VERSION = '2.0';
+      const VERSION = '2.1';
       const versionEl = $('app-version');
       if (versionEl) versionEl.textContent = 'v' + VERSION;
 
@@ -11363,6 +11366,18 @@
         var listEl = $('rotation-target-npc-search-list');
         if (listEl) listEl.classList.add('is-open');
       }
+      /**
+       * Describes any hand-tuned defensive modifier the selected NPC carries beyond the
+       * generic level-based formulas (AC, avoidance) -- currently just the avoidance bonus
+       * from npc_types.avoidance (server: Mob::GetAvoidance()'s bonusAvoidance). Returns ''
+       * when the NPC has no such modifier, so the caller can hide the note entirely.
+       */
+      function formatTargetDefenseNote(npc) {
+        if (!npc) return '';
+        var avoidBonus = (npc.avoidance != null && !isNaN(Number(npc.avoidance))) ? Number(npc.avoidance) : 0;
+        if (!avoidBonus) return '';
+        return '&#9888; This target carries a hand-tuned <strong>+' + avoidBonus + ' avoidance</strong> bonus on top of the level-based formula (harder to hit) &mdash; already factored into this simulation\'s hit chance.';
+      }
       function updateTargetNpcNameDisplay() {
         var npc = window.selectedTargetNpc;
         var name = (npc && npc.name != null) ? String(npc.name).replace(/_/g, ' ') : '';
@@ -11382,6 +11397,11 @@
         if (clearBtnRanged) clearBtnRanged.style.display = name ? '' : 'none';
         if (clearBtnTanking) clearBtnTanking.style.display = name ? '' : 'none';
         if (clearBtnRotation) clearBtnRotation.style.display = name ? '' : 'none';
+        var defenseNote = formatTargetDefenseNote(npc);
+        var noteEl = $('target-npc-defense-note');
+        var noteElRanged = $('ranged-target-npc-defense-note');
+        if (noteEl) { noteEl.innerHTML = defenseNote; noteEl.style.display = defenseNote ? '' : 'none'; }
+        if (noteElRanged) { noteElRanged.innerHTML = defenseNote; noteElRanged.style.display = defenseNote ? '' : 'none'; }
       }
       function clearTargetNpc() {
         window.selectedTargetNpc = null;
