@@ -354,6 +354,7 @@
       min-height: 120px;
     }
     .hint { font-size: 0.75rem; color: var(--muted); margin-top: -0.5rem; margin-bottom: 0.75rem; }
+    .hint--target-defense { color: var(--color-gold, #d4af37); }
     .small-label { display: block; font-size: 0.75rem; color: var(--muted); margin-bottom: 0.2rem; }
     .rank-weapons-row { display: inline-flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
     .rank-weapons-row .small-label { display: inline; margin-bottom: 0; }
@@ -2747,7 +2748,7 @@
         <input type="text" id="target-npc-search" placeholder="Search by name (e.g. grimling, dragon)..." autocomplete="off">
         <div id="target-npc-search-list" class="item-search-list" role="listbox"></div>
       </div>
-      <div id="target-npc-defense-note" class="hint" style="display:none;"></div>
+      <div id="target-npc-defense-note" class="hint hint--target-defense" style="display:none;"></div>
       <p class="hint">If no specific target is selected from search, a generic target is used based on character level (target level = character level; AC scales linearly from 5 at level 1 to 200 at level 60).</p>
       <label>Attacking from</label>
       <div class="radio-group">
@@ -2960,7 +2961,7 @@
         <input type="text" id="ranged-target-npc-search" placeholder="Search by name (e.g. grimling, dragon)..." autocomplete="off">
         <div id="ranged-target-npc-search-list" class="item-search-list" role="listbox"></div>
       </div>
-      <div id="ranged-target-npc-defense-note" class="hint" style="display:none;"></div>
+      <div id="ranged-target-npc-defense-note" class="hint hint--target-defense" style="display:none;"></div>
       <label>Attacking from</label>
       <div class="radio-group">
         <label><input type="radio" name="ranged-from-behind" value="0"><span class="radio-option-main">Front</span> <span class="radio-option-note">(use avoidance)</span></label>
