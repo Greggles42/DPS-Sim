@@ -13,7 +13,8 @@
     "postinstall": "npm run build-file-bundles",
     "lint": "eslint combat.js threat.js weaponSkillCaps.js itemSearch.js api usage-log-server.js usage-log-summary.js scripts",
     "build-css": "tailwindcss -c tailwind.config.js -i tailwind.src.css -o tailwind.css --minify",
-    "serve": "npx --yes serve ."
+    "serve": "npx --yes serve .",
+    "backfill-usage-counters": "node scripts/backfill-usage-counters.mjs"
   },
   "dependencies": {
     "@upstash/redis": "^1.36.2",

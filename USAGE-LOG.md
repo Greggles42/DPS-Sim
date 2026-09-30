@@ -55,9 +55,11 @@ The DPS log uses **Vercel KV** (Redis), not Blob — no `put()`, `list()`, or `c
    const USAGE_LOG_URL = 'https://dps-sim.vercel.app/api/log';
    ```
 5. **Summary page:** open **https://dps-sim.vercel.app/api/summary** in a browser to see:
-   - Total simulations run
-   - Number of unique users (by anonymous uid)
-   - A log of recent runs with timestamp and parameters (class, w1/w2, duration, runs, total damage, special/fistweaving)
+   - Total simulations run, unique users (by anonymous uid), and mode breakdown
+   - Lifetime era distribution and avg DPS by class (not just the last N runs)
+   - Most-simulated classes and most-simulated weapon combos (popularity leaderboards)
+   - Best avg-DPS build per class (weapon combo + era), filtered to a minimum sample size so a single lucky run can't top the list
+   - A log of the 50 most recent runs with timestamp and parameters (class, w1/w2, duration, runs, total damage, special/fistweaving)
 
 ## Collector (local, optional)
 
@@ -81,6 +83,24 @@ If [https://dps-sim.vercel.app/api/summary](https://dps-sim.vercel.app/api/summa
    - In the deployed repo, `index.html` should have `USAGE_LOG_URL = 'https://dps-sim.vercel.app/api/log'` (or your Vercel URL). If you set it to empty or a local URL for testing, the live site won’t log.
 
 4. **Browser/network**: Ad blockers or strict privacy settings can block the POST to `/api/log`. Try from a normal browser profile and check DevTools → Network for a POST to `api/log` (status 200) after a run.
+
+## Reducing KV/API call volume
+
+To stay within Vercel/Upstash free-tier limits, `/api/log` and `/api/summary` are designed to minimize round trips:
+
+- **Writes are pipelined.** Each POST to `/api/log` issues a single `kv.pipeline()` (one network round trip) that appends the raw entry, trims the raw log to the last 500 entries, adds the uid, and updates the `dps_sim_stats` aggregate hash — instead of several separate KV calls.
+- **Reads are precomputed, not re-scanned.** `/api/summary` no longer re-parses hundreds of raw log entries on every view to compute breakdowns. It reads the `dps_sim_stats` hash (lifetime counters, updated incrementally on each write) plus a capped 50-row slice of the raw log for the "recent runs" table — one pipelined read.
+- **Edge caching.** `/api/summary` sends `Cache-Control: s-maxage=60, stale-while-revalidate=300`, so repeated views within a minute are served from Vercel's edge cache and never touch KV.
+
+### `dps_sim_stats` (Redis hash) — one-time backfill
+
+Because aggregates now come from `dps_sim_stats` instead of re-scanning `dps_sim_log`, existing history logged before this change won't show up in the lifetime analytics unless backfilled once:
+
+```
+node scripts/backfill-usage-counters.mjs
+```
+
+(needs `KV_REST_API_URL` / `KV_REST_API_TOKEN` in the environment — e.g. `vercel env pull .env.local` first). Run this once, promptly after deploying — it rebuilds `dps_sim_stats` from scratch from the raw log, so running it later than other traffic can overwrite counters accumulated in between.
 
 ## Payload (per run)
 

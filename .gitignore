@@ -5,3 +5,6 @@ dist
 usage-log.jsonl
 itemSearchConfig.js
 threatoverlay.md
+
+.vercel
+.env*
