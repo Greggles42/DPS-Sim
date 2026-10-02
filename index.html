@@ -13556,6 +13556,7 @@
         level: options.playerLevel,
         str: options.playerStr,
         dex: options.playerDex,
+        targetLabel: window.selectedTargetNpc && window.selectedTargetNpc.name ? String(window.selectedTargetNpc.name).replace(/_/g, ' ') : '',
         mobLevel: options.mobLevel,
         targetAC: options.playerAC,
         targetHP: options.playerHPTotal,

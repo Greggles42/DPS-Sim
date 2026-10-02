@@ -34,6 +34,28 @@ function formatTs(ts) {
   return d.toLocaleString('sv', { timeZone: 'America/Los_Angeles' }).slice(0, 16) + ' PT';
 }
 
+/**
+ * Actual DPS (damage dealt per second) for a logged run.
+ *
+ * Tanking runs log `totalDamage` as damage TAKEN, not dealt — the tank's own
+ * outgoing DPS (from ripostes) is the separate `dps` field, which can be a
+ * legitimate 0. So tanking never falls back to totalDamage/durationSec.
+ *
+ * Caster ("rotation") runs already carry a precomputed `dps` field; melee
+ * and ranged runs only log totalDamage + durationSec (damage dealt), so
+ * derive it the same way api/log.js does for those.
+ */
+function effectiveDps(e) {
+  if (e.simMode === 'tanking') {
+    return typeof e.dps === 'number' ? e.dps : null;
+  }
+  if (typeof e.dps === 'number' && e.dps > 0) return e.dps;
+  if (typeof e.totalDamage === 'number' && e.totalDamage > 0 && typeof e.durationSec === 'number' && e.durationSec > 0) {
+    return e.totalDamage / e.durationSec;
+  }
+  return null;
+}
+
 /** Parses the flat dps_sim_stats hash into structured aggregates. */
 function parseStats(stats) {
   const total = Number(stats.total) || 0;
@@ -267,18 +289,20 @@ export default async function handler(req, res) {
         <th>Sim Mode</th>
         <th>Era</th>
         <th>Class</th>
+        <th>Target</th>
         <th>W1</th>
         <th>W2</th>
         <th>Duration</th>
         <th>Runs</th>
         <th>Target AC</th>
         <th>Total dmg</th>
+        <th>DPS</th>
         <th>Special / Notes</th>
       </tr>
     </thead>
     <tbody>
       ${recent.length === 0
-        ? '<tr><td colspan="12" class="muted">No runs logged yet.</td></tr>'
+        ? '<tr><td colspan="14" class="muted">No runs logged yet.</td></tr>'
         : recent
             .map(
               (e) => {
@@ -286,26 +310,51 @@ export default async function handler(req, res) {
                 const isRankWeapons = e.event === 'rank_weapons';
                 const uiMode = e.mode ? (e.mode === 'advanced' ? 'Advanced' : 'Easy') : '—';
                 const uiModeStyle = e.mode === 'advanced' ? 'color:#d4af37' : (e.mode === 'easy' ? 'color:#7eb8da' : '');
+
                 let specialCell;
                 if (isRankWeapons) {
-                  specialCell = '<em class="muted">Rank Weapons</em>';
+                  specialCell = `<em class="muted">Rank Weapons (by ${e.rankByTps ? 'TPS' : 'DPS'})</em>`;
                 } else if (simMode === 'ranged') {
                   specialCell = '—';
                 } else {
                   specialCell = escapeHtml((e.specialAttacks ? 'Special ' : '') + (e.fistweaving ? 'FW' : '') || '—');
                 }
+
+                let targetCell;
+                if (isRankWeapons) {
+                  targetCell = e.targetMob ? escapeHtml(e.targetMob) : '<span class="muted">(all weapons, no target)</span>';
+                } else if (simMode === 'tanking') {
+                  targetCell = e.targetLabel ? escapeHtml(e.targetLabel) : '—';
+                } else {
+                  targetCell = '—';
+                }
+
+                let w1Cell, w2Cell;
+                if (isRankWeapons) {
+                  w1Cell = '<em class="muted">N/A — ranking request</em>';
+                  w2Cell = '—';
+                } else {
+                  w1Cell = e.w1 ? escapeHtml(e.w1.name || [e.w1.preset || e.w1.damage, e.w1.delay].filter(Boolean).join(' / ')) : '—';
+                  w2Cell = e.w2 ? escapeHtml(e.w2.name || [e.w2.preset || e.w2.damage, e.w2.delay].filter(Boolean).join(' / ')) : '—';
+                }
+
+                const dps = isRankWeapons ? null : effectiveDps(e);
+                const dpsCell = dps != null ? dps.toFixed(1) : '—';
+
                 return `<tr>
         <td class="mono">${escapeHtml(formatTs(e.ts))}</td>
         <td style="${uiModeStyle}">${uiMode}</td>
         <td>${escapeHtml(simMode)}</td>
         <td>${escapeHtml(e.era || '—')}</td>
         <td>${escapeHtml(simMode === 'ranged' ? 'Ranged' : (e.classId || '—'))}</td>
-        <td class="mono">${e.w1 ? escapeHtml(e.w1.name || [e.w1.preset || e.w1.damage, e.w1.delay].filter(Boolean).join(' / ')) : '—'}</td>
-        <td class="mono">${e.w2 ? escapeHtml(e.w2.name || [e.w2.preset || e.w2.damage, e.w2.delay].filter(Boolean).join(' / ')) : '—'}</td>
+        <td>${targetCell}</td>
+        <td class="mono">${w1Cell}</td>
+        <td class="mono">${w2Cell}</td>
         <td>${escapeHtml(e.durationSec ?? '—')}</td>
         <td>${escapeHtml(e.runs ?? '—')}</td>
         <td>${escapeHtml(e.targetAC ?? '—')}</td>
         <td>${escapeHtml(e.totalDamage ?? '—')}</td>
+        <td>${dpsCell}</td>
         <td>${specialCell}</td>
       </tr>`;
               }
