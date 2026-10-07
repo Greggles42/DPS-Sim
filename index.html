@@ -3454,6 +3454,7 @@
     <details id="version-log-details">
     <summary style="cursor:pointer; font-size:1.17em; font-weight:bold; margin:0; list-style:revert;">Version log</summary>
     <ul style="font-size: 0.9rem; color: var(--muted); margin: 0.5rem 0 0; padding-left: 1.25rem;">
+      <li><strong>2.3</strong> — Added <strong>Iceflame of E`ci</strong> (PoP) to the Buffs panel's Offensive column, with correct stacking rules for its slot. Note: in-game this buff is a +30% damage focus on instant-cast cold spells (only while exactly level 60) — a mechanic this sim's melee DPS math doesn't model, so checking it is for tracking purposes only and won't change your displayed stats.</li>
       <li><strong>2.2</strong> — Fix: switching to Planes of Power era left Easy Mode's Character Level stuck at 60 instead of following Advanced Mode's auto-bump to 65 — the level dropdown's options unlocked up to 65, but nothing re-synced its selected value or dependent assumptions (worn haste, stat caps, AA defaults) when the era changed out from under it. Era changes now re-sync Easy Mode's level and assumptions in both directions. Also increased Easy Mode's level-cap assumptions to better reflect a geared PoP 65 character: stat defaults (STR/AGI/DEX/STA) now assume Planar Power rank 5 (305 cap, up from a flat 255), Worn ATK defaults to 150 (previously 0 and not actually applied), and Spell ATK defaults to 200 for melee classes and Rangers (casters remain at 150).</li>
       <li><strong>2.1</strong> — The Melee and Ranged tabs' Target NPC search now surfaces a target's hand-tuned <strong>avoidance</strong> bonus (see 2.0 below) directly under the search bar the moment you select it — e.g. picking Bertoxxulous shows "This target carries a hand-tuned +100 avoidance bonus on top of the level-based formula (harder to hit) — already factored into this simulation's hit chance." Previously this modifier was applied silently; now it's visible right where you pick the target, and the note disappears automatically for targets without one (or when the target is cleared).</li>
       <li><strong>2.0</strong> — <strong>Planes of Power is now the default era</strong> on first load — previously the era dropdown displayed "Planes of Power" as selected but the page actually initialized to Luclin defaults underneath it (a leftover default constant that never matched the visible dropdown), so new visitors got Luclin-era caps/AAs until they manually reselected PoP. Also added <strong>mob-specific defensive/avoidance modifiers</strong>: a handful of raid bosses carry a hand-tuned bonus to avoidance in the server data on top of the generic level-based formula (e.g. Bertoxxulous +100, The Seventh Hammer +50, Carprin Deatharn +35, Rumblecrush/Doomshade +25) — selecting one of these as your target on the Melee or Ranged tab (including the weapon-ranking tools) now factors that bonus into hit chance automatically, matching how the pet-combat simulator already handled it. Mechanics guide updated.</li>
@@ -4066,7 +4067,7 @@
       }
 
       // When releasing: 1) Bump VERSION below. 2) Add a new <li> at the top of the Version log section above.
-      const VERSION = '2.2';
+      const VERSION = '2.3';
       const versionEl = $('app-version');
       if (versionEl) versionEl.textContent = 'v' + VERSION;
 

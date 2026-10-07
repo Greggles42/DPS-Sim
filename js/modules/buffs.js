@@ -508,6 +508,22 @@
       ],
     },
     {
+      // Spell 3337: SE_ImprovedDamage(30) + SE_LimitInstant(1) + SE_LimitResist(3=cold)
+      // + SE_LimitMinLevel(60) + SE_LimitMaxLevel(60) — a +30% cold-spell-damage focus
+      // (instant-cast nukes only, caster must be exactly level 60). Same effect shape as
+      // the item foci in js/modules/itemFocus.js (e.g. Fury of Ro), but none of buffs.js's
+      // modeled SPAs (STR/DEX/AGI/STA/INT/WIS/ATK/AC/HP/haste/mana) cover SE_ImprovedDamage,
+      // so it has no mechanical effect on melee DPS here — listed for tracking only.
+      id: 'iceflame_of_eci',
+      name: "Iceflame of E`ci",
+      category: 'offensive',
+      source: 'Click',
+      spellId: 3337,
+      sai: 32,
+      minEra: 'pop',
+      effects: [],  // +30% cold instant-nuke damage focus — not modeled (no melee-DPS SPA)
+    },
+    {
       id: 'spirit_of_predator',
       name: 'Spirit of the Predator',
       category: 'offensive',
