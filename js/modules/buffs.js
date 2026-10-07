@@ -509,8 +509,11 @@
     },
     {
       // Spell 3337: SE_ImprovedDamage(30) + SE_LimitInstant(1) + SE_LimitResist(3=cold)
-      // + SE_LimitMinLevel(60) + SE_LimitMaxLevel(60) — a +30% cold-spell-damage focus
-      // (instant-cast nukes only, caster must be exactly level 60). Same effect shape as
+      // + SE_LimitMinLevel(60) + SE_LimitMaxLevel(60) — a +30% cold-spell-damage focus,
+      // instant-cast cold spells only, restricted to spells whose own level requirement
+      // is exactly 60 (per itemFocus.js's appliesToSpell: min/maxLevel compare against the
+      // spell's own level field, NOT the caster's character level — any character level can
+      // benefit as long as the spell being cast is itself level 60). Same effect shape as
       // the item foci in js/modules/itemFocus.js (e.g. Fury of Ro), but none of buffs.js's
       // modeled SPAs (STR/DEX/AGI/STA/INT/WIS/ATK/AC/HP/haste/mana) cover SE_ImprovedDamage,
       // so it has no mechanical effect on melee DPS here — listed for tracking only.
