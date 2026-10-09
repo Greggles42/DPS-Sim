@@ -3049,6 +3049,21 @@
         <button type="button" class="magic-btn ranged-spellcast-down" data-key="firestrike" style="padding:0.1rem 0.6rem;" title="Move down">↓</button>
         <label class="checkbox-label" style="margin:0;"><input type="checkbox" id="ranged-spellcast-firestrike"> Firestrike <span id="ranged-spellcast-firestrike-info" class="hint" style="margin:0;"></span></label>
       </div>
+      <div class="ranged-spellcast-row" data-key="frozenwind" style="display:flex;align-items:center;gap:0.35rem;">
+        <button type="button" class="magic-btn ranged-spellcast-up" data-key="frozenwind" style="padding:0.1rem 0.6rem;" title="Move up">↑</button>
+        <button type="button" class="magic-btn ranged-spellcast-down" data-key="frozenwind" style="padding:0.1rem 0.6rem;" title="Move down">↓</button>
+        <label class="checkbox-label" style="margin:0;"><input type="checkbox" id="ranged-spellcast-frozenwind"> Frozen Wind <span id="ranged-spellcast-frozenwind-info" class="hint" style="margin:0;"></span></label>
+      </div>
+      <div class="ranged-spellcast-row" data-key="brushfire" style="display:flex;align-items:center;gap:0.35rem;">
+        <button type="button" class="magic-btn ranged-spellcast-up" data-key="brushfire" style="padding:0.1rem 0.6rem;" title="Move up">↑</button>
+        <button type="button" class="magic-btn ranged-spellcast-down" data-key="brushfire" style="padding:0.1rem 0.6rem;" title="Move down">↓</button>
+        <label class="checkbox-label" style="margin:0;"><input type="checkbox" id="ranged-spellcast-brushfire"> Brushfire <span id="ranged-spellcast-brushfire-info" class="hint" style="margin:0;"></span></label>
+      </div>
+      <div class="ranged-spellcast-row" data-key="driftingdeath" style="display:flex;align-items:center;gap:0.35rem;">
+        <button type="button" class="magic-btn ranged-spellcast-up" data-key="driftingdeath" style="padding:0.1rem 0.6rem;" title="Move up">↑</button>
+        <button type="button" class="magic-btn ranged-spellcast-down" data-key="driftingdeath" style="padding:0.1rem 0.6rem;" title="Move down">↓</button>
+        <label class="checkbox-label" style="margin:0;"><input type="checkbox" id="ranged-spellcast-driftingdeath"> Drifting Death <span id="ranged-spellcast-driftingdeath-info" class="hint" style="margin:0;"></span></label>
+      </div>
     </div>
     <div class="target-fight-row" style="margin-top:0.6rem;">
       <div><label for="ranged-spellcast-max-mana" class="small-label">Max mana <span class="hint" style="margin:0;">(0=unlimited)</span></label><input type="number" id="ranged-spellcast-max-mana" min="0" value="0" style="width:6rem;"></div>
@@ -3560,6 +3575,8 @@
     <details id="version-log-details">
     <summary style="cursor:pointer; font-size:1.17em; font-weight:bold; margin:0; list-style:revert;">Version log</summary>
     <ul style="font-size: 0.9rem; color: var(--muted); margin: 0.5rem 0 0; padding-left: 1.25rem;">
+      <li><strong>2.6</strong> — Fix: the Ranged tab's <strong>Spell Casting (between shots)</strong> simulation never actually applied <strong>Spell Casting Fury</strong>/Mastery, <strong>Quick Damage</strong>, or equipped/manually-added <strong>item focus effects</strong> to its casts, despite the card's own description claiming it reused "the Spell Casting Fury / item focus effects already detected on the Rotation tab" — the helper that reads those AA ranks and focus effects lives in a different top-level script scope than the Ranged tab's casting code, so the cross-scope reference silently failed its own function-existence check every time and fell back to a hardcoded zero-bonus default. All six spells in the list (including the three added in 2.5) now correctly get the same damage/mana/cast-time/crit bonuses from gear and AA that the Rotation Planner already applies, verified with a test fire-damage focus item (Wrath of Ro) correctly boosting the fire nukes only, leaving Frozen Wind (cold) and Drifting Death (magic) unaffected, matching real in-game focus restrictions.</li>
+      <li><strong>2.5</strong> — Ranged tab's <strong>Spell Casting (between shots)</strong> options now include <strong>Frozen Wind</strong>, <strong>Brushfire</strong>, and <strong>Drifting Death</strong> alongside Calefaction, Call of Flame, and Firestrike, covering the rest of the Ranger nuke/DoT line available by level 64. Drifting Death is a damage-over-time spell; the manual-mode priority engine won't recast it early while it's still ticking (same rule as the Rotation tab's DoT handling), so it only fires again once its current application would've expired anyway.</li>
       <li><strong>2.4</strong> — Rebuilt the Buffs panel: the old fixed checkbox grid is now a search box (focus it to browse the entire buff list, or type to filter), a Quick Menu of pinned common Planes of Power raid buffs plus your recently-used buffs, and an Active Buffs list with per-buff remove controls. Your active buff selection now persists across reloads (localStorage). Added hover tooltips to quick-menu chips. Also split <strong>Guardian of the Forest</strong> into three directly selectable entries — Guardian of the Forest I/II/III — instead of tracking the AA Configurator's rank, and added the Wizard-only <strong>Improved Familiar</strong> and <strong>Allegiant Familiar</strong> AAs as searchable buffs (mana pool/regen). The fight-duration uptime scaling used for timed buffs (previously Guardian of the Forest-only) is now generic and applies to any buff with a duration/reuse timer. Mechanics guide updated.</li>
       <li><strong>2.3</strong> — Added <strong>Iceflame of E`ci</strong> (PoP) to the Buffs panel's Offensive column, with correct stacking rules for its slot. Note: in-game this buff is a +30% damage focus on instant-cast cold spells, restricted to level-60 spells (not caster level — works at any character level) — a mechanic this sim's melee DPS math doesn't model, so checking it is for tracking purposes only and won't change your displayed stats.</li>
       <li><strong>2.2</strong> — Fix: switching to Planes of Power era left Easy Mode's Character Level stuck at 60 instead of following Advanced Mode's auto-bump to 65 — the level dropdown's options unlocked up to 65, but nothing re-synced its selected value or dependent assumptions (worn haste, stat caps, AA defaults) when the era changed out from under it. Era changes now re-sync Easy Mode's level and assumptions in both directions. Also increased Easy Mode's level-cap assumptions to better reflect a geared PoP 65 character: stat defaults (STR/AGI/DEX/STA) now assume Planar Power rank 5 (305 cap, up from a flat 255), Worn ATK defaults to 150 (previously 0 and not actually applied), and Spell ATK defaults to 200 for melee classes and Rangers (casters remain at 150).</li>
@@ -10337,9 +10354,12 @@
       var RANGED_SPELL_DEFS = {
         calefaction: { checkboxId: 'ranged-spellcast-calefaction', infoId: 'ranged-spellcast-calefaction-info', name: 'Calefaction' },
         callofflame: { checkboxId: 'ranged-spellcast-callofflame', infoId: 'ranged-spellcast-callofflame-info', name: 'Call of Flame' },
-        firestrike: { checkboxId: 'ranged-spellcast-firestrike', infoId: 'ranged-spellcast-firestrike-info', name: 'Firestrike' }
+        firestrike: { checkboxId: 'ranged-spellcast-firestrike', infoId: 'ranged-spellcast-firestrike-info', name: 'Firestrike' },
+        frozenwind: { checkboxId: 'ranged-spellcast-frozenwind', infoId: 'ranged-spellcast-frozenwind-info', name: 'Frozen Wind' },
+        brushfire: { checkboxId: 'ranged-spellcast-brushfire', infoId: 'ranged-spellcast-brushfire-info', name: 'Brushfire' },
+        driftingdeath: { checkboxId: 'ranged-spellcast-driftingdeath', infoId: 'ranged-spellcast-driftingdeath-info', name: 'Drifting Death' }
       };
-      window._rangedSpellOrder = window._rangedSpellOrder || ['calefaction', 'callofflame', 'firestrike'];
+      window._rangedSpellOrder = window._rangedSpellOrder || ['calefaction', 'callofflame', 'firestrike', 'frozenwind', 'brushfire', 'driftingdeath'];
       window._rangedSpellPool = window._rangedSpellPool || [];
 
       /** Reflows the queue rows into DOM order matching window._rangedSpellOrder
@@ -10456,7 +10476,7 @@
         if (!chosenSpells.length) return null;
         var chosenIds = chosenSpells.map(function (s) { return s.id; });
 
-        var gearAA = (typeof getRotationGearAndAA === 'function') ? getRotationGearAndAA() : {
+        var gearAA = (typeof window.getRotationGearAndAA === 'function') ? window.getRotationGearAndAA() : {
           spellCritRank: 0, spellCritMasteryRank: 0, quickDamageRank: 0, focusEffects: [],
           caster: { classId: 'ranger', level: rangedOptions.level, dex: rangedOptions.dex, int: 0, wis: 0 }
         };
@@ -14240,6 +14260,11 @@
       buffManaRegen: buffManaRegen
     };
   }
+  // Exposed globally: this function lives in a later, separate top-level
+  // IIFE from the Ranged tab's spell-casting code (runRangedSpellCastIfEnabled),
+  // so a bare reference there can't see it lexically — same cross-IIFE
+  // sharing pattern already used for window.buildAASimOptions.
+  window.getRotationGearAndAA = getRotationGearAndAA;
 
   function renderRotationGearSummary() {
     var el = document.getElementById('rotation-gear-summary');

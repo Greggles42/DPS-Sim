@@ -2098,10 +2098,9 @@
       </p>
       <p>
         The card sits above <strong>Target &amp; Fight</strong> on the Ranged tab, right below the weapon/arrow
-        cards. Only three spells are offered, matching the nukes a Ranger can actually fit into a quiver rotation
-        on Quarm: <strong>Calefaction</strong>, <strong>Call of Flame</strong>, and <strong>Firestrike</strong>
-        (Drones of Doom, a damage-over-time spell, was dropped from the option list — its long cast time and
-        recast/duration gating make it an impractical pick for a Ranger weaving casts between shots in practice).
+        cards. Six spells are offered, covering the Ranger nuke/DoT line through level 64:
+        <strong>Calefaction</strong>, <strong>Call of Flame</strong>, <strong>Firestrike</strong>,
+        <strong>Frozen Wind</strong>, <strong>Brushfire</strong>, and <strong>Drifting Death</strong>.
         Check on whichever you have memorized; <strong>Refresh spell list</strong> looks each one up against your
         current level (and selected target, for the handful of nukes that are body-type restricted) and shows its
         damage, mana cost, and level requirement, or disables the checkbox with a "requires level N" note if
@@ -2112,10 +2111,14 @@
       </p>
       <p>
         Checked spells are cast in whatever order the list is arranged in — reorder the rows with the
-        <strong>↑/↓</strong> buttons next to each one, defaulting to Calefaction, Call of Flame, Firestrike.
-        This is the same "first castable entry in the list" logic as the Rotation Planner's Custom order mode: at
-        every decision point the sim casts the highest (topmost) checked spell that's off recast and affordable,
-        skipping anything on cooldown, until the mana pool (set below the checkboxes, 0 = unlimited) runs dry.
+        <strong>↑/↓</strong> buttons next to each one, defaulting to Calefaction, Call of Flame, Firestrike, Frozen
+        Wind, Brushfire, Drifting Death. This is the same "first castable entry in the list" logic as the Rotation
+        Planner's Custom order mode: at every decision point the sim casts the highest (topmost) checked spell
+        that's off recast and affordable, skipping anything on cooldown, until the mana pool (set below the
+        checkboxes, 0 = unlimited) runs dry. <strong>Drifting Death</strong> is a damage-over-time spell rather
+        than a direct-damage nuke — recasting it early would overwrite (and lose) whatever ticks remain on the
+        current application, so the sim gates its next cast on its full duration rather than its (much shorter)
+        recast timer, the same rule the Rotation Planner already uses for DoTs.
       </p>
       <p class="muted">
         The spell-casting timeline runs independently of the archery timeline above it — ranged shots in this sim
