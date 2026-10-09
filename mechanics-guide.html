@@ -1462,7 +1462,7 @@
         <tbody>
           <tr><td>Classic / Kunark / Velious</td><td>None — AA system not yet available.</td></tr>
           <tr><td>Luclin</td><td>Archetype AAs (Combat Fury, Combat Stability, Combat Agility, Natural Durability, Spell Casting Fury, Mental Clarity, Channeling Focus, Spell Casting Reinforcement [not Wizard], Spell Casting Expertise, Spell Casting Deftness, Spell Casting Subtlety) and Class AAs (Ambidexterity, Flurry, Slay Undead, Archery Mastery, Double Riposte, Return Kick, Two Hand Bash [Pal/SHD], Soul Abrasion [SHD], Spell Casting Fury Mastery, Quick Damage, Spell Casting Mastery).</td></tr>
-          <tr><td>Planes of Power</td><td>All Luclin AAs plus: Planar Power, Planar Durability [War/Pal/SHD], Technique of Master Wu, Fury of the Ages, Ferocity, Knight's Advantage [Pal/SHD], Speed of the Knight [Pal/SHD], Raging Flurry [War], Tactical Mastery [War], Bestial Frenzy, Harmonious Attack, Flash of Steel, Innate Defense, Lightning Reflexes, Punishing Blade, Ingenuity [War/Monk/Rog].</td></tr>
+          <tr><td>Planes of Power</td><td>All Luclin AAs plus: Planar Power, Planar Durability [War/Pal/SHD], Technique of Master Wu, Fury of the Ages, Ferocity, Knight's Advantage [Pal/SHD], Speed of the Knight [Pal/SHD], Raging Flurry [War], Tactical Mastery [War], Bestial Frenzy, Harmonious Attack, Flash of Steel, Innate Defense, Lightning Reflexes, Punishing Blade, Ingenuity [War/Monk/Rog], Guardian of the Forest [Rng].</td></tr>
         </tbody>
       </table>
       <p>
@@ -1640,7 +1640,7 @@
         "Flowing Thought I-X" found on real items — e.g. Circlet/Robe/Cape of Flowing Thought — via
         <code>item.worneffect</code>, summed and capped at 15 total,
         <code>Client::CalcManaRegenCap</code>/<code>RuleI(Character, ItemManaRegenCap)</code>), and
-        <strong>buff Mana Regen</strong> (any mana-regen buffs checked in the Buff Panel — Koadic's Endless
+        <strong>buff Mana Regen</strong> (any mana-regen buffs active in the Buff Panel — Koadic's Endless
         Intellect, Protection of the Glades/Cabbage, Spiritual Purity — using the standard buff stacking rule: the
         highest value per stacking group is kept, and different groups add together) — read from the shared AA
         Configurator, Import Inventory, and Buff Panel the same way Spell Casting Fury and focus effects already
@@ -1715,7 +1715,7 @@
           fallback). INT and WIS fields appear in the Character module above when this tab is active (DEX and level
           are already there for every tab) — WIS isn't used by anything yet, but is there alongside INT since both
           are the two casting stats. Every class other than Wizard has no innate crit chance at all. INT/DEX/WIS used
-          for this (and for spell specialization skill) include any active buffs checked in the Buff Panel on top of
+          for this (and for spell specialization skill) include any buffs active in the Buff Panel on top of
           the Character card's base+gear stat (e.g. Koadic's Endless Intellect's +25 INT counts), capped by Planar
           Power same as the Character card's own Buffed column. The <strong>AA &amp; Gear</strong> card shows this
           as the bare formula rather than a computed percentage, since the Character card's INT/DEX may not be
@@ -1941,7 +1941,7 @@
         <code>CalcMaxMana</code>, <code>client_mods.cpp</code>): INT casters (Wizard/Magician/Necromancer/
         Enchanter/Shadowknight/Bard) scale off final INT, WIS casters (Cleric/Druid/Shaman/Paladin/Ranger/
         Beastlord) off final WIS — base race stat plus creation points plus gear, plus any INT/WIS bonus from
-        buffs checked in the Buff Panel (e.g. Koadic's Endless Intellect) — run through the server's base-mana
+        buffs active in the Buff Panel (e.g. Koadic's Endless Intellect) — run through the server's base-mana
         curve for the caster's level, then a flat mana-pool bonus is added on top from gear's "Mana" stat and
         buff mana-pool effects (also Koadic's, and Voice of Quellious). Paladins, Rangers, and Beastlords get no
         mana pool at all below level 9, matching the server. Non-casters (Warrior, Monk, Rogue) are left alone.
@@ -2135,7 +2135,36 @@
     </div>
 
     <div class="section">
-      <h2>24) Buffs Panel — Bard Song Instrument Modifiers <span class="badge badge-game">In-Game Mechanic</span></h2>
+      <h2>24) Buffs Panel — Search, Quick Menu, and Active Buffs <span class="badge badge-sim">Sim Feature</span></h2>
+      <p>
+        The Buffs card (used by the Melee, Ranged, Tanking, and Spells tabs alike — it's one shared panel) is built
+        around a search box instead of a long fixed checklist. Type a buff's name, class abbreviation, or source
+        (e.g. "avatar", "clr", "haste") to filter the full buff list down to matches; click a result to add it.
+      </p>
+      <p>
+        Above the search box is a <strong>Quick Menu</strong> with two rows of one-click chips: a pinned set of the
+        most commonly-used Planes of Power raid buffs (Hand of Virtue, Symbol of Kazad, Brell's Stalwart Shield,
+        Protection of the Nine, Focus of the Seventh, Voice of Quellious, Ferine Avatar, Strength of Tunare,
+        Protection of the Wild, Spirit of the Predator, Speed of Vallon, Warsong of Zek, and Rizlona's Call of
+        Flame), plus a "Recently Used" row that remembers the last several buffs you've added by hand so you don't
+        have to re-search for them. Both rows only show buffs that are actually available for the selected era and
+        class, and a chip disappears from the quick menu once it's active (it shows in the active list below
+        instead).
+      </p>
+      <p>
+        Everything currently applied to the sim lives in the <strong>Active Buffs</strong> list underneath, grouped
+        by Haste/Offensive/Defensive the same way the old panel's columns were. Click the × next to an entry to
+        remove it. Buffs that are losing a stacking contest to another active buff (see the stacking rules below)
+        show struck through there, same as before.
+      </p>
+      <p class="muted">
+        Your active buff selection is saved automatically and restored the next time you open gSim, so you don't
+        need to re-build your buff set every session.
+      </p>
+    </div>
+
+    <div class="section">
+      <h2>25) Buffs Panel — Bard Song Instrument Modifiers <span class="badge badge-game">In-Game Mechanic</span></h2>
       <p>
         Bard songs scale up based on the bard's skill with the instrument used to play them, and separately
         on how good that specific instrument item is. In-game there are five instrument skills — <strong>Singing</strong>,
@@ -2177,9 +2206,9 @@
     </div>
 
     <div class="card">
-      <h2>25) Buffs Panel — How Buffs Combine (Stacking) <span class="badge badge-game">In-Game Mechanic</span></h2>
+      <h2>26) Buffs Panel — How Buffs Combine (Stacking) <span class="badge badge-game">In-Game Mechanic</span></h2>
       <p>
-        When you check multiple buffs at once (say, several ATK-boosting buffs), the sim mirrors EverQuest's rule
+        When you add multiple buffs at once (say, several ATK-boosting buffs), the sim mirrors EverQuest's rule
         that some buffs of "the same kind" don't fully add together — one wins and the other is wasted, just like
         in-game. Buffs are grouped, and within a group only the strongest one counts toward your stats; buffs in
         <em>different</em> groups always add on top of each other normally.
@@ -2205,6 +2234,46 @@
         themselves level 60 (not your character's level — any character level benefits, as long as the spell being
         cast has a level-60 requirement). That's not something this sim's melee DPS math models. Checking it won't
         affect your displayed stats or DPS.
+      </p>
+      <p class="muted">
+        <strong>Guardian of the Forest (Ranger PoP Ability AA).</strong> This is a self-cast AA, not a buff cast on
+        you by someone else, so it's listed as three separate, directly selectable entries in the Buffs panel —
+        <strong>Guardian of the Forest I/II/III</strong> — matching whichever rank you've actually purchased: rank
+        I/II/III gives +100/+120/+140 ATK and +5%/+10%/+15% haste (a separate haste pool from normal worn/spell
+        haste — it stacks on top rather than competing with it). The AA Configurator's own rank selector for this
+        AA is for record-keeping only now; it doesn't drive the buff's magnitude — search for and add the matching
+        rank in the Buffs panel instead. In-game it lasts 48 seconds on a 15-minute reuse timer and also turns you
+        into a wolf (cosmetic only). Selecting more than one rank at once resolves the same way any other
+        same-stacking-group conflict does (the strongest one wins).
+      </p>
+      <p class="muted">
+        <strong>Improved Familiar / Allegiant Familiar (Wizard AAs).</strong> Two more self-cast Wizard-only AAs,
+        searchable in the Buffs panel (Improved Familiar from Luclin, Allegiant Familiar — its PoP upgrade — on top
+        of it). In-game each summons a cosmetic familiar pet and grants +25/+30 all-resist (not modeled — no resist
+        stat is tracked here), +200/+300 max mana, and +6/+8 mana regen per tick; only the mana numbers affect this
+        sim's output. Like the Guardian of the Forest ranks, picking both at once resolves to the stronger one
+        rather than stacking, since Allegiant Familiar replaces Improved Familiar in-game.
+      </p>
+      <p class="muted">
+        <strong>Timed buffs and usage mode.</strong> A 48-second buff on a 15-minute timer obviously isn't "up" for
+        an entire multi-minute fight, so Guardian of the Forest (and any future buff marked the same way) gets extra
+        controls in its Active Buffs row instead of being treated as always-on for the whole fight like every other
+        entry:
+      </p>
+      <ul>
+        <li><strong>Recast on CD</strong> (default) — assumes it's clicked the instant it's available, starting at
+        pull, for the rest of the fight.</li>
+        <li><strong>Fixed # of uses</strong> — you set exactly how many times it's used and the delay between each
+        use, for fights where you don't expect to (or can't) chain every reuse.</li>
+        <li><strong>Persistent</strong> — the old always-on behavior, for comparison purposes.</li>
+      </ul>
+      <p class="muted">
+        Whichever mode you pick, the sim works out what fraction of the fight the buff is actually active (shown live
+        as a percentage) and scales its ATK/haste bonus by that fraction for the <em>whole</em> fight, rather than
+        applying the full bonus for part of the fight and none for the rest. For a flat stat bonus like this one the
+        two are equivalent on average across many runs — it just means a single run won't show the burstiness of
+        "no bonus, then full bonus for 48 seconds, repeat." If you want to see the burst itself rather than its
+        average, that's not something this toggle models.
       </p>
     </div>
 

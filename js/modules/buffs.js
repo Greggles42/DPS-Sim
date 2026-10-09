@@ -520,10 +520,11 @@
       id: 'iceflame_of_eci',
       name: "Iceflame of E`ci",
       category: 'offensive',
-      source: 'Click',
+      source: 'WIZ',
       spellId: 3337,
       sai: 32,
       minEra: 'pop',
+      classes: ['wizard'],
       effects: [],  // +30% cold instant-nuke damage focus — not modeled (no melee-DPS SPA)
     },
     {
@@ -534,6 +535,7 @@
       spellId: 3417,
       sai: 19,
       minEra: 'pop',
+      quickMenu: true,
       effects: [
         { spa: SPA.ATK, value: 70 },
       ],
@@ -546,10 +548,75 @@
       spellId: 3039,
       sai: 16,
       minEra: 'pop',
+      quickMenu: true,
       effects: [
         { spa: SPA.ATK,      value: 130 },
         { spa: SPA.AC,       value: 115 },
         { spa: SPA.TOTAL_HP, value: 125 },
+      ],
+    },
+    // Ranger PoP Ability AA (altadv_vars.csv skill_id 545, classes=16=Ranger),
+    // spells 3271/3272/3273 for rank 1/2/3. Modeled as three separate,
+    // mutually-exclusive buff entries (one per purchased rank) rather than a
+    // single entry whose magnitude tracked the AA Configurator's rank — pick
+    // whichever rank matches your character. All three share sai 501 (a
+    // dedicated group — no other buff here uses it) so selecting more than
+    // one at once still resolves sanely (highest rank wins, same as any
+    // other same-SAI stacking conflict) instead of double-counting.
+    //
+    // durationSec/cooldownSec (48s buff, 900s/15min reuse) mark these as
+    // *timed* buffs: the Buffs panel renders usage controls (persistent /
+    // on cooldown / fixed number of uses with a delay) and the effects below
+    // get scaled by the resulting fight-average uptime fraction — see
+    // computeBuffUptimeFraction() in index.html. Without these two fields a
+    // buff is assumed maintained for the whole fight, same as every other
+    // entry here.
+    {
+      id: 'guardian_of_the_forest_1',
+      name: 'Guardian of the Forest I',
+      category: 'offensive',
+      source: 'AA',
+      spellId: 3271,
+      sai: 501,
+      minEra: 'pop',
+      durationSec: 48,
+      cooldownSec: 900,
+      classes: ['ranger'],
+      effects: [
+        { spa: SPA.ATK,      value: 100 },
+        { spa: SPA.HASTE_V3, value: 5 },
+      ],
+    },
+    {
+      id: 'guardian_of_the_forest_2',
+      name: 'Guardian of the Forest II',
+      category: 'offensive',
+      source: 'AA',
+      spellId: 3272,
+      sai: 501,
+      minEra: 'pop',
+      durationSec: 48,
+      cooldownSec: 900,
+      classes: ['ranger'],
+      effects: [
+        { spa: SPA.ATK,      value: 120 },
+        { spa: SPA.HASTE_V3, value: 10 },
+      ],
+    },
+    {
+      id: 'guardian_of_the_forest_3',
+      name: 'Guardian of the Forest III',
+      category: 'offensive',
+      source: 'AA',
+      spellId: 3273,
+      sai: 501,
+      minEra: 'pop',
+      durationSec: 48,
+      cooldownSec: 900,
+      classes: ['ranger'],
+      effects: [
+        { spa: SPA.ATK,      value: 140 },
+        { spa: SPA.HASTE_V3, value: 15 },
       ],
     },
     {
@@ -560,6 +627,7 @@
       spellId: 3399,
       sai: 7,
       minEra: 'pop',
+      quickMenu: true,
       effects: [
         { spa: SPA.ATK, value: 140 },
         { spa: SPA.STR, value: 140 },
@@ -575,6 +643,7 @@
       spellId: 3487,
       sai: 2,
       minEra: 'pop',
+      quickMenu: true,
       effects: [
         { spa: SPA.ATK,      value: 60 },
         { spa: SPA.TOTAL_HP, value: 125 },
@@ -622,6 +691,7 @@
       spellId: 3362,
       sai: 42,
       minEra: 'pop',
+      quickMenu: true,
       bardSong: true,
       instrument: 'singing', // spell skill=41 (Singing)
       effects: [],  // computed dynamically via rawSlots + buildBardEffects()
@@ -638,6 +708,7 @@
       spellId: 3374,
       sai: 42,
       minEra: 'pop',
+      quickMenu: true,
       bardSong: true,
       instrument: 'brass', // spell skill=12 (Brass Instruments)
       effects: [],  // computed dynamically via rawSlots + buildBardEffects()
@@ -658,6 +729,7 @@
       spellId: 3240,
       sai: 16,
       minEra: 'pop',
+      quickMenu: true,
       effects: [
         { spa: SPA.HASTE_V1, value: 68 },
         { spa: SPA.AGI,      value: 52 },
@@ -757,6 +829,7 @@
       spellId: 3479,
       sai: 2,
       minEra: 'pop',
+      quickMenu: true,
       effects: [
         { spa: SPA.AC,       value: 240 },
         { spa: SPA.TOTAL_HP, value: 1405 },
@@ -770,6 +843,7 @@
       spellId: 3466,
       sai: 2,
       minEra: 'pop',
+      quickMenu: true,
       effects: [
         { spa: SPA.TOTAL_HP, value: 910 },
       ],
@@ -782,6 +856,7 @@
       spellId: 3432,
       sai: 2,
       minEra: 'pop',
+      quickMenu: true,
       effects: [
         { spa: SPA.TOTAL_HP, value: 330 },
       ],
@@ -794,6 +869,7 @@
       spellId: 3234,
       sai: 2,
       minEra: 'pop',
+      quickMenu: true,
       effects: [
         { spa: SPA.AC,       value: 109 },
         { spa: SPA.TOTAL_HP, value: 618 },
@@ -807,6 +883,7 @@
       spellId: 3397,
       sai: 2,
       minEra: 'pop',
+      quickMenu: true,
       effects: [
         { spa: SPA.TOTAL_HP, value: 544 },
         { spa: SPA.STR,      value: 75 },
@@ -821,6 +898,7 @@
       spellId: 3360,
       sai: 6,
       minEra: 'pop',
+      quickMenu: true,
       effects: [
         { spa: SPA.MANA_REGEN, value: 18 },
         { spa: SPA.MANA_POOL,  value: 275 },
@@ -838,6 +916,42 @@
       effects: [
         { spa: SPA.MANA_REGEN, value: 7 },
       ],  // also +7 HP regen/tick — not modeled in sim
+    },
+
+    // Wizard-only self-cast AAs (altadv_vars.csv skill_id 155/533, classes=4096=Wizard)
+    // that summon a familiar pet (SE_Familiar, cosmetic — not modeled) and grant a
+    // self buff: +resist-all (not modeled — no resist SPA tracked here), +mana pool,
+    // and +mana regen/tick, decoded from spells_en.json 2758/3264. Allegiant Familiar
+    // (PoP) is the upgrade of Improved Familiar (Luclin) and requires it as an AA
+    // prereq, so they share a sai group — selecting both resolves to the stronger one,
+    // same treatment as the Guardian of the Forest ranks above.
+    {
+      id: 'improved_familiar',
+      name: 'Improved Familiar',
+      category: 'defensive',
+      source: 'AA',
+      spellId: 2758,
+      sai: 502,
+      minEra: 'luclin',
+      classes: ['wizard'],
+      effects: [
+        { spa: SPA.MANA_POOL,  value: 200 },
+        { spa: SPA.MANA_REGEN, value: 6 },
+      ],
+    },
+    {
+      id: 'allegiant_familiar',
+      name: 'Allegiant Familiar',
+      category: 'defensive',
+      source: 'AA',
+      spellId: 3264,
+      sai: 502,
+      minEra: 'pop',
+      classes: ['wizard'],
+      effects: [
+        { spa: SPA.MANA_POOL,  value: 300 },
+        { spa: SPA.MANA_REGEN, value: 8 },
+      ],
     },
   ];
 
@@ -1055,7 +1169,7 @@
     [SPA.WIS]:      'WIS',
     [SPA.HASTE_V1]: 'Haste',
     [SPA.TOTAL_HP]: 'HP',
-    [SPA.HASTE_V3]: 'Bard Haste (V3)',
+    [SPA.HASTE_V3]: 'Haste (V3)',
     [SPA.MANA_REGEN]: 'Mana Regen',
     [SPA.MANA_POOL]: 'Mana Pool',
   };

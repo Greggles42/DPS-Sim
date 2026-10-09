@@ -1855,17 +1855,16 @@
       transition: transform 0.15s;
     }
     #buff-details[open] summary::before { transform: rotate(90deg); }
-    #buff-details .buff-columns {
-      padding: 0 1.25rem 1rem;
+    #buff-details .buff-search-row,
+    #buff-details .buff-quickmenu,
+    #buff-details .buff-search-results,
+    #buff-details .buff-active-list,
+    #buff-details #bard-instr-panel {
+      padding: 0 1.25rem;
+      margin-top: 0.6rem;
     }
     #buff-details .buff-totals {
-      margin: 0 1.25rem 1rem;
-    }
-    .buff-columns {
-      display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      gap: 0.75rem 1rem;
-      margin-top: 0.6rem;
+      margin: 0.6rem 1.25rem 1rem;
     }
     .buff-col-header {
       font-size: 0.7rem;
@@ -1876,21 +1875,114 @@
       margin-bottom: 0.3rem;
       padding-bottom: 0.15rem;
     }
+    #buff-search {
+      width: 100%;
+      box-sizing: border-box;
+      font-size: 0.8rem;
+      padding: 0.4rem 0.6rem;
+      background: var(--input-bg, #1a1a1e);
+      color: var(--text);
+      border: 1px solid var(--border, #444);
+      border-radius: 4px;
+    }
+    .buff-quickmenu {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.35rem;
+    }
+    .buff-quickmenu-label {
+      flex-basis: 100%;
+      font-size: 0.68rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--muted);
+      margin: 0.3rem 0 0.1rem;
+    }
+    .buff-chip {
+      font-size: 0.74rem;
+      padding: 0.25rem 0.55rem;
+      background: rgba(255,255,255,0.04);
+      color: var(--text);
+      border: 1px solid var(--border, #444);
+      border-radius: 999px;
+      cursor: pointer;
+      line-height: 1.2;
+    }
+    .buff-chip:hover { border-color: var(--accent); color: var(--accent); }
+    .buff-chip .buff-source { font-size: 0.64rem; color: var(--muted); margin-left: 0.25rem; }
+    .buff-search-results {
+      border: 1px solid var(--border, #444);
+      border-radius: 4px;
+      padding: 0.4rem 0.6rem !important;
+      max-height: 220px;
+      overflow-y: auto;
+    }
+    .buff-search-result-row {
+      display: flex;
+      align-items: baseline;
+      gap: 0.4rem;
+      padding: 0.2rem 0;
+      cursor: pointer;
+      font-size: 0.78rem;
+    }
+    .buff-search-result-row:hover { color: var(--accent); }
+    .buff-search-result-row .buff-add-icon { color: var(--accent); flex-shrink: 0; }
+    .buff-search-no-results { font-size: 0.76rem; color: var(--muted); padding: 0.2rem 0; }
+    .buff-active-empty { font-size: 0.76rem; color: var(--muted); font-style: italic; }
+    .buff-active-cat-header {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--muted);
+      margin: 0.5rem 0 0.2rem;
+    }
+    .buff-active-cat-header:first-child { margin-top: 0; }
     .buff-item {
       display: flex;
+      flex-wrap: wrap;
       align-items: baseline;
       gap: 0.35rem;
       margin-bottom: 0.2rem;
       font-size: 0.78rem;
     }
-    .buff-item input[type="checkbox"] { flex-shrink: 0; margin: 0; accent-color: var(--accent); }
-    .buff-item label { cursor: pointer; line-height: 1.3; }
+    .buff-item .buff-remove-btn {
+      flex-shrink: 0;
+      background: none;
+      border: none;
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 0.85rem;
+      line-height: 1;
+      padding: 0 0.1rem;
+    }
+    .buff-item .buff-remove-btn:hover { color: var(--accent); }
+    .buff-item label { cursor: default; line-height: 1.3; }
     .buff-item label .buff-source {
       font-size: 0.65rem;
       color: var(--muted);
       margin-left: 0.2rem;
     }
     .buff-item.dominated label { opacity: 0.45; text-decoration: line-through; }
+    .buff-usage-row {
+      flex-basis: 100%;
+      margin: 0.15rem 0 0.3rem 1.3rem;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.35rem;
+      font-size: 0.72rem;
+      color: var(--muted);
+    }
+    .buff-usage-row select, .buff-usage-row input[type="number"] {
+      font-size: 0.72rem;
+      padding: 0.05rem 0.25rem;
+      background: var(--input-bg, #1a1a1e);
+      color: var(--text);
+      border: 1px solid var(--border, #444);
+      border-radius: 3px;
+    }
+    .buff-usage-row input[type="number"] { width: 3.2rem; }
+    .buff-usage-uptime { font-style: italic; }
     #bard-instr-panel {
       grid-column: 1 / -1;
       margin-top: 0.2rem;
@@ -2436,7 +2528,7 @@
       <div class="char-primary-row char-primary-grid char-primary-grid--hasteatk">
         <label for="worn-haste">Worn haste % <span class="info-icon" title="Item haste (SPA 11 from gear); capped to 10% at level 1-25. Stacks with V1 spell haste up to 100% combined.">&#8505;</span></label>
         <label for="spell-haste">V1 Haste % <span class="info-icon" title="V1 spell haste (SPA 11 from spells/buffs). Worn + V1 combined cannot exceed 100%. V3 bard haste (capped at 25%) adds on top.">&#8505;</span></label>
-        <label for="v3-haste">V3 Haste % <span class="info-icon" title="Bard V3 haste (SPA 119, e.g. Warsong of the Vah Shir). Hard cap: 25%. Auto-filled by bard song buffs; can be overridden manually.">&#8505;</span></label>
+        <label for="v3-haste">V3 Haste % <span class="info-icon" title="SPA 119 haste (e.g. bard's Warsong of the Vah Shir, or the Ranger AA Guardian of the Forest). Hard cap: 25%. Auto-filled by Buffs panel toggles; can be overridden manually.">&#8505;</span></label>
         <input type="number" id="worn-haste" min="0" max="999" value="41" placeholder="41" size="3" inputmode="numeric" autocomplete="off">
         <input type="number" id="spell-haste" min="0" max="999" value="60" placeholder="60" size="3" inputmode="numeric" autocomplete="off">
         <input type="number" id="v3-haste" min="0" max="25" value="0" placeholder="0" size="3" inputmode="numeric" autocomplete="off">
@@ -2452,7 +2544,7 @@
         <span title="Worn haste from items"><span class="bt-label">Worn </span><span class="bt-val" id="eff-worn-haste">0%</span></span>
         <span title="V1 spell haste from buffs"><span class="bt-label">+ V1 </span><span class="bt-val" id="eff-v1-haste">0%</span></span>
         <span title="Worn + V1 combined, capped at 100%"><span class="bt-label">= </span><span class="bt-val" id="eff-combined-haste">0%</span></span>
-        <span id="eff-v3-wrap" style="display:none" title="Bard V3 haste, capped at 25%"><span class="bt-label">+ V3 </span><span class="bt-val" id="eff-v3-haste">0%</span></span>
+        <span id="eff-v3-wrap" style="display:none" title="V3 haste (bard song or AA), capped at 25%"><span class="bt-label">+ V3 </span><span class="bt-val" id="eff-v3-haste">0%</span></span>
         <span title="Total effective haste used in simulation"><span class="bt-label">→ </span><span class="bt-val" id="eff-haste">0%</span></span>
         <span class="bt-separator"></span>
         <span><span class="bt-label">Spell ATK </span><span class="bt-val" id="eff-spell-atk">+0</span></span>
@@ -2545,48 +2637,46 @@
   <section class="section--core advanced-only" id="buff-section">
       <details class="buff-panel" id="buff-details">
         <summary>Buffs <span id="buff-active-count" style="color:var(--muted);font-size:0.75rem;"></span></summary>
-        <div class="buff-columns">
-          <div id="buff-col-haste">
-            <div class="buff-col-header">Haste</div>
-            <!-- populated by renderBuffPanel() -->
-          </div>
-          <div class="buff-col-right">
-            <div id="buff-col-offensive">
-              <div class="buff-col-header">Offensive</div>
+        <div class="buff-search-row">
+          <input type="text" id="buff-search" placeholder="Search buffs by name, class, or source..." autocomplete="off">
+        </div>
+        <div id="buff-quickmenu" class="buff-quickmenu">
+          <!-- populated by renderBuffPanel(): pinned common PoP raid buffs + recently used -->
+        </div>
+        <div id="buff-search-results" class="buff-search-results" style="display:none">
+          <!-- populated by renderBuffPanel(): full buff list on focus, filtered as you type -->
+        </div>
+        <div id="buff-active-list" class="buff-active-list">
+          <!-- populated by renderBuffPanel(): currently active buffs, grouped by category -->
+        </div>
+        <div id="bard-instr-panel">
+          <div class="buff-col-header">Bard Instrument Mods</div>
+          <div class="bard-instr-sliders">
+            <div class="bard-instr-slider" data-instr="singing">
+              <label for="bard-instr-singing">Singing <span class="bard-instr-val" id="bard-instr-val-singing">1.8&times;</span></label>
+              <input type="range" id="bard-instr-singing" class="bard-instr-input" min="0" max="4" step="1" value="1" title="Singing instrument modifier">
             </div>
-            <div id="buff-col-defensive" style="margin-top:0.6rem">
-              <div class="buff-col-header">Defensive</div>
+            <div class="bard-instr-slider" data-instr="stringed">
+              <label for="bard-instr-stringed">Stringed <span class="bard-instr-val" id="bard-instr-val-stringed">1.8&times;</span></label>
+              <input type="range" id="bard-instr-stringed" class="bard-instr-input" min="0" max="4" step="1" value="1" title="Stringed instrument modifier">
             </div>
-          </div>
-          <div id="bard-instr-panel">
-            <div class="buff-col-header">Bard Instrument Mods</div>
-            <div class="bard-instr-sliders">
-              <div class="bard-instr-slider" data-instr="singing">
-                <label for="bard-instr-singing">Singing <span class="bard-instr-val" id="bard-instr-val-singing">1.8&times;</span></label>
-                <input type="range" id="bard-instr-singing" class="bard-instr-input" min="0" max="4" step="1" value="1" title="Singing instrument modifier">
-              </div>
-              <div class="bard-instr-slider" data-instr="stringed">
-                <label for="bard-instr-stringed">Stringed <span class="bard-instr-val" id="bard-instr-val-stringed">1.8&times;</span></label>
-                <input type="range" id="bard-instr-stringed" class="bard-instr-input" min="0" max="4" step="1" value="1" title="Stringed instrument modifier">
-              </div>
-              <div class="bard-instr-slider" data-instr="brass">
-                <label for="bard-instr-brass">Brass <span class="bard-instr-val" id="bard-instr-val-brass">1.8&times;</span></label>
-                <input type="range" id="bard-instr-brass" class="bard-instr-input" min="0" max="4" step="1" value="1" title="Brass instrument modifier">
-              </div>
-              <div class="bard-instr-slider" data-instr="percussion">
-                <label for="bard-instr-percussion">Percussion <span class="bard-instr-val" id="bard-instr-val-percussion">1.8&times;</span></label>
-                <input type="range" id="bard-instr-percussion" class="bard-instr-input" min="0" max="4" step="1" value="1" title="Percussion instrument modifier">
-              </div>
-              <div class="bard-instr-slider" data-instr="wind">
-                <label for="bard-instr-wind">Wind <span class="bard-instr-val" id="bard-instr-val-wind">1.8&times;</span></label>
-                <input type="range" id="bard-instr-wind" class="bard-instr-input" min="0" max="4" step="1" value="1" title="Wind instrument modifier">
-              </div>
+            <div class="bard-instr-slider" data-instr="brass">
+              <label for="bard-instr-brass">Brass <span class="bard-instr-val" id="bard-instr-val-brass">1.8&times;</span></label>
+              <input type="range" id="bard-instr-brass" class="bard-instr-input" min="0" max="4" step="1" value="1" title="Brass instrument modifier">
+            </div>
+            <div class="bard-instr-slider" data-instr="percussion">
+              <label for="bard-instr-percussion">Percussion <span class="bard-instr-val" id="bard-instr-val-percussion">1.8&times;</span></label>
+              <input type="range" id="bard-instr-percussion" class="bard-instr-input" min="0" max="4" step="1" value="1" title="Percussion instrument modifier">
+            </div>
+            <div class="bard-instr-slider" data-instr="wind">
+              <label for="bard-instr-wind">Wind <span class="bard-instr-val" id="bard-instr-val-wind">1.8&times;</span></label>
+              <input type="range" id="bard-instr-wind" class="bard-instr-input" min="0" max="4" step="1" value="1" title="Wind instrument modifier">
             </div>
           </div>
         </div>
         <div class="buff-totals" id="buff-totals" style="display:none">
           <span><span class="bt-label">Haste v1: </span><span class="bt-val" id="bt-haste-v1">+0%</span></span>
-          <span id="bt-haste-v3-wrap" style="display:none"><span class="bt-label">V3 (bard): </span><span class="bt-val" id="bt-haste-v3">+0%</span></span>
+          <span id="bt-haste-v3-wrap" style="display:none"><span class="bt-label">V3 (bard/AA): </span><span class="bt-val" id="bt-haste-v3">+0%</span></span>
           <span><span class="bt-label">Spell ATK: </span><span class="bt-val" id="bt-atk">0</span></span>
           <span id="bt-worn-atk-wrap" style="display:none"><span class="bt-label">Worn ATK: </span><span class="bt-val" id="bt-worn-atk">0</span></span>
           <span><span class="bt-label">STR: </span><span class="bt-val" id="bt-str">+0</span></span>
@@ -3454,6 +3544,7 @@
     <details id="version-log-details">
     <summary style="cursor:pointer; font-size:1.17em; font-weight:bold; margin:0; list-style:revert;">Version log</summary>
     <ul style="font-size: 0.9rem; color: var(--muted); margin: 0.5rem 0 0; padding-left: 1.25rem;">
+      <li><strong>2.4</strong> — Rebuilt the Buffs panel: the old fixed checkbox grid is now a search box (focus it to browse the entire buff list, or type to filter), a Quick Menu of pinned common Planes of Power raid buffs plus your recently-used buffs, and an Active Buffs list with per-buff remove controls. Your active buff selection now persists across reloads (localStorage). Added hover tooltips to quick-menu chips. Also split <strong>Guardian of the Forest</strong> into three directly selectable entries — Guardian of the Forest I/II/III — instead of tracking the AA Configurator's rank, and added the Wizard-only <strong>Improved Familiar</strong> and <strong>Allegiant Familiar</strong> AAs as searchable buffs (mana pool/regen). The fight-duration uptime scaling used for timed buffs (previously Guardian of the Forest-only) is now generic and applies to any buff with a duration/reuse timer. Mechanics guide updated.</li>
       <li><strong>2.3</strong> — Added <strong>Iceflame of E`ci</strong> (PoP) to the Buffs panel's Offensive column, with correct stacking rules for its slot. Note: in-game this buff is a +30% damage focus on instant-cast cold spells, restricted to level-60 spells (not caster level — works at any character level) — a mechanic this sim's melee DPS math doesn't model, so checking it is for tracking purposes only and won't change your displayed stats.</li>
       <li><strong>2.2</strong> — Fix: switching to Planes of Power era left Easy Mode's Character Level stuck at 60 instead of following Advanced Mode's auto-bump to 65 — the level dropdown's options unlocked up to 65, but nothing re-synced its selected value or dependent assumptions (worn haste, stat caps, AA defaults) when the era changed out from under it. Era changes now re-sync Easy Mode's level and assumptions in both directions. Also increased Easy Mode's level-cap assumptions to better reflect a geared PoP 65 character: stat defaults (STR/AGI/DEX/STA) now assume Planar Power rank 5 (305 cap, up from a flat 255), Worn ATK defaults to 150 (previously 0 and not actually applied), and Spell ATK defaults to 200 for melee classes and Rangers (casters remain at 150).</li>
       <li><strong>2.1</strong> — The Melee and Ranged tabs' Target NPC search now surfaces a target's hand-tuned <strong>avoidance</strong> bonus (see 2.0 below) directly under the search bar the moment you select it — e.g. picking Bertoxxulous shows "This target carries a hand-tuned +100 avoidance bonus on top of the level-based formula (harder to hit) — already factored into this simulation's hit chance." Previously this modifier was applied silently; now it's visible right where you pick the target, and the note disappears automatically for targets without one (or when the target is cleared).</li>
@@ -4067,7 +4158,7 @@
       }
 
       // When releasing: 1) Bump VERSION below. 2) Add a new <li> at the top of the Version log section above.
-      const VERSION = '2.3';
+      const VERSION = '2.4';
       const versionEl = $('app-version');
       if (versionEl) versionEl.textContent = 'v' + VERSION;
 
@@ -4157,12 +4248,59 @@
       // Ranged tab uses the shared character module — no separate haste display needed.
 
       // ── Buff Panel ──────────────────────────────────────────────────────
+      // ── Buff selection state ─────────────────────────────────────────────
+      // Buff membership used to be read directly off checked checkboxes in the
+      // DOM; the search-filter/quick-menu panel instead needs an explicit list
+      // since matching buffs aren't all rendered at once. activeBuffIds is the
+      // source of truth; recentBuffIds is a separate MRU list (not necessarily
+      // active) that feeds the quick menu's "recently used" chips.
+      var activeBuffIds = [];
+      var recentBuffIds = [];
+      var buffSearchFocused = false; // true while #buff-search has focus — browses the full list when empty
+      var BUFFS_ACTIVE_KEY = 'gsim_buffs_active';
+      var BUFFS_RECENT_KEY = 'gsim_buffs_recent';
+      var BUFFS_RECENT_MAX = 10;
+
+      function loadBuffState() {
+        try {
+          var activeRaw = localStorage.getItem(BUFFS_ACTIVE_KEY);
+          if (activeRaw) activeBuffIds = JSON.parse(activeRaw) || [];
+        } catch (e) {}
+        try {
+          var recentRaw = localStorage.getItem(BUFFS_RECENT_KEY);
+          if (recentRaw) recentBuffIds = JSON.parse(recentRaw) || [];
+        } catch (e) {}
+      }
+      function saveBuffActiveState() {
+        try { localStorage.setItem(BUFFS_ACTIVE_KEY, JSON.stringify(activeBuffIds)); } catch (e) {}
+      }
+      function saveBuffRecentState() {
+        try { localStorage.setItem(BUFFS_RECENT_KEY, JSON.stringify(recentBuffIds)); } catch (e) {}
+      }
+
       function getActiveBuffIds() {
-        var ids = [];
-        if (!window.Buffs) return ids;
-        var checkboxes = document.querySelectorAll('.buff-checkbox:checked');
-        for (var i = 0; i < checkboxes.length; i++) ids.push(checkboxes[i].value);
-        return ids;
+        return activeBuffIds.slice();
+      }
+
+      function addActiveBuff(id) {
+        if (!id || activeBuffIds.indexOf(id) !== -1) return;
+        activeBuffIds.push(id);
+        recentBuffIds = recentBuffIds.filter(function (r) { return r !== id; });
+        recentBuffIds.unshift(id);
+        if (recentBuffIds.length > BUFFS_RECENT_MAX) recentBuffIds.length = BUFFS_RECENT_MAX;
+        saveBuffActiveState();
+        saveBuffRecentState();
+        renderBuffPanel();
+        updateBuffTotals();
+      }
+
+      function removeActiveBuff(id) {
+        var idx = activeBuffIds.indexOf(id);
+        if (idx === -1) return;
+        activeBuffIds.splice(idx, 1);
+        saveBuffActiveState();
+        renderBuffPanel();
+        updateBuffTotals();
       }
 
       // Reads the Bard Instrument Mods sliders (index 0-4 into INSTRUMENT_STOPS) and
@@ -4206,8 +4344,82 @@
         return (typeof EraConfig !== 'undefined' && EraConfig.getMaxLevel) ? EraConfig.getMaxLevel(eraId) : 60;
       }
 
+      // ── Timed buffs (short-duration clickies/AAs on a cooldown) ─────────
+      //
+      // Most Buffs-panel entries represent long-lasting raid buffs that are
+      // realistically maintained for an entire fight, so checking one simply
+      // applies its full value for the whole sim. A buff like Guardian of the
+      // Forest is different: it only lasts 48s on a 15-minute reuse, so
+      // treating it as "always on" badly overstates its value in a long
+      // (e.g. 600s) fight. Any buff definition that carries `durationSec`
+      // (and `cooldownSec`) is treated as "timed": the panel shows extra
+      // usage controls (persistent / on cooldown / fixed uses with a delay),
+      // and its effects get scaled by the resulting fight-average uptime
+      // fraction before being resolved.
+      //
+      // This is a duty-cycle approximation, not an exact per-swing window —
+      // the sim's damage/haste math isn't structured to vary mid-fight, so a
+      // 50% uptime buff is modeled as "half its ATK/haste for the whole
+      // fight" rather than "full value for exactly half the fight". For a
+      // flat ATK/haste bonus the two are equivalent in expectation over many
+      // runs; it just doesn't capture burst/variance within a single run.
+      var buffUsage = {}; // buffId -> { mode: 'persistent'|'oncooldown'|'fixed', uses, delaySec }
+
+      function getBuffUsageConfig(buff) {
+        if (!buffUsage[buff.id]) {
+          buffUsage[buff.id] = { mode: 'oncooldown', uses: 3, delaySec: buff.cooldownSec || 60 };
+        }
+        return buffUsage[buff.id];
+      }
+
+      /** Fraction of the fight (0-1) a timed buff is actually active, given its usage config. */
+      function computeBuffUptimeFraction(buff) {
+        if (!buff.durationSec) return 1; // not a timed buff — always-on when checked
+        var fightSec = parseInt(($('duration') && $('duration').value) || '6000', 10) || 6000;
+        if (fightSec <= 0) return 0;
+        var usage = getBuffUsageConfig(buff);
+        if (usage.mode === 'persistent') return 1;
+
+        var castTimes = [];
+        if (usage.mode === 'fixed') {
+          var uses = Math.max(1, Math.min(1000, parseInt(usage.uses, 10) || 1));
+          var delaySec = Math.max(0, parseInt(usage.delaySec, 10) || 0);
+          for (var i = 0; i < uses; i++) castTimes.push(i * delaySec);
+        } else { // 'oncooldown' — recast the instant it's available, starting at pull
+          var cd = Math.max(1, buff.cooldownSec || buff.durationSec);
+          for (var t = 0; t < fightSec && castTimes.length < 100000; t += cd) castTimes.push(t);
+        }
+        var activeSec = 0;
+        castTimes.forEach(function (t) {
+          if (t >= fightSec) return;
+          activeSec += Math.min(buff.durationSec, fightSec - t);
+        });
+        return Math.max(0, Math.min(1, activeSec / fightSec));
+      }
+
+      // Any buff with durationSec (currently the Guardian of the Forest ranks)
+      // only lasts part of the fight, so its nominal effects get scaled down by
+      // the fight-average uptime fraction (see computeBuffUptimeFraction above)
+      // before the stacking resolver sees them — otherwise a 48s/900s-reuse buff
+      // would count as if it were up the whole fight. The nominal (full-value)
+      // effects are captured once per buff into `_nominalEffects` so repeated
+      // calls (usage-mode changes, fight-duration edits) always scale from the
+      // original numbers rather than a previously-scaled value.
+      function syncTimedBuffEffects() {
+        if (!window.Buffs) return;
+        window.Buffs.BUFFS.forEach(function (buff) {
+          if (!buff.durationSec) return;
+          if (!buff._nominalEffects) buff._nominalEffects = buff.effects;
+          var fraction = computeBuffUptimeFraction(buff);
+          buff.effects = buff._nominalEffects
+            .map(function (e) { return { spa: e.spa, value: Math.round(e.value * fraction) }; })
+            .filter(function (e) { return e.value !== 0; });
+        });
+      }
+
       function getBuffEffects() {
         if (!window.Buffs) return null;
+        syncTimedBuffEffects();
         var ids = getActiveBuffIds();
         if (!ids.length) return null;
         return window.Buffs.resolveBuffEffects(ids, getBardCasterLevel(), getBardInstrumentMods());
@@ -4222,6 +4434,7 @@
 
       function updateBuffTotals() {
         if (!window.Buffs) return;
+        syncTimedBuffEffects();
         var ids = getActiveBuffIds();
         var countEl = $('buff-active-count');
         if (countEl) countEl.textContent = ids.length ? '(' + ids.length + ' active)' : '';
@@ -4381,57 +4594,269 @@
         var el = _getTipEl(); if (el) el.style.display = 'none';
       }
 
+      function isBuffAvailable(buff, eraId, EC, classId) {
+        if (buff.minEra && EC && !EC.isAvailableInEra(buff.minEra, eraId)) return false;
+        if (buff.classes && buff.classes.length && buff.classes.indexOf(classId) < 0) return false;
+        return true;
+      }
+
+      // Builds the shared "buff item" row (tooltip + optional usage-row controls
+      // for timed buffs) used in the Active Buffs list. `onRemove` wires up the
+      // row's remove control.
+      function buildActiveBuffItemEl(buff, onRemove) {
+        var item = document.createElement('div');
+        item.className = 'buff-item';
+        item.dataset.buffId = buff.id;
+        if (window.Buffs.buffTooltipText) {
+          var tipText = window.Buffs.buffTooltipText(buff);
+          if (buff.durationSec) {
+            tipText += '\n(' + Math.round(computeBuffUptimeFraction(buff) * 100) + '% fight uptime at current usage settings)';
+          }
+          item.addEventListener('mouseenter', function(e) { showBuffTooltip(tipText, e); });
+          item.addEventListener('mousemove',  function(e) { positionBuffTooltip(e); });
+          item.addEventListener('mouseleave', hideBuffTooltip);
+        }
+        var removeBtn = document.createElement('button');
+        removeBtn.type = 'button';
+        removeBtn.className = 'buff-remove-btn';
+        removeBtn.title = 'Remove this buff';
+        removeBtn.textContent = '×';
+        removeBtn.addEventListener('click', onRemove);
+        var lbl = document.createElement('label');
+        lbl.innerHTML = buff.name + ' <span class="buff-source">' + buff.source + '</span>';
+        item.appendChild(removeBtn);
+        item.appendChild(lbl);
+
+        if (buff.durationSec) {
+          var usage = getBuffUsageConfig(buff);
+          var row = document.createElement('div');
+          row.className = 'buff-usage-row';
+
+          var modeSel = document.createElement('select');
+          [
+            ['oncooldown', 'Recast on CD (' + buff.durationSec + 's / ' + buff.cooldownSec + 's reuse)'],
+            ['fixed', 'Fixed # of uses'],
+            ['persistent', 'Persistent (unrealistic)'],
+          ].forEach(function (opt) {
+            var o = document.createElement('option');
+            o.value = opt[0]; o.textContent = opt[1];
+            if (usage.mode === opt[0]) o.selected = true;
+            modeSel.appendChild(o);
+          });
+
+          var fixedWrap = document.createElement('span');
+          fixedWrap.style.display = 'inline-flex';
+          fixedWrap.style.alignItems = 'center';
+          fixedWrap.style.gap = '0.35rem';
+
+          var usesInput = document.createElement('input');
+          usesInput.type = 'number'; usesInput.min = '1'; usesInput.max = '1000';
+          usesInput.value = String(usage.uses);
+          usesInput.title = 'Number of times used during the fight';
+
+          var delayInput = document.createElement('input');
+          delayInput.type = 'number'; delayInput.min = '0';
+          delayInput.value = String(usage.delaySec);
+          delayInput.title = 'Seconds between uses';
+
+          fixedWrap.appendChild(usesInput);
+          fixedWrap.appendChild(document.createTextNode('uses,'));
+          fixedWrap.appendChild(delayInput);
+          fixedWrap.appendChild(document.createTextNode('s apart'));
+
+          var uptimeSpan = document.createElement('span');
+          uptimeSpan.className = 'buff-usage-uptime';
+
+          function refreshUsageRow() {
+            fixedWrap.style.display = usage.mode === 'fixed' ? 'inline-flex' : 'none';
+            uptimeSpan.textContent = Math.round(computeBuffUptimeFraction(buff) * 100) + '% uptime';
+          }
+          refreshUsageRow();
+
+          modeSel.addEventListener('change', function () {
+            usage.mode = modeSel.value;
+            refreshUsageRow();
+            updateBuffTotals();
+          });
+          usesInput.addEventListener('input', function () {
+            usage.uses = parseInt(usesInput.value, 10) || 1;
+            refreshUsageRow();
+            updateBuffTotals();
+          });
+          delayInput.addEventListener('input', function () {
+            usage.delaySec = parseInt(delayInput.value, 10) || 0;
+            refreshUsageRow();
+            updateBuffTotals();
+          });
+
+          row.appendChild(modeSel);
+          row.appendChild(fixedWrap);
+          row.appendChild(uptimeSpan);
+          item.appendChild(row);
+        }
+
+        return item;
+      }
+
+      var BUFF_CATEGORY_LABELS = { haste: 'Haste', offensive: 'Offensive', defensive: 'Defensive' };
+
       function renderBuffPanel() {
         if (!window.Buffs) return;
+        syncTimedBuffEffects();
         var eraId = ($('era-select') && $('era-select').value) || 'classic';
         var EC = typeof EraConfig !== 'undefined' ? EraConfig : null;
+        var classId = (($('class') && $('class').value) || '').toLowerCase();
 
-        // Save current checkbox states before clearing
-        var checkedIds = {};
-        document.querySelectorAll('.buff-checkbox').forEach(function (cb) {
-          checkedIds[cb.value] = cb.checked;
+        var available = window.Buffs.BUFFS.filter(function (b) { return isBuffAvailable(b, eraId, EC, classId); });
+        var availableById = {};
+        available.forEach(function (b) { availableById[b.id] = b; });
+
+        // Drop any active/recent buffs that are no longer valid for the
+        // current era/class (mirrors the old behavior where an unrendered
+        // checkbox silently stopped counting toward the totals).
+        var droppedActive = false;
+        activeBuffIds = activeBuffIds.filter(function (id) {
+          if (availableById[id]) return true;
+          droppedActive = true;
+          return false;
         });
+        if (droppedActive) saveBuffActiveState();
+        recentBuffIds = recentBuffIds.filter(function (id) { return availableById[id]; });
 
-        var colMap = { haste: 'buff-col-haste', offensive: 'buff-col-offensive', defensive: 'buff-col-defensive' };
-        var cols = {};
-        Object.keys(colMap).forEach(function (cat) {
-          var el = $(colMap[cat]);
-          if (el) {
-            // Keep the header, clear the rest
-            var header = el.querySelector('.buff-col-header');
-            el.innerHTML = '';
-            if (header) el.appendChild(header);
-            cols[cat] = el;
+        var activeSet = {};
+        activeBuffIds.forEach(function (id) { activeSet[id] = true; });
+
+        // ── Quick menu: pinned common PoP raid buffs + recently used ──────
+        var quickMenuEl = $('buff-quickmenu');
+        if (quickMenuEl) {
+          quickMenuEl.innerHTML = '';
+          function appendChip(buff) {
+            var chip = document.createElement('button');
+            chip.type = 'button';
+            chip.className = 'buff-chip';
+            chip.innerHTML = buff.name + ' <span class="buff-source">' + buff.source + '</span>';
+            chip.addEventListener('click', function () { addActiveBuff(buff.id); });
+            if (window.Buffs.buffTooltipText) {
+              var tipText = window.Buffs.buffTooltipText(buff);
+              chip.addEventListener('mouseenter', function(e) { showBuffTooltip(tipText, e); });
+              chip.addEventListener('mousemove',  function(e) { positionBuffTooltip(e); });
+              chip.addEventListener('mouseleave', hideBuffTooltip);
+            }
+            quickMenuEl.appendChild(chip);
           }
-        });
-
-        window.Buffs.BUFFS.forEach(function (buff) {
-          if (buff.minEra && EC && !EC.isAvailableInEra(buff.minEra, eraId)) return;
-          var col = cols[buff.category];
-          if (!col) return;
-          var item = document.createElement('div');
-          item.className = 'buff-item';
-          item.dataset.buffId = buff.id;
-          if (window.Buffs.buffTooltipText) {
-            var tipText = window.Buffs.buffTooltipText(buff);
-            item.addEventListener('mouseenter', function(e) { showBuffTooltip(tipText, e); });
-            item.addEventListener('mousemove',  function(e) { positionBuffTooltip(e); });
-            item.addEventListener('mouseleave', hideBuffTooltip);
+          var pinned = available.filter(function (b) { return b.quickMenu && !activeSet[b.id]; });
+          if (pinned.length) {
+            var pinnedLabel = document.createElement('div');
+            pinnedLabel.className = 'buff-quickmenu-label';
+            pinnedLabel.textContent = 'Common PoP Raid Buffs';
+            quickMenuEl.appendChild(pinnedLabel);
+            pinned.forEach(appendChip);
           }
-          var cb = document.createElement('input');
-          cb.type = 'checkbox';
-          cb.className = 'buff-checkbox';
-          cb.id = 'buff-' + buff.id;
-          cb.value = buff.id;
-          cb.checked = !!checkedIds[buff.id];
-          cb.addEventListener('change', updateBuffTotals);
-          var lbl = document.createElement('label');
-          lbl.htmlFor = 'buff-' + buff.id;
-          lbl.innerHTML = buff.name + ' <span class="buff-source">' + buff.source + '</span>';
-          item.appendChild(cb);
-          item.appendChild(lbl);
-          col.appendChild(item);
-        });
+          var recent = recentBuffIds
+            .map(function (id) { return availableById[id]; })
+            .filter(function (b) { return b && !b.quickMenu && !activeSet[b.id]; });
+          if (recent.length) {
+            var recentLabel = document.createElement('div');
+            recentLabel.className = 'buff-quickmenu-label';
+            recentLabel.textContent = 'Recently Used';
+            quickMenuEl.appendChild(recentLabel);
+            recent.forEach(appendChip);
+          }
+        }
+
+        // ── Search results ─────────────────────────────────────────────
+        // Typing filters by substring; focusing the (empty) search box browses
+        // the entire buff list (era/class-gated, minus whatever's already active)
+        // so every buff is reachable here, not just the quick-menu pins.
+        var searchEl = $('buff-search');
+        var resultsEl = $('buff-search-results');
+        var term = searchEl ? searchEl.value.trim().toLowerCase() : '';
+        if (resultsEl) {
+          if (!term && !buffSearchFocused) {
+            resultsEl.style.display = 'none';
+            resultsEl.innerHTML = '';
+          } else {
+            resultsEl.style.display = '';
+            resultsEl.innerHTML = '';
+            var matches = available.filter(function (b) {
+              if (activeSet[b.id]) return false;
+              if (!term) return true;
+              var haystack = [b.name, b.source, b.category].concat(b.classes || []).join(' ').toLowerCase();
+              return haystack.indexOf(term) !== -1;
+            });
+            if (!matches.length) {
+              var none = document.createElement('div');
+              none.className = 'buff-search-no-results';
+              none.textContent = 'No matching buffs.';
+              resultsEl.appendChild(none);
+            } else {
+              Object.keys(BUFF_CATEGORY_LABELS).forEach(function (cat) {
+                var inCat = matches.filter(function (b) { return b.category === cat; });
+                if (!inCat.length) return;
+                var header = document.createElement('div');
+                header.className = 'buff-active-cat-header';
+                header.textContent = BUFF_CATEGORY_LABELS[cat];
+                resultsEl.appendChild(header);
+                inCat.forEach(function (buff) {
+                  var row = document.createElement('div');
+                  row.className = 'buff-search-result-row';
+                  var icon = document.createElement('span');
+                  icon.className = 'buff-add-icon';
+                  icon.textContent = '+';
+                  var lbl = document.createElement('span');
+                  lbl.innerHTML = buff.name + ' <span class="buff-source">' + buff.source + '</span>';
+                  row.appendChild(icon);
+                  row.appendChild(lbl);
+                  if (window.Buffs.buffTooltipText) {
+                    var tipText = window.Buffs.buffTooltipText(buff);
+                    row.addEventListener('mouseenter', function(e) { showBuffTooltip(tipText, e); });
+                    row.addEventListener('mousemove',  function(e) { positionBuffTooltip(e); });
+                    row.addEventListener('mouseleave', hideBuffTooltip);
+                  }
+                  // mousedown (not click) so the row still fires before the
+                  // search input's blur handler can hide/clear this list.
+                  row.addEventListener('mousedown', function (e) {
+                    e.preventDefault();
+                    addActiveBuff(buff.id);
+                  });
+                  resultsEl.appendChild(row);
+                });
+              });
+            }
+          }
+        }
+
+        // ── Active buffs list, grouped by category ─────────────────────
+        var activeListEl = $('buff-active-list');
+        if (activeListEl) {
+          activeListEl.innerHTML = '';
+          if (!activeBuffIds.length) {
+            var empty = document.createElement('div');
+            empty.className = 'buff-active-empty';
+            empty.textContent = 'No active buffs. Use search or the quick menu above to add some.';
+            activeListEl.appendChild(empty);
+          } else {
+            Object.keys(BUFF_CATEGORY_LABELS).forEach(function (cat) {
+              var idsInCat = activeBuffIds.filter(function (id) {
+                var b = availableById[id];
+                return b && b.category === cat;
+              });
+              if (!idsInCat.length) return;
+              var header = document.createElement('div');
+              header.className = 'buff-active-cat-header';
+              header.textContent = BUFF_CATEGORY_LABELS[cat];
+              activeListEl.appendChild(header);
+              idsInCat.forEach(function (id) {
+                var buff = availableById[id];
+                var item = buildActiveBuffItemEl(buff, function () { removeActiveBuff(id); });
+                activeListEl.appendChild(item);
+              });
+            });
+          }
+        }
+
+        var countEl = $('buff-active-count');
+        if (countEl) countEl.textContent = activeBuffIds.length ? '(' + activeBuffIds.length + ' active)' : '';
       }
       // ── End Buff Panel ──────────────────────────────────────────────────
 
@@ -10129,6 +10554,7 @@
         lastMeleeLevel = parseInt(($('level') && $('level').value) || '60', 10) || 60;
         if (typeof buildAAConfiguratorUI === 'function') buildAAConfiguratorUI();
         if (typeof buildPetPanelUI === 'function') buildPetPanelUI();
+        if (typeof renderBuffPanel === 'function') renderBuffPanel();
         updateRangedNonRangerWarning();
         if (typeof window.refreshRotationSpellPool === 'function') window.refreshRotationSpellPool();
         if (typeof refreshRangedSpellPool === 'function') refreshRangedSpellPool();
@@ -10403,9 +10829,38 @@
 
       $('class').dispatchEvent(new Event('change'));
 
-      // Init buff panel
+      // Init buff panel — restore previously-active/recent buffs before the
+      // first render so they immediately apply to all sim tabs.
+      loadBuffState();
       renderBuffPanel();
+      updateBuffTotals();
       updateEffectiveHasteDisplay();
+      if ($('buff-search')) {
+        $('buff-search').addEventListener('input', renderBuffPanel);
+        $('buff-search').addEventListener('focus', function () {
+          buffSearchFocused = true;
+          renderBuffPanel();
+        });
+        $('buff-search').addEventListener('blur', function () {
+          // Delay so a click/mousedown on a result row (which we handle on
+          // mousedown specifically for this reason) isn't torn out of the DOM
+          // by this blur's re-render before it gets to register.
+          setTimeout(function () {
+            buffSearchFocused = false;
+            renderBuffPanel();
+          }, 150);
+        });
+      }
+
+      // Timed buffs' uptime fraction (and thus their effective ATK/haste) depends
+      // on fight duration — re-render so the panel's uptime % and the scaled
+      // totals stay current when the user edits it.
+      if ($('duration')) {
+        $('duration').addEventListener('input', function () {
+          renderBuffPanel();
+          updateBuffTotals();
+        });
+      }
 
       // Bard Instrument Mods sliders — recompute buff totals whenever a modifier changes
       updateBardInstrumentLabels();

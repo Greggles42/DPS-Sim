@@ -548,6 +548,27 @@
       rankLabels: ['Off', '1 (1% proc crit)', '2 (2% proc crit)', '3 (3% proc crit)']
     },
     {
+      // altadv_vars.csv skill_id 545, classes bitmask 16 = Ranger only. Grants
+      // spell 3271/3272/3273 (rank 1/2/3): a self-buff, 8 ticks (48s) on a 900s
+      // (15 min) reuse. effectid[]: SE_ATK (base1 100/120/140) + SE_AttackSpeed3
+      // (base1 5/10/15, SPA 119 — same slot buffs.js calls HASTE_V3) + a cosmetic
+      // wolf-form illusion (SE_Illusion, not modeled). This AA rank selector is
+      // for record-keeping only — the actual buff is three separate, directly
+      // selectable entries in the Buffs panel (js/modules/buffs.js:
+      // 'guardian_of_the_forest_1'/'_2'/'_3', one per rank), since the rank you
+      // search for/toggle there is what drives the sim, not this dropdown.
+      id: 'guardianOfTheForest',
+      label: 'Guardian of the Forest',
+      era: 'pop',
+      section: 'pop_ability',
+      ranks: 3,
+      classes: ['ranger'],
+      simOption: 'guardianOfTheForestRank',
+      category: 'combat',
+      description: 'Self buff, rank 1/2/3: +100/+120/+140 ATK and +5%/+10%/+15% haste (SPA 119, stacks with normal haste). 48s duration, 15 min reuse. Select the matching rank (Guardian of the Forest I/II/III) in the Buffs panel to include it in a sim.',
+      rankLabels: ['Off', '1 (+100 ATK, +5% haste)', '2 (+120 ATK, +10% haste)', '3 (+140 ATK, +15% haste)']
+    },
+    {
       id: 'lightningReflexes',
       label: 'Lightning Reflexes',
       era: 'pop',
