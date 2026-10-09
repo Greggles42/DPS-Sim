@@ -2036,6 +2036,21 @@
     .buff-totals .bt-label { color: var(--muted); }
     .buff-totals .bt-val  { color: var(--accent); font-weight: 600; }
     .buff-totals .bt-zero { color: var(--muted); opacity: 0.5; }
+    .buff-totals .bt-val.bt-uptime-avg {
+      text-decoration: underline dotted var(--muted);
+      text-underline-offset: 2px;
+      cursor: help;
+    }
+    .buff-uptime-note {
+      margin: 0.35rem 1.25rem 1rem;
+      padding: 0.3rem 0.6rem;
+      border-left: 2px solid var(--accent);
+      background: rgba(212,175,55,0.08);
+      font-size: 0.72rem;
+      color: var(--muted);
+      line-height: 1.4;
+    }
+    .buff-uptime-note strong { color: var(--text); }
     .buff-totals .bt-separator { width: 1px; height: 0.9em; background: var(--border); display: inline-block; margin: 0 0.15rem; vertical-align: middle; }
     /* In the char-effective-stats box, the separator acts as a full-width flex break
        so haste values stay on one line and ATK values start on the next line. */
@@ -2687,6 +2702,7 @@
           <span><span class="bt-label">HP: </span><span class="bt-val" id="bt-hp">+0</span></span>
           <span><span class="bt-label">Mana regen/tick: </span><span class="bt-val" id="bt-mana-regen">+0</span></span>
         </div>
+        <div class="buff-uptime-note" id="buff-uptime-note" style="display:none"></div>
       </details>
   </section>
   </div><!-- /.char-buff-pair -->
@@ -4398,31 +4414,73 @@
       }
 
       // Any buff with durationSec (currently the Guardian of the Forest ranks)
-      // only lasts part of the fight, so its nominal effects get scaled down by
-      // the fight-average uptime fraction (see computeBuffUptimeFraction above)
-      // before the stacking resolver sees them — otherwise a 48s/900s-reuse buff
-      // would count as if it were up the whole fight. The nominal (full-value)
-      // effects are captured once per buff into `_nominalEffects` so repeated
-      // calls (usage-mode changes, fight-duration edits) always scale from the
-      // original numbers rather than a previously-scaled value.
-      function syncTimedBuffEffects() {
-        if (!window.Buffs) return;
-        window.Buffs.BUFFS.forEach(function (buff) {
-          if (!buff.durationSec) return;
-          if (!buff._nominalEffects) buff._nominalEffects = buff.effects;
-          var fraction = computeBuffUptimeFraction(buff);
-          buff.effects = buff._nominalEffects
-            .map(function (e) { return { spa: e.spa, value: Math.round(e.value * fraction) }; })
-            .filter(function (e) { return e.value !== 0; });
+      // only lasts part of the fight, so its contribution to computed totals
+      // gets scaled down by the fight-average uptime fraction (see
+      // computeBuffUptimeFraction above) — otherwise a 48s/900s-reuse buff
+      // would count as if it were up the whole fight. This builds a
+      // { buffId: fraction } map for every *active* timed buff and hands it
+      // to window.Buffs.resolve*() to scale with — buffs.js itself never
+      // mutates BUFFS[].effects, so tooltips and the Buffs panel always show
+      // each buff's real, full-strength numbers regardless of usage mode.
+      function getActiveUptimeScales(ids) {
+        if (!window.Buffs) return null;
+        var scales = null;
+        ids.forEach(function (id) {
+          var buff = window.Buffs.BUFFS.filter(function (b) { return b.id === id; })[0];
+          if (!buff || !buff.durationSec) return;
+          if (!scales) scales = {};
+          scales[id] = computeBuffUptimeFraction(buff);
         });
+        return scales;
+      }
+
+      // Builds a human-readable breakdown of which Buffs-panel totals are
+      // uptime-averaged (i.e. include a timed buff that isn't up 100% of the
+      // fight) so that's visible at a glance instead of a flat number that
+      // silently differs from the buff's own tooltip. Returns null when every
+      // active timed buff is at full (100%) uptime, e.g. "Persistent" mode.
+      function buildUptimeAveragedInfo(ids, uptimeScales) {
+        if (!window.Buffs || !uptimeScales) return null;
+        var SPA = window.Buffs.SPA;
+        var BT_ID_BY_SPA = {};
+        BT_ID_BY_SPA[SPA.HASTE_V1]   = 'bt-haste-v1';
+        BT_ID_BY_SPA[SPA.HASTE_V3]   = 'bt-haste-v3';
+        BT_ID_BY_SPA[SPA.ATK]        = 'bt-atk';
+        BT_ID_BY_SPA[SPA.STR]        = 'bt-str';
+        BT_ID_BY_SPA[SPA.DEX]        = 'bt-dex';
+        BT_ID_BY_SPA[SPA.AGI]        = 'bt-agi';
+        BT_ID_BY_SPA[SPA.STA]        = 'bt-sta';
+        BT_ID_BY_SPA[SPA.AC]         = 'bt-ac';
+        BT_ID_BY_SPA[SPA.TOTAL_HP]   = 'bt-hp';
+        BT_ID_BY_SPA[SPA.MANA_REGEN] = 'bt-mana-regen';
+
+        var affectedIds = {};
+        var buffNotes = [];
+        Object.keys(uptimeScales).forEach(function (buffId) {
+          var fraction = uptimeScales[buffId];
+          if (fraction >= 1) return; // fully up for the fight — nothing to flag
+          var buff = window.Buffs.BUFFS.filter(function (b) { return b.id === buffId; })[0];
+          if (!buff) return;
+          buff.effects.forEach(function (e) {
+            var elId = BT_ID_BY_SPA[e.spa];
+            if (elId) affectedIds[elId] = true;
+          });
+          buffNotes.push(buff.name + ' (' + Math.round(fraction * 100) + '% uptime)');
+        });
+        if (!buffNotes.length) return null;
+        return {
+          affectedIds: affectedIds,
+          noteHtml: 'Dotted-underline totals include an <strong>uptime-averaged</strong> contribution — scaled down to ' +
+            'reflect how often the timed buff below is actually active, not its full listed strength (hover a dotted ' +
+            'value, or the buff itself in the Active list, to see both): ' + buffNotes.join(', ') + '.'
+        };
       }
 
       function getBuffEffects() {
         if (!window.Buffs) return null;
-        syncTimedBuffEffects();
         var ids = getActiveBuffIds();
         if (!ids.length) return null;
-        return window.Buffs.resolveBuffEffects(ids, getBardCasterLevel(), getBardInstrumentMods());
+        return window.Buffs.resolveBuffEffects(ids, getBardCasterLevel(), getBardInstrumentMods(), getActiveUptimeScales(ids));
       }
       // Expose so tanking and other tabs can share the same buff resolution
       window.getBuffEffects = getBuffEffects;
@@ -4434,7 +4492,6 @@
 
       function updateBuffTotals() {
         if (!window.Buffs) return;
-        syncTimedBuffEffects();
         var ids = getActiveBuffIds();
         var countEl = $('buff-active-count');
         if (countEl) countEl.textContent = ids.length ? '(' + ids.length + ' active)' : '';
@@ -4447,6 +4504,8 @@
 
         if (!ids.length) {
           totalsEl.style.display = 'none';
+          var noteElEmpty = $('buff-uptime-note');
+          if (noteElEmpty) noteElEmpty.style.display = 'none';
           document.querySelectorAll('.buff-item.dominated').forEach(function (el) { el.classList.remove('dominated'); });
           var tblEmpty = document.querySelector('.stat-dist-table');
           if (tblEmpty) tblEmpty.classList.remove('has-stat-buffs');
@@ -4479,8 +4538,10 @@
           return;
         }
 
-        var result = window.Buffs.resolveBuffsWithDominance(ids, getBardCasterLevel(), getBardInstrumentMods());
+        var uptimeScales = getActiveUptimeScales(ids);
+        var result = window.Buffs.resolveBuffsWithDominance(ids, getBardCasterLevel(), getBardInstrumentMods(), uptimeScales);
         var t = result.totals;
+        var uptimeInfo = buildUptimeAveragedInfo(ids, uptimeScales);
         totalsEl.style.display = '';
 
         // Update spell-haste inputs with V1 haste only (V3 bard haste is computed separately)
@@ -4514,12 +4575,18 @@
           spellAtkEl.value = '0';
           spellAtkEl._buffUpdate = false;
         }
+        function markUptimeAveraged(el, id) {
+          var averaged = !!(uptimeInfo && uptimeInfo.affectedIds[id]);
+          el.classList.toggle('bt-uptime-avg', averaged);
+          el.title = averaged ? 'Uptime-averaged — see the note below the totals.' : '';
+        }
         function setVal(id, v, isPercent) {
           var el = $(id);
           if (!el) return;
           var display = (v > 0 ? '+' : '') + v + (isPercent ? '%' : '');
           el.textContent = display;
           el.parentElement.className = v ? 'bt-val' : 'bt-zero';
+          markUptimeAveraged(el, id);
         }
         setVal('bt-haste-v1', buffV1, true);
         var v3Wrap = $('bt-haste-v3-wrap');
@@ -4529,6 +4596,7 @@
           var v3Cap = Math.min(buffV3, 25);
           v3El.textContent = '+' + buffV3 + '%' + (buffV3 > 25 ? ' (cap 25%)' : '');
           v3El.parentElement.className = buffV3 ? 'bt-val' : 'bt-zero';
+          markUptimeAveraged(v3El, 'bt-haste-v3');
         }
         setVal('bt-str', t.str);
         setVal('bt-dex', t.dex);
@@ -4546,7 +4614,11 @@
         var netSpellAtk = spellAtkInput + (t.atk || 0);
         var netWornAtk  = wornAtkInput  + (t.wornAtk || 0);
         var atkEl = $('bt-atk');
-        if (atkEl) { atkEl.textContent = String(netSpellAtk); atkEl.parentElement.className = netSpellAtk ? 'bt-val' : 'bt-zero'; }
+        if (atkEl) {
+          atkEl.textContent = String(netSpellAtk);
+          atkEl.parentElement.className = netSpellAtk ? 'bt-val' : 'bt-zero';
+          markUptimeAveraged(atkEl, 'bt-atk');
+        }
         var wornAtkWrap = $('bt-worn-atk-wrap');
         if (wornAtkWrap) wornAtkWrap.style.display = t.wornAtk ? '' : 'none';
         var wornAtkEl = $('bt-worn-atk');
@@ -4565,6 +4637,16 @@
         document.querySelectorAll('.buff-item[data-buff-id]').forEach(function (el) {
           el.classList.toggle('dominated', result.dominated.has(el.dataset.buffId));
         });
+
+        var noteEl = $('buff-uptime-note');
+        if (noteEl) {
+          if (uptimeInfo) {
+            noteEl.innerHTML = uptimeInfo.noteHtml;
+            noteEl.style.display = '';
+          } else {
+            noteEl.style.display = 'none';
+          }
+        }
       }
 
       // ── Buff tooltip helpers ─────────────────────────────────────────────
@@ -4702,7 +4784,6 @@
 
       function renderBuffPanel() {
         if (!window.Buffs) return;
-        syncTimedBuffEffects();
         var eraId = ($('era-select') && $('era-select').value) || 'classic';
         var EC = typeof EraConfig !== 'undefined' ? EraConfig : null;
         var classId = (($('class') && $('class').value) || '').toLowerCase();

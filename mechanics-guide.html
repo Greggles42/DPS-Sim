@@ -2275,6 +2275,15 @@
         "no bonus, then full bonus for 48 seconds, repeat." If you want to see the burst itself rather than its
         average, that's not something this toggle models.
       </p>
+      <p class="muted">
+        This averaging only ever touches the <strong>totals</strong> shown at the bottom of the Buffs panel and
+        what actually feeds the sim — hovering the buff itself (in the quick menu, search results, or the Active
+        list) always shows its full, nominal in-game numbers, e.g. Guardian of the Forest III's tooltip always
+        reads "+140 ATK, +15% Haste (V3)" regardless of usage mode. Any total that's been scaled down by a
+        less-than-100%-uptime buff gets a dotted underline, and a note appears below the totals listing exactly
+        which buff(s) and at what uptime — so a value like "+8 ATK" is clearly flagged as an average rather than
+        looking like a flat, always-on number.
+      </p>
     </div>
 
     <p class="muted">

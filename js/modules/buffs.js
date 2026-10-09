@@ -956,6 +956,26 @@
   ];
 
   /**
+   * A buff with `durationSec` (e.g. Guardian of the Forest) isn't up for the
+   * whole fight, so its contribution to computed totals gets scaled down by
+   * its fight-average uptime fraction — but `buff.effects` itself always
+   * stays the nominal, full-strength value (what the tooltip shows and what
+   * the in-game ability actually grants while active). `uptimeScales` is an
+   * optional { buffId: fraction } map the caller (index.html) builds from
+   * computeBuffUptimeFraction(); this returns a scaled *copy* for resolution
+   * purposes without mutating the shared BUFFS definition.
+   */
+  function scaleTimedBuffEffects(buff, uptimeScales) {
+    if (!buff.durationSec || !uptimeScales) return buff;
+    var scale = uptimeScales[buff.id];
+    if (scale == null) return buff;
+    var scaled = buff.effects
+      .map(function (e) { return { spa: e.spa, value: Math.round(e.value * scale) }; })
+      .filter(function (e) { return e.value !== 0; });
+    return Object.assign({}, buff, { effects: scaled });
+  }
+
+  /**
    * Resolve the combined stat contribution of a set of active buffs.
    *
    * Rules:
@@ -967,9 +987,10 @@
    * @param {string[]} activeBuffIds
    * @param {number}   [playerLevel=60]  — used to scale bard song effects
    * @param {Object}   [instrumentMods]  — { singing, stringed, brass, percussion, wind } modifier overrides
+   * @param {Object}   [uptimeScales]    — { buffId: fraction } for timed buffs (durationSec); see scaleTimedBuffEffects
    * @returns {{ atk, str, dex, agi, sta, ac, hp, hasteV1, hasteBard }}
    */
-  function resolveBuffEffects(activeBuffIds, playerLevel, instrumentMods) {
+  function resolveBuffEffects(activeBuffIds, playerLevel, instrumentMods, uptimeScales) {
     var level = (playerLevel != null && playerLevel > 0) ? playerLevel : 60;
     var active = BUFFS.filter(function (b) {
       return activeBuffIds.indexOf(b.id) !== -1;
@@ -981,6 +1002,9 @@
       var computed = buildBardEffects(b.rawSlots, level, resolveInstrumentMod(b, instrumentMods));
       return Object.assign({}, b, { effects: computed });
     });
+
+    // Scale timed buffs (durationSec) by their fight-average uptime fraction
+    active = active.map(function (b) { return scaleTimedBuffEffects(b, uptimeScales); });
 
     var totals = { atk: 0, wornAtk: 0, str: 0, dex: 0, agi: 0, sta: 0, int: 0, wis: 0, ac: 0, hp: 0, hasteV1: 0, hasteBard: 0, manaRegen: 0, manaPool: 0 };
 
@@ -1072,7 +1096,7 @@
    * contributions are fully dominated (overridden) by another active buff.
    * Used to dim/strikethrough overridden buffs in the UI.
    */
-  function resolveBuffsWithDominance(activeBuffIds, playerLevel, instrumentMods) {
+  function resolveBuffsWithDominance(activeBuffIds, playerLevel, instrumentMods, uptimeScales) {
     var level = (playerLevel != null && playerLevel > 0) ? playerLevel : 60;
     var active = BUFFS.filter(function (b) {
       return activeBuffIds.indexOf(b.id) !== -1;
@@ -1082,7 +1106,11 @@
       if (!b.bardSong || !b.rawSlots) return b;
       return Object.assign({}, b, { effects: buildBardEffects(b.rawSlots, level, resolveInstrumentMod(b, instrumentMods)) });
     });
-    var totals = resolveBuffEffects(activeBuffIds, level, instrumentMods);
+    // Scale timed buffs (durationSec) by their fight-average uptime fraction,
+    // same as resolveBuffEffects, so the dominance check below compares the
+    // same effective values that actually feed the totals.
+    active = active.map(function (b) { return scaleTimedBuffEffects(b, uptimeScales); });
+    var totals = resolveBuffEffects(activeBuffIds, level, instrumentMods, uptimeScales);
     var dominated = new Set();
 
     // wornType buffs are fully dominated if any spell (non-worn) buff occupies the same SAI group
