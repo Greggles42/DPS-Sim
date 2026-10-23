@@ -2893,6 +2893,7 @@
           <button type="button" id="btn-rank-weapons" class="magic-btn btn-rank-inline" title="Rank weapons by DPS (Shift+Click Run to show)">Rank weapons</button>
           <label class="checkbox-label"><input type="checkbox" id="rank-weapons-ignore-nodrop" title="When checked, excludes items with nodrop = 0 from rank results"> Ignore No Drop items</label>
           <label class="checkbox-label"><input type="checkbox" id="rank-weapons-by-tps" title="When checked, rank and sort by threat per second instead of DPS"> Rank by threat per second (TPS)</label>
+          <label class="checkbox-label"><input type="checkbox" id="rank-weapons-only-2h" title="When checked, only ranks two-handed weapons"> Only rank 2H weapons</label>
         </div>
         <label class="checkbox-label"><input type="checkbox" id="rank-weapons-include-pop" title="When checked, include PoP-era items from weapons.json (except weapon_exclusions)"> Enable PoP items in rank</label>
       </div>
@@ -3034,35 +3035,35 @@
       <span id="ranged-spellcast-pool-hint" class="hint" style="margin:0;">Click Refresh to check availability/damage for the current level/target.</span>
     </div>
     <div style="margin-top:0.6rem;display:flex;flex-direction:column;gap:0.3rem;" id="ranged-spellcast-queue">
-      <div class="ranged-spellcast-row" data-key="calefaction" style="display:flex;align-items:center;gap:0.35rem;">
-        <button type="button" class="magic-btn ranged-spellcast-up" data-key="calefaction" style="padding:0.1rem 0.6rem;" title="Move up">↑</button>
-        <button type="button" class="magic-btn ranged-spellcast-down" data-key="calefaction" style="padding:0.1rem 0.6rem;" title="Move down">↓</button>
-        <label class="checkbox-label" style="margin:0;"><input type="checkbox" id="ranged-spellcast-calefaction"> Calefaction <span id="ranged-spellcast-calefaction-info" class="hint" style="margin:0;"></span></label>
-      </div>
-      <div class="ranged-spellcast-row" data-key="callofflame" style="display:flex;align-items:center;gap:0.35rem;">
-        <button type="button" class="magic-btn ranged-spellcast-up" data-key="callofflame" style="padding:0.1rem 0.6rem;" title="Move up">↑</button>
-        <button type="button" class="magic-btn ranged-spellcast-down" data-key="callofflame" style="padding:0.1rem 0.6rem;" title="Move down">↓</button>
-        <label class="checkbox-label" style="margin:0;"><input type="checkbox" id="ranged-spellcast-callofflame"> Call of Flame <span id="ranged-spellcast-callofflame-info" class="hint" style="margin:0;"></span></label>
-      </div>
-      <div class="ranged-spellcast-row" data-key="firestrike" style="display:flex;align-items:center;gap:0.35rem;">
-        <button type="button" class="magic-btn ranged-spellcast-up" data-key="firestrike" style="padding:0.1rem 0.6rem;" title="Move up">↑</button>
-        <button type="button" class="magic-btn ranged-spellcast-down" data-key="firestrike" style="padding:0.1rem 0.6rem;" title="Move down">↓</button>
-        <label class="checkbox-label" style="margin:0;"><input type="checkbox" id="ranged-spellcast-firestrike"> Firestrike <span id="ranged-spellcast-firestrike-info" class="hint" style="margin:0;"></span></label>
+      <div class="ranged-spellcast-row" data-key="brushfire" style="display:flex;align-items:center;gap:0.35rem;">
+        <button type="button" class="magic-btn ranged-spellcast-up" data-key="brushfire" style="padding:0.1rem 0.6rem;" title="Move up">↑</button>
+        <button type="button" class="magic-btn ranged-spellcast-down" data-key="brushfire" style="padding:0.1rem 0.6rem;" title="Move down">↓</button>
+        <label class="checkbox-label" style="margin:0;"><input type="checkbox" id="ranged-spellcast-brushfire"> Brushfire <span id="ranged-spellcast-brushfire-info" class="hint" style="margin:0;"></span></label>
       </div>
       <div class="ranged-spellcast-row" data-key="frozenwind" style="display:flex;align-items:center;gap:0.35rem;">
         <button type="button" class="magic-btn ranged-spellcast-up" data-key="frozenwind" style="padding:0.1rem 0.6rem;" title="Move up">↑</button>
         <button type="button" class="magic-btn ranged-spellcast-down" data-key="frozenwind" style="padding:0.1rem 0.6rem;" title="Move down">↓</button>
         <label class="checkbox-label" style="margin:0;"><input type="checkbox" id="ranged-spellcast-frozenwind"> Frozen Wind <span id="ranged-spellcast-frozenwind-info" class="hint" style="margin:0;"></span></label>
       </div>
-      <div class="ranged-spellcast-row" data-key="brushfire" style="display:flex;align-items:center;gap:0.35rem;">
-        <button type="button" class="magic-btn ranged-spellcast-up" data-key="brushfire" style="padding:0.1rem 0.6rem;" title="Move up">↑</button>
-        <button type="button" class="magic-btn ranged-spellcast-down" data-key="brushfire" style="padding:0.1rem 0.6rem;" title="Move down">↓</button>
-        <label class="checkbox-label" style="margin:0;"><input type="checkbox" id="ranged-spellcast-brushfire"> Brushfire <span id="ranged-spellcast-brushfire-info" class="hint" style="margin:0;"></span></label>
-      </div>
       <div class="ranged-spellcast-row" data-key="driftingdeath" style="display:flex;align-items:center;gap:0.35rem;">
         <button type="button" class="magic-btn ranged-spellcast-up" data-key="driftingdeath" style="padding:0.1rem 0.6rem;" title="Move up">↑</button>
         <button type="button" class="magic-btn ranged-spellcast-down" data-key="driftingdeath" style="padding:0.1rem 0.6rem;" title="Move down">↓</button>
         <label class="checkbox-label" style="margin:0;"><input type="checkbox" id="ranged-spellcast-driftingdeath"> Drifting Death <span id="ranged-spellcast-driftingdeath-info" class="hint" style="margin:0;"></span></label>
+      </div>
+      <div class="ranged-spellcast-row" data-key="calefaction" style="display:flex;align-items:center;gap:0.35rem;">
+        <button type="button" class="magic-btn ranged-spellcast-up" data-key="calefaction" style="padding:0.1rem 0.6rem;" title="Move up">↑</button>
+        <button type="button" class="magic-btn ranged-spellcast-down" data-key="calefaction" style="padding:0.1rem 0.6rem;" title="Move down">↓</button>
+        <label class="checkbox-label" style="margin:0;"><input type="checkbox" id="ranged-spellcast-calefaction"> Calefaction <span id="ranged-spellcast-calefaction-info" class="hint" style="margin:0;"></span></label>
+      </div>
+      <div class="ranged-spellcast-row" data-key="firestrike" style="display:flex;align-items:center;gap:0.35rem;">
+        <button type="button" class="magic-btn ranged-spellcast-up" data-key="firestrike" style="padding:0.1rem 0.6rem;" title="Move up">↑</button>
+        <button type="button" class="magic-btn ranged-spellcast-down" data-key="firestrike" style="padding:0.1rem 0.6rem;" title="Move down">↓</button>
+        <label class="checkbox-label" style="margin:0;"><input type="checkbox" id="ranged-spellcast-firestrike"> Firestrike <span id="ranged-spellcast-firestrike-info" class="hint" style="margin:0;"></span></label>
+      </div>
+      <div class="ranged-spellcast-row" data-key="callofflame" style="display:flex;align-items:center;gap:0.35rem;">
+        <button type="button" class="magic-btn ranged-spellcast-up" data-key="callofflame" style="padding:0.1rem 0.6rem;" title="Move up">↑</button>
+        <button type="button" class="magic-btn ranged-spellcast-down" data-key="callofflame" style="padding:0.1rem 0.6rem;" title="Move down">↓</button>
+        <label class="checkbox-label" style="margin:0;"><input type="checkbox" id="ranged-spellcast-callofflame"> Call of Flame <span id="ranged-spellcast-callofflame-info" class="hint" style="margin:0;"></span></label>
       </div>
     </div>
     <div class="target-fight-row" style="margin-top:0.6rem;">
@@ -7575,6 +7576,7 @@
         var includePop = ($('rank-weapons-include-pop') && $('rank-weapons-include-pop').checked) === true;
         var ignoreNoDrop = ($('rank-weapons-ignore-nodrop') && $('rank-weapons-ignore-nodrop').checked) === true;
         var rankByTps = ($('rank-weapons-by-tps') && $('rank-weapons-by-tps').checked) === true;
+        var rankOnly2H = ($('rank-weapons-only-2h') && $('rank-weapons-only-2h').checked) === true;
         if (typeof weaponListLoadPromise !== 'undefined' && weaponListLoadPromise) await weaponListLoadPromise;
         if (typeof allWeaponsData === 'undefined' || !allWeaponsData || typeof allWeaponsData !== 'object' || Object.keys(allWeaponsData).length === 0) {
           $('report').textContent = 'resources/weapons.json is required. Run node scripts/merge-weapons.mjs if missing.';
@@ -7890,7 +7892,7 @@
           var raw = (allWeaponsData && allWeaponsData[id]) || (weaponListData && weaponListData[id]);
           var slots = (raw && raw.slots != null) ? parseInt(raw.slots, 10) : null;
           if (slots !== slots) slots = null;
-          var primOk = primarySlotAllowed(slots, is2H);
+          var primOk = primarySlotAllowed(slots, is2H) && (!rankOnly2H || is2H);
           var secOk = secondarySlotAllowed(slots, is2H) && !is2H && !(norm.type && offhandBlockedTypes[norm.type]);
           if (primOk) primaryWeapons.push(id);
           if (secOk) secondaryWeapons.push(id);
@@ -7919,7 +7921,7 @@
             }
           }
         });
-        if (canDualWield) {
+        if (canDualWield && !rankOnly2H) {
           secondaryWeapons.forEach(function (secondaryId) {
             combinations.push({ primaryId: null, secondaryId: secondaryId });
           });
@@ -10359,7 +10361,7 @@
         brushfire: { checkboxId: 'ranged-spellcast-brushfire', infoId: 'ranged-spellcast-brushfire-info', name: 'Brushfire' },
         driftingdeath: { checkboxId: 'ranged-spellcast-driftingdeath', infoId: 'ranged-spellcast-driftingdeath-info', name: 'Drifting Death' }
       };
-      window._rangedSpellOrder = window._rangedSpellOrder || ['calefaction', 'callofflame', 'firestrike', 'frozenwind', 'brushfire', 'driftingdeath'];
+      window._rangedSpellOrder = window._rangedSpellOrder || ['brushfire', 'frozenwind', 'driftingdeath', 'calefaction', 'firestrike', 'callofflame'];
       window._rangedSpellPool = window._rangedSpellPool || [];
 
       /** Reflows the queue rows into DOM order matching window._rangedSpellOrder
