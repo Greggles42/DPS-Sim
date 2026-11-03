@@ -837,10 +837,15 @@
     let speedMs = (bow.delay / hasteModRanged) * DECISEC_TO_MS;
     const quiverHaste = (options.quiverHaste != null && !Number.isNaN(Number(options.quiverHaste)) && Number(options.quiverHaste) > 0) ? Number(options.quiverHaste) : 0;
     let quiverHasteApplied = false;
+    let quiverPreCorrectionSpeedMs;
+    let quiverReductionMs;
+    let quiverWouldBeTimerMs;
     if (quiverHaste > 0) {
-      const bowDelayReduction = Math.floor(quiverHaste * speedMs) + 1;
-      if (speedMs - bowDelayReduction > 1000) {
-        speedMs -= bowDelayReduction;
+      quiverPreCorrectionSpeedMs = speedMs;
+      quiverReductionMs = Math.floor(quiverHaste * speedMs) + 1;
+      quiverWouldBeTimerMs = Math.max(MIN_DELAY_DECISEC * DECISEC_TO_MS, speedMs - quiverReductionMs) - BOW_TIMER_CORRECTION_MS;
+      if (speedMs - quiverReductionMs > 1000) {
+        speedMs -= quiverReductionMs;
         quiverHasteApplied = true;
       }
     }
@@ -890,6 +895,9 @@
       hasteCapped: (!Number.isNaN(Number(options.hastePercent)) ? Number(options.hastePercent) : 0) > effectiveHastePercent,
       quiverHastePercent: quiverHaste > 0 ? (quiverHaste * 100) : undefined,
       quiverHasteApplied: quiverHaste > 0 ? quiverHasteApplied : undefined,
+      quiverPreCorrectionSpeedMs: quiverHaste > 0 ? quiverPreCorrectionSpeedMs : undefined,
+      quiverReductionMs: quiverHaste > 0 ? quiverReductionMs : undefined,
+      quiverWouldBeTimerMs: quiverHaste > 0 ? quiverWouldBeTimerMs : undefined,
       totalDamage: 0,
       elementalDamageTotal: 0,
       critHits: 0,
@@ -1256,9 +1264,16 @@
     }
     if (report.attackTimerMs != null) lines.push(padLine('  Timer between rounds (after haste + quiver):', `${report.attackTimerMs} ms`));
     if (report.quiverHastePercent != null && report.quiverHastePercent > 0) {
-      lines.push(padLine('  Quiver haste:', `${report.quiverHastePercent.toFixed(1)}%  (applied after standard, not subject to 125% cap)`));
-      if (!report.quiverHasteApplied) {
-        lines.push(padLine('  Actual round interval used:', `${report.attackTimerMs} ms  (quiver haste rejected — would have dropped pre-correction speed below 1000ms floor)`));
+      if (report.quiverHasteApplied) {
+        lines.push(padLine('  Quiver haste:', `${report.quiverHastePercent.toFixed(1)}%  (applied after standard, not subject to 125% cap)`));
+      } else {
+        lines.push(padLine('  Quiver haste:', `${report.quiverHastePercent.toFixed(1)}%  (REJECTED — see below)`));
+        const pre = Math.round(report.quiverPreCorrectionSpeedMs);
+        const red = report.quiverReductionMs;
+        const post = pre - red;
+        const wouldBe = Math.round(report.quiverWouldBeTimerMs);
+        lines.push(padLine('    Would-be timer if applied:', `${wouldBe} ms`));
+        lines.push(padLine('    Rejected because:', `pre-correction speed (${pre}ms) − reduction (${red}ms) = ${post}ms ≤ 1000ms floor`));
       }
     }
     lines.push('');
