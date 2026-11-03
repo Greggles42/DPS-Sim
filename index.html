@@ -8740,13 +8740,8 @@
           var norm = normalizeBowFromList(id, raw);
           if (norm) {
             var bowName = (norm.name || '').toLowerCase();
-            if (bowName === 'alabaster hilted wind bow'
-              || bowName === 'primordial driftwood compound bow'
-              || bowName === 'featherwood compound bow'
-              || bowName === 'obsidianwood compound bow'
-              || bowName === 'stonewood compound bow'
-              || bowName === 'nightmarewood compound bow'
-              || bowName === 'oakwynd') {
+            if (bowName === 'oakwynd') {
+              // Unobtainable GM-event artifact (175 dmg / 20 delay) — not a real droppable/craftable item.
               return;
             }
             var baseDmg = norm.damage + (norm.baneDamage || 0);
