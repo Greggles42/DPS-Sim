@@ -64,8 +64,15 @@
   // Default caps for unknown/unspecified NPC class (generic melee mob)
   var NPC_DEFENSE_CAPS_DEFAULT = [75, 150, 100, 230];
 
-  /** Minimum effective weapon delay after haste, in deciseconds */
+  /** Minimum effective weapon delay after haste, in deciseconds (Combat:MinHastedDelay rule, 400ms) */
   var MIN_DELAY_DECISEC = 4;
+
+  /**
+   * Bows only: Client::SetAttackTimer (zone/attack.cpp) subtracts a flat 100ms
+   * (timer_corr) from max(MinHastedDelay, speed) every time, not just at the floor.
+   * True floor is 400 - 100 = 300ms, and the -100 also applies above the floor.
+   */
+  var BOW_TIMER_CORRECTION_MS = 100;
 
   /** Deciseconds to milliseconds conversion */
   var DECISEC_TO_MS = 100;
@@ -823,16 +830,20 @@
       return { error: 'Ranged weapon + arrow damage must be at least 1' };
     }
 
-    let delayDecisec = effectiveDelayDecisec(bow.delay, effectiveHastePercent);
+    // Client::SetAttackTimer (zone/attack.cpp): speed = delay/hasteMod * 100 (ms);
+    // the quiver reduction (Client::GetQuiverHaste) is applied to that speed BEFORE
+    // the MinHastedDelay floor and bow-only -100ms correction, not after.
+    const hasteModRanged = 1 + (effectiveHastePercent || 0) / 100;
+    let speedMs = (bow.delay / hasteModRanged) * DECISEC_TO_MS;
     const quiverHaste = (options.quiverHaste != null && !Number.isNaN(Number(options.quiverHaste)) && Number(options.quiverHaste) > 0) ? Number(options.quiverHaste) : 0;
     if (quiverHaste > 0) {
-      const speedMs = delayDecisec * DECISEC_TO_MS;
       const bowDelayReduction = Math.floor(quiverHaste * speedMs) + 1;
       if (speedMs - bowDelayReduction > 1000) {
-        delayDecisec = (speedMs - bowDelayReduction) / DECISEC_TO_MS;
+        speedMs -= bowDelayReduction;
       }
     }
-    const delayMs = delayDecisec * DECISEC_TO_MS;
+    const delayMs = Math.max(MIN_DELAY_DECISEC * DECISEC_TO_MS, speedMs) - BOW_TIMER_CORRECTION_MS;
+    const delayDecisec = delayMs / DECISEC_TO_MS;
     // Ranged procs use same chance as primary (main hand): (base + dex factor) * weapon_speed; no offhand penalty. Apply proc rate modifier.
     const baseRangedProcChance = (bow.procSpell != null && bow.procSpell !== '' && canTriggerProcAtLevel(bow, level))
       ? getProcChancePerSwing(delayDecisec, false, 0, options.dex || 150)
@@ -874,6 +885,7 @@
       durationSec: options.fightDurationSec,
       rawHastePercent: !Number.isNaN(Number(options.hastePercent)) ? Number(options.hastePercent) : 0,
       effectiveHastePercent: effectiveHastePercent,
+      hasteCapped: (!Number.isNaN(Number(options.hastePercent)) ? Number(options.hastePercent) : 0) > effectiveHastePercent,
       quiverHastePercent: quiverHaste > 0 ? (quiverHaste * 100) : undefined,
       totalDamage: 0,
       elementalDamageTotal: 0,
@@ -1235,7 +1247,9 @@
     if (report.rawHastePercent != null || report.effectiveHastePercent != null) {
       const raw = report.rawHastePercent != null ? Number(report.rawHastePercent).toFixed(1) : '—';
       const eff = report.effectiveHastePercent != null ? Number(report.effectiveHastePercent).toFixed(1) : '—';
-      lines.push(padLine('  Haste (raw / effective):', `${raw}% / ${eff}%  (standard cap; quiver separate)`));
+      const capNote = report.hasteCapped ? `  ⚠ CAPPED — requested ${raw}%, capped to ${eff}%` : '  (not capped)';
+      lines.push(padLine('  Haste requested / effective:', `${raw}% / ${eff}%${capNote}`));
+      lines.push(padLine('  Effective haste used in sim:', `${eff}%`));
     }
     if (report.attackTimerMs != null) lines.push(padLine('  Timer between rounds (after haste + quiver):', `${report.attackTimerMs} ms`));
     if (report.quiverHastePercent != null && report.quiverHastePercent > 0) {
@@ -1699,6 +1713,7 @@
       durationSec: options.fightDurationSec,
       rawHastePercent: !Number.isNaN(Number(options.hastePercent)) ? Number(options.hastePercent) : 0,
       effectiveHastePercent: effectiveHastePercent,
+      hasteCapped: (!Number.isNaN(Number(options.hastePercent)) ? Number(options.hastePercent) : 0) > effectiveHastePercent,
       totalDamage: 0,
       elementalDamageTotal: 0,
       damageBonus: mainHandDamageBonus,
@@ -3009,7 +3024,9 @@
     if (report.rawHastePercent != null || report.effectiveHastePercent != null) {
       const raw = report.rawHastePercent != null ? Number(report.rawHastePercent).toFixed(1) : '—';
       const eff = report.effectiveHastePercent != null ? Number(report.effectiveHastePercent).toFixed(1) : '—';
-      lines.push(padLine('  Haste (raw / effective):', `${raw}% / ${eff}%`));
+      const capNote = report.hasteCapped ? `  ⚠ CAPPED — requested ${raw}%, capped to ${eff}%` : '  (not capped)';
+      lines.push(padLine('  Haste requested / effective:', `${raw}% / ${eff}%${capNote}`));
+      lines.push(padLine('  Effective haste used in sim:', `${eff}%`));
     }
     if (report.dualWieldPct != null && report.dualWieldEffective != null) {
       const dwRate = Math.min(100, report.dualWieldPct).toFixed(1);

@@ -3576,6 +3576,7 @@
     <details id="version-log-details">
     <summary style="cursor:pointer; font-size:1.17em; font-weight:bold; margin:0; list-style:revert;">Version log</summary>
     <ul style="font-size: 0.9rem; color: var(--muted); margin: 0.5rem 0 0; padding-left: 1.25rem;">
+      <li><strong>2.8</strong> — Fix: the ranged (bow) attack timer was missing the bow-only 100ms correction that <code>Client::SetAttackTimer</code> always applies on top of the 400ms haste floor, and was using that same 400ms floor directly instead of the true 300ms floor (400 − 100). Quiver haste was also applied to the timer in the wrong order (after the floor instead of before it, as the server does). All ranged DPS sims were therefore running bows about 100ms slower than live, and could never reach the real 300ms minimum delay. Fixed the calculation order and floor math to match the server exactly. Also: the Melee and Ranged reports now clearly flag when requested haste exceeds the level's haste cap (⚠ CAPPED, showing requested vs. effective%) instead of silently showing both numbers side by side, and the sim history table marks capped runs with a ⚠ next to the effective haste column.</li>
       <li><strong>2.7</strong> — Fix: on first page load with era set to Planes of Power, the character level still defaulted to 60 in both Advanced and Easy mode instead of 65, even though choosing PoP from the era dropdown after load correctly bumped it. The era-change handler (added in 2.2) re-syncs Easy Mode's level from Advanced Mode's level, which depends on <code>window.getSelectedEra</code> — but that function wasn't exposed until after the initial era was applied, so on first load the sync saw "classic" and clamped the level back down to 60 immediately after it was set to 65. <code>window.getSelectedEra</code> is now exposed before the initial era is applied. Also: re-included the Alabaster Hilted Wind Bow and the five PoP elemental Compound Bows (Primordial Driftwood, Featherwood, Obsidianwood, Stonewood, Nightmarewood) in Rank Weapons' bow ranking — they were hardcoded out alongside the unobtainable GM-event item Oakwynd, but their stats are legitimate and match the real items; only Oakwynd remains excluded. Added an "Only rank 2H weapons" checkbox next to the other Rank Weapons toggles.</li>
       <li><strong>2.6</strong> — Fix: the Ranged tab's <strong>Spell Casting (between shots)</strong> simulation never actually applied <strong>Spell Casting Fury</strong>/Mastery, <strong>Quick Damage</strong>, or equipped/manually-added <strong>item focus effects</strong> to its casts, despite the card's own description claiming it reused "the Spell Casting Fury / item focus effects already detected on the Rotation tab" — the helper that reads those AA ranks and focus effects lives in a different top-level script scope than the Ranged tab's casting code, so the cross-scope reference silently failed its own function-existence check every time and fell back to a hardcoded zero-bonus default. All six spells in the list (including the three added in 2.5) now correctly get the same damage/mana/cast-time/crit bonuses from gear and AA that the Rotation Planner already applies, verified with a test fire-damage focus item (Wrath of Ro) correctly boosting the fire nukes only, leaving Frozen Wind (cold) and Drifting Death (magic) unaffected, matching real in-game focus restrictions.</li>
       <li><strong>2.5</strong> — Ranged tab's <strong>Spell Casting (between shots)</strong> options now include <strong>Frozen Wind</strong>, <strong>Brushfire</strong>, and <strong>Drifting Death</strong> alongside Calefaction, Call of Flame, and Firestrike, covering the rest of the Ranger nuke/DoT line available by level 64. Drifting Death is a damage-over-time spell; the manual-mode priority engine won't recast it early while it's still ticking (same rule as the Rotation tab's DoT handling), so it only fires again once its current application would've expired anyway.</li>
@@ -4193,7 +4194,7 @@
       }
 
       // When releasing: 1) Bump VERSION below. 2) Add a new <li> at the top of the Version log section above.
-      const VERSION = '2.7';
+      const VERSION = '2.8';
       const versionEl = $('app-version');
       if (versionEl) versionEl.textContent = 'v' + VERSION;
 
@@ -6738,6 +6739,7 @@
             durationSec,
             rawHastePercent: reports[0].rawHastePercent != null ? reports[0].rawHastePercent : 0,
             effectiveHastePercent: reports[0].effectiveHastePercent != null ? reports[0].effectiveHastePercent : 0,
+            hasteCapped: !!reports[0].hasteCapped,
             totalDamage: Math.round(reports.reduce((s, r) => s + r.totalDamage, 0) / runs),
             totalThreat: Math.round(reports.reduce((s, r) => s + (r.totalThreat || 0), 0) / runs),
             swingThreat: Math.round(reports.reduce((s, r) => s + (r.swingThreat || 0), 0) / runs),
@@ -6995,6 +6997,7 @@
           level: level,
           wornHaste: parseInt(($('worn-haste') && $('worn-haste').value) || '0', 10) || 0,
           effectiveHaste: report.effectiveHastePercent != null ? Number(report.effectiveHastePercent) : 0,
+          hasteCapped: !!report.hasteCapped,
           netAttackRating: totalAttack,
           mainhandDps: mainhandDps,
           offhandDps: offhandDps,
@@ -9929,6 +9932,7 @@
           var comboDisplay = h.fistweaving ? comboPlain + fwTag : comboPlain;
           var level = h.level != null ? h.level : '-';
           var eff = h.effectiveHaste != null ? (Number(h.effectiveHaste).toFixed(1) + '%') : '-';
+          var effDisplay = h.hasteCapped ? (eff + ' <span title="Haste capped — requested amount exceeded the level’s haste cap, this is the effective total used in the sim" style="cursor:help;">⚠</span>') : eff;
           var netAtk = h.netAttackRating != null ? h.netAttackRating : (h.attack != null ? h.attack : '-');
           var ac = h.mobAC != null ? h.mobAC : '-';
           var mh = typeof h.mainhandDps === 'number' ? h.mainhandDps.toFixed(2) : '-';
@@ -9938,7 +9942,7 @@
           return '<tr>' +
             '<td class="eht-weapons" title="' + comboPlain.replace(/"/g, '&quot;') + '">' + comboDisplay + '</td>' +
             '<td class="eht-num">' + level + '</td>' +
-            '<td class="eht-num">' + eff + '</td>' +
+            '<td class="eht-num">' + effDisplay + '</td>' +
             '<td class="eht-num">' + netAtk + '</td>' +
             '<td class="eht-num">' + ac + '</td>' +
             '<td class="eht-dps eht-dps-first">' + mh + '</td>' +
@@ -10196,6 +10200,7 @@
             durationSec: r0.durationSec,
             rawHastePercent: r0.rawHastePercent != null ? r0.rawHastePercent : 0,
             effectiveHastePercent: r0.effectiveHastePercent != null ? r0.effectiveHastePercent : 0,
+            hasteCapped: !!r0.hasteCapped,
             quiverHastePercent: r0.quiverHastePercent != null ? r0.quiverHastePercent : undefined,
             attackTimerMs: r0.attackTimerMs != null ? r0.attackTimerMs : undefined,
             totalDamage: Math.round(reports.reduce((s, r) => s + r.totalDamage, 0) / runs),
@@ -10310,6 +10315,7 @@
           level: options.level,
           wornHaste: parseInt(($('worn-haste') && $('worn-haste').value) || '0', 10) || 0,
           effectiveHaste: report.effectiveHastePercent != null ? Number(report.effectiveHastePercent) : 0,
+          hasteCapped: !!report.hasteCapped,
           netAttackRating: rangedTotalAttack,
           mainhandDps: rangedDps,
           offhandDps: 0,

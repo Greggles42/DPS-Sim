@@ -1011,13 +1011,20 @@
         Notice how modest the archery skill mods are here: going from 0% to a generous 4% mod only moves hit chance by about +0.3 points, because it's only multiplying the 240 skill term inside a much larger <code>toHit</code> total (7 + 252 + skill). Eagle Eye alone (+40% on the whole total) is worth roughly 13x more accuracy than the 4% skill mod in this example, because it scales the entire to-hit value rather than one sub-component of it.
       </p>
 
-      <h3>10.3) Quiver haste <span class="badge badge-game">In-Game Mechanic</span></h3>
+      <h3>10.3) Quiver haste and the ranged attack-speed floor <span class="badge badge-game">In-Game Mechanic</span></h3>
       <p>
-        Applied separately from standard haste (not subject to the 125% cap). If a quiver provides weight reduction (WR%), quiver haste = WR% ÷ 4 ÷ 100.
+        A bow's attack speed is built in two stages. First, standard haste (and Hundred Hands, which this sim doesn't model) reduce the bow's base delay to a "speed" value in milliseconds. If a quiver with weight reduction (WR%) is carried, quiver haste = WR% ÷ 4 ÷ 100 is then applied to that speed — separately from standard haste and not subject to the 125% haste cap:
       </p>
       <div class="formula">bowDelayReduction = floor(quiverHaste × speedMs) + 1</div>
-      <div class="formula">if (speedMs − reduction > 1000ms): effectiveDelay = speedMs − reduction</div>
-      <p class="muted">The Sony rule prevents the quiver from pushing delay below 1000ms (1 second).</p>
+      <div class="formula">if (speedMs − bowDelayReduction > 1000ms): speedMs −= bowDelayReduction</div>
+      <p class="muted">All-or-nothing: if subtracting the reduction would drop speed to 1000ms or below, the quiver contributes nothing at all that shot — it never partially reduces down to 1000ms. With a 15% quiver (60 WR, e.g. Fleeting Quiver), this cutoff kicks in once hasted speed is already at or below roughly 1176ms; past that point only haste can lower it further.</p>
+      <p>
+        Second, the (possibly quiver-reduced) speed is run through the actual attack timer, which has its own floor and a bow-only correction:
+      </p>
+      <div class="formula">attackTimerMs = max(400, speedMs) − 100</div>
+      <p class="muted">
+        400ms is the <code>Combat:MinHastedDelay</code> rule. The −100ms only applies to bows, and it applies every time, not just when the floor is hit — so a bow is always 100ms faster than its "speed" value once haste is involved. The true floor is therefore <strong>300ms</strong> (400 − 100), reachable only with enough combined haste (and Hundred Hands) to push speed to 400ms or below before this step. The quiver can never be the thing that reaches the floor, since its own 1000ms cutoff always leaves it well short of 400ms.
+      </p>
 
       <h3>10.4) Separating base vs proc damage (for ranking) <span class="badge badge-sim">Sim Feature</span></h3>
       <p>
