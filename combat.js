@@ -836,10 +836,12 @@
     const hasteModRanged = 1 + (effectiveHastePercent || 0) / 100;
     let speedMs = (bow.delay / hasteModRanged) * DECISEC_TO_MS;
     const quiverHaste = (options.quiverHaste != null && !Number.isNaN(Number(options.quiverHaste)) && Number(options.quiverHaste) > 0) ? Number(options.quiverHaste) : 0;
+    let quiverHasteApplied = false;
     if (quiverHaste > 0) {
       const bowDelayReduction = Math.floor(quiverHaste * speedMs) + 1;
       if (speedMs - bowDelayReduction > 1000) {
         speedMs -= bowDelayReduction;
+        quiverHasteApplied = true;
       }
     }
     const delayMs = Math.max(MIN_DELAY_DECISEC * DECISEC_TO_MS, speedMs) - BOW_TIMER_CORRECTION_MS;
@@ -887,6 +889,7 @@
       effectiveHastePercent: effectiveHastePercent,
       hasteCapped: (!Number.isNaN(Number(options.hastePercent)) ? Number(options.hastePercent) : 0) > effectiveHastePercent,
       quiverHastePercent: quiverHaste > 0 ? (quiverHaste * 100) : undefined,
+      quiverHasteApplied: quiverHaste > 0 ? quiverHasteApplied : undefined,
       totalDamage: 0,
       elementalDamageTotal: 0,
       critHits: 0,
@@ -1254,6 +1257,9 @@
     if (report.attackTimerMs != null) lines.push(padLine('  Timer between rounds (after haste + quiver):', `${report.attackTimerMs} ms`));
     if (report.quiverHastePercent != null && report.quiverHastePercent > 0) {
       lines.push(padLine('  Quiver haste:', `${report.quiverHastePercent.toFixed(1)}%  (applied after standard, not subject to 125% cap)`));
+      if (!report.quiverHasteApplied) {
+        lines.push(padLine('  Actual round interval used:', `${report.attackTimerMs} ms  (quiver haste rejected — would have dropped pre-correction speed below 1000ms floor)`));
+      }
     }
     lines.push('');
 
