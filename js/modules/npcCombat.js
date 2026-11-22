@@ -481,7 +481,12 @@
     }
     if (damage < 1) damage = 1;
 
-    damage += mob.damageBonus;
+    // Item mod2 Shielding (2026-11-18 patch) trims only the flat damage bonus,
+    // never the rolled portion (Mob::ApplyShieldingToDamageBonus).
+    var bonus = mob.damageBonus || 0;
+    var shieldPct = defense.shieldingPct || 0;
+    if (bonus > 0 && shieldPct > 0) bonus = bonus - Math.floor(bonus * shieldPct / 100);
+    damage += bonus;
 
     var pct = opts.damagePct != null ? opts.damagePct : 100;
     if (pct !== 100) damage = Math.floor(damage * pct / 100);

@@ -61,7 +61,7 @@
    * Combat Agility (and Lightning Reflexes) multiply avoidance here — they are
    * NOT a flat subtraction from the attacker's hit chance.
    */
-  function getAvoidance(level, defenseSkill, agi, combatAgilityPct, avoidMeleePct) {
+  function getAvoidance(level, defenseSkill, agi, combatAgilityPct, avoidMeleePct, itemAvoidance) {
     var L = level != null ? level : 60;
     var def = defenseSkill != null ? defenseSkill : 0;
     var agiVal = agi != null ? agi : 100;
@@ -86,6 +86,10 @@
 
     // Combat Agility / Lightning Reflexes
     if (combatAgilityPct) computed += Math.floor(computed * combatAgilityPct / 100);
+
+    // Item mod2 Avoidance (2026-11-18 patch): flat, added after the AA multiplier
+    // (Client::GetAvoidance). Combat-only — it never shows in displayed AC.
+    if (itemAvoidance) computed += itemAvoidance;
 
     // SE_AvoidMeleeChance from Evasive Discipline and buffs is applied by
     // AvoidanceCheck itself, after the AA multiplier.
@@ -311,20 +315,25 @@
    * The %-bonus step was missing before; AA and buff dodge/parry/riposte/block
    * bonuses apply *before* the divisor, which makes them worth more than a naive
    * post-division bonus would suggest.
+   *
+   * 2026-11-18 patch (EQMacEmu 64dabd1): the worn skill-mod % is now ALSO added
+   * as flat points: chance = GetSkill(x) + 100 + skillmod[x]. GetSkill already
+   * scaled the skill by (100+mod)/100, so the mod counts twice. `o.<skill>Mod`
+   * is that worn % (0 when none).
    */
   function getAvoidanceRates(o) {
-    function rate(skill, divisor, bonusPct) {
+    function rate(skill, divisor, bonusPct, skillMod) {
       if (!skill || skill <= 0) return 0;
-      var chance = skill + 100;
+      var chance = skill + 100 + (skillMod > 0 ? skillMod : 0);
       if (bonusPct) chance += Math.floor(chance * bonusPct / 100);
       chance = Math.floor(chance / divisor);
       return Math.min(1, Math.max(0, chance) / 100);
     }
     return {
-      block:   rate(o.blockSkill,   DIVISOR.block,   o.blockBonusPct),
-      parry:   rate(o.parrySkill,   DIVISOR.parry,   o.parryBonusPct),
-      riposte: rate(o.riposteSkill, DIVISOR.riposte, o.riposteBonusPct),
-      dodge:   rate(o.dodgeSkill,   DIVISOR.dodge,   o.dodgeBonusPct)
+      block:   rate(o.blockSkill,   DIVISOR.block,   o.blockBonusPct,   o.blockMod),
+      parry:   rate(o.parrySkill,   DIVISOR.parry,   o.parryBonusPct,   o.parryMod),
+      riposte: rate(o.riposteSkill, DIVISOR.riposte, o.riposteBonusPct, o.riposteMod),
+      dodge:   rate(o.dodgeSkill,   DIVISOR.dodge,   o.dodgeBonusPct,   o.dodgeMod)
     };
   }
 
@@ -357,6 +366,11 @@
       runePool: o.runePool || 0,
       runeRemaining: o.runePool || 0,
       damageShield: o.damageShield || 0,
+      // Item mod2 damage shield: boosts an existing DS only, never creates one.
+      damageShieldBonus: o.damageShieldBonus || 0,
+      // Item mod2 Shielding / Spell Shield (% reductions, already capped).
+      shieldingPct: o.shieldingPct || 0,
+      spellShieldPct: o.spellShieldPct || 0,
 
       stunImmune: !!o.stunImmune,
       frontalStunImmune: (o.baseRace || '').toLowerCase() === 'ogre',
@@ -388,7 +402,8 @@
       d.avoidance = getAvoidance(
         d.level, inp.defenseSkill, inp.agi,
         (inp.combatAgilityPct || 0) + (inp.lightningReflexesPct || 0),
-        d.avoidMeleePct
+        d.avoidMeleePct,
+        inp.itemAvoidance || 0
       );
 
       d.rates = getAvoidanceRates({
@@ -400,7 +415,9 @@
         blockBonusPct: inp.blockBonusPct,
         parryBonusPct: inp.parryBonusPct,
         riposteBonusPct: inp.riposteBonusPct,
-        dodgeBonusPct: inp.dodgeBonusPct
+        dodgeBonusPct: inp.dodgeBonusPct,
+        blockMod: inp.blockMod, parryMod: inp.parryMod,
+        riposteMod: inp.riposteMod, dodgeMod: inp.dodgeMod
       });
       d.skillAvoidanceRate = getCombinedAvoidanceChance(d.rates);
 

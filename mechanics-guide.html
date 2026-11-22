@@ -1291,10 +1291,16 @@
         <li><strong>Hit roll</strong> — mob to-hit versus your avoidance value. A failure here is a plain miss.</li>
       </ol>
       <p>The first check that succeeds negates the swing. Each skill's chance is:</p>
-      <div class="formula">chance% = floor( (skill + 100) × (1 + bonuses%) ÷ divisor )</div>
+      <div class="formula">chance% = floor( (skill + 100 + worn skill-mod%) × (1 + bonuses%) ÷ divisor )</div>
       <p class="muted">
         Percentage bonuses from AAs and buffs apply <em>before</em> the divisor, which makes them worth more than
         they appear.
+      </p>
+      <p>
+        <strong>Worn skill mods count twice (Nov 2026 patch).</strong> A worn +% to Dodge, Parry, Riposte or Block
+        already raises the skill itself by that percentage. The server now <em>also</em> adds the same number as flat
+        points inside the chance formula above. The sim does both: the Tanking tab raises the skill by the mod %,
+        then adds the mod % once more as flat points. As before, only the single highest mod per skill applies.
       </p>
 
       <h3>Your avoidance value</h3>
@@ -1304,7 +1310,11 @@
         flat reduction of the mob's hit chance. Warrior <strong>Evasive Discipline</strong> adds a further +50%
         while it is running.
       </p>
-      <div class="formula">avoidance = avoidance × (1 + CombatAgility% + LightningReflexes%) × (1 + AvoidMelee%)</div>
+      <div class="formula">avoidance = (avoidance × (1 + CombatAgility% + LightningReflexes%) + item Avoidance) × (1 + AvoidMelee%)</div>
+      <p class="muted">
+        <strong>Item Avoidance</strong> (see section 14.1) is a flat amount added after the AA multiplier. It only
+        makes mobs miss you more; it is not AC and does not show in displayed AC.
+      </p>
     </div>
 
     <div class="card">
@@ -1375,6 +1385,45 @@
           <strong>Import Inventory</strong> auto-fills it by summing the worn damage-shield effect from every
           equipped item that grants one — the same way multiple damage-shield items stack additively in-game.</li>
       </ul>
+
+      <h3 id="mod2">14.1) Item "mod2" stats (Nov 2026 patch)</h3>
+      <p>
+        A handful of Planes of Power-era items (Time-class chest pieces, P4–P6 raid drops and a few others) now carry
+        eight extra stats. <strong>Import Inventory</strong> adds each stat up across your equipped gear and then applies a
+        cap to the total. Rec-level scaling does not apply to them, and slot order does not matter. The totals fill the eight <strong>mod2 boxes on the character card</strong> (under Worn ATK / Spell ATK); you can type your own values there to override gear, and each box is limited to its cap. The sims always use what the boxes show.
+      </p>
+      <table>
+        <tr><th>Stat</th><th>Cap</th><th>What it does in the sim</th></tr>
+        <tr><td><strong>Strikethrough</strong></td><td>35%</td><td>When the mob would dodge, parry, riposte or block your swing, this is the chance to override it so the swing lands. Used on the Melee tab: the mob's total front-avoid chance is multiplied by (1 − Strikethrough%).</td></tr>
+        <tr><td><strong>Stun Resist</strong></td><td>35%</td><td>Chance to shrug off a bash/kick stun in the Tanking sim.</td></tr>
+        <tr><td><strong>Combat Effects</strong></td><td>100</td><td>Raises weapon proc chance. The number is in tenths of a percent: 15 means procs fire 1.5% more often (chance × 1.015). Applies to melee and ranged procs.</td></tr>
+        <tr><td><strong>Accuracy</strong></td><td>150</td><td>Flat to-hit added on top of skill-based to-hit (melee and ranged).</td></tr>
+        <tr><td><strong>Avoidance</strong></td><td>100</td><td>Flat addition to your avoidance value, so mobs hit you less often (Tanking tab).</td></tr>
+        <tr><td><strong>Spell Shield</strong></td><td>35%</td><td>Reduces <em>direct-damage</em> spells from the mob by this percent. DoTs are not reduced.</td></tr>
+        <tr><td><strong>Shielding</strong></td><td>35%</td><td>Reduces only the mob's <em>flat damage bonus</em> on each melee hit, not the rolled part of the damage — so it matters most against mobs with a large damage bonus.</td></tr>
+        <tr><td><strong>Damage Shield</strong></td><td>30</td><td>Adds to a damage shield you already have (spell or worn effect). It never creates a damage shield by itself, so with no other damage shield it does nothing.</td></tr>
+      </table>
+      <p class="muted">
+        Shroud of Eternity's damage shield now comes from this stat instead of its worn effect; its worn effect was
+        swapped for plain HP regeneration, so it needs another damage shield source to be useful.
+      </p>
+
+      <h3 id="cap-alert">14.2) The "above cap" alert</h3>
+      <p>
+        When you run a simulation with any input past a cap, a yellow alert appears between <strong>Target &amp; Fight</strong>
+        and the <strong>Report</strong> listing each one and the value the sim actually used. It checks:
+      </p>
+      <ul>
+        <li><strong>Item mod2 stats</strong> above their individual caps (section 14.1).</li>
+        <li><strong>Haste</strong>: worn haste above 10% at level 25 or lower, worn + V1 spell haste above 100% combined, and V3 (bard) haste above 25% (10% at level 50 or lower).</li>
+        <li><strong>Worn ATK</strong> above 250 (gear, buffs and weapon ATK together). Spell ATK has no cap.</li>
+        <li><strong>Worn skill mods</strong>: a +% skill mod raises the skill, but the result is hard-capped at 252, so anything past that is wasted. This covers weapon skills, Offense, Double Attack, Dual Wield, Backstab, special attacks and Archery on the Melee/Ranged tabs, and Defense, Dodge, Parry, Riposte, Block and Offense on the Tanking tab.</li>
+        <li><strong>Skills above the class/level cap</strong> (weapon skills, Offense, Double Attack, Dual Wield). The sim keeps the number you typed, and the alert says so.</li>
+        <li><strong>Archery skill</strong> above the level cap (4 × level, max 240) unless you set it manually.</li>
+        <li><strong>Number of runs</strong> above 1000, which the sim limits to 1000.</li>
+        <li><strong>Tanking AC</strong> past the softcap, where each extra point counts for only a fraction of a point (1 in 12 for a PoP-era monk at 65, for example).</li>
+      </ul>
+      <p class="muted">Base stats such as STR or AGI past their caps are deliberately not reported.</p>
 
       <h3>Natural and Planar Durability</h3>
       <div class="formula">maxHP = maxHP × (1 + NaturalDurability%) × (1 + PlanarDurability%)</div>

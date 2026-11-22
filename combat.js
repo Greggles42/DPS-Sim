@@ -128,6 +128,23 @@
     return caps.map(function(cap) { return cap > 0 ? Math.min(L * 5, cap) : 0; });
   }
 
+  // ----- Item "mod2" stats (Quarm 2026-11-18 patch) -----
+  // Capped totals from the equipped gear (Client::CalcItemBonuses). Callers may pass options.gearMod2
+  // explicitly; otherwise the browser's inventory import publishes them on window.gearMod2.
+  // accuracy = flat to-hit; strikethrough = % of dodge/parry/riposte/block that are overridden;
+  // combateffects = weapon proc chance x (1 + value/10 %).
+  function getGearMod2(options) {
+    var m = (options && options.gearMod2) || (typeof window !== 'undefined' ? window.gearMod2 : null) || {};
+    return {
+      accuracy: Number(m.accuracy) || 0,
+      strikethrough: Number(m.strikethrough) || 0,
+      combateffects: Number(m.combateffects) || 0
+    };
+  }
+  function applyCombatEffectsToProc(procChance, combatEffects) {
+    return combatEffects > 0 ? procChance * (100 + combatEffects / 10) / 100 : procChance;
+  }
+
   // Combined front avoidance probability from sequential block→parry→riposte→dodge checks.
   // Divisors from EQMacEmu attack.cpp Mob::AvoidDamage: block/25, parry/50, riposte/55, dodge/45.
   function computeFrontAvoidChance(level, npcClass) {
@@ -803,7 +820,8 @@
     const archeryModPercent = (bow.archeryModPercent != null && !Number.isNaN(Number(bow.archeryModPercent))) ? Number(bow.archeryModPercent) : 0;
     const ARCHERY_SKILL_MODIFIED = Math.floor(archeryBaseWithAccuracy * (100 + archeryModPercent) / 100);
     const ARCHERY_SKILL_EFFECTIVE = Math.min(252, ARCHERY_SKILL_MODIFIED);
-    const baseToHit = 7 + OFFENSE_SKILL + ARCHERY_SKILL_EFFECTIVE;
+    const rangedGearMod2 = getGearMod2(options);
+    const baseToHit = 7 + OFFENSE_SKILL + ARCHERY_SKILL_EFFECTIVE + rangedGearMod2.accuracy;
     const accuracyToHitPct = archeryAccuracy === 'hawk' ? 10 : archeryAccuracy === 'falcon' ? 20 : archeryAccuracy === 'eagle' ? 40 : 0;
     const toHit = accuracyToHitPct > 0 ? Math.floor(baseToHit * (100 + accuracyToHitPct) / 100) : baseToHit;
     const trueshot = !!options.trueshot;
@@ -812,7 +830,7 @@
     const trueshotStartMs = 0;
     const trueshotEndMs = trueshot ? Math.min(TRUESHOT_DURATION_MS, durationMs) : 0;
     const archerySkillTrueshot = Math.min(252, Math.floor(ARCHERY_SKILL_EFFECTIVE * 1.12));
-    const baseToHitTrueshot = 7 + OFFENSE_SKILL + archerySkillTrueshot;
+    const baseToHitTrueshot = 7 + OFFENSE_SKILL + archerySkillTrueshot + rangedGearMod2.accuracy;
     const toHitTrueshot = accuracyToHitPct > 0 ? Math.floor(baseToHitTrueshot * (100 + accuracyToHitPct) / 100) : baseToHitTrueshot;
     // Offense RATING (for damage): server GetOffense(SkillArchery) uses the archery skill, not the Offense/Attack skill.
     let offenseRating = ARCHERY_SKILL_EFFECTIVE + dexBonus + wornAttack + spellAttack;
@@ -856,7 +874,7 @@
       ? getProcChancePerSwing(delayDecisec, false, 0, options.dex || 150)
       : 0;
     const rangedProcRate = (bow.procRate != null && !Number.isNaN(Number(bow.procRate))) ? Number(bow.procRate) : 0;
-    const procChance = Math.min(1, Math.max(0, baseRangedProcChance * (100 + rangedProcRate) / 100));
+    const procChance = Math.min(1, Math.max(0, applyCombatEffectsToProc(baseRangedProcChance * (100 + rangedProcRate) / 100, rangedGearMod2.combateffects)));
     // Ranger 51+ stationary bonus: beacon.cpp lines 381–405.
     // Condition (with ArcheryBonusRequiresStationary=true, UseArcheryBonusRoll=false):
     //   Ranger, level > 50, target is NPC, not moving, and not temporarily rooted.
@@ -1500,14 +1518,18 @@
     // Front avoidance: 0 when attacking from behind (no block/parry/riposte/dodge);
     // otherwise computed from NPC class-based defense skills (block→parry→riposte→dodge).
     const mobClass = options.mobClass != null ? options.mobClass : null;
-    const frontAvoidChance = fromBehind ? 0 : computeFrontAvoidChance(mobLevel, mobClass);
+    const gearMod2 = getGearMod2(options);
+    // Item Strikethrough: when a dodge/parry/riposte/block would land, it is overridden with this % chance,
+    // so the net front-avoid probability is scaled by (1 - strikethrough%).
+    const frontAvoidChance = fromBehind ? 0
+      : computeFrontAvoidChance(mobLevel, mobClass) * (1 - gearMod2.strikethrough / 100);
     // Damage roll uses MITIGATION (GetMitigation). Computed once and used every time we calc damage.
     const mitigation = getMitigation(mobLevel, targetAC, options.itemAcBonus ?? 0, options.spellAcBonus ?? 0);
     const str = options.str != null ? options.str : 255;
     const strBonus = str >= 75 ? Math.floor((2 * str - 150) / 3) : 0;
     const wornAttack = options.wornAttack != null ? options.wornAttack : 0;
     const spellAttack = options.spellAttack != null ? options.spellAttack : 0;
-    const toHitBonus = options.toHitBonus != null ? options.toHitBonus : 0;
+    const toHitBonus = (options.toHitBonus != null ? options.toHitBonus : 0) + gearMod2.accuracy; // + item mod2 Accuracy
     // To Hit: 7 + offense SKILL + weapon skill. Weapon skill from skill caps (class/level/type) when options.weaponSkillForToHit provided, else 252.
     const OFFENSE_SKILL = options.offenseSkill != null ? Math.min(255, Math.max(0, options.offenseSkill)) : 252;
     const WEAPON_SKILL_FOR_TOHIT = (options.weaponSkillForToHit != null && typeof options.weaponSkillForToHit === 'number') ? options.weaponSkillForToHit : 252;
@@ -1723,8 +1745,8 @@
       : 0;
     const procRate1 = (hasMainHand && w1.procRate != null && !Number.isNaN(Number(w1.procRate))) ? Number(w1.procRate) : 0;
     const procRate2 = (rawOffhandEquipped && w2.procRate != null && !Number.isNaN(Number(w2.procRate))) ? Number(w2.procRate) : 0;
-    const procChance1 = Math.min(1, Math.max(0, baseProcChance1 * (100 + procRate1) / 100));
-    const procChance2 = Math.min(1, Math.max(0, baseProcChance2 * (100 + procRate2) / 100));
+    const procChance1 = Math.min(1, Math.max(0, applyCombatEffectsToProc(baseProcChance1 * (100 + procRate1) / 100, gearMod2.combateffects)));
+    const procChance2 = Math.min(1, Math.max(0, applyCombatEffectsToProc(baseProcChance2 * (100 + procRate2) / 100, gearMod2.combateffects)));
 
     const roundsPerMinW1 = (delay1Ms > 0 && hasMainHand) ? (60 * 1000 / delay1Ms) : 0;
     const roundsPerMinW2 = (delay2Ms > 0 && offhandEquipped) ? (60 * 1000 / delay2Ms) : 0;

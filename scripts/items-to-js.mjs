@@ -23,12 +23,14 @@ if (!fs.existsSync(jsonPath)) {
   process.exit(1);
 }
 
+const MOD2_FIELDS = new Set(['strikethrough', 'stunresist', 'combateffects', 'accuracy', 'avoidance', 'spellshield', 'shielding', 'damageshield']);
 const KEEP_FIELDS = new Set([
   'id', 'Name', 'ac', 'astr', 'adex', 'aagi', 'awis', 'asta', 'aint', 'acha',
   'hp', 'mana', 'damage', 'delay', 'itemtype', 'worneffect', 'wornlevel',
   'classes', 'races', 'reqlevel', 'reclevel', 'slots', 'icon', 'skillmodtype', 'skillmodvalue',
   'mr', 'fr', 'cr', 'dr', 'pr', 'banedmgamt', 'banedmgbody', 'banedmgrace',
   'proceffect', 'procrate', 'proclevel',
+  'strikethrough', 'stunresist', 'combateffects', 'accuracy', 'avoidance', 'spellshield', 'shielding', 'damageshield', // mod2 stats (2026-11-18 patch)
   'focuseffect',    // Spell id carrying the item's passive spell-only bonus (see js/modules/itemFocus.js)
   'minstatus',      // GM-only status threshold; used by BIS advisor to exclude GM items
   'min_expansion',  // Expansion era (0=Classic … 4=PoP); used by BIS advisor for era filtering
@@ -46,7 +48,9 @@ const out = {};
 for (const [id, item] of Object.entries(data)) {
   const filtered = {};
   for (const key of KEEP_FIELDS) {
-    if (key in item) filtered[key] = item[key];
+    if (!(key in item)) continue;
+    if (MOD2_FIELDS.has(key) && item[key] === '0') continue; // omit zero mod2 stats to keep the file small
+    filtered[key] = item[key];
   }
   out[id] = filtered;
 }

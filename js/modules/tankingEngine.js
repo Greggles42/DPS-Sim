@@ -184,6 +184,14 @@
       parrySkill: options.playerParrySkill,
       riposteSkill: options.playerRiposteSkill,
       blockSkill: options.playerBlockSkill,
+      // Worn skill-mod % counted a second time as flat points (EQMacEmu 64dabd1).
+      dodgeMod: options.playerDodgeMod, parryMod: options.playerParryMod,
+      riposteMod: options.playerRiposteMod, blockMod: options.playerBlockMod,
+      itemAvoidance: options.playerItemAvoidance,
+      shieldingPct: options.playerShieldingPct,
+      spellShieldPct: options.playerSpellShieldPct,
+      stunResistPct: options.playerStunResistPct,
+      damageShieldBonus: options.playerDamageShieldBonus,
       agi: options.playerAGI,
       carriedWeight: options.playerCarriedWeight,
       era: era,
@@ -325,8 +333,11 @@
     /** Player's damage shield fires back at the mob on every melee hit taken. */
     function applyDamageShield() {
       if (!defense.damageShield) return;
-      report.damageShieldDamage += defense.damageShield;
-      if (trackMobHP) mobHP -= defense.damageShield;
+      // Item mod2 Damage Shield only augments an existing DS (never creates one),
+      // which is why it is gated on the base value above.
+      var ds = defense.damageShield + (defense.damageShieldBonus || 0);
+      report.damageShieldDamage += ds;
+      if (trackMobHP) mobHP -= ds;
     }
 
     // ---- Swing emission ----------------------------------------------------
@@ -441,7 +452,10 @@
       if (pct < 100) report.spellsPartial++;
 
       if (info.directDamage > 0) {
-        takeDamage(Math.max(1, Math.floor(info.directDamage * pct / 100)), source || 'spell');
+        var directDmg = Math.floor(info.directDamage * pct / 100);
+        // Item mod2 Spell Shield: % reduction of direct-damage spells only (not DoTs).
+        if (defense.spellShieldPct > 0) directDmg -= Math.floor(directDmg * defense.spellShieldPct / 100);
+        takeDamage(Math.max(1, directDmg), source || 'spell');
       }
 
       if (info.dotPerTick > 0 && info.durationTicks > 0) {

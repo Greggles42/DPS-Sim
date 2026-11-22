@@ -219,6 +219,11 @@
     .char-haste-left { flex: 1; min-width: 0; }
     .char-haste-icon-wrap { flex: 0 0 auto; }
     .char-haste-icon-wrap .class-icon { width: 120px; height: 120px; object-fit: contain; display: block; }
+    /* The class icon sits beside the left column, which narrows it. These two blocks sit well below the icon,
+       so let them reach back across the icon's column (120px + the 1rem flex gap) to use the card's full width. */
+    .char-haste-left > .mod2-hint,
+    .char-haste-left > .char-effective-stats { margin-right: calc(-120px - 1rem); }
+    .char-haste-left > .mod2-hint { margin-top: -0.25rem; margin-bottom: 0.5rem; }
     .char-primary-row {
       margin-bottom: 0.5rem;
     }
@@ -243,6 +248,18 @@
     .char-primary-grid--atk {
       grid-template-columns: repeat(2, minmax(5rem, max-content));
     }
+    /* mod2 inputs: two equal columns, label stacked above a fixed-width box; the card is narrow, so
+       four columns cannot fit without labels colliding. */
+    .mod2-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 0.6rem 1rem;
+      margin-bottom: 0.5rem;
+    }
+    .mod2-cell { display: flex; flex-direction: column; gap: 0.2rem; min-width: 0; }
+    .mod2-cell > label { margin: 0; font-size: 0.78rem; line-height: 1.15; white-space: nowrap; }
+    .mod2-cell > label .info-icon { margin-left: 0.3rem; }
+    .mod2-grid .mod2-cell > input[type="number"] { margin: 0; box-sizing: border-box; width: 5.25rem; max-width: 5.25rem; min-width: 0; }
     .char-primary-grid--ranged {
       grid-template-columns: max-content repeat(7, minmax(3.5rem, max-content));
     }
@@ -2548,12 +2565,51 @@
         <input type="number" id="spell-haste" min="0" max="999" value="60" placeholder="60" size="3" inputmode="numeric" autocomplete="off">
         <input type="number" id="v3-haste" min="0" max="25" value="0" placeholder="0" size="3" inputmode="numeric" autocomplete="off">
       </div>
-      <div class="char-primary-row char-primary-grid char-primary-grid--atk">
-        <label for="worn-attack">Worn ATK <span class="info-icon" title="don't include atk from weapon, it will automatically be included">&#8505;</span></label>
-        <label for="spell-attack">Spell ATK</label>
-        <input type="number" id="worn-attack" min="0" max="999" value="0" placeholder="0" size="5" inputmode="numeric" autocomplete="off">
-        <input type="number" id="spell-attack" min="0" max="999" value="0" placeholder="0" size="5" inputmode="numeric" autocomplete="off">
+      <div class="mod2-grid">
+        <div class="mod2-cell">
+          <label for="worn-attack">Worn ATK <span class="info-icon" title="don't include atk from weapon, it will automatically be included">&#8505;</span></label>
+          <input type="number" id="worn-attack" min="0" max="999" value="0" placeholder="0" size="5" inputmode="numeric" autocomplete="off">
+        </div>
+        <div class="mod2-cell">
+          <label for="spell-attack">Spell ATK</label>
+          <input type="number" id="spell-attack" min="0" max="999" value="0" placeholder="0" size="5" inputmode="numeric" autocomplete="off">
+        </div>
       </div>
+      <div class="mod2-grid" id="mod2-inputs">
+        <div class="mod2-cell">
+          <label for="mod2-strikethrough">Strikethrough <span class="info-icon" title="Cap: 35% (the total from all gear is limited to this). Chance that a swing the mob would have dodged, parried, riposted or blocked lands anyway. 10 means 10% of those avoided swings get through. Only matters when attacking from the front. Auto-filled from equipped items by Import Inventory; type a value to override.">&#8505;</span></label>
+          <input type="number" id="mod2-strikethrough" min="0" max="35" value="0" placeholder="0" size="4" inputmode="numeric" autocomplete="off">
+        </div>
+        <div class="mod2-cell">
+          <label for="mod2-accuracy">Accuracy <span class="info-icon" title="Cap: 150 (the total from all gear is limited to this). Flat bonus added to your to-hit, so more of your swings connect. Helps against high-avoidance mobs; less useful once you already hit nearly every swing. Auto-filled from equipped items by Import Inventory; type a value to override.">&#8505;</span></label>
+          <input type="number" id="mod2-accuracy" min="0" max="150" value="0" placeholder="0" size="4" inputmode="numeric" autocomplete="off">
+        </div>
+        <div class="mod2-cell">
+          <label for="mod2-combateffects">Combat Effects <span class="info-icon" title="Cap: 100 (the total from all gear is limited to this). Makes weapon procs fire slightly more often. Counted in tenths of a percent: 10 means procs fire 1% more often (a 5% proc becomes 5.05%). Auto-filled from equipped items by Import Inventory; type a value to override.">&#8505;</span></label>
+          <input type="number" id="mod2-combateffects" min="0" max="100" value="0" placeholder="0" size="4" inputmode="numeric" autocomplete="off">
+        </div>
+        <div class="mod2-cell">
+          <label for="mod2-avoidance">Avoidance <span class="info-icon" title="Cap: 100 (the total from all gear is limited to this). Flat points added to your avoidance, so mobs miss you more often. Used by the Tanking tab. It is not AC and does not reduce damage once hit. Auto-filled from equipped items by Import Inventory; type a value to override.">&#8505;</span></label>
+          <input type="number" id="mod2-avoidance" min="0" max="100" value="0" placeholder="0" size="4" inputmode="numeric" autocomplete="off">
+        </div>
+        <div class="mod2-cell">
+          <label for="mod2-spellshield">Spell Shield <span class="info-icon" title="Cap: 35% (the total from all gear is limited to this). Percent less damage from direct-damage spells cast at you (nukes). Damage over time spells are not reduced. Used by the Tanking tab. Auto-filled from equipped items by Import Inventory; type a value to override.">&#8505;</span></label>
+          <input type="number" id="mod2-spellshield" min="0" max="35" value="0" placeholder="0" size="4" inputmode="numeric" autocomplete="off">
+        </div>
+        <div class="mod2-cell">
+          <label for="mod2-shielding">Shielding <span class="info-icon" title="Cap: 35% (the total from all gear is limited to this). Percent less of the mob’s flat damage bonus on each melee hit. It does not reduce the rolled damage, so it helps most against mobs with a big damage bonus. Used by the Tanking tab. Auto-filled from equipped items by Import Inventory; type a value to override.">&#8505;</span></label>
+          <input type="number" id="mod2-shielding" min="0" max="35" value="0" placeholder="0" size="4" inputmode="numeric" autocomplete="off">
+        </div>
+        <div class="mod2-cell">
+          <label for="mod2-stunresist">Stun Resist <span class="info-icon" title="Cap: 35% (the total from all gear is limited to this). Percent chance to shrug off a melee stun (such as bash or kick) aimed at you. Used by the Tanking tab. Auto-filled from equipped items by Import Inventory; type a value to override.">&#8505;</span></label>
+          <input type="number" id="mod2-stunresist" min="0" max="35" value="0" placeholder="0" size="4" inputmode="numeric" autocomplete="off">
+        </div>
+        <div class="mod2-cell">
+          <label for="mod2-damageshield">Damage Shield <span class="info-icon" title="Cap: 30 (the total from all gear is limited to this). Adds extra damage to a damage shield you already have from a spell or worn effect. It does nothing on its own with no other damage shield. Used by the Tanking tab. Auto-filled from equipped items by Import Inventory; type a value to override.">&#8505;</span></label>
+          <input type="number" id="mod2-damageshield" min="0" max="30" value="0" placeholder="0" size="4" inputmode="numeric" autocomplete="off">
+        </div>
+      </div>
+      <p class="hint mod2-hint">Item mod2 stats: filled from equipped items; edit to override. <button type="button" id="mod2-reset" style="display:none;font-size:0.75rem;padding:0 0.4rem;">Reset to equipped</button></p>
       <div class="buff-totals char-effective-stats" id="char-effective-stats">
         <span class="bt-label">Net haste:</span>
         <span title="Worn haste from items"><span class="bt-label">Worn </span><span class="bt-val" id="eff-worn-haste">0%</span></span>
@@ -3528,6 +3584,12 @@
   </div><!-- /.tab-content-wrapper -->
   </div><!-- /#rotation-tab -->
 
+  <!-- Shown when a simulation runs with any input above a cap (see js/ui/capAlerts.js) -->
+  <div id="overcap-warning" style="display:none;margin:0.5rem 0 0.75rem;padding:0.6rem 1rem;background:rgba(251,191,36,0.10);border:1px solid rgba(251,191,36,0.4);border-radius:5px;font-size:0.82rem;color:#fbbf24;align-items:flex-start;gap:0.5rem;">
+    <span style="font-size:1.1rem;">&#9888;</span>
+    <span><strong>Some inputs are above their caps.</strong> Where noted, the clamped value is what this simulation's results use.<span data-overcap-list style="display:block;"></span></span>
+  </div>
+
   <section class="report-section">
     <div class="report-header-row" style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.75rem;">
       <div style="display: flex; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
@@ -3576,6 +3638,17 @@
     <details id="version-log-details">
     <summary style="cursor:pointer; font-size:1.17em; font-weight:bold; margin:0; list-style:revert;">Version log</summary>
     <ul style="font-size: 0.9rem; color: var(--muted); margin: 0.5rem 0 0; padding-left: 1.25rem;">
+      <li><strong>2.11</strong> — Quarm Nov 2026 patch: item <strong>mod2</strong> stats, skill-mod avoidance change, an <strong>above-cap alert</strong>, and fixes.
+        <ul>
+          <li><strong>Item mod2 stats.</strong> Eight new item stats from the patch's SQL (63 items): <em>Strikethrough, Stun Resist, Combat Effects, Accuracy, Avoidance, Spell Shield, Shielding, Damage Shield</em>. Import Inventory adds them up across equipped gear and applies the server's caps (35 / 35 / 100 / 150 / 100 / 35 / 35 / 30) to the total. They feed the sims: Accuracy (melee + ranged to-hit) and Combat Effects (weapon proc chance, in tenths of a percent), Strikethrough (shrinks the mob's dodge/parry/riposte/block chance on the Melee tab), and on the Tanking tab Avoidance (flat avoidance), Shielding (trims only the mob's flat damage bonus), Spell Shield (direct-damage spells only), Stun Resist, and Damage Shield (boosts an existing shield only; it never creates one). Shroud of Eternity's worn effect was swapped for plain regen, as on the server.</li>
+          <li><strong>Character card inputs.</strong> Eight mod2 boxes sit under Worn ATK / Spell ATK. They fill from equipped items; type a value to override (a "Reset to equipped" button appears), and each has a tooltip with a plain-English explanation and its cap. Worn ATK and Spell ATK now share the same two-column layout, and the mod2 hint and the net haste / buff summary box use the full card width. The Equipped Items summary lists each mod2 stat with progress toward its cap, and the mod2 effect now comes last in each item's stat line.</li>
+          <li><strong>Skill-mod avoidance change.</strong> A worn +% to Dodge, Parry, Riposte or Block now also adds the same number as flat points inside the avoidance chance, so it counts twice, matching the server (EQMacEmu 64dabd1).</li>
+          <li><strong>Above-cap alert.</strong> When a simulation runs with an input past a cap, a yellow alert appears between Target &amp; Fight and the Report listing each one and the value the sim used. It checks mod2 stats, haste (worn at level 25 or lower, worn + V1 over 100%, V3), worn ATK over 250, worn skill mods pushed past the 252 hard cap (weapon skills, Offense, Double Attack, Dual Wield, Backstab, specials, Archery, and the Tanking defences), skills above the class/level cap, archery skill, number of runs over 1000, and Tanking AC past the softcap. Base stat caps are ignored.</li>
+          <li><strong>Fix:</strong> Import Inventory never detected worn-effect damage shields (for example the Talisman of Vah Kerrath), because spell data stores them as negative values and the check only accepted positive ones. They now fill the Tanking tab's Damage shield field.</li>
+          <li><strong>Fix:</strong> Ranged and Tanking worn ATK were not limited to the 250 item-ATK cap that Melee already used; both now are.</li>
+          <li><strong>Data/tools.</strong> <code>resources/items.json</code> and <code>items-data.js</code> include the new item columns (zero values are omitted from <code>items-data.js</code> to keep it small). New <code>scripts/apply-mod2-sql.mjs</code> applies the patch SQL (saved in <code>resources/sql/</code>) to <code>items.json</code>, then run <code>scripts/items-to-js.mjs</code>. Mechanics guide updated (sections 13, 14.1 and 14.2).</li>
+        </ul>
+      </li>
       <li><strong>2.10</strong> — Reworked the 2.9 quiver-rejection report line: since a rejected quiver haste contributes exactly 0ms by definition, showing it next to the already-unaffected final timer was redundant and didn't convey anything new. The Ranged report now instead shows the <strong>counterfactual "would-be timer if applied"</strong> and the exact pre-correction speed/reduction numbers that caused the rejection, so you can see what quiver haste would have bought you and why it didn't.</li>
       <li><strong>2.9</strong> — The Ranged report now flags whenever configured quiver haste gets rejected by the server's all-or-nothing 1000ms floor check (see 2.8) — previously the report showed the configured quiver haste % next to the final timer with no indication of whether it actually took effect, which could read as if the timer already reflected it even when it didn't. See 2.10 for a refinement of this report line.</li>
       <li><strong>2.8</strong> — Fix: the ranged (bow) attack timer was missing the bow-only 100ms correction that <code>Client::SetAttackTimer</code> always applies on top of the 400ms haste floor, and was using that same 400ms floor directly instead of the true 300ms floor (400 − 100). Quiver haste was also applied to the timer in the wrong order (after the floor instead of before it, as the server does). All ranged DPS sims were therefore running bows about 100ms slower than live, and could never reach the real 300ms minimum delay. Fixed the calculation order and floor math to match the server exactly. Also: the Melee and Ranged reports now clearly flag when requested haste exceeds the level's haste cap (⚠ CAPPED, showing requested vs. effective%) instead of silently showing both numbers side by side, and the sim history table marks capped runs with a ⚠ next to the effective haste column.</li>
@@ -3811,6 +3884,8 @@
   <script src="js/modules/petSpells.js"></script>
   <script src="js/modules/petCombat.js"></script>
   <script src="js/ui/usageLog.js"></script>
+  <script src="js/ui/mod2Inputs.js"></script>
+  <script src="js/ui/capAlerts.js"></script>
   <script src="combat.js"></script>
   <script src="weaponSkillCaps.js"></script>
   <script src="itemSearch.js"></script>
@@ -4196,7 +4271,7 @@
       }
 
       // When releasing: 1) Bump VERSION below. 2) Add a new <li> at the top of the Version log section above.
-      const VERSION = '2.10';
+      const VERSION = '2.11';
       const versionEl = $('app-version');
       if (versionEl) versionEl.textContent = 'v' + VERSION;
 
@@ -5167,6 +5242,11 @@
       let w1WeaponSkillMod = null;
       let w2WeaponSkillMod = null;
       let w1WornAttackBonus = null;
+      // Sum of the equipped weapons' worn-ATK bonuses (read by js/ui/capAlerts.js for the 250 ATK cap check).
+      window.getEquippedWornAttackBonus = function () {
+        var a = Number(w1WornAttackBonus), b = Number(w2WornAttackBonus);
+        return Math.max(0, isNaN(a) ? 0 : a) + Math.max(0, isNaN(b) ? 0 : b);
+      };
       let w2WornAttackBonus = null;
       /** When a weapon with backstab mod is equipped, we show effective skill in the input; this stores the base to restore when unequipped. */
       let backstabSkillBaseForRestore = null;
@@ -10135,7 +10215,7 @@
           offenseSkill: 252,
           archerySkill: Math.min(252, Math.max(0, (function(){ var _sv = parseInt($('ranged-archery-skill').value, 10); return isNaN(_sv) ? 252 : _sv; })())),
           archerySkillFixed: _rangedArcherySkillUserSet,
-          wornAttack: (parseInt($('worn-attack').value, 10) || 0) + (rangedRunBuffFx ? rangedRunBuffFx.wornAtk || 0 : 0),
+          wornAttack: Math.min(250, (parseInt($('worn-attack').value, 10) || 0) + (rangedRunBuffFx ? rangedRunBuffFx.wornAtk || 0 : 0)),
           spellAttack: (parseInt($('spell-attack').value, 10) || 0) + (rangedRunBuffFx ? rangedRunBuffFx.atk || 0 : 0),
           maxDex: getStatCapForLevel(parseInt($('level').value, 10) || 60, aaConfig.planarPower || 0),
           dex: Math.min(getStatCapForLevel(parseInt($('level').value, 10) || 60, aaConfig.planarPower || 0), (parseInt(($('dex') && $('dex').value) || '255', 10) || 255) + (rangedRunBuffFx ? rangedRunBuffFx.dex || 0 : 0)),
@@ -12968,7 +13048,10 @@
       if (eid === 2  && ev > 0) atk   = Math.max(atk,   ev);
       if (eid === 0  && ev > 0) regen = Math.max(regen,  ev); // HP Regen (SE_CurrentHP)
       if (eid === 15 && ev > 0) ft    = Math.max(ft,     ev); // Flowing Thought / mana regen (SE_CurrentMana)
-      if (eid === 59 && ev > 0) ds    = Math.max(ds,     ev); // Damage Shield (SE_DamageShield)
+      // Damage Shield (SE_DamageShield). Spell data stores damage-dealing shields as NEGATIVE base values
+      // (e.g. Blessing of Vah Kerrath = -8), so take the magnitude of a negative value; a positive one is a
+      // reverse (healing) DS, which the sim does not model.
+      if (eid === 59 && ev < 0) ds    = Math.max(ds, -ev);
     }
     return { haste: haste, atk: atk, regen: regen, ft: ft, ds: ds, spellName: s.name || '' };
   }
@@ -13203,6 +13286,12 @@
       bash: 'Bash', kick: 'Kick', flyingkick: 'Flying Kick', dragonpunch: 'Dragon Punch', eaglestrike: 'Eagle Strike', tigerclaw: 'Tiger Claw', roundkick: 'Round Kick'
     };
     var gearOtherSkillMods = {}; // { skillKey: highest % seen across all equipped items }
+    // PoP-style "mod2" item stats (Quarm 2026-11-18 patch). Raw sums across worn items; each total is capped
+    // once afterwards (server Client::CalcItemBonuses, RuleI(Character, Item*Cap)). Not scaled by rec level.
+    var MOD2_CAPS = window.Mod2Inputs.CAPS;
+    var MOD2_LABELS = window.Mod2Inputs.LABELS;
+    var mod2Items = []; // { key, name, val } — every item carrying a mod2 stat, for the summary
+    var mod2Raw = { strikethrough: 0, stunresist: 0, combateffects: 0, accuracy: 0, avoidance: 0, spellshield: 0, shielding: 0, damageshield: 0 };
     var otherSkillModItems = []; // { name, key, mod } — every item carrying one, for the summary display
     var classMask   = 0x7FFF; // intersection starts at ALL_CLASSES, narrow down
     var hasClassConstraint = false;
@@ -13324,6 +13413,17 @@
           }
         }
 
+        // mod2 stats — summed raw (capped once after the loop so slot order doesn't matter).
+        var mod2NoteParts = [];
+        Object.keys(mod2Raw).forEach(function (k) {
+          var v = parseInt(item[k], 10) || 0;
+          if (v) {
+            mod2Raw[k] += v;
+            mod2NoteParts.push(MOD2_LABELS[k] + ' ' + v);
+            mod2Items.push({ key: k, name: entry.name, val: v });
+          }
+        });
+
         // Class detection — narrow intersection
         var itemClasses = parseInt(item.classes) || 0;
         if (itemClasses > 0 && itemClasses !== 0x7FFF) {
@@ -13340,6 +13440,8 @@
         if (sta) statParts.push('STA ' + sta);
         if (hp)  statParts.push('HP ' + hp);
         if (statParts.length) notes.push(statParts.join(' '));
+        // mod2 effects go last so they follow the base stats (AC/STR/...).
+        if (mod2NoteParts.length) notes.push(mod2NoteParts.join(' '));
       }
 
       html += '<div style="display:flex;gap:0.4rem;font-size:0.8rem;line-height:1.5;">'
@@ -13359,6 +13461,12 @@
     // and the report both re-read window.gearMeleeSkillMods via getGearMeleeSkillModPercent().
     window.gearMeleeSkillMods = gearMeleeSkillMods;
     window.gearOtherSkillMods = gearOtherSkillMods;
+    // Equipped totals (capped) fill the character-card mod2 inputs unless the user overrode a field;
+    // window.gearMod2 then mirrors whatever the inputs hold (see js/ui/mod2Inputs.js).
+    var equippedMod2 = {};
+    Object.keys(mod2Raw).forEach(function (k) { equippedMod2[k] = Math.min(mod2Raw[k], MOD2_CAPS[k]); });
+    window.gearMod2Raw = mod2Raw;
+    window.Mod2Inputs.setFromGear(equippedMod2);
     if (typeof refreshWeaponSkillModsFromCurrentWeapons === 'function') refreshWeaponSkillModsFromCurrentWeapons();
 
     // Auto-fill worn archery mod field with the highest single mod (bow vs. gear — they don't stack).
@@ -13722,6 +13830,31 @@
         });
       }
 
+      // Item mod2 stats — one line per stat with progress toward its cap. Totals are summed across items,
+      // then capped once (server Client::CalcItemBonuses), so any excess over the cap is wasted.
+      Object.keys(mod2Raw).forEach(function (key) {
+        var raw = mod2Raw[key];
+        if (!raw) return;
+        var cap = MOD2_CAPS[key];
+        var eff = Math.min(raw, cap);
+        var pct = Math.round(eff / cap * 100);
+        var full = raw >= cap;
+        var color = raw > cap ? '#e0a030' : (full ? '#6fcf7f' : '#7eb8c9');
+        var items = mod2Items.filter(function (it) { return it.key === key; });
+        summLines.push('<div style="margin-top:0.4rem;font-size:0.8rem;color:var(--muted);">');
+        summLines.push('<strong style="color:#d4af37;">' + MOD2_LABELS[key] + ':</strong> ');
+        summLines.push('<span style="color:' + color + ';">' + eff + ' / ' + cap + ' (' + pct + '%)</span> ');
+        summLines.push('<span style="display:inline-block;vertical-align:middle;width:5rem;height:0.45rem;background:var(--input-bg);border:1px solid var(--border);border-radius:3px;overflow:hidden;">'
+          + '<span style="display:block;height:100%;width:' + pct + '%;background:' + color + ';"></span></span> &mdash; ');
+        summLines.push(items.map(function (it) {
+          return '<span><em>' + it.name + '</em> <em style="color:#7eb8c9;">(+' + it.val + ')</em></span>';
+        }).join(', '));
+        if (raw > cap) {
+          summLines.push(' &mdash; <span style="font-size:0.72rem;color:#e0a030;">' + raw + ' total; capped at ' + cap + ', ' + (raw - cap) + ' wasted.</span>');
+        }
+        summLines.push('</div>');
+      });
+
       // Character name + class + level (from explicit charInfo) or bitmask-detected class
       if (charInfo && charInfo.name) {
         var charLabel = charInfo.name;
@@ -13997,6 +14130,10 @@
       return (typeof fn === 'function') ? fn(baseVal, mod) : baseVal;
     }
 
+    // Raw worn skill-mod % (flat second application in AvoidDamage, EQMacEmu 64dabd1) and capped mod2 stats.
+    function gearSkillModFlat(key) { return (window.gearOtherSkillMods || {})[key] || 0; }
+    var gearMod2 = window.gearMod2 || {};
+
     // Resolve buffs using the same model as the melee tab
     var buffFx = (typeof window.getBuffEffects === 'function') ? window.getBuffEffects() : null;
     var tankStatCap = window.getStatCapForLevel(
@@ -14057,6 +14194,16 @@
       playerParrySkill:     withGearSkillMod(v('parry-skill', 0), 'parry'),
       playerRiposteSkill:   withGearSkillMod(v('riposte-skill', 0), 'riposte'),
       playerBlockSkill:     withGearSkillMod(v('block-skill', 0), 'block'),
+      playerDodgeMod:       gearSkillModFlat('dodge'),
+      playerParryMod:       gearSkillModFlat('parry'),
+      playerRiposteMod:     gearSkillModFlat('riposte'),
+      playerBlockMod:       gearSkillModFlat('block'),
+      // Item mod2 stats (capped totals from the inventory scan)
+      playerItemAvoidance:      gearMod2.avoidance || 0,
+      playerShieldingPct:       gearMod2.shielding || 0,
+      playerSpellShieldPct:     gearMod2.spellshield || 0,
+      playerStunResistPct:      gearMod2.stunresist || 0,
+      playerDamageShieldBonus:  gearMod2.damageshield || 0,
       playerHPTotal:        v('tank-player-hp', 5000),  // buff HP already baked in by updateTankHP
       playerHPRegen:        v('tank-player-hp-regen', 0),
       healerHPS:            v('tank-healer-hps', 0),
@@ -14091,7 +14238,7 @@
       })(),
       playerStr:            statWithBuff('str', 'str', 200, tankStatCap),
       playerDex:            statWithBuff('dex', 'dex', 150, tankStatCap),
-      playerWornAttack:     v('worn-attack', 0) + (buffFx ? (buffFx.wornAtk || 0) + (buffFx.atk || 0) : 0),
+      playerWornAttack:     Math.min(250, v('worn-attack', 0) + (buffFx ? (buffFx.wornAtk || 0) : 0)) + (buffFx ? (buffFx.atk || 0) : 0),
 
       // Simulation
       fightDurationSec: v('tank-duration', 300),
