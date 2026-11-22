@@ -52,9 +52,10 @@
       display: grid;
       gap: var(--section-gap);
       max-width: 900px;
+      grid-template-columns: minmax(0, 1fr);
     }
     @media (min-width: 700px) {
-      .grid { grid-template-columns: 1fr 1fr; }
+      .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     }
     .grid-full-width { grid-column: 1 / -1; }
     section {
@@ -219,11 +220,24 @@
     .char-haste-left { flex: 1; min-width: 0; }
     .char-haste-icon-wrap { flex: 0 0 auto; }
     .char-haste-icon-wrap .class-icon { width: 120px; height: 120px; object-fit: contain; display: block; }
-    /* The class icon sits beside the left column, which narrows it. These two blocks sit well below the icon,
-       so let them reach back across the icon's column (120px + the 1rem flex gap) to use the card's full width. */
-    .char-haste-left > .mod2-hint,
-    .char-haste-left > .char-effective-stats { margin-right: calc(-120px - 1rem); }
-    .char-haste-left > .mod2-hint { margin-top: -0.25rem; margin-bottom: 0.5rem; }
+    /* The class icon floats in the card's top-right corner so the content column can use the full card width.
+       Only the short Class/Level row and its hint (the rows beside the icon) reserve room for it. */
+    .char-haste-section { position: relative; }
+    .char-haste-inner { display: block; }
+    .char-haste-icon-wrap { position: absolute; top: 3.4rem; right: 1.25rem; }
+    .char-haste-icon-wrap .class-icon { width: 96px; height: 96px; }
+    .char-haste-section .char-primary-grid--classlevel,
+    .char-haste-section #class-hint { margin-right: 7rem; }
+    @media (max-width: 520px) { .char-haste-icon-wrap { display: none; } .char-haste-section .char-primary-grid--classlevel, .char-haste-section #class-hint { margin-right: 0; } }
+    .char-haste-left > .mod2-hint { margin: -0.1rem 0 0.5rem; }
+    .mod2-reset-btn {
+      font: inherit; font-size: 0.75rem; font-weight: 600; line-height: 1.3;
+      color: var(--muted); padding: 0.25rem 0.7rem; margin-top: 0.35rem;
+      border: 1px solid var(--border); border-radius: 4px;
+      background: rgba(255,255,255,0.04); cursor: pointer; white-space: nowrap;
+    }
+    .mod2-reset-btn:hover { border-color: var(--color-gold); color: var(--color-gold); background: rgba(212,175,55,0.1); }
+    .char-haste-left > .char-effective-stats { margin-right: 0; box-sizing: border-box; max-width: 100%; }
     .char-primary-row {
       margin-bottom: 0.5rem;
     }
@@ -240,8 +254,11 @@
       grid-template-columns: max-content minmax(3.5rem, max-content);
     }
     .char-primary-grid--hasteatk {
-      grid-template-columns: repeat(3, minmax(5.5rem, max-content));
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      column-gap: 1rem;
     }
+    .char-haste-section .char-primary-grid--hasteatk > input[type="number"] { max-width: 6.5rem; }
+    .char-haste-section .char-primary-grid--hasteatk > label { white-space: normal; }
     .char-primary-grid--hasteatk-ranged {
       grid-template-columns: repeat(4, minmax(5.5rem, max-content));
     }
@@ -259,7 +276,7 @@
     .mod2-cell { display: flex; flex-direction: column; gap: 0.2rem; min-width: 0; }
     .mod2-cell > label { margin: 0; font-size: 0.78rem; line-height: 1.15; white-space: nowrap; }
     .mod2-cell > label .info-icon { margin-left: 0.3rem; }
-    .mod2-grid .mod2-cell > input[type="number"] { margin: 0; box-sizing: border-box; width: 5.25rem; max-width: 5.25rem; min-width: 0; }
+    .mod2-grid .mod2-cell > input[type="number"] { margin: 0; box-sizing: border-box; width: 100%; max-width: 6.5rem; min-width: 0; }
     .char-primary-grid--ranged {
       grid-template-columns: max-content repeat(7, minmax(3.5rem, max-content));
     }
@@ -400,11 +417,13 @@
     .checkbox-label input[type="checkbox"] { width: auto; margin: 0; }
     .bane-id-label { font-size: 0.75rem; color: var(--muted); margin-left: 0.25rem; }
     .main-layout {
+      max-width: 900px;
       display: block;
       margin-top: var(--section-gap);
     }
     @media (min-width: 1150px) {
       .main-layout {
+        max-width: none;
         display: flex;
         flex-direction: row;
         align-items: flex-start;
@@ -414,20 +433,23 @@
       .main-layout .main-left {
         flex: 1 1 auto;
         min-width: 0;
-        max-width: 920px;
+        max-width: 900px;
       }
       .main-layout .histogram-aside {
         flex: 1 1 auto;
         min-width: 300px;
+        max-width: none;
         margin-top: 0;
       }
     }
     .main-left {
+      max-width: 900px;
       display: flex;
       flex-direction: column;
       gap: var(--section-gap);
     }
     .histogram-aside {
+      max-width: 900px;
       display: flex;
       flex-direction: column;
       gap: var(--section-gap);
@@ -1799,6 +1821,11 @@
     .stat-final-cell { display: flex; align-items: center; gap: 3px; }
     .stat-dist-table td.stat-gear { color: var(--color-gold); font-weight: 600; }
     .stat-final-input { width: 3.5rem; text-align: right; background: transparent; border: 1px solid var(--border); color: var(--color-gold); font-weight: 700; font-size: 0.72rem; padding: 0.1rem 0.15rem; }
+    /* The generic input rules (width:100%, tall padding) otherwise win and make these boxes huge, which
+       pushes the Final/MAX columns out of the card on narrow screens. */
+    .char-haste-section .stat-dist-table td input.stat-final-input[type="number"][data-stat] {
+      width: 3.6rem; min-width: 0; min-height: 2rem; margin: 0; padding: 0.15rem 0.3rem; box-sizing: border-box;
+    }
     .stat-final-input:focus { outline: 1px solid var(--color-gold); border-color: var(--color-gold); }
     .stat-max-btn {
       font-size: 0.62rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em;
@@ -1836,16 +1863,19 @@
     /* ── Shared character module ─────────────────────────────────── */
     #character-module {
       max-width: 900px;
-      margin-bottom: var(--section-gap);
+      margin-bottom: 0; /* .main-layout already adds the standard gap above itself */
     }
 
     /* ── Char + Buff side-by-side row ────────────────────────────── */
+    /* Same two equal columns and gap as .grid (the weapon cards below) so the cards line up. */
     .char-buff-pair {
-      display: flex;
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
       gap: var(--section-gap);
-      align-items: flex-start;
+      align-items: start;
     }
-    .char-buff-pair > section, .char-buff-pair > div { flex: 1 1 0; min-width: 0; }
+    .char-buff-pair > section, .char-buff-pair > div { min-width: 0; }
+    @media (max-width: 699px) { .char-buff-pair { grid-template-columns: minmax(0, 1fr); } }
 
     /* ── Buff Panel ───────────────────────────────────────────────── */
     #buff-section { padding: 0; }
@@ -2113,7 +2143,7 @@
       }
 
       .char-buff-pair {
-        flex-direction: column;
+        grid-template-columns: minmax(0, 1fr);
       }
       .char-field {
         flex: 1 1 auto;
@@ -2609,7 +2639,7 @@
           <input type="number" id="mod2-damageshield" min="0" max="30" value="0" placeholder="0" size="4" inputmode="numeric" autocomplete="off">
         </div>
       </div>
-      <p class="hint mod2-hint">Item mod2 stats: filled from equipped items; edit to override. <button type="button" id="mod2-reset" style="display:none;font-size:0.75rem;padding:0 0.4rem;">Reset to equipped</button></p>
+      <p class="hint mod2-hint">Item mod2 stats: filled from equipped items; edit to override.<br><button type="button" id="mod2-reset" class="mod2-reset-btn" style="display:none;">Reset to equipped</button></p>
       <div class="buff-totals char-effective-stats" id="char-effective-stats">
         <span class="bt-label">Net haste:</span>
         <span title="Worn haste from items"><span class="bt-label">Worn </span><span class="bt-val" id="eff-worn-haste">0%</span></span>
@@ -2960,7 +2990,7 @@
 
   <div id="ranged-tab" class="tab-panel hidden">
   <!-- Ranger-only warning — shown when a non-Ranger class is active -->
-  <div id="ranged-nonranger-warning" style="display:none;margin:0.5rem 0 0.75rem;padding:0.6rem 1rem;background:rgba(251,191,36,0.10);border:1px solid rgba(251,191,36,0.4);border-radius:5px;font-size:0.82rem;color:#fbbf24;display:none;align-items:center;gap:0.5rem;">
+  <div id="ranged-nonranger-warning" style="display:none;box-sizing:border-box;max-width:900px;margin:0 0 1rem;padding:0.6rem 1rem;background:rgba(251,191,36,0.10);border:1px solid rgba(251,191,36,0.4);border-radius:5px;font-size:0.82rem;color:#fbbf24;display:none;align-items:center;gap:0.5rem;">
     <span style="font-size:1.1rem;">&#9888;</span>
     <span>The <strong>Ranged</strong> tab is designed for <strong>Ranger</strong> only. Archery damage formulas, skill caps, and AA options assume a Ranger. Results for other classes will be inaccurate.</span>
   </div>
@@ -3181,15 +3211,15 @@
 
   <div id="tanking-tab" class="tab-panel hidden">
   <div class="tab-content-wrapper">
-  <div style="margin:0.75rem 0 0.5rem;padding:0.6rem 1rem;background:rgba(251,191,36,0.10);border:1px solid rgba(251,191,36,0.4);border-radius:5px;font-size:0.82rem;color:#fbbf24;display:flex;align-items:flex-start;gap:0.5rem;">
+  <div style="box-sizing:border-box;max-width:900px;margin:0 0 1rem;padding:0.6rem 1rem;background:rgba(251,191,36,0.10);border:1px solid rgba(251,191,36,0.4);border-radius:5px;font-size:0.82rem;color:#fbbf24;display:flex;align-items:flex-start;gap:0.5rem;">
     <span style="font-size:1rem;line-height:1.4;">⚠</span>
     <span><strong>In development.</strong> The tanking simulation is newer and less battle-tested than Melee/Ranged — treat results as a rough guide, not a guarantee, and expect some mechanics to still be inaccurate or buggy.</span>
   </div>
-  <div style="margin:0 0 1rem;padding:0.65rem 1rem;background:rgba(96,165,250,0.08);border:1px solid rgba(96,165,250,0.35);border-radius:5px;font-size:0.82rem;color:#93c5fd;display:flex;align-items:flex-start;gap:0.5rem;">
+  <div style="box-sizing:border-box;max-width:900px;margin:0 0 1rem;padding:0.65rem 1rem;background:rgba(96,165,250,0.08);border:1px solid rgba(96,165,250,0.35);border-radius:5px;font-size:0.82rem;color:#93c5fd;display:flex;align-items:flex-start;gap:0.5rem;">
     <span style="font-size:1rem;line-height:1.4;">ℹ</span>
     <span>Models the mob's full attack sequence — main hand and off hand on separate timers, double and triple attacks, flurry, rampage, kicks and bashes with stuns, weapon procs, and spell casting — against your avoidance, AC and defensive AAs. The Complete Heal chain is measured by replaying the fight against candidate heal intervals, so it accounts for burst damage rather than averages. <strong>Longer fights and more runs give a better chain estimate.</strong></span>
   </div>
-  <div class="grid" style="grid-template-columns:1fr;">
+  <div class="grid" style="grid-template-columns:minmax(0,1fr);">
 
     <!-- ═══════════════════════════════════════════════════════
          CARD 1 — PLAYER EQUIPMENT
@@ -3408,15 +3438,15 @@
 
   <div id="rotation-tab" class="tab-panel hidden">
   <div class="tab-content-wrapper">
-  <div style="margin:0.75rem 0 0.5rem;padding:0.6rem 1rem;background:rgba(251,191,36,0.10);border:1px solid rgba(251,191,36,0.4);border-radius:5px;font-size:0.82rem;color:#fbbf24;display:flex;align-items:flex-start;gap:0.5rem;">
+  <div style="box-sizing:border-box;max-width:900px;margin:0 0 1rem;padding:0.6rem 1rem;background:rgba(251,191,36,0.10);border:1px solid rgba(251,191,36,0.4);border-radius:5px;font-size:0.82rem;color:#fbbf24;display:flex;align-items:flex-start;gap:0.5rem;">
     <span style="font-size:1rem;line-height:1.4;">⚠</span>
     <span><strong>In development.</strong> The spell rotation planner is new and hasn't been broadly validated — treat results as a rough guide, not a guarantee, and expect some mechanics (especially rain/DoT timing and resist math) to still be inaccurate or buggy.</span>
   </div>
-  <div style="margin:0 0 1rem;padding:0.65rem 1rem;background:rgba(96,165,250,0.08);border:1px solid rgba(96,165,250,0.35);border-radius:5px;font-size:0.82rem;color:#93c5fd;display:flex;align-items:flex-start;gap:0.5rem;">
+  <div style="box-sizing:border-box;max-width:900px;margin:0 0 1rem;padding:0.65rem 1rem;background:rgba(96,165,250,0.08);border:1px solid rgba(96,165,250,0.35);border-radius:5px;font-size:0.82rem;color:#93c5fd;display:flex;align-items:flex-start;gap:0.5rem;">
     <span style="font-size:1rem;line-height:1.4;">ℹ</span>
     <span>Simulates the actual cast-by-cast timeline for a caster's nuke pool against the 2.25s global cooldown, each spell's own recast timer, and (optionally) one off-global filler spell — picking the highest-scoring castable spell at every decision point. Damage is run through a mob resist check. Uses the class and level from the <strong>Character</strong> module above.</span>
   </div>
-  <div class="grid" style="grid-template-columns:1fr;">
+  <div class="grid" style="grid-template-columns:minmax(0,1fr);">
 
     <div id="pet-configurator-anchor-rotation" style="display:none;"></div>
 
@@ -3585,7 +3615,7 @@
   </div><!-- /#rotation-tab -->
 
   <!-- Shown when a simulation runs with any input above a cap (see js/ui/capAlerts.js) -->
-  <div id="overcap-warning" style="display:none;margin:0.5rem 0 0.75rem;padding:0.6rem 1rem;background:rgba(251,191,36,0.10);border:1px solid rgba(251,191,36,0.4);border-radius:5px;font-size:0.82rem;color:#fbbf24;align-items:flex-start;gap:0.5rem;">
+  <div id="overcap-warning" style="display:none;box-sizing:border-box;max-width:900px;margin:0;padding:0.6rem 1rem;background:rgba(251,191,36,0.10);border:1px solid rgba(251,191,36,0.4);border-radius:5px;font-size:0.82rem;color:#fbbf24;align-items:flex-start;gap:0.5rem;">
     <span style="font-size:1.1rem;">&#9888;</span>
     <span><strong>Some inputs are above their caps.</strong> Where noted, the clamped value is what this simulation's results use.<span data-overcap-list style="display:block;"></span></span>
   </div>
@@ -3634,10 +3664,16 @@
   </aside>
   </div>
 
-  <section class="advanced-only" style="margin-top: 1rem;">
+  <section class="advanced-only" style="margin-top: 1rem; max-width: 900px; box-sizing: border-box;">
     <details id="version-log-details">
     <summary style="cursor:pointer; font-size:1.17em; font-weight:bold; margin:0; list-style:revert;">Version log</summary>
     <ul style="font-size: 0.9rem; color: var(--muted); margin: 0.5rem 0 0; padding-left: 1.25rem;">
+      <li><strong>2.12</strong> — Layout cleanup and a haste display fix.
+        <ul>
+          <li><strong>Layout.</strong> The Character and Buffs cards now use the same two-column grid and gap as the weapon cards, on every tab. The above-cap alert, version log and history sections stay within the same column width, and the Spells tab no longer overflows on narrow screens. The class icon moved to the card corner so the mod2 hint and net haste box use the full card width, and the Reset to equipped button sits on its own line.</li>
+          <li><strong>Fix:</strong> the net haste summary could show a stale V1 haste (for example 0% or 60%) after a reload, even though the box held another value such as 85. It now refreshes when the page loads.</li>
+        </ul>
+      </li>
       <li><strong>2.11</strong> — Quarm Nov 2026 patch: item <strong>mod2</strong> stats, skill-mod avoidance change, an <strong>above-cap alert</strong>, and fixes.
         <ul>
           <li><strong>Item mod2 stats.</strong> Eight new item stats from the patch's SQL (63 items): <em>Strikethrough, Stun Resist, Combat Effects, Accuracy, Avoidance, Spell Shield, Shielding, Damage Shield</em>. Import Inventory adds them up across equipped gear and applies the server's caps (35 / 35 / 100 / 150 / 100 / 35 / 35 / 30) to the total. They feed the sims: Accuracy (melee + ranged to-hit) and Combat Effects (weapon proc chance, in tenths of a percent), Strikethrough (shrinks the mob's dodge/parry/riposte/block chance on the Melee tab), and on the Tanking tab Avoidance (flat avoidance), Shielding (trims only the mob's flat damage bonus), Spell Shield (direct-damage spells only), Stun Resist, and Damage Shield (boosts an existing shield only; it never creates one). Shroud of Eternity's worn effect was swapped for plain regen, as on the server.</li>
@@ -4271,7 +4307,7 @@
       }
 
       // When releasing: 1) Bump VERSION below. 2) Add a new <li> at the top of the Version log section above.
-      const VERSION = '2.11';
+      const VERSION = '2.12';
       const versionEl = $('app-version');
       if (versionEl) versionEl.textContent = 'v' + VERSION;
 
@@ -10861,6 +10897,20 @@
         el.addEventListener('input', updateSpecialReuseDisplay);
         el.addEventListener('change', updateSpecialReuseDisplay);
       });
+      // Browsers restore remembered form values (e.g. a V1 haste of 85) after scripts have run, and they do so
+      // without firing input events, so the net-haste summary would keep showing the stale default/buff value.
+      // Re-fire input on the haste/ATK fields once the page has fully loaded or is restored from bfcache.
+      function resyncRestoredCharacterInputs() {
+        setTimeout(function () {
+          ['worn-haste', 'spell-haste', 'v3-haste', 'worn-attack', 'spell-attack'].forEach(function (id) {
+            var el = $(id);
+            if (el) el.dispatchEvent(new Event('input', { bubbles: true }));
+          });
+          updateEffectiveHasteDisplay();
+        }, 0);
+      }
+      window.addEventListener('load', resyncRestoredCharacterInputs);
+      window.addEventListener('pageshow', function (e) { if (e.persisted) resyncRestoredCharacterInputs(); });
       // Keep effective-stats bar in sync when worn-haste changes
       (function () {
         var el = $('worn-haste');
