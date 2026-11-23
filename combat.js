@@ -466,7 +466,8 @@
   // weapon_speed = effective delay (deciseconds). dualWieldChance = 0..100 (same scale as GetDualWieldChance).
   function getProcChancePerSwing(effectiveDelayDecisec, isOffhand, dualWieldChance, dex) {
     if (effectiveDelayDecisec <= 0) return 0;
-    const d = dex != null ? dex : 150;
+    // Server (Mob::GetProcChance): "proc chance caps at 255" — DEX above 255 adds nothing (305 DEX = 255 DEX).
+    const d = Math.min(255, dex != null ? dex : 150);
     let chance = (PROC_BASE_RATE + PROC_DEX_SCALAR * d) * effectiveDelayDecisec;
     if (isOffhand) {
       const dw = Math.max(1, dualWieldChance != null ? dualWieldChance : 100);

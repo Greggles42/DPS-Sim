@@ -772,9 +772,9 @@
       <h2>9) Proc Chance and Proc Resists <span class="badge badge-game">In-Game Mechanic</span></h2>
       <h3>Proc chance per swing/round</h3>
       <p>
-        Proc chance scales with effective delay and DEX. Offhand has a dual-wield adjustment. Then proc-rate modifiers are applied.
+        Proc chance scales with effective delay and DEX. DEX above 255 adds nothing: the server caps it at 255 for procs, so 305 DEX procs the same as 255. Offhand has a dual-wield adjustment. Then proc-rate modifiers are applied.
       </p>
-      <div class="formula">baseProcChance = (0.0004166667 + 1.1437908496732e-5 * DEX) * effectiveDelay</div>
+      <div class="formula">baseProcChance = (0.0004166667 + 1.1437908496732e-5 * min(DEX, 255)) * effectiveDelay</div>
       <div class="formula">offhandAdjusted = baseProcChance * (50 / dualWieldChance)</div>
       <div class="formula">finalProcChance = clamp(0, 1, adjustedChance * (100 + procRate) / 100)</div>
       <p>
@@ -937,10 +937,10 @@
       </p>
       <ul>
         <li><strong>Crit chance (Ranger, level &gt; 16):</strong> <code>1.35 + DEX/34</code>% — going from DEX 75 to 255 adds roughly +5.3% crit chance.</li>
-        <li><strong>Proc chance:</strong> <code>~0.00001144 × DEX × delay</code> per swing — a small but real factor on slow bows.</li>
+        <li><strong>Proc chance:</strong> <code>~0.00001144 × DEX × delay</code> per swing (DEX counts up to 255 only) — a small but real factor on slow bows.</li>
       </ul>
       <p class="muted">
-        In practice, DEX past the 255 stat cap provides a small additional bonus to crit chance and proc chance (each extra DEX point above 255 is divided by 400 for crits, 200 for procs), but the main payoff from DEX comes from reaching 255.
+        DEX past the 255 stat cap gives a small extra bonus to crit chance (each point above 255 counts for 1/400) but nothing for proc chance, which stops at 255 DEX.
       </p>
 
       <h3>10.2.2) Archery Accuracy — Skill, Skill Mods, and Accuracy Spells <span class="badge badge-game">In-Game Mechanic</span></h3>
