@@ -10,9 +10,6 @@
 (function (global) {
   'use strict';
 
-  /** When true and duelist is active, add +1 to backstab final damage (hidden debug, no UI). */
-  var FENCEPOSTBACKSTABDEBUG = true;
-
   /** When true, rollDamageMultiplier uses Math.ceil instead of Math.floor for the multiplier step. */
   var _roundMultUp = false;
 
@@ -38,31 +35,6 @@
 
   /** Triple attack chance on a successful double attack round */
   var TRIPLE_ATTACK_CHANCE_ON_DOUBLE = 0.135;
-
-  // NPC defense skill caps by class (EQMacEmu skills.cpp class cap tables).
-  // [block, parry, riposte, dodge]. 0 = class cannot use that skill.
-  // Class IDs: 1=Warrior, 2=Cleric, 3=Paladin, 4=Ranger, 5=Shadow Knight,
-  //            6=Druid, 7=Monk, 8=Bard, 9=Rogue, 10=Shaman,
-  //            11=Necromancer, 12=Wizard, 13=Magician, 14=Enchanter, 15=Beastlord
-  var NPC_DEFENSE_CAPS = {
-    1:  [200, 230, 200, 260],  // Warrior
-    2:  [0,    85,   0, 200],  // Cleric
-    3:  [200, 220, 175, 250],  // Paladin
-    4:  [0,   220, 175, 250],  // Ranger
-    5:  [200, 205, 160, 250],  // Shadow Knight
-    6:  [0,    85,   0, 200],  // Druid
-    7:  [0,   175, 175, 260],  // Monk
-    8:  [0,   175, 175, 260],  // Bard
-    9:  [0,   185, 270, 260],  // Rogue
-    10: [0,    85,   0, 200],  // Shaman
-    11: [0,    50,   0, 175],  // Necromancer
-    12: [0,    50,   0, 175],  // Wizard
-    13: [0,    50,   0, 175],  // Magician
-    14: [0,    50,   0, 175],  // Enchanter
-    15: [0,   145, 100, 220],  // Beastlord
-  };
-  // Default caps for unknown/unspecified NPC class (generic melee mob)
-  var NPC_DEFENSE_CAPS_DEFAULT = [75, 150, 100, 230];
 
   /** Minimum effective weapon delay after haste, in deciseconds (Combat:MinHastedDelay rule, 400ms) */
   var MIN_DELAY_DECISEC = 4;
@@ -99,7 +71,8 @@
     return (a * HIT_CHANCE_MULTIPLIER) / (b * 2.0);
   }
 
-  // frontAvoidChance: 0 = attacking from behind (no block/parry/riposte/dodge); hit roll still applies.
+  // frontAvoidChance: probability the swing is avoided by block/parry/riposte/dodge (0 = none). From behind only
+  // block remains; hit roll still applies.
   // Non-zero = combined avoidance probability from NPC skill checks (block→parry→riposte→dodge).
   function rollHit(toHit, avoidance, rng, frontAvoidChance) {
     const chance = getHitChance(toHit, avoidance);
@@ -120,12 +93,56 @@
     return avoidance;
   }
 
-  // ----- NPC defense skills (block/parry/riposte/dodge) for front-attack avoidance -----
-  // NPC skill at level L = min(L * 5, class_cap), matching EQMacEmu GetSkill() NPC scaling.
-  function getNpcDefenseSkills(level, npcClass) {
-    const L = level != null ? level : 60;
-    const caps = (npcClass != null && NPC_DEFENSE_CAPS[npcClass]) ? NPC_DEFENSE_CAPS[npcClass] : NPC_DEFENSE_CAPS_DEFAULT;
-    return caps.map(function(cap) { return cap > 0 ? Math.min(L * 5, cap) : 0; });
+  // ----- NPC defense skills (block / parry / riposte / dodge) -----
+  // Mirrors EQMacEmu zone/npc.cpp NPC::NPC (lines ~295-405). NPCs do NOT use the player class caps: each NPC first
+  // gets its class's skill_caps value for every skill, then the defensive skills are overwritten explicitly:
+  //   dodge   : level > 10  -> min(level*5, 190); Monk min(level*5, 230)                     (all classes)
+  //   parry   : level > 6   -> min(level*5, 230)  Warrior, Paladin, Shadow Knight, Ranger, Rogue, Bard
+  //   riposte : level > 11  -> min(level*5, 225)  the six classes above plus Monk
+  //   block   : Monk, level > 11 -> 250 above level 50, else min(level*5, 225); every other class keeps the value
+  //             from the class skill_caps table (only Beastlord has Block in that table: 0 below level 25, then
+  //             130 rising to 200 at level 60+). Everyone else has no Block skill.
+  // Returns [block, parry, riposte, dodge]. 0 = the NPC does not have the skill.
+  // npcClass is npc_types.class (1-15; 20-34 are the "GM" variants of the same classes). null = manual target with
+  // no NPC selected: modelled as a Warrior (the most common melee mob class) and Block comes from manualCanBlock
+  // (when on, the mob uses the Monk block skill).
+  function normalizeNpcClass(npcClass) {
+    var c = Number(npcClass);
+    if (!isFinite(c)) return null;
+    return (c >= 20 && c <= 34) ? c - 19 : c;
+  }
+  function beastlordNpcBlockSkill(level) {
+    var wsc = global.WeaponSkillCaps;
+    if (wsc && wsc.getSkillCap) return wsc.getSkillCap('block', 14, level); // exact skill_caps row
+    if (level < 25) return 0;
+    if (level <= 29) return 5 * level + 5;
+    if (level <= 50) return 150;
+    if (level <= 60) return 150 + 5 * (level - 50);
+    return 200;
+  }
+  function getNpcDefenseSkills(level, npcClass, manualCanBlock, useWarriorSkills) {
+    var L = level != null ? level : 60;
+    var cls = npcClass == null ? null : normalizeNpcClass(npcClass);
+    var effClass = cls == null ? 1 : cls; // unknown class -> Warrior model
+    var isMonk = effClass === 7;
+    // The UseWarriorSkills special ability (npc.cpp:343) grants parry and riposte to any class, exactly like a Warrior.
+    var hasParry = !!useWarriorSkills || effClass === 1 || effClass === 3 || effClass === 5 || effClass === 4 || effClass === 9 || effClass === 8;
+    var hasRiposte = hasParry || isMonk;
+    var monkBlock = L > 11 ? (L > 50 ? 250 : Math.min(L * 5, 225)) : 0;
+    var block = 0;
+    if (cls == null) block = manualCanBlock ? monkBlock : 0;
+    else if (isMonk) block = monkBlock;
+    else if (effClass === 15) block = beastlordNpcBlockSkill(L);
+    return [
+      block,
+      hasParry && L > 6 ? Math.min(L * 5, 230) : 0,
+      hasRiposte && L > 11 ? Math.min(L * 5, 225) : 0,
+      L > 10 ? Math.min(L * 5, isMonk ? 230 : 190) : 0
+    ];
+  }
+  /** Block skill only (see getNpcDefenseSkills). */
+  function getNpcBlockSkill(level, npcClass, manualCanBlock) {
+    return getNpcDefenseSkills(level, npcClass, manualCanBlock)[0];
   }
 
   // ----- Item "mod2" stats (Quarm 2026-11-18 patch) -----
@@ -145,16 +162,35 @@
     return combatEffects > 0 ? procChance * (100 + combatEffects / 10) / 100 : procChance;
   }
 
+  // Server Mob::AvoidDamage rolls: block = (skill+100)/25 %, parry /50, riposte /55, dodge /45.
+  function avoidRate(skill, div) { return skill > 0 ? Math.min(1, Math.floor((skill + 100) / div) / 100) : 0; }
+  function computeBlockChance(level, npcClass, manualCanBlock) {
+    return avoidRate(getNpcBlockSkill(level, npcClass, manualCanBlock), 25);
+  }
+
   // Combined front avoidance probability from sequential block→parry→riposte→dodge checks.
-  // Divisors from EQMacEmu attack.cpp Mob::AvoidDamage: block/25, parry/50, riposte/55, dodge/45.
-  function computeFrontAvoidChance(level, npcClass) {
-    var skills = getNpcDefenseSkills(level, npcClass);
-    function rate(skill, div) { return skill > 0 ? Math.min(1, Math.floor((skill + 100) / div) / 100) : 0; }
-    var block   = rate(skills[0], 25);
-    var parry   = rate(skills[1], 50);
-    var riposte = rate(skills[2], 55);
-    var dodge   = rate(skills[3], 45);
+  function computeFrontAvoidChance(level, npcClass, manualCanBlock, useWarriorSkills) {
+    var skills = getNpcDefenseSkills(level, npcClass, manualCanBlock, useWarriorSkills);
+    var block   = avoidRate(skills[0], 25);
+    var parry   = avoidRate(skills[1], 50);
+    var riposte = avoidRate(skills[2], 55);
+    var dodge   = avoidRate(skills[3], 45);
     return 1 - (1 - block) * (1 - parry) * (1 - riposte) * (1 - dodge);
+  }
+
+  // Attacking from behind: the server only gates parry, riposte and dodge on facing (InFront). Block has no
+  // facing check, so a mob that has the Block skill can still block a swing from behind.
+  function computeBehindAvoidChance(level, npcClass, manualCanBlock) {
+    return computeBlockChance(level, npcClass, manualCanBlock);
+  }
+
+  // Ranged attacks (AvoidDamage with isRangedAttack): block applies from any angle, dodge only from the front,
+  // parry and riposte never.
+  function computeRangedAvoidChance(level, npcClass, manualCanBlock, fromBehind) {
+    var block = computeBlockChance(level, npcClass, manualCanBlock);
+    if (fromBehind) return block;
+    var dodge = avoidRate(getNpcDefenseSkills(level, npcClass, manualCanBlock)[3], 45);
+    return 1 - (1 - block) * (1 - dodge);
   }
 
   // ----- Defender GetMitigation() – mob's mitigation for DAMAGE ROLL only (RollD20), NOT hit chance -----
@@ -192,9 +228,12 @@
     return index + 1;
   }
 
-  function calcMeleeDamage(baseDamage, offenseRating, mitigation, rng, damageBonus) {
+  // minHit: SE_MinDamageModifier floor (Mob::CalcMeleeDamage applies it to the rolled damage BEFORE the
+  // client damage multiplier, so callers must pass it here rather than clamp the final damage).
+  function calcMeleeDamage(baseDamage, offenseRating, mitigation, rng, damageBonus, minHit) {
     const roll = rollD20(offenseRating, mitigation, rng);
     let damage = Math.floor((roll * baseDamage + 5) / 10);
+    if (minHit > 0 && damage < minHit) damage = minHit;
     if (damage < 1) damage = 1;
     if (damageBonus) damage += damageBonus;
     return damage;
@@ -281,7 +320,9 @@
   }
 
   // ----- Melee critical hit chance (client: DEX, class, AA, discipline) -----
-  // critChance is in percent (0–100). Warrior has innate base; Combat Fury 1/2/3 add flat +2%/+4%/+6% (critChanceMult) on top.
+  // critChance is in percent (0–100). Warrior has innate base. critChanceMult is aabonuses.CriticalHitChance: a PERCENT
+  // MULTIPLIER on the base chance (critChance += critChance*mult/100, attack.cpp:4301), the max of Combat Fury
+  // (15/40/75) and Fury of the Ages (100/125/150) — see aaCritChanceMult.
   // (Ingenuity does NOT touch this — it's a proc/spell crit chance AA, see getProcCritAA.)
   function getCritChance(level, classId, dex, clientBaseCritChance, critChanceMult, isArchery) {
     let critChance = (clientBaseCritChance != null ? clientBaseCritChance : 0);
@@ -295,24 +336,39 @@
     } else if (classId !== 'warrior' && (critChanceMult || 0) > 0) {
       critChance += 0.275 + dexCap / 150 + overCap;
     }
-    critChance += (critChanceMult || 0);
+    if (critChanceMult) critChance += critChance * critChanceMult / 100;
     return Math.max(0, Math.min(100, critChance));
+  }
+
+  // Live AA values (altadv_vars / aa_effects, SE_CriticalHitChance): Combat Fury AA 113-115 = 15/40/75,
+  // Fury of the Ages AA 443-445 = 100/125/150. The server keeps the larger (bonuses.cpp max()).
+  var COMBAT_FURY_MULT = [0, 15, 40, 75];
+  var FURY_OF_THE_AGES_MULT = [0, 100, 125, 150];
+  function aaCritChanceMult(combatFuryRank, furyOfTheAgesRank) {
+    const cf = COMBAT_FURY_MULT[Math.min(3, Math.max(0, combatFuryRank | 0))] || 0;
+    const fa = FURY_OF_THE_AGES_MULT[Math.min(3, Math.max(0, furyOfTheAgesRank | 0))] || 0;
+    return Math.max(cf, fa);
   }
 
   // ----- Melee critical hit damage: ((damage - damageBonus) * critMod + 5) / 10 + 8 + damageBonus -----
   // critMod 17 = normal crit, 29 = crippling blow / berserk. cripSuccess adds +2 damage.
-  // furyDmgBonusPct: Fury of the Ages (warrior PoP AA), rank 1–5: +5/10/15/20/25% bonus after crit calc.
-  function applyCritDamage(damage, damageBonus, critMod, cripSuccess, furyDmgBonusPct) {
-    let dmg = Math.floor(((damage - (damageBonus || 0)) * critMod + 5) / 10) + 8 + (damageBonus || 0);
-    if (cripSuccess) dmg += 2;
-    if (furyDmgBonusPct > 0) dmg = Math.floor(dmg * (100 + furyDmgBonusPct) / 100);
+  // minBase (optional): the weapon base damage; the server floors a crit at (minBase*critMod+5)/10 + 8 + DB
+  // (attack.cpp:4344-4354). furyDmgBonusPct is retained only for call-site compatibility and is ignored —
+  // Fury of the Ages is a crit-CHANCE multiplier on the server, not a damage bonus.
+  function applyCritDamage(damage, damageBonus, critMod, cripSuccess, furyDmgBonusPct, minBase) {
+    const db = damageBonus || 0;
+    let dmg = Math.floor(((damage - db) * critMod + 5) / 10) + 8 + db;
+    let minDmg = 0;
+    if (minBase > 0) minDmg = Math.floor((minBase * critMod + 5) / 10) + 8 + db;
+    if (cripSuccess) { dmg += 2; minDmg += 2; }
+    if (minBase > 0 && minDmg > dmg) dmg = minDmg;
     return dmg < 1 ? 1 : dmg;
   }
 
   // Roll for crit, then apply crit damage if it lands. Returns { damage, isCrit }.
   // damageBonus = main-hand damage bonus (0 for offhand). isArchery, isBerserk, cripplingBlowChance optional.
   // furyDmgBonusPct: Fury of the Ages warrior AA bonus % applied after crit formula.
-  function rollMeleeCrit(damage, damageBonus, level, classId, dex, critChanceMult, isArchery, isBerserk, cripplingBlowChance, critDmgDebugDmgBonus, rng, furyDmgBonusPct) {
+  function rollMeleeCrit(damage, damageBonus, level, classId, dex, critChanceMult, isArchery, isBerserk, cripplingBlowChance, critDmgDebugDmgBonus, rng, furyDmgBonusPct, minBase) {
     const clientBaseCritChance = 0;
     const critChancePct = getCritChance(level, classId, dex, clientBaseCritChance, critChanceMult || 0, !!isArchery);
     if (critChancePct <= 0) return { damage, isCrit: false };
@@ -325,9 +381,7 @@
       critMod = 29;
       cripSuccess = true;
     }
-    let newDamage = applyCritDamage(damage, damageBonus, critMod, cripSuccess, furyDmgBonusPct || 0);
-    // Debug parity toggle: add +1 to melee crits after all other crit calculations.
-    if (critDmgDebugDmgBonus && !isArchery) newDamage += 1;
+    const newDamage = applyCritDamage(damage, damageBonus, critMod, cripSuccess, 0, minBase || 0);
     return { damage: newDamage, isCrit: true };
   }
 
@@ -337,8 +391,10 @@
     return doubleAttackSkill + (toHitOrLevel || 0);
   }
 
-  function checkDoubleAttack(doubleAttackEffective, rng, classId) {
-    if (classId === 'bard' || classId === 'beastlord') return false;
+  // Mob::GetDoubleAttackChance / CheckDoubleAttack (attack.cpp:3325-3358). There is no class exclusion: a class
+  // with no Double Attack skill simply has an effective value of 0 (unless Bestial Frenzy / Harmonious Attack
+  // give it one — see getDoubleAttackEffectiveWithAA).
+  function checkDoubleAttack(doubleAttackEffective, rng) {
     return doubleAttackEffective > Math.floor(rng() * DOUBLE_ATTACK_DIVISOR);
   }
 
@@ -356,13 +412,19 @@
 
   // ----- Flurry (Luclin AA: warrior/monk, 3 ranks) -----
   // Extra swing after a successful triple attack round. Rank 1/2/3: 10%/20%/30%.
-  var FLURRY_CHANCE_BY_RANK = [0, 0.10, 0.20, 0.30];
-  function checkFlurry(rank, level, classId, rng) {
-    if (!rank || rank < 1) return false;
+  // Live AA values (aa_effects SE_FlurryChance): Flurry 20/24/30, Raging Flurry +2/+4/+7 — aabonuses.FlurryChance
+  // is their sum, and the server rolls Int(0,99) < sum once per successful triple attack (client_process.cpp:363).
+  var FLURRY_CHANCE_BY_RANK = [0, 20, 24, 30];
+  var RAGING_FLURRY_CHANCE_BY_RANK = [0, 2, 4, 7];
+  function getFlurryChancePct(flurryRank, ragingFlurryRank) {
+    return (FLURRY_CHANCE_BY_RANK[Math.min(3, Math.max(0, flurryRank | 0))] || 0)
+      + (RAGING_FLURRY_CHANCE_BY_RANK[Math.min(3, Math.max(0, ragingFlurryRank | 0))] || 0);
+  }
+  function checkFlurry(chancePct, level, classId, rng) {
+    if (!(chancePct > 0)) return false;
     if (classId !== 'warrior') return false;
     if ((level || 0) < 60) return false;
-    const chance = FLURRY_CHANCE_BY_RANK[Math.min(rank, 3)];
-    return rng() < chance;
+    return Math.floor(rng() * 100) < chancePct;
   }
 
   // ----- Client::GetDamageBonus – main hand damage bonus (level, 1h/2h, delay) -----
@@ -438,6 +500,20 @@
     else if (lvl > 50) cap += 85;
     else cap += lvl + 25;
     return cap;
+  }
+  // Mob::GetHaste composition (mob.cpp:2894-2924): v1 (spell) + v2 (level 50+, max 10) + worn item haste (max 10 at
+  // level 25 and under) are summed and clamped to the level cap; v3 (over-haste) is added AFTER the clamp with its own
+  // cap (25 at 51+, 10 at 50 and under). Returns the haste percent (0 = none).
+  function composeHastePercent(level, parts) {
+    const lvl = level != null ? level : 60;
+    const p = parts || {};
+    const v1 = Math.max(0, Number(p.v1) || 0);
+    const v2 = (lvl > 49) ? Math.min(10, Math.max(0, Number(p.v2) || 0)) : 0;
+    let worn = Math.max(0, Number(p.worn) || 0);
+    if (lvl <= 25) worn = Math.min(10, worn);
+    const cap = getHasteCapTotal(lvl, p.hasteCap60Bonus) - 100;
+    const v3 = Math.min(lvl > 50 ? 25 : 10, Math.max(0, Number(p.v3) || 0));
+    return Math.min(v1 + v2 + worn, cap) + v3;
   }
   function getEffectiveHastePercent(hastePercent, level, hasteCap60Bonus) {
     const raw = !Number.isNaN(Number(hastePercent)) ? Number(hastePercent) : 0;
@@ -627,7 +703,7 @@
     const ingRank = options.ingenuityRank | 0;
     const ingClasses = ['warrior', 'monk', 'rogue'];
     if (ingRank >= 1 && ingRank <= 3 && ingClasses.indexOf(classId) >= 0) {
-      return { apply: true, critChance: [1, 2, 3][ingRank - 1], multPercent: 100 };
+      return { apply: true, critChance: [3, 6, 9][ingRank - 1], multPercent: 100 };
     }
     return { apply: false, critChance: 0, multPercent: 0 };
   }
@@ -798,6 +874,9 @@
     const mobLevel = options.mobLevel != null ? options.mobLevel : 60;
     const avoidance = options.avoidance != null ? options.avoidance : getAvoidanceNPC(mobLevel);
     const mitigation = getMitigation(mobLevel, targetAC, 0, 0);
+    // Block (Monk/Beastlord mobs, or the manual "Mob can block" toggle) applies to arrows from any angle; dodge only from the front.
+    const rangedAvoidChance = computeRangedAvoidChance(
+      mobLevel, options.mobClass != null ? options.mobClass : null, !!options.mobCanBlock, options.fromBehind !== false);
     // Archery uses DEX for offense rating (EQ: SkillArchery/SkillThrowing use DEX; others use STR)
     const maxDex = options.maxDex != null ? Math.max(0, options.maxDex) : 255;
     const dex = Math.min(options.dex != null ? options.dex : 255, maxDex);
@@ -826,13 +905,15 @@
     const accuracyToHitPct = archeryAccuracy === 'hawk' ? 10 : archeryAccuracy === 'falcon' ? 20 : archeryAccuracy === 'eagle' ? 40 : 0;
     const toHit = accuracyToHitPct > 0 ? Math.floor(baseToHit * (100 + accuracyToHitPct) / 100) : baseToHit;
     const trueshot = !!options.trueshot;
+    const TRUESHOT_DAMAGE_PCT = 102;
     const TRUESHOT_DURATION_MS = 120000;
     const durationMs = Math.floor(options.fightDurationSec * 1000);
     const trueshotStartMs = 0;
     const trueshotEndMs = trueshot ? Math.min(TRUESHOT_DURATION_MS, durationMs) : 0;
-    const archerySkillTrueshot = Math.min(252, Math.floor(ARCHERY_SKILL_EFFECTIVE * 1.12));
-    const baseToHitTrueshot = 7 + OFFENSE_SKILL + archerySkillTrueshot + rangedGearMod2.accuracy;
-    const toHitTrueshot = accuracyToHitPct > 0 ? Math.floor(baseToHitTrueshot * (100 + accuracyToHitPct) / 100) : baseToHitTrueshot;
+    // Trueshot (spell 4506): SE_HitChanceEffect +33 (a PERCENT on to-hit, summed with the Eagle Eye line's
+    // percent in Mob::CalcHitChance) and SE_ArcheryDamageModifier +102.
+    const TRUESHOT_TO_HIT_PCT = 33;
+    const toHitTrueshot = Math.floor(baseToHit * (100 + accuracyToHitPct + TRUESHOT_TO_HIT_PCT) / 100);
     // Offense RATING (for damage): server GetOffense(SkillArchery) uses the archery skill, not the Offense/Attack skill.
     let offenseRating = ARCHERY_SKILL_EFFECTIVE + dexBonus + wornAttack + spellAttack;
     if (offenseRating < 1) offenseRating = 1;
@@ -923,6 +1004,7 @@
       critDamageGain: 0,
       wallPenaltyDamageLost: useWalledMobPenalty ? 0 : undefined,
       calculatedToHit: toHit,
+      gearAccuracy: rangedGearMod2.accuracy,
       offenseSkill: OFFENSE_SKILL,
       offenseRating: offenseRating,
       offenseRatingFromDex: dexBonus,
@@ -959,24 +1041,22 @@
         return Math.floor(weapon.elemDamage * maxRoll / 100);
       }
       const _maxElemRanged = _maxElemAdderR(bow) + _maxElemAdderR(arrow);
-      function _calcRangedTheoMax(halvedBase, withCrit) {
-        // elem is added to already-halved base before D20 (matches line: calcMeleeDamage(physicalBase + rangedElemAdder, ...))
-        const d20 = Math.floor((20 * (halvedBase + _maxElemRanged) + 5) / 10);
-        const afterStat = rangerStationaryBonus ? d20 * 2 : d20;
-        const afterMult = _roundMultUp ? Math.ceil(afterStat * _rMultParams.maxExtra / 100) : Math.floor(afterStat * _rMultParams.maxExtra / 100);
+      function _calcRangedTheoMax(withTrueshot, withCrit) {
+        // Server order (GetBaseDamage + DoArcheryAttackDmg + CalcMeleeDamage + beacon.cpp): bow+arrow+elemental,
+        // Archery Mastery, Trueshot, halve, D20 roll, client damage multiplier, THEN the stationary x2, then crit.
+        let b = (bow.damage || 0) + (arrow.damage || 0) + _maxElemRanged;
+        if (masteryPct > 0) b += Math.floor(b * masteryPct / 100);
+        if (withTrueshot) b += Math.floor(b * TRUESHOT_DAMAGE_PCT / 100);
+        if (b > 1) b = Math.floor(b / 2);
+        const d20 = Math.floor((20 * b + 5) / 10);
+        let afterMult = _roundMultUp ? Math.ceil(d20 * _rMultParams.maxExtra / 100) : Math.floor(d20 * _rMultParams.maxExtra / 100);
+        if (rangerStationaryBonus) afterMult *= 2;
         return withCrit ? applyCritDamage(afterMult, 0, 17, false, 0) : afterMult;
       }
-      let physBaseNoTS = (bow.damage || 0) + (arrow.damage || 0);
-      if (masteryPct > 0) physBaseNoTS += Math.floor(physBaseNoTS * masteryPct / 100);
-      if (physBaseNoTS > 1) physBaseNoTS = Math.floor(physBaseNoTS / 2);
-      let physBaseTS = (bow.damage || 0) + (arrow.damage || 0);
-      if (masteryPct > 0) physBaseTS += Math.floor(physBaseTS * masteryPct / 100);
-      physBaseTS += Math.floor(physBaseTS * 105 / 100);
-      if (physBaseTS > 1) physBaseTS = Math.floor(physBaseTS / 2);
-      report.ranged.theoreticMaxHitStd      = _calcRangedTheoMax(physBaseNoTS, false);
-      report.ranged.theoreticMaxHitCrit     = _hasCritRanged ? _calcRangedTheoMax(physBaseNoTS, true) : null;
-      report.ranged.theoreticMaxHitDisc     = _calcRangedTheoMax(physBaseTS, false);
-      report.ranged.theoreticMaxHitDiscCrit = _hasCritRanged ? _calcRangedTheoMax(physBaseTS, true) : null;
+      report.ranged.theoreticMaxHitStd      = _calcRangedTheoMax(false, false);
+      report.ranged.theoreticMaxHitCrit     = _hasCritRanged ? _calcRangedTheoMax(false, true) : null;
+      report.ranged.theoreticMaxHitDisc     = _calcRangedTheoMax(true, false);
+      report.ranged.theoreticMaxHitDiscCrit = _hasCritRanged ? _calcRangedTheoMax(true, true) : null;
       report.trueshotEnabled = trueshot;
       report.hasCritRanged = _hasCritRanged;
     }
@@ -1100,7 +1180,7 @@
           }
         }
       }
-      let hit = rollHit(currentToHit, avoidance, rng, 0);
+      let hit = rollHit(currentToHit, avoidance, rng, rangedAvoidChance);
       if (!hit) {
         nextRangedAtMs += delayMs;
         pushRangedLog(nextRangedAtMs - delayMs, 'shoot', false, undefined, { miss: true });
@@ -1124,18 +1204,20 @@
       // Build base damage matching DoArcheryAttackDmg order:
       //   1. bow + arrow  2. ArcheryBaseDamageBonus (1.0 default)  3. Archery Mastery  4. Trueshot
       //   5. CalcMeleeDamage (halves for SkillArchery internally)
-      let physicalBase = (bow.damage || 0) + (arrow.damage || 0);
+      // Elemental damage is part of GetBaseDamage (bow and arrow each), so it goes in BEFORE mastery/trueshot/halving.
+      let physicalBase = (bow.damage || 0) + (arrow.damage || 0) + rangedElemAdder;
       if (masteryPct > 0) physicalBase += Math.floor(physicalBase * masteryPct / 100);
-      if (trueshotActive) physicalBase += Math.floor(physicalBase * 105 / 100); // spellbonuses.ArcheryDamageModifier=105
+      if (trueshotActive) physicalBase += Math.floor(physicalBase * TRUESHOT_DAMAGE_PCT / 100); // spellbonuses.ArcheryDamageModifier
       if (physicalBase > 1) physicalBase = Math.floor(physicalBase / 2); // CalcMeleeDamage archery halving
-      let baseDmg = calcMeleeDamage(physicalBase + rangedElemAdder, offenseRating, mitigation, rng, 0);
+      let baseDmg = calcMeleeDamage(physicalBase, offenseRating, mitigation, rng, 0);
       baseDmg = Math.max(1, baseDmg);
-      // Stationary bonus doubles weapon_dmg before TryCriticalHit (beacon.cpp line 401-413).
-      if (rangerStationaryBonus) baseDmg *= 2;
+      // CalcMeleeDamage applies the client damage multiplier INSIDE it; the stationary x2 (beacon.cpp:403) comes
+      // after, then TryCriticalHit.
       const mult = rollDamageMultiplier(offenseRating, baseDmg, level, 'ranger', true, rng);
       let dmg = mult.damage;
+      if (rangerStationaryBonus) dmg *= 2;
       const beforeCrit = dmg;
-      const critResult = rollMeleeCrit(dmg, 0, level, 'ranger', options.dex, options.critChanceMult || 0, true, false, 0, options.critDmgDebugDmgBonus, rng);
+      const critResult = rollMeleeCrit(dmg, 0, level, 'ranger', options.dex, options.critChanceMult || 0, true, false, 0, false, rng, 0, 0);
       dmg = critResult.damage;
       if (critResult.isCrit) {
         report.critHits++;
@@ -1181,6 +1263,14 @@
    *   Totals — built by RotationEngine.formatRotationReport() in index.html,
    *   since combat.js has no dependency on the rotation-planner modules.
    */
+  // Report text: any number with 5 or more integer digits gets thousands separators (4000, 40,000, 500,000).
+  // Skips digits glued to a word, '.', ',' or '#' (ids, fractional parts, already-formatted numbers).
+  function commifyReportText(text) {
+    return String(text).replace(/(?<![\w.,#])(\d{5,})(\.?\d*)?(?!\d)/g, function (m, int, frac) {
+      return int.replace(/\B(?=(\d{3})+(?!\d))/g, ',') + (frac || '');
+    });
+  }
+
   function formatRangedReport(report, runsAveraged, spellCastResult, spellCastText) {
     if (report.error) return report.error;
     const r = report.ranged;
@@ -1255,6 +1345,7 @@
     // 2. Offense & To-Hit Model (align with melee: offense skill, archery skill, rating breakdown, ATK, haste)
     lines.push('=== Offense & To-Hit Model ===', '');
     if (report.calculatedToHit != null) lines.push(padLine('  Calculated to-hit:', String(report.calculatedToHit)));
+    if (report.gearAccuracy > 0) lines.push(padLine('    Item Accuracy (mod2):', `+${report.gearAccuracy} to-hit  (+${(report.gearAccuracy * 1000 / 744).toFixed(1)} displayed ATK)`));
     if (report.offenseSkill != null) lines.push(padLine('  Offense skill:', `${report.offenseSkill}  (0–255, used for to-hit only)`));
     if (report.archerySkill != null) lines.push(padLine('  Archery skill level:', `${report.archerySkill}  (base, 0–252)`));
     if (report.archerySkillModified != null) {
@@ -1470,7 +1561,9 @@
    * @param {number} [options.targetMaxHp] - mob max HP (e.g. npc_types hp); if omitted, uses generic HP scaled from mobLevel (22105 at level 60)
    * @param {number} options.fightDurationSec - fight length in seconds
    * @param {number} [options.dex=255] - dexterity for proc
-   * @param {boolean} [options.fromBehind] - if true, skip block/parry/dodge/riposte only
+   * @param {boolean} [options.fromBehind] - if true, parry/riposte/dodge are skipped; block still applies (it has no facing check)
+   * @param {boolean} [options.mobCanBlock] - manual target only (no mobClass): whether the mob has the Block skill
+   * @param {boolean} [options.mobUseWarriorSkills] - target has the UseWarriorSkills special ability (gives it parry and riposte)
    * @param {boolean} [options.specialAttacks] - if true, fire class special on cooldown
    * @param {string} [options.specialAttackType] - 'flying_kick'|'backstab'|'kick'|'bash'|'dragon_punch'|'eagle_strike'|'tiger_claw'|'round_kick'; must be valid for class (Warrior: kick/bash; Pally/SK/Cleric: bash; Ranger/Beastlord: kick; Monk: flying_kick/dragon_punch/eagle_strike/tiger_claw/round_kick; Rogue: backstab)
    * @param {number} [options.specialSkill=252] - current skill value (already gear-mod-adjusted) for the chosen non-backstab special; drives its base damage (GetSkillBaseDamage), offense rating, and to-hit
@@ -1515,19 +1608,32 @@
     // Hit chance uses AVOIDANCE (GetAvoidance), not AC. Default = NPC formula (level*9+5, cap 400/460).
     // Tactical Mastery (warrior PoP AA): rank 1/2/3 reduces NPC effective avoidance by 10/20/30
     const tacticalMasteryRank = (options.tacticalMasteryRank | 0) || 0;
-    const avoidance = Math.max(1, (options.avoidance != null ? options.avoidance : getAvoidanceNPC(mobLevel)) - ([0, 10, 20, 30][tacticalMasteryRank] || 0));
+    // Tactical Mastery is NOT an avoidance reduction: it is SE_StrikeThrough2 (15/30/45), a chance that a dodge/parry/
+    // riposte/block result is converted into a hit (see frontAvoidChance below).
+    const avoidance = Math.max(1, (options.avoidance != null ? options.avoidance : getAvoidanceNPC(mobLevel)));
     // Front avoidance: 0 when attacking from behind (no block/parry/riposte/dodge);
     // otherwise computed from NPC class-based defense skills (block→parry→riposte→dodge).
     const mobClass = options.mobClass != null ? options.mobClass : null;
     const gearMod2 = getGearMod2(options);
-    // Item Strikethrough: when a dodge/parry/riposte/block would land, it is overridden with this % chance,
+    // GetStrikeThroughChance = item mod2 Strikethrough + AA (Tactical Mastery SE_StrikeThrough2 15/30/45, summed).
+    // When a dodge/parry/riposte/block would land it is converted to a hit with this % chance,
     // so the net front-avoid probability is scaled by (1 - strikethrough%).
-    const frontAvoidChance = fromBehind ? 0
-      : computeFrontAvoidChance(mobLevel, mobClass) * (1 - gearMod2.strikethrough / 100);
+    const strikethroughPct = Math.min(100, (gearMod2.strikethrough || 0) + ([0, 15, 30, 45][Math.min(3, tacticalMasteryRank)] || 0));
+    const mobCanBlock = !!options.mobCanBlock;
+    const frontAvoidChance = (fromBehind
+      ? computeBehindAvoidChance(mobLevel, mobClass, mobCanBlock)
+      : computeFrontAvoidChance(mobLevel, mobClass, mobCanBlock, !!options.mobUseWarriorSkills)) * (1 - strikethroughPct / 100);
+    // Strike-through is only applied inside Client::Attack (attack.cpp:991) — DoSpecialAttackDamage (kick, bash,
+    // backstab, monk specials) rolls AvoidDamage with no strike-through, so specials use the unscaled chance.
+    const frontAvoidChanceSpecial = (fromBehind
+      ? computeBehindAvoidChance(mobLevel, mobClass, mobCanBlock)
+      : computeFrontAvoidChance(mobLevel, mobClass, mobCanBlock, !!options.mobUseWarriorSkills));
     // Damage roll uses MITIGATION (GetMitigation). Computed once and used every time we calc damage.
     const mitigation = getMitigation(mobLevel, targetAC, options.itemAcBonus ?? 0, options.spellAcBonus ?? 0);
     const str = options.str != null ? options.str : 255;
     const strBonus = str >= 75 ? Math.floor((2 * str - 150) / 3) : 0;
+    // Client::GetOffense: a level 55+ Ranger adds level*4-216 to the offense of EVERY skill (+24 at level 60), not just archery.
+    const rangerOffenseBonus = ((options.classId || '').toLowerCase() === 'ranger' && level > 54) ? (level * 4 - 216) : 0;
     const wornAttack = options.wornAttack != null ? options.wornAttack : 0;
     const spellAttack = options.spellAttack != null ? options.spellAttack : 0;
     const toHitBonus = (options.toHitBonus != null ? options.toHitBonus : 0) + gearMod2.accuracy; // + item mod2 Accuracy
@@ -1542,8 +1648,8 @@
     // (e.g. 1H Slash, 1H Pierce), NOT the Offense/Attack skill. WEAPON_SKILL_FOR_TOHIT is the weapon type skill.
     // OFFENSE_SKILL is still used only for to-hit (BASE_TO_HIT = 7 + OffenseSkill + WeaponSkill).
     const offenseRating = (options.attackRating != null && options.wornAttack == null && options.spellAttack == null)
-      ? options.attackRating + strBonus
-      : (WEAPON_SKILL_FOR_TOHIT + strBonus + wornAttack + spellAttack);
+      ? options.attackRating + strBonus + rangerOffenseBonus
+      : (WEAPON_SKILL_FOR_TOHIT + strBonus + rangerOffenseBonus + wornAttack + spellAttack);
     // Offhand weapon can carry a different weapon-type skill than the mainhand (e.g. 1H Slash main / 1H Blunt off);
     // the server rolls to-hit/offense per swing using that specific weapon's own skill (Mob::GetToHit(skillinuse)).
     // Falls back to the mainhand's skill when the caller doesn't provide one (e.g. offhand shares the mainhand weapon in fistweave/2H-weave modes).
@@ -1556,15 +1662,16 @@
       : BASE_TO_HIT_OH + toHitBonus;
     const offenseRatingOh = (options.attackRating != null && options.wornAttack == null && options.spellAttack == null)
       ? offenseRating
-      : (WEAPON_SKILL_FOR_TOHIT_OH + strBonus + wornAttack + spellAttack);
+      : (WEAPON_SKILL_FOR_TOHIT_OH + strBonus + rangerOffenseBonus + wornAttack + spellAttack);
     const dualWieldEffective = getDualWieldEffective(level, options.dualWieldSkill, options.ambidexterity ?? 0);
     const dualWieldPct = (dualWieldEffective / 375) * 100;
 
     // ---- New AA mechanics (Luclin/PoP) ----
     const flurryRank = (options.flurryRank | 0) || 0;
     // Fury of the Ages: PoP AA for all melee classes, rank 1–3 = +5/10/15% crit damage bonus
-    const furyRank = (options.furyOfTheAgesRank | 0) || 0;
-    const furyDmgBonusPct = furyRank * 5;
+    // Fury of the Ages is a crit-CHANCE multiplier (merged into options.critChanceMult via aaCritChanceMult),
+    // not a crit-damage bonus. Kept at 0 so reports and call sites don't change shape.
+    const furyDmgBonusPct = 0;
     // Technique of Master Wu: monk PoP AA, rank 1–5 = +10% per rank chance of extra flying kick strikes (max 2 extra)
     const masterWuRank = (options.masterWuRank | 0) || 0;
     // Ferocity (warrior/ranger/monk/rogue): +2% per rank flat double-attack bonus
@@ -1576,27 +1683,33 @@
     // Harmonious Attack (bard) / Bestial Frenzy (beastlord): flat DA chance for classes normally excluded from DA
     const harmoniousAttackRank = (options.harmoniousAttackRank | 0) || 0;
     const bestialFrenzyRank = (options.bestialFrenzyRank | 0) || 0;
-    const aaFlatDaChance = options.classId === 'bard' ? harmoniousAttackRank * 0.02
-      : options.classId === 'beastlord' ? bestialFrenzyRank * 0.02 : 0;
+    // aabonuses.GiveDoubleAttack: Bestial Frenzy / Harmonious Attack are 3/6/9/12/15 and add 5 effective skill per
+    // point (attack.cpp:3338). It also unlocks the off-hand double attack. (The old flat +2%/rank roll is gone.)
+    const giveDoubleAttack = ((options.classId === 'bard' ? harmoniousAttackRank : options.classId === 'beastlord' ? bestialFrenzyRank : 0) | 0) * 3;
+    const aaFlatDaChance = 0;
 
     // Knight's Advantage (paladin/shadowknight PoP AA): +2%/+4%/+6% DA (+10/+20/+30 to effective DA)
     const knightsAdvantageRank = (options.knightsAdvantageRank | 0) || 0;
-    const knightsAdvantageDaBonus = knightsAdvantageRank * 10;
     // Speed of the Knight (paladin/shadowknight PoP AA): extra 2H primary attack after double attack
     const SPEED_OF_KNIGHT_CHANCE = [0, 2, 4, 8];
     const speedOfTheKnightChance = SPEED_OF_KNIGHT_CHANCE[(options.speedOfTheKnightRank | 0) || 0] || 0;
     // Raging Flurry (warrior PoP AA): extra flurry chance on successful triple attack
     const ragingFlurryRank = (options.ragingFlurryRank | 0) || 0;
-    const RAGING_FLURRY_CHANCE = [0, 0.10, 0.20, 0.30];
-    const ragingFlurryChance = ragingFlurryRank > 0 ? RAGING_FLURRY_CHANCE[Math.min(ragingFlurryRank, 3)] : 0;
+    const flurryChancePct = getFlurryChancePct(flurryRank, ragingFlurryRank);
     // Soul Abrasion (shadowknight Luclin AA): +10%/+20%/+30% bonus to proc spell damage
     const soulAbrasionRank = (options.soulAbrasionRank | 0) || 0;
+    // Live AA (SE 302, spellgroup-99 limited): +50/+100/+200% damage to the SK lifetap/proc spells.
     const soulAbrasionProcMult = (options.classId === 'shadowknight' && soulAbrasionRank > 0)
-      ? (1 + soulAbrasionRank * 0.10) : 1.0;
+      ? (1 + ([0, 50, 100, 200][Math.min(3, soulAbrasionRank)] || 0) / 100) : 1.0;
 
-    // Ferocity adds +10 to doubleAttackEffective per rank (= +2% chance in the 500-pt scale)
-    const ferocityDaBonus = ferocityRank * 10 + knightsAdvantageDaBonus;
-    const doubleAttackEffective = (options.doubleAttackSkill > 0 ? getDoubleAttackEffective(level, options.doubleAttackSkill) : 0) + ferocityDaBonus;
+    // Mob::GetDoubleAttackChance: (skill + level, only if skill > 0) + GiveDoubleAttack*5, then Ferocity / Knight's
+    // Advantage multiply it: chance += chance * 3/6/9 / 100 (integer math), compared against Int(0,499).
+    let doubleAttackEffective = (options.doubleAttackSkill > 0 ? getDoubleAttackEffective(level, options.doubleAttackSkill) : 0)
+      + giveDoubleAttack * 5;
+    const daMultPct = ([0, 3, 6, 9][Math.min(3, ferocityRank | 0)] || 0) || ([0, 3, 6, 9][Math.min(3, knightsAdvantageRank | 0)] || 0);
+    if (daMultPct > 0) doubleAttackEffective += Math.trunc(doubleAttackEffective * daMultPct / 100);
+    // Off-hand double attack needs DA skill >= 150 or the GiveDoubleAttack AA (client_process.cpp:418).
+    const offhandDoubleAttackAllowed = (options.doubleAttackSkill >= 150) || giveDoubleAttack > 0;
 
     const w1 = options.weapon1;
     const w2 = options.weapon2;
@@ -1763,6 +1876,7 @@
       damageBonus: mainHandDamageBonus,
       damageBonusTotal: 0,
       calculatedToHit: toHit,
+      gearAccuracy: gearMod2.accuracy,
       offenseSkill: OFFENSE_SKILL,
       weaponSkillKeyForToHit: options.weaponSkillKeyForToHit != null ? options.weaponSkillKeyForToHit : undefined,
       weaponSkillBase: options.weaponSkillBase != null ? options.weaponSkillBase : undefined,
@@ -1800,7 +1914,7 @@
         specialSkill: (specialConfig.skillBaseAtMin != null) ? Math.min(252, Math.max(0, options.specialSkill != null ? options.specialSkill : 252)) : undefined,
         specialSkillBaseDamage: (specialConfig.skillBaseAtMin != null) ? getSkillBaseDamage(specialConfig.skillBaseAtMin, Math.min(252, Math.max(0, options.specialSkill != null ? options.specialSkill : 252))) : undefined,
       } : null,
-      masterWu: (specialType === 'flying_kick' && masterWuRank > 0) ? {
+      masterWu: (['flying_kick','eagle_strike','tiger_claw','round_kick','dragon_punch'].indexOf(specialType) >= 0 && masterWuRank > 0) ? {
         rank: masterWuRank,
         mainRolls: 0,     // total flying kicks with Wu active
         triggered: 0,     // main wuChance roll successes
@@ -1919,10 +2033,6 @@
       if (!disciplineActive || baseDamage <= 0) return baseDamage;
       return baseDamage + Math.floor(baseDamage * SE_MELEE_DAMAGE_MOD_DUELIST_INNERFLAME / 100);
     }
-    function getDisciplineMinHit(baseDamage, damageBonus, disciplineActive) {
-      if (!disciplineActive || baseDamage <= 0) return null;
-      return Math.floor(baseDamage * SE_MELEE_MIN_DAMAGE_MOD_DUELIST_INNERFLAME / 100) + (damageBonus || 0);
-    }
     // Theoretical max hit per weapon — mirrors the exact sim pipeline:
     //   mhBase = cappedDmg + maxElemAdder  (elem adds to base BEFORE D20)
     //   D20=20 → floor((20 * mhBase + 5) / 10)
@@ -1969,7 +2079,6 @@
     report.hasCrit = _hasCrit;
     report.furyDmgBonusPct = furyDmgBonusPct;
     // Special attack reuse: base reuse (or user base override) reduced by haste; or user effective override used as-is
-    const hasteMod = 1 + (effectiveHastePercent || 0) / 100;
     let effectiveSpecialReuseSec = 0;
     if (specialConfig) {
       if (specialType === 'backstab' && options.backstabReuseEffectiveSec != null && options.backstabReuseEffectiveSec > 0) {
@@ -1984,7 +2093,11 @@
         const baseSpecialReuseSec = specialType === 'backstab' && options.backstabReuseSec != null && options.backstabReuseSec > 0 ? options.backstabReuseSec
           : (specialType === 'flying_kick' && options.flyingKickReuseSec != null && options.flyingKickReuseSec > 0 ? options.flyingKickReuseSec : null);
         const baseFromConfig = baseSpecialReuseSec != null ? baseSpecialReuseSec : specialConfig.reuseSec;
-        effectiveSpecialReuseSec = baseFromConfig > 0 ? baseFromConfig / hasteMod : 0;
+        // Client::DoMonkSpecialAttack / OPCombatAbility: reuse = reuse*100 / GetHaste() - 1, integer seconds
+        // (so an unhasted 8s kick is a 7s timer; special_attacks.cpp:525). GetHaste() is the percent, 100 = none.
+        const hasteForReuse = Math.max(1, Math.floor(100 + (effectiveHastePercent || 0)));
+        effectiveSpecialReuseSec = baseFromConfig > 0 ? Math.max(0, Math.floor(baseFromConfig * 100 / hasteForReuse) - 1) : 0;
+        if (baseFromConfig > 0 && effectiveSpecialReuseSec <= 0) effectiveSpecialReuseSec = 0.1; // reuse <= 0: no timer, the sim still needs a non-zero gap
       }
     }
     const specialCooldownMs = effectiveSpecialReuseSec * 1000;
@@ -1993,7 +2106,7 @@
       const bsSkill = options.backstabSkill != null ? options.backstabSkill : 225;
       const bsModPct = options.backstabModPercent || 0;
       const bsEffectiveSkill = Math.min(252, Math.floor(bsSkill * (100 + bsModPct) / 100));
-      report.special.backstabToHit = 7 + OFFENSE_SKILL + bsEffectiveSkill;
+      report.special.backstabToHit = 7 + OFFENSE_SKILL + bsEffectiveSkill + toHitBonus;
       report.special.effectiveBackstabSkillReport = bsEffectiveSkill;
     }
     let nextSwing1Ms = hasMainHand ? 0 : Infinity;
@@ -2048,19 +2161,38 @@
         const isSkillDrivenSpecial = !isRogueBackstab && specialConfig.skillBaseAtMin != null;
         const specialSkillValue = isSkillDrivenSpecial ? Math.min(252, Math.max(0, options.specialSkill != null ? options.specialSkill : 252)) : null;
         // GetToHit(skill): toHit = 7 + Offense SKILL + effective backstab skill (weapon mod applied, capped at 252).
-        const backstabToHit = isRogueBackstab ? (7 + OFFENSE_SKILL + backstabEffectiveSkill)
+        const backstabToHit = isRogueBackstab ? (7 + OFFENSE_SKILL + backstabEffectiveSkill + toHitBonus)
           : isSkillDrivenSpecial ? (7 + OFFENSE_SKILL + specialSkillValue + toHitBonus)
           : toHit;
 
         // Backstab: do double attack check first. If it fails → single backstab (one to-hit roll). If it succeeds → double backstab (normal + bonus attempt, two to-hit rolls).
-        const isDoubleBackstabRound = isRogueBackstab && options.classId === 'rogue' && level > 54 && report.special.doubleBackstabs !== undefined && checkDoubleAttack(doubleAttackEffective, specialRng, options.classId);
+        const isDoubleBackstabRound = isRogueBackstab && options.classId === 'rogue' && level > 54 && report.special.doubleBackstabs !== undefined && checkDoubleAttack(doubleAttackEffective, specialRng);
         const numBackstabRolls = isDoubleBackstabRound ? 2 : 1;
         if (isDoubleBackstabRound) report.special.doubleBackstabs++;
 
+        // Hate of a special attack is the attack's own BASE damage, not weapon damage + damage bonus
+        // (DoSpecialAttackDamage: hate = base, special_attacks.cpp:46-48 / 317): backstab = ((skill*0.02)+2) * weapon
+        // damage with no bonus, kick/bash/monk specials = the skill base damage.
+        function specialAttackHate() {
+          if (isRogueBackstab) return Math.floor(Math.fround(Math.fround(Math.fround(backstabEffectiveSkill * 0.02) + 2) * cappedW1Damage));
+          if (isSkillDrivenSpecial) {
+            let hb = getSkillBaseDamage(specialConfig.skillBaseAtMin, specialSkillValue);
+            if (specialConfig.shieldBonus && options.bashShieldAC > 0) hb = Math.min(hb + Math.floor(level / 5) + 2, hb + options.bashShieldAC);
+            return hb;
+          }
+          return cappedW1Damage;
+        }
+        function addSpecialThreat() {
+          if (!T) return;
+          const h = specialAttackHate();
+          swingThreatAcc += h;
+          totalThreatAcc += h;
+          report.weapon1.swingThreat += h;
+        }
         function processOneBackstabHit(backstabAttemptNumber) {
           if (report.special.attemptedAttacks !== undefined) report.special.attemptedAttacks++;
-          addSwingThreatMH();
-          const specialHits = rollHit(backstabToHit, avoidance, specialRng, frontAvoidChance);
+          addSpecialThreat();
+          const specialHits = rollHit(backstabToHit, avoidance, specialRng, frontAvoidChanceSpecial);
           if (!specialHits) {
             pushCombatLog(tMs, 'special', 'special', specialVerb, false, undefined, { bsDA: isDoubleBackstabRound && backstabAttemptNumber === 2 });
             return;
@@ -2068,24 +2200,29 @@
           report.special.hits++;
           report.special.count++;
           let baseDmg;
-          let backstabDisciplineMinHit = null;
-          let duelistBackstabRound = false;
+          // DoSpecialAttackDamage: after CalcMeleeDamage (which includes the client multiplier) the result is raised
+          // to the attack's own minimum, THEN crit is rolled (special_attacks.cpp:68-87).
+          let specialMinHit = 0;
           const specElemAdder = (specialConfig.useWeaponDamage === false) ? 0 : getElementalBaseAdder(w1, options, elemRng);
           if (specElemAdder > 0) report.elementalDamageTotal += specElemAdder;
           // specialOffenseRating: for backstab, server GetOffense(SkillBackstab) uses backstab skill — not the normal offense/weapon skill.
           let specialOffenseRating = offenseRating;
           if (isRogueBackstab) {
-            const backstabOffenseRating = backstabEffectiveSkill + strBonus + wornAttack + spellAttack;
+            const backstabOffenseRating = backstabEffectiveSkill + strBonus + rangerOffenseBonus + wornAttack + spellAttack;
             specialOffenseRating = backstabOffenseRating;
-            const backstabBaseRaw = Math.floor(((backstabEffectiveSkill * 0.02) + 2) * cappedW1Damage) + specElemAdder;
-            duelistBackstabRound = disciplineDuelistActive(tMs);
-            backstabDisciplineMinHit = getDisciplineMinHit(backstabBaseRaw, 0, duelistBackstabRound);
-            let backstabBase = applyDisciplineDamageMod(backstabBaseRaw, duelistBackstabRound);
-            baseDmg = calcMeleeDamage(backstabBase, backstabOffenseRating, mitigation, specialRng, 0);
+            // Client::DoBackstab: ((skill*0.02f)+2.0f) * GetBaseDamage(primary) truncated; GetBaseDamage already
+            // includes the elemental damage, so it is multiplied too. The client has no damage bonus on specials.
+            const backstabBaseRaw = Math.floor(Math.fround(Math.fround(Math.fround(backstabEffectiveSkill * 0.02) + 2) * (cappedW1Damage + specElemAdder)));
+            const duelistBackstabRound = disciplineDuelistActive(tMs);
+            const backstabBase = applyDisciplineDamageMod(backstabBaseRaw, duelistBackstabRound);
+            baseDmg = calcMeleeDamage(backstabBase, backstabOffenseRating, mitigation, specialRng, 0,
+              duelistBackstabRound ? Math.floor(backstabBaseRaw * SE_MELEE_MIN_DAMAGE_MOD_DUELIST_INNERFLAME / 100) : 0);
             baseDmg = Math.max(1, baseDmg);
+            // Backstab minimum hit: level*2 at 60+, level*3/2 above 50, else level.
+            specialMinHit = level >= 60 ? level * 2 : level > 50 ? Math.floor(level * 3 / 2) : level;
           } else if (isSkillDrivenSpecial) {
             // Mob::GetOffense(skill): specific skill + STR bonus + worn/spell ATK — not the weapon-based offenseRating.
-            const specialOffenseRatingLocal = specialSkillValue + strBonus + wornAttack + spellAttack;
+            const specialOffenseRatingLocal = specialSkillValue + strBonus + rangerOffenseBonus + wornAttack + spellAttack;
             specialOffenseRating = specialOffenseRatingLocal;
             let skillBase = getSkillBaseDamage(specialConfig.skillBaseAtMin, specialSkillValue);
             // Bash only: a shield in the secondary slot adds its AC to the base, capped at base + level/5 + 2
@@ -2095,28 +2232,19 @@
               skillBase = Math.min(bashCap, skillBase + options.bashShieldAC);
             }
             baseDmg = calcMeleeDamage(skillBase, specialOffenseRatingLocal, mitigation, specialRng, 0);
-            if (specialConfig.minDamageFormula === 'level*4/5') {
-              const fkMin = Math.floor(level * 4 / 5);
-              baseDmg = Math.max(1, Math.max(baseDmg, fkMin));
-            } else {
-              baseDmg = Math.max(1, baseDmg);
-            }
+            if (specialConfig.minDamageFormula === 'level*4/5') specialMinHit = Math.floor(level * 4 / 5);
+            baseDmg = Math.max(1, baseDmg);
           } else {
             baseDmg = calcMeleeDamage(cappedW1Damage + specElemAdder, offenseRating, mitigation, specialRng);
             baseDmg = Math.max(1, specialConfig.damageMultiplier ? Math.floor(baseDmg * specialConfig.damageMultiplier) : baseDmg);
           }
           const mult = rollDamageMultiplier(specialOffenseRating, baseDmg, level, options.classId, false, specialRng);
           let dmg = mult.damage;
+          if (specialMinHit > 0 && dmg < specialMinHit) dmg = specialMinHit;
           const beforeCrit = dmg;
-          const critResult = rollMeleeCrit(dmg, 0, level, options.classId, options.dex, options.critChanceMult, false, false, 0, options.critDmgDebugDmgBonus, specialRng, furyDmgBonusPct);
+          const critResult = rollMeleeCrit(dmg, 0, level, options.classId, options.dex, options.critChanceMult, false, false, 0, false, specialRng, 0);
           dmg = critResult.damage;
           if (critResult.isCrit) { report.critHits++; report.critDamageGain += (dmg - beforeCrit); }
-          if (isRogueBackstab && level != null) {
-            const minHit = level >= 60 ? level * 2 : level > 50 ? Math.floor(level * 3 / 2) : level;
-            dmg = Math.max(dmg, minHit);
-          }
-          if (backstabDisciplineMinHit != null && dmg < backstabDisciplineMinHit) dmg = backstabDisciplineMinHit;
-          if (FENCEPOSTBACKSTABDEBUG && duelistBackstabRound) dmg += 1;
           if (w1.noDamageVsTarget) { if (specElemAdder > 0) report.elementalDamageTotal -= specElemAdder; dmg = 0; }
           report.special.totalDamage += dmg;
           report.special.maxDamage = Math.max(report.special.maxDamage, dmg);
@@ -2141,28 +2269,31 @@
         //   Roll wuChance% → if pass, fire 1 extra random monk strike (Flying Kick / Eagle Strike / Tiger Claw / Round Kick).
         //   Also roll wuChance/4% (independent) → if pass, fire 1 additional extra strike.
         //   fromWus=true on extra strikes prevents recursion.
-        if (specialType === 'flying_kick' && masterWuRank > 0) {
-          const wuChance = masterWuRank * 10; // integer percent: 10/20/30/40/50 at ranks 1-5
+        if (['flying_kick', 'eagle_strike', 'tiger_claw', 'round_kick', 'dragon_punch'].indexOf(specialType) >= 0 && masterWuRank > 0) {
+          // aabonuses.DoubleSpecialAttack: 20/40/60/80/100 at ranks 1-5 (AA 611-615). Fires on ANY monk special
+          // attack that is not itself a Wu extra; the second strike chance is wuchance/4 (integer).
+          const wuChance = masterWuRank * 20;
 
           function doMonkWuStrike(wuSkillCfg) {
             const skillEntry = report.masterWu.bySkill[wuSkillCfg.name];
             if (skillEntry) skillEntry.attempts++;
             report.masterWu.extraAttempts++;
-            addSwingThreatMH();
-            if (!rollHit(toHit, avoidance, specialRng, frontAvoidChance)) {
+            if (T) { const wuHate = wuSkillCfg.skillBaseDamage || 0; swingThreatAcc += wuHate; totalThreatAcc += wuHate; report.weapon1.swingThreat += wuHate; }
+            // Each Wu strike is its own DoSpecialAttackDamage(skill): to-hit = 7 + Offense + THAT skill + accuracy,
+            // offense = that skill + STR bonus + ATK (not the weapon's skill).
+            const wuSkillVal = specialSkillValue != null ? specialSkillValue : WEAPON_SKILL_FOR_TOHIT;
+            const wuToHit = 7 + OFFENSE_SKILL + wuSkillVal + toHitBonus;
+            const wuOffense = wuSkillVal + strBonus + rangerOffenseBonus + wornAttack + spellAttack;
+            if (!rollHit(wuToHit, avoidance, specialRng, frontAvoidChanceSpecial)) {
               pushCombatLog(tMs, 'special', 'special', wuSkillCfg.name, false, undefined, { wu: true });
               return;
             }
-            let baseDmg = calcMeleeDamage(wuSkillCfg.skillBaseDamage, offenseRating, mitigation, specialRng, 0);
-            if (wuSkillCfg.minDamageFormula === 'level*4/5') {
-              baseDmg = Math.max(1, Math.max(baseDmg, Math.floor(level * 4 / 5)));
-            } else {
-              baseDmg = Math.max(1, baseDmg);
-            }
-            const mult = rollDamageMultiplier(offenseRating, baseDmg, level, options.classId, false, specialRng);
+            let baseDmg = Math.max(1, calcMeleeDamage(wuSkillCfg.skillBaseDamage, wuOffense, mitigation, specialRng, 0));
+            const mult = rollDamageMultiplier(wuOffense, baseDmg, level, options.classId, false, specialRng);
             let dmg = mult.damage;
+            if (wuSkillCfg.minDamageFormula === 'level*4/5') dmg = Math.max(dmg, Math.floor(level * 4 / 5));
             const beforeCrit = dmg;
-            const critResult = rollMeleeCrit(dmg, 0, level, options.classId, options.dex, options.critChanceMult, false, false, 0, options.critDmgDebugDmgBonus, specialRng, furyDmgBonusPct);
+            const critResult = rollMeleeCrit(dmg, 0, level, options.classId, options.dex, options.critChanceMult, false, false, 0, false, specialRng, 0);
             dmg = critResult.damage;
             if (critResult.isCrit) { report.critHits++; report.critDamageGain += (dmg - beforeCrit); }
             if (w1.noDamageVsTarget) { dmg = 0; }
@@ -2183,7 +2314,7 @@
           if (wuChance >= 100 || specialRng() * 100 < wuChance) {
             report.masterWu.triggered++;
             let extra = 1;
-            if (specialRng() * 100 < wuChance / 4) extra++;
+            if (specialRng() * 100 < Math.floor(wuChance / 4)) extra++;
             while (extra > 0) {
               doMonkWuStrike(WU_MONK_SKILLS[Math.floor(specialRng() * 4)]);
               extra--;
@@ -2215,14 +2346,15 @@
           const mhElemAdder = getElementalBaseAdder(w1, options, elemRng);
           report.elementalDamageTotal += mhElemAdder;
           let mhBase = cappedW1Damage + mhElemAdder;
+          const raw_mhBase = mhBase;
           mhBase = applyDisciplineDamageMod(mhBase, disciplineActiveMh);
-          let dmg = calcMeleeDamage(mhBase, offenseRating, mitigation, rng, 0);
+          let dmg = calcMeleeDamage(mhBase, offenseRating, mitigation, rng, 0, disciplineActiveMh ? Math.floor(raw_mhBase * SE_MELEE_MIN_DAMAGE_MOD_DUELIST_INNERFLAME / 100) : 0);
           const mult = rollDamageMultiplier(offenseRating, dmg, level, options.classId, false, rng);
           dmg = mult.damage;
           dmg += mainHandDamageBonus;
           dmg = Math.max(dmg, 1 + mainHandDamageBonus);
           let _swingIsCrit1 = false;
-          const slayResult1 = trySlayUndead(dmg, mainHandDamageBonus, 1, options, rng);
+          const slayResult1 = trySlayUndead(dmg, mainHandDamageBonus, raw_mhBase, options, rng);
           if (slayResult1) {
             dmg = slayResult1.damage;
             report.weapon1.slayUndeadHits++;
@@ -2230,13 +2362,11 @@
             report.weapon1.maxSlayUndeadHit = Math.max(report.weapon1.maxSlayUndeadHit || 0, dmg);
           } else {
             const beforeCrit = dmg;
-            const critResult = rollMeleeCrit(dmg, mainHandDamageBonus, level, options.classId, options.dex, options.critChanceMult, false, false, 0, options.critDmgDebugDmgBonus, rng, furyDmgBonusPct);
+            const critResult = rollMeleeCrit(dmg, mainHandDamageBonus, level, options.classId, options.dex, options.critChanceMult, false, false, 0, false, rng, 0, raw_mhBase);
             dmg = critResult.damage;
             dmg = Math.max(dmg, 1 + mainHandDamageBonus);
             if (critResult.isCrit) { _swingIsCrit1 = true; report.critHits++; report.critDamageGain += (dmg - beforeCrit); }
           }
-          const mhDisciplineMin = getDisciplineMinHit(cappedW1Damage, mainHandDamageBonus, disciplineActiveMh);
-          if (mhDisciplineMin != null && dmg < mhDisciplineMin) dmg = mhDisciplineMin;
           if (w1.noDamageVsTarget) { report.elementalDamageTotal -= mhElemAdder; dmg = 0; }
           report.weapon1.swings++; addSwingThreatMH();
           report.weapon1.hits++;
@@ -2252,20 +2382,21 @@
           pushCombatLog(tMs, 'melee', 1, w1Verb, false, undefined, { roundLetter: mhRoundLetter, attemptNumber: 1, swingKind: 'BA' });
         }
 
-        if (checkDoubleAttack(doubleAttackEffective, rng, options.classId) || (aaFlatDaChance > 0 && rng() < aaFlatDaChance)) {
+        if (checkDoubleAttack(doubleAttackEffective, rng) || (aaFlatDaChance > 0 && rng() < aaFlatDaChance)) {
           attacksThisRound = 2;
           if (rollHit(toHit, avoidance, rng, frontAvoidChance)) {
             const mhElemAdder2 = getElementalBaseAdder(w1, options, elemRng);
             report.elementalDamageTotal += mhElemAdder2;
             let mhBase2 = cappedW1Damage + mhElemAdder2;
+            const raw_mhBase2 = mhBase2;
             mhBase2 = applyDisciplineDamageMod(mhBase2, disciplineActiveMh);
-            let dmg = calcMeleeDamage(mhBase2, offenseRating, mitigation, rng, 0);
+            let dmg = calcMeleeDamage(mhBase2, offenseRating, mitigation, rng, 0, disciplineActiveMh ? Math.floor(raw_mhBase2 * SE_MELEE_MIN_DAMAGE_MOD_DUELIST_INNERFLAME / 100) : 0);
             const mult = rollDamageMultiplier(offenseRating, dmg, level, options.classId, false, rng);
             dmg = mult.damage;
             dmg += mainHandDamageBonus;
             dmg = Math.max(dmg, 1 + mainHandDamageBonus);
             let _swingIsCrit2 = false;
-            const slayResult2 = trySlayUndead(dmg, mainHandDamageBonus, 1, options, rng);
+            const slayResult2 = trySlayUndead(dmg, mainHandDamageBonus, raw_mhBase2, options, rng);
             if (slayResult2) {
               dmg = slayResult2.damage;
               report.weapon1.slayUndeadHits++;
@@ -2273,13 +2404,11 @@
               report.weapon1.maxSlayUndeadHit = Math.max(report.weapon1.maxSlayUndeadHit || 0, dmg);
             } else {
               const beforeCrit = dmg;
-              const critResult = rollMeleeCrit(dmg, mainHandDamageBonus, level, options.classId, options.dex, options.critChanceMult, false, false, 0, options.critDmgDebugDmgBonus, rng, furyDmgBonusPct);
+              const critResult = rollMeleeCrit(dmg, mainHandDamageBonus, level, options.classId, options.dex, options.critChanceMult, false, false, 0, false, rng, 0, raw_mhBase2);
               dmg = critResult.damage;
               dmg = Math.max(dmg, 1 + mainHandDamageBonus);
               if (critResult.isCrit) { _swingIsCrit2 = true; report.critHits++; report.critDamageGain += (dmg - beforeCrit); }
             }
-            const mhDisciplineMin2 = getDisciplineMinHit(cappedW1Damage, mainHandDamageBonus, disciplineActiveMh);
-            if (mhDisciplineMin2 != null && dmg < mhDisciplineMin2) dmg = mhDisciplineMin2;
             if (w1.noDamageVsTarget) { report.elementalDamageTotal -= mhElemAdder2; dmg = 0; }
             report.weapon1.swings++; addSwingThreatMH();
             report.weapon1.hits++;
@@ -2300,14 +2429,15 @@
               const mhElemAdder3 = getElementalBaseAdder(w1, options, elemRng);
               report.elementalDamageTotal += mhElemAdder3;
               let mhBase3 = cappedW1Damage + mhElemAdder3;
+              const raw_mhBase3 = mhBase3;
               mhBase3 = applyDisciplineDamageMod(mhBase3, disciplineActiveMh);
-              let dmg = calcMeleeDamage(mhBase3, offenseRating, mitigation, rng, 0);
+              let dmg = calcMeleeDamage(mhBase3, offenseRating, mitigation, rng, 0, disciplineActiveMh ? Math.floor(raw_mhBase3 * SE_MELEE_MIN_DAMAGE_MOD_DUELIST_INNERFLAME / 100) : 0);
               const mult = rollDamageMultiplier(offenseRating, dmg, level, options.classId, false, rng);
               dmg = mult.damage;
               dmg += mainHandDamageBonus;
               dmg = Math.max(dmg, 1 + mainHandDamageBonus);
               let _swingIsCrit3 = false;
-              const slayResult3 = trySlayUndead(dmg, mainHandDamageBonus, 1, options, rng);
+              const slayResult3 = trySlayUndead(dmg, mainHandDamageBonus, raw_mhBase3, options, rng);
               if (slayResult3) {
                 dmg = slayResult3.damage;
                 report.weapon1.slayUndeadHits++;
@@ -2315,13 +2445,11 @@
                 report.weapon1.maxSlayUndeadHit = Math.max(report.weapon1.maxSlayUndeadHit || 0, dmg);
               } else {
                 const beforeCrit = dmg;
-                const critResult = rollMeleeCrit(dmg, mainHandDamageBonus, level, options.classId, options.dex, options.critChanceMult, false, false, 0, options.critDmgDebugDmgBonus, rng, furyDmgBonusPct);
+                const critResult = rollMeleeCrit(dmg, mainHandDamageBonus, level, options.classId, options.dex, options.critChanceMult, false, false, 0, false, rng, 0, raw_mhBase3);
                 dmg = critResult.damage;
                 dmg = Math.max(dmg, 1 + mainHandDamageBonus);
                 if (critResult.isCrit) { _swingIsCrit3 = true; report.critHits++; report.critDamageGain += (dmg - beforeCrit); }
               }
-              const mhDisciplineMin3 = getDisciplineMinHit(cappedW1Damage, mainHandDamageBonus, disciplineActiveMh);
-              if (mhDisciplineMin3 != null && dmg < mhDisciplineMin3) dmg = mhDisciplineMin3;
               if (w1.noDamageVsTarget) { report.elementalDamageTotal -= mhElemAdder3; dmg = 0; }
               report.weapon1.swings++; addSwingThreatMH();
               report.weapon1.hits++;
@@ -2337,21 +2465,23 @@
               pushCombatLog(tMs, 'melee', 1, w1Verb, false, undefined, { roundLetter: mhRoundLetter, attemptNumber: 3, swingKind: 'TA' });
             }
             // Flurry: extra swing after successful triple (warrior/monk Luclin AA)
-            if (flurryRank > 0 && checkFlurry(flurryRank, level, (options.classId || '').toLowerCase(), rng)) {
+            const flurryFires = checkFlurry(flurryChancePct, level, (options.classId || '').toLowerCase(), rng);
+            if (flurryFires) {
               attacksThisRound = 4;
               if (report.weapon1.flurry != null) report.weapon1.flurry++;
               if (rollHit(toHit, avoidance, rng, frontAvoidChance)) {
                 const mhElemAdder4 = getElementalBaseAdder(w1, options, elemRng);
                 report.elementalDamageTotal += mhElemAdder4;
                 let mhBase4 = cappedW1Damage + mhElemAdder4;
+                const raw_mhBase4 = mhBase4;
                 mhBase4 = applyDisciplineDamageMod(mhBase4, disciplineActiveMh);
-                let dmg = calcMeleeDamage(mhBase4, offenseRating, mitigation, rng, 0);
+                let dmg = calcMeleeDamage(mhBase4, offenseRating, mitigation, rng, 0, disciplineActiveMh ? Math.floor(raw_mhBase4 * SE_MELEE_MIN_DAMAGE_MOD_DUELIST_INNERFLAME / 100) : 0);
                 const mult = rollDamageMultiplier(offenseRating, dmg, level, options.classId, false, rng);
                 dmg = mult.damage;
                 dmg += mainHandDamageBonus;
                 dmg = Math.max(dmg, 1 + mainHandDamageBonus);
                 let _swingIsCritF = false;
-                const slayResultF = trySlayUndead(dmg, mainHandDamageBonus, 1, options, rng);
+                const slayResultF = trySlayUndead(dmg, mainHandDamageBonus, raw_mhBase4, options, rng);
                 if (slayResultF) {
                   dmg = slayResultF.damage;
                   report.weapon1.slayUndeadHits++;
@@ -2359,13 +2489,11 @@
                   report.weapon1.maxSlayUndeadHit = Math.max(report.weapon1.maxSlayUndeadHit || 0, dmg);
                 } else {
                   const beforeCrit = dmg;
-                  const critResult = rollMeleeCrit(dmg, mainHandDamageBonus, level, options.classId, options.dex, options.critChanceMult, false, false, 0, options.critDmgDebugDmgBonus, rng, furyDmgBonusPct);
+                  const critResult = rollMeleeCrit(dmg, mainHandDamageBonus, level, options.classId, options.dex, options.critChanceMult, false, false, 0, false, rng, 0, raw_mhBase4);
                   dmg = critResult.damage;
                   dmg = Math.max(dmg, 1 + mainHandDamageBonus);
                   if (critResult.isCrit) { _swingIsCritF = true; report.critHits++; report.critDamageGain += (dmg - beforeCrit); }
                 }
-                const mhDisciplineMinF = getDisciplineMinHit(cappedW1Damage, mainHandDamageBonus, disciplineActiveMh);
-                if (mhDisciplineMinF != null && dmg < mhDisciplineMinF) dmg = mhDisciplineMinF;
                 if (w1.noDamageVsTarget) { report.elementalDamageTotal -= mhElemAdder4; dmg = 0; }
                 report.weapon1.swings++; addSwingThreatMH();
                 report.weapon1.hits++;
@@ -2381,21 +2509,22 @@
                 pushCombatLog(tMs, 'melee', 1, w1Verb, false, undefined, { roundLetter: mhRoundLetter, attemptNumber: 4, swingKind: 'FL' });
               }
             }
-            // Raging Flurry (warrior PoP AA): additional flurry chance on successful triple attack
-            if (ragingFlurryChance > 0 && (options.classId || '').toLowerCase() === 'warrior' && level >= 60 && rng() < ragingFlurryChance) {
+            // A successful flurry grants a second extra swing 10% of the time (client_process.cpp:370).
+            if (flurryFires && rng() * 100 < 10) {
               report.weapon1.ragingFlurry++;
               if (rollHit(toHit, avoidance, rng, frontAvoidChance)) {
                 const mhElemAdderRF = getElementalBaseAdder(w1, options, elemRng);
                 report.elementalDamageTotal += mhElemAdderRF;
                 let mhBaseRF = cappedW1Damage + mhElemAdderRF;
+                const raw_mhBaseRF = mhBaseRF;
                 mhBaseRF = applyDisciplineDamageMod(mhBaseRF, disciplineActiveMh);
-                let dmg = calcMeleeDamage(mhBaseRF, offenseRating, mitigation, rng, 0);
+                let dmg = calcMeleeDamage(mhBaseRF, offenseRating, mitigation, rng, 0, disciplineActiveMh ? Math.floor(raw_mhBaseRF * SE_MELEE_MIN_DAMAGE_MOD_DUELIST_INNERFLAME / 100) : 0);
                 const mult = rollDamageMultiplier(offenseRating, dmg, level, options.classId, false, rng);
                 dmg = mult.damage;
                 dmg += mainHandDamageBonus;
                 dmg = Math.max(dmg, 1 + mainHandDamageBonus);
                 let _swingIsCritRF = false;
-                const slayResultRF = trySlayUndead(dmg, mainHandDamageBonus, 1, options, rng);
+                const slayResultRF = trySlayUndead(dmg, mainHandDamageBonus, raw_mhBaseRF, options, rng);
                 if (slayResultRF) {
                   dmg = slayResultRF.damage;
                   report.weapon1.slayUndeadHits++;
@@ -2403,13 +2532,11 @@
                   report.weapon1.maxSlayUndeadHit = Math.max(report.weapon1.maxSlayUndeadHit || 0, dmg);
                 } else {
                   const beforeCrit = dmg;
-                  const critResult = rollMeleeCrit(dmg, mainHandDamageBonus, level, options.classId, options.dex, options.critChanceMult, false, false, 0, options.critDmgDebugDmgBonus, rng, furyDmgBonusPct);
+                  const critResult = rollMeleeCrit(dmg, mainHandDamageBonus, level, options.classId, options.dex, options.critChanceMult, false, false, 0, false, rng, 0, raw_mhBaseRF);
                   dmg = critResult.damage;
                   dmg = Math.max(dmg, 1 + mainHandDamageBonus);
                   if (critResult.isCrit) { _swingIsCritRF = true; report.critHits++; report.critDamageGain += (dmg - beforeCrit); }
                 }
-                const mhDisciplineMinRF = getDisciplineMinHit(cappedW1Damage, mainHandDamageBonus, disciplineActiveMh);
-                if (mhDisciplineMinRF != null && dmg < mhDisciplineMinRF) dmg = mhDisciplineMinRF;
                 if (w1.noDamageVsTarget) { report.elementalDamageTotal -= mhElemAdderRF; dmg = 0; }
                 report.weapon1.swings++; addSwingThreatMH();
                 report.weapon1.hits++;
@@ -2435,14 +2562,15 @@
               const mhElemAdderPB = getElementalBaseAdder(w1, options, elemRng);
               report.elementalDamageTotal += mhElemAdderPB;
               let mhBasePB = cappedW1Damage + mhElemAdderPB;
+              const raw_mhBasePB = mhBasePB;
               mhBasePB = applyDisciplineDamageMod(mhBasePB, disciplineActiveMh);
-              let dmg = calcMeleeDamage(mhBasePB, offenseRating, mitigation, rng, 0);
+              let dmg = calcMeleeDamage(mhBasePB, offenseRating, mitigation, rng, 0, disciplineActiveMh ? Math.floor(raw_mhBasePB * SE_MELEE_MIN_DAMAGE_MOD_DUELIST_INNERFLAME / 100) : 0);
               const mult = rollDamageMultiplier(offenseRating, dmg, level, options.classId, false, rng);
               dmg = mult.damage;
               dmg += mainHandDamageBonus;
               dmg = Math.max(dmg, 1 + mainHandDamageBonus);
               let _swingIsCritPB = false;
-              const slayResultPB = trySlayUndead(dmg, mainHandDamageBonus, 1, options, rng);
+              const slayResultPB = trySlayUndead(dmg, mainHandDamageBonus, raw_mhBasePB, options, rng);
               if (slayResultPB) {
                 dmg = slayResultPB.damage;
                 report.weapon1.slayUndeadHits++;
@@ -2450,13 +2578,11 @@
                 report.weapon1.maxSlayUndeadHit = Math.max(report.weapon1.maxSlayUndeadHit || 0, dmg);
               } else {
                 const beforeCrit = dmg;
-                const critResult = rollMeleeCrit(dmg, mainHandDamageBonus, level, options.classId, options.dex, options.critChanceMult, false, false, 0, options.critDmgDebugDmgBonus, rng, furyDmgBonusPct);
+                const critResult = rollMeleeCrit(dmg, mainHandDamageBonus, level, options.classId, options.dex, options.critChanceMult, false, false, 0, false, rng, 0, raw_mhBasePB);
                 dmg = critResult.damage;
                 dmg = Math.max(dmg, 1 + mainHandDamageBonus);
                 if (critResult.isCrit) { _swingIsCritPB = true; report.critHits++; report.critDamageGain += (dmg - beforeCrit); }
               }
-              const mhDisciplineMinPB = getDisciplineMinHit(cappedW1Damage, mainHandDamageBonus, disciplineActiveMh);
-              if (mhDisciplineMinPB != null && dmg < mhDisciplineMinPB) dmg = mhDisciplineMinPB;
               if (w1.noDamageVsTarget) { report.elementalDamageTotal -= mhElemAdderPB; dmg = 0; }
               report.weapon1.swings++; addSwingThreatMH();
               report.weapon1.hits++;
@@ -2479,14 +2605,15 @@
               const mhElemAdderSK = getElementalBaseAdder(w1, options, elemRng);
               report.elementalDamageTotal += mhElemAdderSK;
               let mhBaseSK = cappedW1Damage + mhElemAdderSK;
+              const raw_mhBaseSK = mhBaseSK;
               mhBaseSK = applyDisciplineDamageMod(mhBaseSK, disciplineActiveMh);
-              let dmg = calcMeleeDamage(mhBaseSK, offenseRating, mitigation, rng, 0);
+              let dmg = calcMeleeDamage(mhBaseSK, offenseRating, mitigation, rng, 0, disciplineActiveMh ? Math.floor(raw_mhBaseSK * SE_MELEE_MIN_DAMAGE_MOD_DUELIST_INNERFLAME / 100) : 0);
               const mult = rollDamageMultiplier(offenseRating, dmg, level, options.classId, false, rng);
               dmg = mult.damage;
               dmg += mainHandDamageBonus;
               dmg = Math.max(dmg, 1 + mainHandDamageBonus);
               let _swingIsCritSK = false;
-              const slayResultSK = trySlayUndead(dmg, mainHandDamageBonus, 1, options, rng);
+              const slayResultSK = trySlayUndead(dmg, mainHandDamageBonus, raw_mhBaseSK, options, rng);
               if (slayResultSK) {
                 dmg = slayResultSK.damage;
                 report.weapon1.slayUndeadHits++;
@@ -2494,13 +2621,11 @@
                 report.weapon1.maxSlayUndeadHit = Math.max(report.weapon1.maxSlayUndeadHit || 0, dmg);
               } else {
                 const beforeCrit = dmg;
-                const critResult = rollMeleeCrit(dmg, mainHandDamageBonus, level, options.classId, options.dex, options.critChanceMult, false, false, 0, options.critDmgDebugDmgBonus, rng, furyDmgBonusPct);
+                const critResult = rollMeleeCrit(dmg, mainHandDamageBonus, level, options.classId, options.dex, options.critChanceMult, false, false, 0, false, rng, 0, raw_mhBaseSK);
                 dmg = critResult.damage;
                 dmg = Math.max(dmg, 1 + mainHandDamageBonus);
                 if (critResult.isCrit) { _swingIsCritSK = true; report.critHits++; report.critDamageGain += (dmg - beforeCrit); }
               }
-              const mhDisciplineMinSK = getDisciplineMinHit(cappedW1Damage, mainHandDamageBonus, disciplineActiveMh);
-              if (mhDisciplineMinSK != null && dmg < mhDisciplineMinSK) dmg = mhDisciplineMinSK;
               if (w1.noDamageVsTarget) { report.elementalDamageTotal -= mhElemAdderSK; dmg = 0; }
               report.weapon1.swings++; addSwingThreatMH();
               report.weapon1.hits++;
@@ -2706,7 +2831,7 @@
                   const mult = rollDamageMultiplier(offenseRating, dmg, level, options.classId, false, weaveRng);
                   dmg = mult.damage;
                   const beforeCrit = dmg;
-                  const critResult = rollMeleeCrit(dmg, 0, level, options.classId, options.dex, options.critChanceMult, false, false, 0, options.critDmgDebugDmgBonus, weaveRng, furyDmgBonusPct);
+                  const critResult = rollMeleeCrit(dmg, 0, level, options.classId, options.dex, options.critChanceMult, false, false, 0, false, weaveRng, 0, fistBase);
                   dmg = critResult.damage;
                   if (critResult.isCrit) { report.critHits++; report.critDamageGain += (dmg - beforeCrit); }
                   if (fwUsesOhWeapon && w2 && w2.noDamageVsTarget) {
@@ -2732,9 +2857,7 @@
               };
               processFistweaveSwing();
               // Double attack: beastlord in 2H weave only gets DA via Bestial Frenzy AA
-              const fwDoA = (twoHandWeaveMode && options.classId === 'beastlord')
-                ? (aaFlatDaChance > 0 && weaveRng() < aaFlatDaChance)
-                : checkDoubleAttack(doubleAttackEffective, weaveRng, options.classId);
+              const fwDoA = checkDoubleAttack(doubleAttackEffective, weaveRng);
               if (fwDoA) { fwAttacks = 2; processFistweaveSwing(); }
               if (fwAttacks === 1) report.fistweaving.single++;
               else report.fistweaving.double++;
@@ -2840,16 +2963,15 @@
             const ohElemAdder = getElementalBaseAdder(w2, options, elemRng);
             report.elementalDamageTotal += ohElemAdder;
             let ohBase = cappedW2Damage + ohElemAdder;
+            const raw_ohBase = ohBase;
             ohBase = applyDisciplineDamageMod(ohBase, disciplineActiveOh);
-            let dmg = calcMeleeDamage(ohBase, offenseRatingOh, mitigation, weaveRng, 0);
+            let dmg = calcMeleeDamage(ohBase, offenseRatingOh, mitigation, weaveRng, 0, disciplineActiveOh ? Math.floor(raw_ohBase * SE_MELEE_MIN_DAMAGE_MOD_DUELIST_INNERFLAME / 100) : 0);
             const mult = rollDamageMultiplier(offenseRatingOh, dmg, level, options.classId, false, weaveRng);
             dmg = mult.damage;
             const beforeCrit = dmg;
-            const critResult = rollMeleeCrit(dmg, 0, level, options.classId, options.dex, options.critChanceMult, false, false, 0, options.critDmgDebugDmgBonus, weaveRng, furyDmgBonusPct);
+            const critResult = rollMeleeCrit(dmg, 0, level, options.classId, options.dex, options.critChanceMult, false, false, 0, false, weaveRng, 0, raw_ohBase);
             dmg = critResult.damage;
             if (critResult.isCrit) { report.critHits++; report.critDamageGain += (dmg - beforeCrit); }
-            const ohDisciplineMin = getDisciplineMinHit(cappedW2Damage, 0, disciplineActiveOh);
-            if (ohDisciplineMin != null && dmg < ohDisciplineMin) dmg = ohDisciplineMin;
             if (w2.noDamageVsTarget) { report.elementalDamageTotal -= ohElemAdder; dmg = 0; }
             report.weapon2.swings++; addSwingThreatOH();
             report.weapon2.hits++;
@@ -2863,22 +2985,21 @@
             report.weapon2.swings++; addSwingThreatOH();
             pushCombatLog(tMs, 'melee', 2, w2Verb, false, undefined, { roundLetter: ohRoundLetter, attemptNumber: 1, swingKind: 'BA', dualWieldGate: true });
           }
-          if (checkDoubleAttack(doubleAttackEffective, weaveRng, options.classId)) {
+          if (offhandDoubleAttackAllowed && checkDoubleAttack(doubleAttackEffective, weaveRng)) {
             attacksThisRound = 2;
             if (rollHit(toHitOh, avoidance, weaveRng, frontAvoidChance)) {
               const ohElemAdder2 = getElementalBaseAdder(w2, options, elemRng);
               report.elementalDamageTotal += ohElemAdder2;
               let ohBase2 = cappedW2Damage + ohElemAdder2;
+              const raw_ohBase2 = ohBase2;
               ohBase2 = applyDisciplineDamageMod(ohBase2, disciplineActiveOh);
-              let dmg = calcMeleeDamage(ohBase2, offenseRatingOh, mitigation, weaveRng, 0);
+              let dmg = calcMeleeDamage(ohBase2, offenseRatingOh, mitigation, weaveRng, 0, disciplineActiveOh ? Math.floor(raw_ohBase2 * SE_MELEE_MIN_DAMAGE_MOD_DUELIST_INNERFLAME / 100) : 0);
               const mult = rollDamageMultiplier(offenseRatingOh, dmg, level, options.classId, false, weaveRng);
               dmg = mult.damage;
               const beforeCrit = dmg;
-              const critResult = rollMeleeCrit(dmg, 0, level, options.classId, options.dex, options.critChanceMult, false, false, 0, options.critDmgDebugDmgBonus, weaveRng, furyDmgBonusPct);
+              const critResult = rollMeleeCrit(dmg, 0, level, options.classId, options.dex, options.critChanceMult, false, false, 0, false, weaveRng, 0, raw_ohBase2);
               dmg = critResult.damage;
               if (critResult.isCrit) { report.critHits++; report.critDamageGain += (dmg - beforeCrit); }
-              const ohDisciplineMin2 = getDisciplineMinHit(cappedW2Damage, 0, disciplineActiveOh);
-              if (ohDisciplineMin2 != null && dmg < ohDisciplineMin2) dmg = ohDisciplineMin2;
               if (w2.noDamageVsTarget) { report.elementalDamageTotal -= ohElemAdder2; dmg = 0; }
               report.weapon2.swings++; addSwingThreatOH();
               report.weapon2.hits++;
@@ -3022,6 +3143,7 @@
     // 2. Offense & To-Hit Model
     lines.push('=== Offense & To-Hit Model ===', '');
     if (report.calculatedToHit != null) lines.push(padLine('  Calculated to-hit:', String(report.calculatedToHit)));
+    if (report.gearAccuracy > 0) lines.push(padLine('    Item Accuracy (mod2):', `+${report.gearAccuracy} to-hit  (+${(report.gearAccuracy * 1000 / 744).toFixed(1)} displayed ATK)`));
     if (report.offenseSkill != null) lines.push(padLine('  Offense skill:', `${report.offenseSkill}  (0–255, used for to-hit only)`));
     const hasOffhandSkillInfo = report.weaponSkillForToHitOffhand != null && report.weaponSkillKeyForToHitOffhand != null;
     function pushWeaponSkillLines(handLabel, skillKey, base, modPercent, effective, modSource) {
@@ -3394,6 +3516,11 @@
   }
 
   global.EQCombat = {
+    getNpcBlockSkill,
+    getNpcDefenseSkills,
+    computeFrontAvoidChance,
+    computeBehindAvoidChance,
+    computeRangedAvoidChance,
     getHitChance,
     rollHit,
     getAvoidanceNPC,
@@ -3409,16 +3536,20 @@
     getCritChance,
     applyCritDamage,
     rollMeleeCrit,
+    commifyReportText,
+    aaCritChanceMult,
     getDamageBonusNPC,
     getDualWieldEffective,
     checkDualWield,
     effectiveDelayDecisec,
     getEffectiveHastePercent,
+    composeHastePercent,
+    getHasteCapTotal,
     getProcChancePerSwing,
     runFight,
-    formatReport,
+    formatReport: function () { return commifyReportText(formatReport.apply(null, arguments)); },
     runRangedFight,
-    formatRangedReport,
+    formatRangedReport: function () { return commifyReportText(formatRangedReport.apply(null, arguments)); },
     getDefaultSpecialTypeForClass,
     canClassUseSpecialType,
     SPECIAL_ATTACKS_BY_TYPE,

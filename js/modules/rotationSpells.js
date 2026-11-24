@@ -172,10 +172,13 @@
         resistType: resistLabel(info.resistType, info.resistDiff),
         resistTypeId: info.resistType,
         resistDiff: info.resistDiff,
+        noPartialResist: Number(sp.no_partial_resist) > 0,
         mana: Number(sp.mana) || 0,
         specCategory: SPEC_SKILL_CATEGORY[Number(sp.skill)] || null,
         castTime: info.castTimeMs / 1000,
         recastTime: info.recastMs / 1000,
+        // Per-spell post-cast recovery (spells_en recovery_time, 2500 for nearly all damage spells).
+        recoverySec: info.recoveryMs > 0 ? info.recoveryMs / 1000 : 2.5,
         waves: waveCount,
         isRain: isRain,
         isDot: isDot,

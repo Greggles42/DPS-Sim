@@ -41,6 +41,7 @@
 <script src="resources/weapons-data.js"></script>
 <script src="resources/npc_types-data.js"></script>
 <script src="itemSearch.js"></script>
+<script src="skillCapsData.js"></script>
 <script src="weaponSkillCaps.js"></script>
 <script src="combat.js"></script>
 <script>
@@ -1904,6 +1905,7 @@ function SimTab({ state, update, density }) {
           damageBonus: first('damageBonus') || 0,
           damageBonusTotal: avg('damageBonusTotal'),
           calculatedToHit: first('calculatedToHit'),
+          gearAccuracy: first('gearAccuracy'),
           offenseSkill: first('offenseSkill'),
           offenseRating: first('offenseRating'),
           offenseRatingFromStr: first('offenseRatingFromStr'),

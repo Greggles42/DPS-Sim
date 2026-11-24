@@ -12,11 +12,15 @@
  *   - No incoming damage to the pet is modeled — the pet is assumed to
  *     survive the whole fight. This sim only measures its outgoing
  *     contribution to the group's DPS, not its survivability.
- *   - No flurry/rampage/class-attacks (real pets have no attack AI script —
- *     every pet's npc_types.npc_spells_id is 0), no swing-timer jitter
- *     between main-hand and off-hand rounds (fixed lockstep cadence instead
- *     of the server's actual per-timer scheduling) — all accepted
- *     simplifications for an expected-value DPS figure, not a full replay.
+ *   - Not modelled: pet class attacks (bash/kick/backstab/monk specials run for
+ *     any NPC via DoClassAttacks), flurry/rampage, the pet's own casting
+ *     lists (74 of 140 pet templates carry npc_spells lists/procs), and
+ *     swing-timer jitter between main-hand and off-hand rounds (fixed
+ *     lockstep cadence instead of the server's per-timer scheduling) —
+ *     accepted simplifications for an expected-value DPS figure.
+ *   - Pet skills follow Pet::Pet (pets.cpp:472): weapon/offense skill
+ *     min(level*5,225)(+10 at 60+), double attack min(level*5,200) above 9,
+ *     and pet offense is that skill + ATK + buffed STR*2/3 (no NPC curve).
  *   - Pets carry no weapon item, so no item proc exists to model — but a
  *     Beastlord can buff its own pet with a proc via the "Spirit of X" line
  *     (see js/modules/petSpells.js's getPetProcBuffPool), which this DOES
@@ -106,6 +110,10 @@
       accuracy: o.petAccuracy,
       hastePct: o.petHastePct || 0,
       forceDualWield: !!o.forceDualWield,
+      // Pets that carry the DualWield ability DO dual wield (Mob::IsDualWielding: only the early return for a summoned
+      // pet with a *secondary item* is excluded). Callers may pass the pet template's special_abilities string.
+      specialAbilities: o.petSpecialAbilities,
+      petStrBonus: o.petStrBonus,
       isPet: true
     });
 
@@ -128,7 +136,6 @@
     var procMult = hasProc ? (o.procRatePct / 100) : 0;
     var delayDecisec = pet.attackDelayMs / 100;
     var procChanceMain = hasProc ? eq.getProcChancePerSwing(delayDecisec, false, 100, o.petDex || 75) * procMult : 0;
-    var procChanceOff = hasProc ? eq.getProcChancePerSwing(delayDecisec, true, 100, o.petDex || 75) * procMult : 0;
 
     var totalDamage = 0;
     var mainhandSwings = 0, mainhandHits = 0, mainhandDamage = 0;
@@ -147,7 +154,18 @@
     var petSwingHate = Math.floor(pet.baseDamage / 2);
 
     function emit(opts) {
-      if (opts.proc) return;   // pets carry no weapon item — no item proc to model
+      if (opts.proc) {
+        // TrySpellProc (attack.cpp:4101): buff-granted weapon procs are rolled ONCE per round and only for the primary hand
+        // (the off-hand round's marker is ignored); pets carry no weapon item, so there is no item proc to model.
+        if (hasProc && opts.hand !== 'offhand' && rng() < procChanceMain) {
+          totalDamage += o.procDamage;
+          procDamageTotal += o.procDamage;
+          procCount++;
+          if (o.procDamage > maxHit) maxHit = o.procDamage;
+          if (T && T.procSpellThreatFromDamage) procThreatAcc += T.procSpellThreatFromDamage(o.procDamage);
+        }
+        return;
+      }
       swingThreatAcc += petSwingHate;
       var res = NC.resolveSwing(pet, defense, ctx, rng, opts);
       var isOffhand = opts.source === 'offhand';
@@ -157,16 +175,6 @@
         if (isOffhand) { offhandHits++; offhandDamage += res.damage; }
         else { mainhandHits++; mainhandDamage += res.damage; }
         if (res.damage > maxHit) maxHit = res.damage;
-      }
-      if (hasProc) {
-        var chance = isOffhand ? procChanceOff : procChanceMain;
-        if (rng() < chance) {
-          totalDamage += o.procDamage;
-          procDamageTotal += o.procDamage;
-          procCount++;
-          if (o.procDamage > maxHit) maxHit = o.procDamage;
-          if (T && T.procSpellThreatFromDamage) procThreatAcc += T.procSpellThreatFromDamage(o.procDamage);
-        }
       }
     }
 

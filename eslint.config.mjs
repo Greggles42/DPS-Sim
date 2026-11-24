@@ -13,7 +13,7 @@ export default [
     ],
   },
   {
-    files: ['combat.js', 'threat.js', 'weaponSkillCaps.js', 'itemSearch.js'],
+    files: ['combat.js', 'threat.js', 'weaponSkillCaps.js', 'skillCapsData.js', 'itemSearch.js'],
     languageOptions: {
       ecmaVersion: 2022,
       sourceType: 'script',

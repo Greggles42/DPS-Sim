@@ -69,7 +69,7 @@
   var MIN_HASTED_DELAY_MS = 400;   // RuleI(Combat, MinHastedDelay)
   var DEFAULT_FLURRY_CHANCE = 20;  // RuleI(Combat, NPCFlurryChance)
   var DEFAULT_RAMPAGE_CHANCE = 20;
-  var ENRAGE_HP_PCT = 10;          // RuleI(NPC, StartEnrageValue)
+  var ENRAGE_HP_PCT = 9;           // RuleI(NPC, StartEnrageValue) — live Quarm rule_values = 9 (compiled default 10)
   var ENRAGE_DURATION_MS = 10000;
   var ENRAGE_COOLDOWN_MS = 360000;
   var STUN_DURATION_MS = 2000;
@@ -105,11 +105,16 @@
     return p.length === 0 || p[0] !== 0;
   }
 
-  /** Read a parameter, falling back to dflt when absent or zero. */
+  /**
+   * Read ability parameter `index` the way the server does (GetSpecialAbilityParam): the DB string is
+   * "id,value,param0,param1,..." and parseSpecialAbilities keeps [value, param0, param1, ...], so parameter N
+   * lives at slot N+1. Slot 0 is the on/off value, not a parameter. A missing or non-positive parameter means
+   * "use the default" (every caller in mob_ai.cpp does `param > 0 ? param : default`).
+   */
   function abilityParam(parsed, id, index, dflt) {
     var p = parsed && parsed[id];
-    if (!p || p[index] === undefined || p[index] === 0) return dflt;
-    return p[index];
+    var v = p ? p[index + 1] : undefined;
+    return (v !== undefined && v > 0) ? v : dflt;
   }
 
   /** Human-readable list for the mob card. */
@@ -124,6 +129,10 @@
         name += ' (' + abilityParam(parsed, SA.Flurry, 0, DEFAULT_FLURRY_CHANCE) + '%)';
       } else if (Number(id) === SA.Rampage || Number(id) === SA.AreaRampage) {
         name += ' (' + abilityParam(parsed, Number(id), 0, DEFAULT_RAMPAGE_CHANCE) + '%)';
+      } else if (Number(id) === SA.Enrage) {
+        name += ' (below ' + abilityParam(parsed, SA.Enrage, 0, ENRAGE_HP_PCT) + '% HP, ' +
+          Math.round(abilityParam(parsed, SA.Enrage, 1, ENRAGE_DURATION_MS) / 1000) + 's, ' +
+          Math.round(abilityParam(parsed, SA.Enrage, 2, ENRAGE_COOLDOWN_MS) / 1000) + 's cooldown)';
       }
       out.push(name);
     }
@@ -145,57 +154,90 @@
     return getNpcSkillLevel(level);
   }
 
-  /**
-   * Which class attack an NPC leads with, following DoClassAttacks' priority
-   * chain: backstab, then monk specials in descending order, then bash/kick.
-   * Returns null when the class has no class attack at this level.
-   */
-  function getNpcClassAttack(classId, level) {
-    var skill = getNpcSkillLevel(level);
-    var warriorSkills = classId === CLASS.Warrior;
+  /** EQ class ids 20-34 are the "GM" variants of classes 1-15; the server treats them the same in npc.cpp. */
+  function normalizeClass(classId) {
+    var c = Number(classId);
+    if (!isFinite(c) || c <= 0) return CLASS.Warrior;
+    return (c >= 20 && c <= 34) ? c - 19 : c;
+  }
 
-    if (classId === CLASS.Rogue && level > 9) {
+  /**
+   * An NPC's starting skill value from the class skill_caps table (npc.cpp:298), before the explicit
+   * overrides that follow it. Only Warrior/Ranger/Monk/Beastlord have Kick and Warrior/Cleric/Paladin/SK
+   * have Bash in that table. Falls back to "has it" = the flat NPC skill level when the cap data isn't loaded.
+   */
+  function getBaselineSkill(skillKey, cls, level) {
+    var wsc = global.WeaponSkillCaps;
+    if (wsc && wsc.getSkillCap && cls >= 1 && cls <= 15) return wsc.getSkillCap(skillKey, cls - 1, level);
+    if (skillKey === 'kick') {
+      return (cls === CLASS.Warrior || cls === CLASS.Monk || ((cls === CLASS.Ranger || cls === CLASS.Beastlord) && level >= 5))
+        ? getNpcSkillLevel(level) : 0;
+    }
+    return 0;
+  }
+
+  /**
+   * Which class attack an NPC leads with, following NPC::DoClassAttacks' priority chain: backstab, then the
+   * monk specials in descending order, then kick (with a 66% chance of bash instead if it also has bash), then
+   * bash. Which skills the NPC has comes from npc.cpp: class skill_caps baseline, then explicit assignments
+   * (npc.cpp:343-405). The UseWarriorSkills special ability grants bash and kick exactly like a Warrior
+   * (and also parry/riposte, see getNpcDefenseSkills).
+   * Returns null when the NPC has no class attack at this level.
+   */
+  function getNpcClassAttack(classId, level, useWarriorSkills) {
+    var cls = normalizeClass(classId);
+    var skill = getNpcSkillLevel(level);                              // bash/kick skill value (npc.cpp:304-332)
+    var monkSkill = level > 50 ? 250 : Math.min(level * 5, 225);     // monk specials use the later skillLevel
+
+    var kick = getBaselineSkill('kick', cls, level);
+    var bash = getBaselineSkill('bash', cls, level);
+    if (cls === CLASS.Warrior || useWarriorSkills) {
+      bash = level > 5 ? skill : 0;
+      kick = level > 15 ? skill : 0;
+    }
+    if (cls === CLASS.Paladin || cls === CLASS.ShadowKnight || cls === CLASS.Cleric) bash = level > 5 ? skill : 0;
+    if (cls === CLASS.Ranger) kick = level > 15 ? skill : 0;
+
+    if (cls === CLASS.Rogue && level > 9) {
       return { skill: 'backstab', reuseSec: REUSE.backstab, skillLevel: skill };
     }
-    if (classId === CLASS.Monk) {
-      if (level > 29) return { skill: 'flyingkick', reuseSec: REUSE.flyingkick, skillLevel: skill };
-      if (level > 24) return { skill: 'dragonpunch', reuseSec: REUSE.dragonpunch, skillLevel: skill };
-      if (level > 19) return { skill: 'eaglestrike', reuseSec: REUSE.eaglestrike, skillLevel: skill };
-      if (level > 9)  return { skill: 'tigerclaw', reuseSec: REUSE.tigerclaw, skillLevel: skill };
-      if (level > 4)  return { skill: 'roundkick', reuseSec: REUSE.roundkick, skillLevel: skill };
-      return null;
+    if (cls === CLASS.Monk) {
+      if (level > 29) return { skill: 'flyingkick', reuseSec: REUSE.flyingkick, skillLevel: monkSkill };
+      if (level > 24) return { skill: 'dragonpunch', reuseSec: REUSE.dragonpunch, skillLevel: monkSkill };
+      if (level > 19) return { skill: 'eaglestrike', reuseSec: REUSE.eaglestrike, skillLevel: monkSkill };
+      if (level > 9)  return { skill: 'tigerclaw', reuseSec: REUSE.tigerclaw, skillLevel: monkSkill };
+      if (level > 4)  return { skill: 'roundkick', reuseSec: REUSE.roundkick, skillLevel: monkSkill };
     }
 
-    var hasKick = (warriorSkills || classId === CLASS.Ranger) && level > 15;
-    var hasBash = (warriorSkills || classId === CLASS.Paladin ||
-                   classId === CLASS.ShadowKnight || classId === CLASS.Cleric) && level > 5;
-
-    if (hasKick && hasBash) {
+    if (kick > 0 && bash > 0) {
       // DoClassAttacks rolls 66% for bash when the NPC has both.
       return { skill: 'kick', altSkill: 'bash', altChance: 66,
-               reuseSec: REUSE.kick, altReuseSec: REUSE.bash, skillLevel: skill };
+               reuseSec: REUSE.kick, altReuseSec: REUSE.bash, skillLevel: kick, altSkillLevel: bash };
     }
-    if (hasKick) return { skill: 'kick', reuseSec: REUSE.kick, skillLevel: skill };
-    if (hasBash) return { skill: 'bash', reuseSec: REUSE.bash, skillLevel: skill };
+    if (kick > 0) return { skill: 'kick', reuseSec: REUSE.kick, skillLevel: kick };
+    if (bash > 0) return { skill: 'bash', reuseSec: REUSE.bash, skillLevel: bash };
     return null;
   }
 
   /**
-   * The mob's own block/parry/riposte/dodge skills, used when the player
-   * counter-attacks on a riposte. Only some classes get parry and riposte
-   * (npc.cpp:340-405); everyone above level 10 dodges.
+   * The mob's own block/parry/riposte/dodge skills (used when the player counter-attacks on a riposte).
+   * Delegates to combat.js so the tanking and DPS sims share one model of npc.cpp; useWarriorSkills is the
+   * UseWarriorSkills special ability, which grants parry and riposte to any class.
    */
-  function getNpcDefenseSkills(classId, level) {
+  function getNpcDefenseSkills(classId, level, useWarriorSkills) {
+    var eq = getEQCombat();
+    if (eq && eq.getNpcDefenseSkills) {
+      var a = eq.getNpcDefenseSkills(level, classId, false, !!useWarriorSkills);
+      return { block: a[0], parry: a[1], riposte: a[2], dodge: a[3] };
+    }
     var L = level;
-    // Note the reassignment in npc.cpp before the defensive skills are set.
+    var cls = normalizeClass(classId);
     var skillLevel = L > 50 ? 250 : Math.min(L * 5, 225);
-
-    var hasParry = classId === CLASS.Warrior || classId === CLASS.Paladin ||
-                   classId === CLASS.ShadowKnight || classId === CLASS.Ranger ||
-                   classId === CLASS.Rogue || classId === CLASS.Bard;
-    var hasRiposte = hasParry || classId === CLASS.Monk;
-    var isMonk = classId === CLASS.Monk;
-
+    var hasParry = !!useWarriorSkills || cls === CLASS.Warrior || cls === CLASS.Paladin ||
+                   cls === CLASS.ShadowKnight || cls === CLASS.Ranger ||
+                   cls === CLASS.Rogue || cls === CLASS.Bard;
+    var hasRiposte = hasParry || cls === CLASS.Monk;
+    var isMonk = cls === CLASS.Monk;
     return {
       block:   isMonk && L > 11 ? skillLevel : 0,
       parry:   hasParry && L > 6 ? Math.min(L * 5, 230) : 0,
@@ -222,7 +264,8 @@
    * Pairs with getDamageBonus so roll 1 lands on min_dmg and roll 20 on max_dmg.
    */
   function getBaseDamage(minDmg, maxDmg) {
-    if (maxDmg <= minDmg) return Math.max(1, minDmg);
+    // npc attack.cpp GetBaseDamage: baseDamage stays 1 unless max_dmg > min_dmg (the damage bonus then equals max).
+    if (maxDmg <= minDmg) return 1;
     var di1k = Math.floor((maxDmg - minDmg) * 1000 / 19);
     di1k = Math.floor((di1k + 50) / 100) * 100;
     return Math.max(1, Math.floor(di1k / 100));
@@ -240,8 +283,20 @@
    * Mob::GetOffense. Levels 46-50 are flattened to 45 for non-pets — a real
    * plateau in the server's offense curve.
    */
-  function getOffense(level, isPoP, atk, isPet) {
+  /** Pet::Pet (pets.cpp:472): summoned pets' weapon/offense/defense skills are min(level*5, 225), +10 at level 60+. */
+  function getPetSkillLevel(level) {
+    var s = Math.min(level * 5, 225);
+    return level >= 60 ? s + 10 : s;
+  }
+
+  function getOffense(level, isPoP, atk, isPet, petStrBonus) {
     var L = level != null ? level : 60;
+    if (isPet) {
+      // Mob::GetOffense for summoned pets: baseOffense = the pet's own skill, no level-based STR term, only the
+      // buffed STR (x2/3) plus ATK (attack.cpp:4973-4991).
+      var strO = Math.max(0, Math.trunc((petStrBonus || 0) * 2 / 3));
+      return Math.max(1, getPetSkillLevel(L) + strO + (atk || 0));
+    }
     if (!isPet && L > 45 && L < 51) L = 45;
 
     var baseOffense = Math.min(Math.floor(L * 55 / 10) - 4, 320);
@@ -260,8 +315,8 @@
   }
 
   /** Mob::GetToHit = 7 + offense skill + weapon skill + accuracy rating. */
-  function getToHit(level, isPoP, accuracyRating) {
-    var ws = getNpcWeaponSkill(level, isPoP);
+  function getToHit(level, isPoP, accuracyRating, isPet) {
+    var ws = isPet ? getPetSkillLevel(level) : getNpcWeaponSkill(level, isPoP);
     var acc = accuracyRating || 0;
     if (level < 3) acc += 2;
     return 7 + ws + ws + acc;
@@ -319,15 +374,18 @@
       ? parseSpecialAbilities(o.specialAbilities)
       : (o.specialAbilities || {});
 
+    // npc.cpp:188 — a DB row with max < min is simply swapped.
     var minDmg = Math.max(1, o.minDamage != null ? o.minDamage : 10);
-    var maxDmg = Math.max(minDmg, o.maxDamage != null ? o.maxDamage : 50);
+    var maxDmg = Math.max(1, o.maxDamage != null ? o.maxDamage : 50);
+    if (maxDmg < minDmg) { var tmpDmg = minDmg; minDmg = maxDmg; maxDmg = tmpDmg; }
 
     // attack_count of -1 or 0 is the DB's "just one swing" sentinel.
     var attackCount = o.attackCount != null && o.attackCount > 1 ? o.attackCount : 1;
 
     // Every NPC above level 7 gets double attack, at the flat NPC skill value —
     // it is not gated by class the way client double attack is.
-    var daSkill = level > 7 ? getNpcSkillLevel(level) : 0;
+    // Summoned pets: DoubleAttack skill = min(level*5, 200) above level 9 (pets.cpp:535); NPCs: the flat NPC skill above 7.
+    var daSkill = o.isPet ? (level > 9 ? Math.min(level * 5, 200) : 0) : (level > 7 ? getNpcSkillLevel(level) : 0);
     var daChance = daSkill > 0
       ? Math.min(1, (daSkill + (level > 35 ? level : 0)) / 500)
       : 0;
@@ -346,7 +404,35 @@
       ? Math.min(1, (daSkill + (level > 35 ? level : 0)) / 375)
       : 0;
 
-    var classAttack = getNpcClassAttack(classId, level);
+    var useWarriorSkills = hasAbility(parsed, SA.UseWarriorSkills);
+    var classAttack = getNpcClassAttack(classId, level, useWarriorSkills);
+
+    // Slow / haste special abilities (spells.cpp:3853, bonuses.cpp:1148). hastePct is the net spell haste the
+    // caller entered: negative = a slow landed on the mob.
+    //   SlowImmunity (without ReverseSlow): slow spells never land.
+    //   ReverseSlow: a slow becomes a haste of (100 - slow)%, and slow_mitigation does not apply to it.
+    //   HasteImmunity: haste spells never land.
+    var effHastePct = o.hastePct || 0;
+    var effSlowMitigation = o.slowMitigation;
+    var slowIgnored = false, slowReversed = false, hasteIgnored = false;
+    if (effHastePct < 0) {
+      if (hasAbility(parsed, SA.ReverseSlow)) {
+        effHastePct = 100 + effHastePct;
+        effSlowMitigation = 0;
+        slowReversed = true;
+      } else if (hasAbility(parsed, SA.SlowImmunity)) {
+        effHastePct = 0;
+        slowIgnored = true;
+      }
+    } else if (effHastePct > 0 && hasAbility(parsed, SA.HasteImmunity)) {
+      effHastePct = 0;
+      hasteIgnored = true;
+    }
+
+    // Enrage (mob_ai.cpp:2710-2777): the HP threshold, duration and cooldown are the ability's parameters, with
+    // the NPC:StartEnrageValue rule / EnragedDurationTimer / EnragedTimer as defaults. NPCs of level 53-55
+    // never enrage (CheckEnrage returns early for them).
+    var canEnrage = hasAbility(parsed, SA.Enrage) && !(level > 52 && level < 56);
 
     return {
       name: o.name || ('Level ' + level + ' NPC'),
@@ -359,20 +445,26 @@
       baseDamage: getBaseDamage(minDmg, maxDmg),
       damageBonus: getDamageBonus(minDmg, maxDmg),
 
-      offense: getOffense(level, isPoP, o.atk || 0, !!o.isPet),
-      toHit: getToHit(level, isPoP, o.accuracy),
+      offense: getOffense(level, isPoP, o.atk || 0, !!o.isPet, o.petStrBonus || 0),
+      toHit: getToHit(level, isPoP, o.accuracy, !!o.isPet),
       ac: o.ac || 0,
       hp: o.hp || 0,
       avoidance: o.npcAvoidance || 0,
 
-      attackDelayMs: getAttackDelayMs(o.attackDelay, o.hastePct, o.slowMitigation),
+      attackDelayMs: getAttackDelayMs(o.attackDelay, effHastePct, effSlowMitigation),
       // GetHaste() as a percentage — also scales class-attack reuse.
-      hastePctTotal: getEffectiveHaste(o.hastePct, o.slowMitigation),
+      hastePctTotal: getEffectiveHaste(effHastePct, effSlowMitigation),
+      slowIgnored: slowIgnored,
+      slowReversed: slowReversed,
+      hasteIgnored: hasteIgnored,
       attackCount: attackCount,
 
       doubleAttackSkill: daSkill,
       doubleAttackChance: daChance,
-      // Warriors and Monks at 60+ only, and only after a double connects.
+      // TryBashKickStun: kicks only stun for raw Warrior / WarriorGM class NPCs at level 55+.
+      canKickStun: (classId === CLASS.Warrior || Number(o.classId) === 20) && level >= 55,
+      // Warriors and Monks at 60+ only, and only after a double connects (mob_ai.cpp:1208 compares the raw class,
+      // so the GM variants do not get it).
       hasTripleAttack: (classId === CLASS.Warrior || classId === CLASS.Monk) && level >= 60,
 
       dualWield: dualWield,
@@ -389,7 +481,11 @@
         ? abilityParam(parsed, SA.AreaRampage, 0, DEFAULT_RAMPAGE_CHANCE) / 100 : 0,
       areaRampageDamagePct: abilityParam(parsed, SA.AreaRampage, 2, 100),
 
-      canEnrage: hasAbility(parsed, SA.Enrage),
+      canEnrage: canEnrage,
+      enrageHpPct: abilityParam(parsed, SA.Enrage, 0, ENRAGE_HP_PCT),
+      enrageDurationMs: abilityParam(parsed, SA.Enrage, 1, ENRAGE_DURATION_MS),
+      enrageCooldownMs: abilityParam(parsed, SA.Enrage, 2, ENRAGE_COOLDOWN_MS),
+      useWarriorSkills: useWarriorSkills,
       riposteImmune: hasAbility(parsed, SA.RiposteImmunity),
       meleeDisabled: hasAbility(parsed, SA.DisableMelee),
       stunImmune: hasAbility(parsed, SA.StunImmunity),
@@ -424,16 +520,16 @@
 
     var rates = defense.rates;
 
-    // A stunned or sitting defender avoids nothing; sitting also forces max damage,
-    // which we do not model (a tank is never sitting).
-    var canAvoid = !ctx.stunned;
-
-    if (canAvoid) {
+    // AvoidDamage (attack.cpp:246) has no stun check: a stunned defender still blocks, parries,
+    // ripostes and dodges (only the riposte COUNTERATTACK is suppressed while stunned — see
+    // Mob::DoRiposte). Sitting is not modelled.
+    {
       if (rates.block > 0 && rng() < rates.block) { result.outcome = 'block'; return result; }
       if (rates.parry > 0 && rng() < rates.parry) { result.outcome = 'parry'; return result; }
 
-      // An enraged mob cannot be riposted, nor can one flagged riposte-immune.
-      var riposteAllowed = !ctx.mobEnraged && !mob.riposteImmune;
+      // An enraged mob cannot be riposted. RiposteImmunity does NOT stop the swing being negated —
+      // it only stops the counterattack (Mob::DoRiposte), handled by the engine.
+      var riposteAllowed = !ctx.mobEnraged;
       if (riposteAllowed && rates.riposte > 0 && rng() < rates.riposte) {
         result.outcome = 'riposte';
         return result;
@@ -447,8 +543,9 @@
     result.outcome = 'hit';
     result.damage = rollDamage(mob, defense, rng, opts);
 
-    // Bash, kick and dragon punch roll a stun before damage is applied.
-    if (opts.skill === 'bash' || opts.skill === 'kick' || opts.skill === 'dragonpunch') {
+    // Bash and (warrior-class, level 55+) kick roll a stun before damage is applied. An NPC dragon
+    // punch never stuns (it needs a client with the instant disc).
+    if (opts.skill === 'bash' || (opts.skill === 'kick' && mob.canKickStun)) {
       result.stun = rollStun(mob, defense, rng);
     }
 
@@ -499,7 +596,7 @@
    *   chance = (level > 60 ? 40 : 45), then +/- levelDiff^2 / 2, floor of 2.
    */
   function rollStun(mob, defense, rng) {
-    if (mob.stunImmune) return false;
+    // Only the DEFENDER's StunImmunity matters (special_attacks.cpp:103) — a Stun Immune mob can still stun you.
     if (defense.stunImmune) return false;
 
     var chance = mob.level > 60 ? 40 : 45;
@@ -562,8 +659,12 @@
   }
 
   /**
-   * Rampage / AreaRampage — a full round against everyone on the hate list in
-   * range. With the tank as the only target it simply lands on the tank.
+   * One rampage round against a single victim (a main-hand round plus an off-hand round if dual wielding),
+   * scaled by the ability's damage percent. WHO it lands on is decided by the caller:
+   *   Rampage (3)      — Mob::Rampage skips the mob's current target (mob_ai.cpp:2892), so it never hits the tank.
+   *   AreaRampage (4)  — HateList::AreaRampage hits everyone in melee range except the main target, and hits the
+   *                      main target only when the hate list has a single entry (hate_list.cpp:1861).
+   * Either one also triggers the class-attack timer, so the NPC's kick/bash/backstab fires right away.
    */
   function doRampage(mob, rng, emit, damagePct) {
     doMainHandRound(mob, rng, emit, damagePct);
@@ -580,14 +681,16 @@
 
     var skill = ca.skill;
     var reuseSec = ca.reuseSec;
+    var skillLevel = ca.skillLevel;
     if (ca.altSkill && rng() * 100 < ca.altChance) {
       skill = ca.altSkill;
       reuseSec = ca.altReuseSec;
+      skillLevel = ca.altSkillLevel != null ? ca.altSkillLevel : ca.skillLevel;
     }
 
     return {
       skill: skill,
-      baseDamage: getSkillBaseDamage(skill, ca.skillLevel),
+      baseDamage: getSkillBaseDamage(skill, skillLevel),
       // Reuse is haste-scaled: reuse * 1000 / GetHaste() * 100.
       reuseMs: Math.max(1000, Math.floor(reuseSec * 1000 * 100 / mob.hastePctTotal))
     };

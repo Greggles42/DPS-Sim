@@ -473,10 +473,18 @@
       letter-spacing: 0.05em;
     }
     #histogram-container { max-width: 100%; margin-top: 0; }
+    /* Spell pool table: headers and data share each column's alignment (text left, numbers right, checkbox centered). */
+    .rotation-pool-table th, .rotation-pool-table td { padding: 0.25rem 0.6rem; vertical-align: middle; }
+    .rotation-pool-table .l { text-align: left; }
+    .rotation-pool-table .r { text-align: right; font-variant-numeric: tabular-nums; }
+    .rotation-pool-table .c { text-align: center; }
     .damage-pie-container { margin-top: 1.25rem; display: flex; flex-wrap: wrap; align-items: flex-start; gap: 1rem; }
     .damage-pie-container:empty { display: none; }
-    .damage-pie-wrap { flex: 0 0 auto; }
-    .damage-pie-legend { font-size: 0.8rem; margin-top: 0.5rem; max-width: 220px; }
+    /* Two columns: the chart on the left, the labels and data on the right (stacks on narrow screens). */
+    .damage-pie-wrap { flex: 1 1 auto; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 1.25rem; align-items: start; }
+    .damage-pie-wrap canvas { display: block; max-width: 100%; height: auto; }
+    @media (max-width: 560px) { .damage-pie-wrap { grid-template-columns: 1fr; } }
+    .damage-pie-legend { font-size: 0.8rem; margin: 0; max-width: none; }
     .damage-pie-legend dt { margin-top: 0.35rem; font-weight: 600; color: var(--text); }
     .damage-pie-legend dt:first-child { margin-top: 0; }
     .damage-pie-legend dd { margin-left: 1rem; color: var(--muted); }
@@ -2941,13 +2949,15 @@
         <div id="target-npc-search-list" class="item-search-list" role="listbox"></div>
       </div>
       <div id="target-npc-defense-note" class="hint hint--target-defense" style="display:none;"></div>
-      <p class="hint">If no specific target is selected from search, a generic target is used based on character level (target level = character level; AC scales linearly from 5 at level 1 to 200 at level 60).</p>
+      <p class="hint">If no specific target is selected from search, a generic target is used based on character level (target level = character level; AC scales linearly from 5 at level 1 to 200 at level 60, then to 230 at level 65).</p>
       <label>Attacking from</label>
       <div class="radio-group">
         <label><input type="radio" name="from-behind" value="0"><span class="radio-option-main">Front</span> <span class="radio-option-note">(use avoidance)</span></label>
-        <label><input type="radio" name="from-behind" value="1" checked><span class="radio-option-main">Behind</span> <span class="radio-option-note">(no dodge/parry/riposte/block)</span></label>
+        <label><input type="radio" name="from-behind" value="1" checked><span class="radio-option-main">Behind</span> <span class="radio-option-note">(no dodge/parry/riposte)</span></label>
       </div>
-      <p class="hint">Behind: misses still occur from to-hit vs avoidance; only block/parry/dodge/riposte are skipped.</p>
+      <p class="hint">Behind: misses still occur from to-hit vs avoidance; parry, riposte and dodge are skipped, but block is not — block has no facing check in game, so a Monk or Beastlord mob can still block from behind (use "Mob can block" for a manual target).</p>
+      <label class="checkbox-label" id="mob-can-block-label"><input type="checkbox" id="mob-can-block"> Mob can block</label>
+      <p class="hint" id="mob-can-block-hint">Manual target only. Only Monk and Beastlord NPCs have the Block skill in game; a selected NPC uses its own class.</p>
       <div class="target-fight-row">
         <div><label for="target-ac" class="small-label">Target AC</label><input type="number" id="target-ac" min="1" value="550" placeholder="550" title="Mitigation for damage roll; does not affect hit chance."></div>
         <div><label for="mob-level" class="small-label">Mob level</label><input type="number" id="mob-level" min="1" max="70" value="60" placeholder="60" title="Used for mitigation and avoidance (hit chance)."></div>
@@ -2994,6 +3004,7 @@
     <span style="font-size:1.1rem;">&#9888;</span>
     <span>The <strong>Ranged</strong> tab is designed for <strong>Ranger</strong> only. Archery damage formulas, skill caps, and AA options assume a Ranger. Results for other classes will be inaccurate.</span>
   </div>
+  <div id="ranged-gear-setaside-note" class="hint" style="display:none;max-width:900px;margin:0 0 1rem;"></div>
   <!-- Archery options — ranged-specific -->
   <section class="section--core" id="ranged-archery-section">
     <h2>Archery Options</h2>
@@ -3173,9 +3184,11 @@
       <label>Attacking from</label>
       <div class="radio-group">
         <label><input type="radio" name="ranged-from-behind" value="0"><span class="radio-option-main">Front</span> <span class="radio-option-note">(use avoidance)</span></label>
-        <label><input type="radio" name="ranged-from-behind" value="1" checked><span class="radio-option-main">Behind</span> <span class="radio-option-note">(no dodge/parry/riposte/block)</span></label>
+        <label><input type="radio" name="ranged-from-behind" value="1" checked><span class="radio-option-main">Behind</span> <span class="radio-option-note">(no dodge/parry/riposte)</span></label>
       </div>
-      <p class="hint">Behind: misses still occur from to-hit vs avoidance; only block/parry/dodge/riposte are skipped.</p>
+      <p class="hint">Behind: misses still occur from to-hit vs avoidance; dodge is skipped, but block is not — block applies to arrows from any angle, so a Monk or Beastlord mob can still block from behind. Parry and riposte never apply to ranged attacks.</p>
+      <label class="checkbox-label" id="ranged-mob-can-block-label"><input type="checkbox" id="ranged-mob-can-block"> Mob can block</label>
+      <p class="hint" id="ranged-mob-can-block-hint">Manual target only. Only Monk and Beastlord NPCs have the Block skill in game; a selected NPC uses its own class.</p>
       <div class="target-fight-row">
         <div><label for="ranged-target-ac" class="small-label">Target AC</label><input type="number" id="ranged-target-ac" min="1" value="300" placeholder="300"></div>
         <div><label for="ranged-mob-level" class="small-label">Mob level</label><input type="number" id="ranged-mob-level" min="1" max="70" value="60" placeholder="60"></div>
@@ -3388,6 +3401,10 @@
           <label for="tank-group-dps" class="small-label">Group DPS on mob <span class="hint" style="margin:0;">(0=off)</span></label>
           <input type="number" id="tank-group-dps" value="0" min="0" style="width:6rem;" title="Used only to track the mob's HP so enrage windows can be modelled. Leave 0 to skip.">
         </div>
+        <div>
+          <label for="tank-other-haters" class="small-label">Other players on hate list <span class="hint" style="margin:0;">(0 = tank alone)</span></label>
+          <input type="number" id="tank-other-haters" value="0" min="0" max="50" style="width:6rem;" title="Decides who rampages land on. Rampage never hits the mob's main target. Area Rampage hits the main target only when it is the sole player on the mob's hate list; with anyone else on it, the rampage goes to them and not the tank.">
+        </div>
         <div style="display:flex;flex-direction:column;justify-content:center;gap:0.2rem;">
           <label for="tank-enable-mob-spells" class="small-label" style="cursor:pointer;">
             <input type="checkbox" id="tank-enable-mob-spells" checked style="margin-right:0.3rem;">Mob casts spells
@@ -3444,7 +3461,7 @@
   </div>
   <div style="box-sizing:border-box;max-width:900px;margin:0 0 1rem;padding:0.65rem 1rem;background:rgba(96,165,250,0.08);border:1px solid rgba(96,165,250,0.35);border-radius:5px;font-size:0.82rem;color:#93c5fd;display:flex;align-items:flex-start;gap:0.5rem;">
     <span style="font-size:1rem;line-height:1.4;">ℹ</span>
-    <span>Simulates the actual cast-by-cast timeline for a caster's nuke pool against the 2.25s global cooldown, each spell's own recast timer, and (optionally) one off-global filler spell — picking the highest-scoring castable spell at every decision point. Damage is run through a mob resist check. Uses the class and level from the <strong>Character</strong> module above.</span>
+    <span>Simulates the actual cast-by-cast timeline for a caster's nuke pool against the server's 2.5s spell recovery timer (global cooldown), each spell's own recast timer, and (optionally) one off-global filler spell — picking the highest-scoring castable spell at every decision point. Damage is run through a mob resist check. Uses the class and level from the <strong>Character</strong> module above.</span>
   </div>
   <div class="grid" style="grid-template-columns:minmax(0,1fr);">
 
@@ -3542,7 +3559,7 @@
         <label for="rotation-gcd-clicky-delay" class="small-label" style="white-space:nowrap;">Click delay (ms)</label>
         <input type="number" id="rotation-gcd-clicky-delay" value="200" min="0" step="10" style="width:6rem;">
       </div>
-      <p class="hint" id="rotation-gcd-clicky-hint" style="display:none;margin:0.3rem 0 0;">Models a GCD-reset clicky: instead of waiting the full 2.25s global cooldown after a cast, the sim spends only the delay above (default 200ms, for the click itself) before starting the next spell — but only for a next spell whose own cast time is at least 2.25s; a faster spell can't be started this way and simply waits out the normal GCD instead, same as if this were unchecked. Doesn't affect the off-global filler spell above, which already ignores the GCD entirely.</p>
+      <p class="hint" id="rotation-gcd-clicky-hint" style="display:none;margin:0.3rem 0 0;">Models a GCD-reset clicky: instead of waiting the full 2.5s global cooldown (the server's spell recovery timer) after a cast, the sim spends only the delay above (default 200ms, for the click itself) before starting the next spell — but only for a next spell whose own cast time is at least 2.5s; a faster spell can't be started this way and simply waits out the normal GCD instead, same as if this were unchecked. Doesn't affect the off-global filler spell above, which already ignores the GCD entirely.</p>
     </section>
 
     <!-- ═══════════════════════════════════════════════════════
@@ -3668,6 +3685,23 @@
     <details id="version-log-details">
     <summary style="cursor:pointer; font-size:1.17em; font-weight:bold; margin:0; list-style:revert;">Version log</summary>
     <ul style="font-size: 0.9rem; color: var(--muted); margin: 0.5rem 0 0; padding-left: 1.25rem;">
+            <li><strong>2.14</strong> — Server-accuracy audit: the sims now follow the live Quarm server code and database rules (October 2026 dump).
+        <ul>
+          <li><strong>Target &amp; Fight.</strong> The generic target's AC now scales from 5 at level 1 to 200 at level 60 and on to 230 at level 65. The <em>Behind</em> option no longer lists block as skipped (Monk and Beastlord mobs can block from any angle); only dodge, parry and riposte are skipped.</li>
+          <li><strong>Crits and AAs.</strong> Combat Fury (x1.15 / x1.40 / x1.75) and Fury of the Ages (x2.00 / x2.25 / x2.50) multiply your base crit chance and replace each other instead of stacking. Crits and Slay Undead respect the server's minimum-damage rule. Flurry and Raging Flurry use the live chances in one roll (with the 10% second swing), Ferocity and Knight's Advantage multiply double attack, Bestial Frenzy and Harmonious Attack grant Double Attack skill (and the off-hand double attack), Master Wu fires on any monk special at 20-100%, Tactical Mastery is strike-through (15 / 30 / 45%) rather than lowered avoidance, Ingenuity is 3 / 6 / 9%, Soul Abrasion is +50 / +100 / +200%, Return Kick is 20 / 40 / 60%, and Innate Defense and Lightning Reflexes are 3% per rank.</li>
+          <li><strong>Special attacks.</strong> Reuse is whole seconds (floor(base x 100 / haste) - 1); damage is rolled, raised to the attack's minimum and only then crit; kick, bash and backstab no longer get strike-through; backstab to-hit includes gear Accuracy; special-attack hate is the attack's own base damage; Rangers add level x 4 - 216 offense to every attack at 55+. Trueshot is +102% damage and +33% to-hit, and archery elemental damage and the stationary 2x follow the server order.</li>
+          <li><strong>Haste.</strong> Spell and worn haste are capped by level and over-haste (V3) is added after the cap, instead of one shared cap.</li>
+          <li><strong>Tanking.</strong> Mobs swing their off hand every round and their attack proc only fires on a landed swing without a rune. A stunned player can still dodge, parry, riposte and block; a Stun Immune mob can still stun you; a stunned player ignores further stuns. Riposte-immune mobs still have the swing negated, Disable Melee works, enrage starts at 9%, and DoT ticks bypass runes. Disciplines share one level-scaled timer (Defensive 630 s / Evasive 468 s at level 60). Max HP uses additive Natural Durability, Physical Enhancement and Planar Durability applied to base + item HP only.</li>
+          <li><strong>Mob spells and resists.</strong> Spell damage uses the server's full level-scaling table and spell maximums. Resist checks use the live rules (no minimum or 198 cap, 150-scale partial resists, only damage spells partially resist, DoTs are all-or-nothing, rains lose 20% to an automatic resist) for both mob spells on you and your spells on the mob. Mobs pick spells lowest priority first and count every spell on their list; parent spell lists and expansion limits load the way the server does.</li>
+          <li><strong>Rotation planner.</strong> The cast gap is 2.5 s; damage and mana foci roll randomly (about half the listed value on average); a spell crit multiplies only the unfocused damage; DoTs do not spell-crit; Quick Damage and spell-haste foci are additive off the base cast time. Corrected buff values (Khura's Focusing, Protection of the Glades/Cabbage/Nine) and instrument cap (3.9).</li>
+          <li><strong>Buff stacking.</strong> Buffs now stack the way the server compares them, effect slot by effect slot, in the order you turn them on; survivors simply add.</li>
+          <li><strong>Ranged tab.</strong> Opening the Ranged tab (or pressing Simulate there) switches the Character class to Ranger, and any equipped inventory item a Ranger can't use is taken off for the simulation, with a note listing what was removed. Those items go back on automatically if you switch to a class that can use them.</li>
+          <li><strong>Spell pool.</strong> The Spells tab's pool table now aligns each column (names and resist left, numbers right, checkbox centered). The default 8 spells and the <em>Recommend</em> button now pick the best spells the class would use at its current level (for example a level 65 wizard preselects its level 61-65 spells), instead of a fixed level 60 list: spells are ranked with the simulator's own score, the best of each kind (resist type and nuke / rain / DoT) is taken first, then the highest remaining, skipping anything far weaker than the best.</li>
+          <li><strong>Pets.</strong> Pets use their own skill values, double attack and offense, dual wield when their template has it, and roll a Beastlord proc buff once per round.</li>
+          <li><strong>Reports.</strong> Numbers with five or more digits now show thousands separators, including in the Damage breakdown card (labels, values and chart tooltips). The Damage breakdown is now two columns: the pie chart on the left, the labels and data on the right (stacked on narrow screens).</li>
+          <li><strong>Data/tools.</strong> NPC, spell, spell-list and item data were rebuilt from the October 2026 database (<code>tools/extract-dump-tables.js</code>, <code>tools/extract-npc-spells.js</code>); 650 mobs had slow resistance 100x too high. The item-ID era guess was removed. Mechanics guide updated throughout; remaining differences are listed in <code>TODO-server-accuracy.md</code>.</li>
+        </ul>
+      </li>
       <li><strong>2.13</strong> — Proc chance fix.
         <ul>
           <li><strong>Fix:</strong> weapon proc chance no longer scales with DEX above 255. The server caps DEX at 255 for procs, so 305 DEX now procs the same as 255 DEX in Melee, Ranged and pet sims. Maxed characters will see slightly lower proc damage than before. Mechanics guide updated.</li>
@@ -3928,7 +3962,8 @@
   <script src="js/ui/mod2Inputs.js"></script>
   <script src="js/ui/capAlerts.js"></script>
   <script src="combat.js"></script>
-  <script src="weaponSkillCaps.js"></script>
+  <script src="skillCapsData.js"></script>
+<script src="weaponSkillCaps.js"></script>
   <script src="itemSearch.js"></script>
   <!-- Bundled JSON as JS (npm run build-file-bundles). Required for file:// — fetch() to local JSON is CORS-blocked. -->
   <script src="resources/weapons-data.js"></script>
@@ -4312,7 +4347,7 @@
       }
 
       // When releasing: 1) Bump VERSION below. 2) Add a new <li> at the top of the Version log section above.
-      const VERSION = '2.13';
+      const VERSION = '2.14';
       const versionEl = $('app-version');
       if (versionEl) versionEl.textContent = 'v' + VERSION;
 
@@ -4342,10 +4377,8 @@
        *   - V3 bard haste stacks on top, hard-capped at 25%.
        */
       function getTotalHastePercent(level, wornHastePercent, v1HastePercent, v3HastePercent) {
-        var wornCapped = getCappedWornHastePercent(level, wornHastePercent);
-        var v1 = Math.max(0, Number(v1HastePercent) || 0);
-        var v3 = Math.min(25, Math.max(0, Number(v3HastePercent) || 0));
-        return Math.min(wornCapped + v1, 100) + v3;
+        // Mob::GetHaste: (v1 + worn) clamped to the LEVEL cap, then v3 with its level cap (see EQCombat.composeHastePercent).
+        return EQCombat.composeHastePercent(level, { worn: wornHastePercent, v1: v1HastePercent, v3: v3HastePercent });
       }
 
       /** Always-visible net haste breakdown below the haste inputs. */
@@ -4357,8 +4390,8 @@
         var wornPct  = getCappedWornHastePercent(lvl, wornRaw);
         var v1Pct    = parsePercentInput('spell-haste');
         var v3Raw    = parsePercentInput('v3-haste');
-        var v3Pct    = Math.min(25, v3Raw);
-        var combined = Math.min(wornPct + v1Pct, 100);
+        var v3Pct    = Math.min(lvl > 50 ? 25 : 10, v3Raw);
+        var combined = Math.min(wornPct + v1Pct, EQCombat.getHasteCapTotal(lvl) - 100);
         var net      = combined + v3Pct;
 
         var wornEl = $('eff-worn-haste');
@@ -4387,10 +4420,12 @@
         var effSpellAtkEl = $('eff-spell-atk');
         var totalEffSpellAtk = spellAtkInput + buffSpellAtk;
         if (effSpellAtkEl) effSpellAtkEl.textContent = (totalEffSpellAtk >= 0 ? '+' : '') + totalEffSpellAtk;
+        var buffWornAtk = (typeof _bfxAtk !== 'undefined' && _bfxAtk) ? (_bfxAtk.wornAtk || 0) : 0;
+        var effWornAtk = Math.min(250, wornAtkInput + buffWornAtk); // 250 worn-ATK cap
         var wornWrap = $('eff-worn-atk-wrap');
-        if (wornWrap) wornWrap.style.display = wornAtkInput ? '' : 'none';
+        if (wornWrap) wornWrap.style.display = effWornAtk ? '' : 'none';
         var effWornAtkEl = $('eff-worn-atk');
-        if (effWornAtkEl) effWornAtkEl.textContent = (wornAtkInput >= 0 ? '+' : '') + wornAtkInput;
+        if (effWornAtkEl) effWornAtkEl.textContent = (effWornAtk >= 0 ? '+' : '') + effWornAtk;
       }
 
       // Wire haste inputs so the net display updates on manual edits too
@@ -4750,7 +4785,7 @@
         var spellAtkInput = parseInt(($('spell-attack') && $('spell-attack').value) || '0', 10) || 0;
         var wornAtkInput  = parseInt(($('worn-attack')  && $('worn-attack').value)  || '0', 10) || 0;
         var netSpellAtk = spellAtkInput + (t.atk || 0);
-        var netWornAtk  = wornAtkInput  + (t.wornAtk || 0);
+        var netWornAtk  = Math.min(250, wornAtkInput + (t.wornAtk || 0));
         var atkEl = $('bt-atk');
         if (atkEl) {
           atkEl.textContent = String(netSpellAtk);
@@ -5818,7 +5853,7 @@
         var amRank = aaVal('archeryMastery');
         var ppRank = aaVal('planarPower');
         return {
-          critChanceMult: cfRank * 2,
+          critChanceMult: window.EQCombat.aaCritChanceMult(cfRank, aaVal('furyOfTheAges')),
           ambidexterity: ambiBonus,
           flurryRank: aaVal('flurry'),
           masterWuRank: aaVal('masterWu'),
@@ -5881,46 +5916,46 @@
         var isLuclin = EC ? EC.isAvailableInEra('luclin', eraId) : false;
 
         var AA_TOOLTIPS = {
-          combatFury:       'Increases your chance to land a critical hit. Non-Warriors will nearly match the original critical hit abilities of Warriors, while Warriors will remain significantly ahead.',
+          combatFury:       'Multiplies your base crit chance by 1.15 / 1.40 / 1.75. It is a percentage of your existing crit chance, so Warriors stay far ahead of other classes. The larger of Combat Fury and Fury of the Ages applies.',
           combatStability:  'Increases melee damage mitigation by 2, 5, and 10 percent.',
           combatAgility:    'Increases your melee damage avoidance by 2, 5 and 10 percent.',
           naturalDurability:'Increases your maximum hitpoints by 2, 5, and 10 percent (based on base HP including stamina effects).',
           spellCastingFury: 'Gives you a chance to land critical hits with direct damage spells. Ranks increase crit chance by 2, 4, and 7 percent.',
-          spellCastingFuryMastery: 'Requires Spell Casting Fury rank 3. Adds another 2, 4, or 7 percent spell crit chance on top of Spell Casting Fury (chance only — no extra damage bonus). Wizard only.',
-          quickDamage:      'Requires Spell Casting Fury rank 3. Reduces cast time by 2, 5, or 10 percent on direct-damage spells (nukes/rains) with a base cast time over 4 seconds. No effect on DoTs. Druid/Wizard/Magician only.',
+          spellCastingFuryMastery: 'Requires Spell Casting Fury rank 3. Adds another 2, 4, or 6 percent spell crit chance on top of Spell Casting Fury (chance only - no extra damage bonus). Wizard only.',
+          quickDamage:      'Requires Spell Casting Fury rank 3. Reduces cast time by 2, 5, or 10 percent on direct-damage spells (nukes/rains) with a base cast time over 4 seconds. No effect on DoTs. Druid/Wizard only.',
           ambidexterity:    'Increases your chance to use dual wield successfully.',
-          flurry:           'Allows you to perform up to 2 additional attacks from your primary hand per round.',
+          flurry:           'On each successful triple attack, a 20/24/30% chance (plus Raging Flurry) of an extra primary-hand swing, with a further 10% chance of a second one.',
           slayUndead:       'Causes your criticals to inflict greatly improved damage versus the undead.',
           archeryMastery:   'Increases your archery damage by 30, 60, and 100 percent.',
           doubleRiposte:    'Gives you an increased chance to execute a double riposte 15, 35, and 50 percent of the time.',
-          returnKick:       'Gives you the chance to automatically perform a bonus flying kick on ripostes 25, 35, and 50 percent of the time.',
+          returnKick:       'Gives you the chance to automatically perform a bonus flying kick on ripostes 20, 40, and 60 percent of the time.',
           twoHandBash:      'Allows you to use your Bash skill while wielding any 2-handed weapon.',
-          soulAbrasion:     'Gives you increased damage off of the lifetap procs that result from your self buffs (+10/+20/+30%).',
+          soulAbrasion:     'Gives you increased damage off of the lifetap procs that result from your self buffs (+50/+100/+200%).',
           planarPower:      'Raises the maximum that your statistics can be raised to, with items or spells, by 5 points per rank (up to +25 at rank 5).',
-          planarDurability: 'Each rank adds an additional 1.5% to your maximum hit points (stacks with Natural Durability).',
-          masterWu:         'After a Flying Kick, roll rank×10% for 1 extra random monk strike (Flying Kick/Eagle Strike/Tiger Claw/Round Kick); also roll rank×2.5% for a 2nd extra strike.',
-          furyOfTheAges:    'Further increases your chance to score a critical blow against your opponent.',
-          ferocity:         'Grants an increased chance of performing a double attack in any given combat round.',
-          bestialFrenzy:    'Grants a chance of performing a double attack in any given combat round.',
-          harmoniousAttack: 'Grants a chance of performing a double attack in any given combat round.',
+          planarDurability: 'Each rank adds 1.5% (Warrior) or 1.25% (Paladin/Shadow Knight) to your maximum hit points, added to Natural Durability and limited to character level minus 60.',
+          masterWu:         'After any monk special attack, a 20/40/60/80/100% chance of 1 extra random monk strike (Flying Kick/Eagle Strike/Tiger Claw/Round Kick), plus a quarter of that chance for a 2nd extra strike.',
+          furyOfTheAges:    'Multiplies your base crit chance by 2.00 / 2.25 / 2.50 (replaces Combat Fury; the larger applies).',
+          ferocity:         'Raises your double attack chance by 3, 6 and 9 percent of itself.',
+          bestialFrenzy:    'Grants Double Attack (+5 effective skill per point, 3/6/9/12/15 points) and unlocks the off-hand double attack.',
+          harmoniousAttack: 'Grants Double Attack (+5 effective skill per point, 3/6/9/12/15 points) and unlocks the off-hand double attack.',
           punishingBlade:   'Increases the chance of scoring an extra hit with all two-handed weapons that you wield (2/4/8%).',
           flashOfSteel:     'Further increases your chance of double riposting by 10 percent per rank.',
-          knightsAdvantage: 'Grants an increased chance of performing a double attack in any given combat round (+2/+4/+6%).',
+          knightsAdvantage: 'Raises your double attack chance by 3, 6 and 9 percent of itself.',
           speedOfTheKnight: 'Grants a chance to score an additional attack with two-handed weapons after a double attack (2/4/8%).',
-          ragingFlurry:     'Further increases the chance of performing a flurry attack upon successfully scoring a triple attack (10/20/30%).',
-          tacticalMastery:  'Studying your opponent for weaknesses allows you to pierce through advanced defenses. Each rank grants an increasing chance of bypassing dodge, block, parry, and riposte.',
-          innateDefense:    'Further increases your mitigation of incoming melee damage (stacks with Combat Stability).',
-          lightningReflexes:'Further increases your chance of completely avoiding incoming melee damage (stacks with Combat Agility).',
+          ragingFlurry:     'Adds +2/+4/+7% to the Flurry chance on a successful triple attack.',
+          tacticalMastery:  'Each rank gives a 15/30/45% chance that a dodge, block, parry, or riposte is turned into a hit. Applies to normal melee swings only (not kick, bash, or backstab).',
+          innateDefense:    'Further increases your mitigation of incoming melee damage by 3% per rank (stacks with Combat Stability).',
+          lightningReflexes:'Further increases your chance of completely avoiding incoming melee damage by 3% per rank (stacks with Combat Agility).',
           mentalClarity:            '+1 mana regen per tick per rank (up to +3). Applied automatically on the Rotation tab.',
           channelingFocus:          'Reduces your chance of spell interruption from damage or movement while casting. Not modeled — no interrupt mechanic in this sim.',
-          spellCastingReinforcement:'Further reduces spell interruption chance, stacking with Channeling Focus. Not modeled here.',
+          spellCastingReinforcement:'Increases the duration of beneficial buffs by 5/15/30%. Not modeled.',
           spellCastingMastery:      'Adds a flat 2.5/5/10% mana-cost reduction on top of your Spell Specialization skill\'s own discount, for spells in your specialized school. Modeled on the Rotation tab (Spell Specialization control), where it stacks with the skill-based reduction.',
           spellCastingExpertise:    'Caster archetype AA. Exact mechanic not verifiable from this server\'s data; shown for reference only.',
-          spellCastingDeftness:     'Reduces spell fizzle chance. Not modeled — this sim assumes every cast completes.',
+          spellCastingDeftness:     'Reduces the cast time of beneficial spells with a duration and a base cast time of 4s or more by 5/15/25%. Not modeled.',
           spellCastingSubtlety:     'Reduces the hate/aggro generated by your spells. Not modeled — no spell aggro calculation in this sim.',
           innateEnlightenment:      'Caster sibling to Planar Power — raises the INT/WIS stat cap per rank. Exact amount not verifiable from this server\'s data.',
           furyOfMagic:              'Magician upgrade to Spell Casting Fury (requires it maxed). Exact bonus not verifiable from this server\'s data.',
-          ingenuity:        'Grants a chance for your weapon procs to critically hit for double damage (1%/2%/3% per rank). Does not affect regular melee swing crit chance — that\'s Combat Fury. Warrior/Monk/Rogue only.',
+          ingenuity:        'Grants a chance for your weapon procs to critically hit for double damage (3%/6%/9% per rank). Does not affect regular melee swing crit chance - that is Combat Fury. Warrior/Monk/Rogue.',
         };
 
         function rowHtml(aa, classId2) {
@@ -6535,7 +6570,7 @@
 
         const buffFx = getBuffEffects();
         const hastePercent = getMeleeTotalHastePercent(); // spell-haste input already reflects buff haste
-        const wornAttack = (parseInt($('worn-attack').value, 10) || 0) + (buffFx ? buffFx.wornAtk || 0 : 0);
+        const wornAttack = Math.min(250, (parseInt($('worn-attack').value, 10) || 0) + (buffFx ? buffFx.wornAtk || 0 : 0));
         const spellAttack = (parseInt($('spell-attack').value, 10) || 0) + (buffFx ? buffFx.atk || 0 : 0);
         let doubleAttackSkill = applyWeaponSkillModPercent(parseInt($('double-attack').value, 10) || 0, getGearOtherSkillModPercent('doubleattack'));
         let dualWieldSkill = applyWeaponSkillModPercent(parseInt($('dual-wield').value, 10) || 0, getGearOtherSkillModPercent('dualwield'));
@@ -6686,6 +6721,8 @@
           dex,
           str,
           fromBehind,
+          mobCanBlock: getMobCanBlockForSim(''),
+          mobUseWarriorSkills: getTargetUseWarriorSkills(),
           specialAttacks,
           specialAttackType: specialAttacks ? specialAttackType : undefined,
           specialSkill: specialAttacks ? getSpecialSkillEffective(specialAttackType) : undefined,
@@ -6870,6 +6907,7 @@
             damageBonus: reports[0].damageBonus != null ? reports[0].damageBonus : 0,
             damageBonusTotal: Math.round(reports.reduce((s, r) => s + (r.damageBonusTotal || 0), 0) / runs),
             calculatedToHit: reports[0].calculatedToHit,
+            gearAccuracy: reports[0].gearAccuracy,
             offenseSkill: reports[0].offenseSkill,
             weaponSkillKeyForToHit: reports[0].weaponSkillKeyForToHit,
             weaponSkillBase: reports[0].weaponSkillBase,
@@ -7278,13 +7316,15 @@
           startAngle = endAngle;
         });
 
+        // Numbers with 5+ digits get thousands separators (40,000 / 500,000), same as the text reports.
+        function fmtDmg(n) { return window.EQCombat && EQCombat.commifyReportText ? EQCombat.commifyReportText(String(n)) : String(n); }
         function segmentTooltipText(seg) {
           const pct = total > 0 ? ((seg.value / total) * 100).toFixed(1) : '0';
-          let text = seg.label + ': ' + seg.value + ' (' + pct + '%)';
+          let text = seg.label + ': ' + fmtDmg(seg.value) + ' (' + pct + '%)';
           if (seg.breakdown && seg.breakdown.length > 0) {
             seg.breakdown.forEach(function (b) {
               const subPct = seg.value > 0 ? ((b.value / seg.value) * 100).toFixed(1) : '0';
-              text += '\n  ' + b.label + ': ' + b.value + ' (' + subPct + '% of ' + seg.label + ')';
+              text += '\n  ' + b.label + ': ' + fmtDmg(b.value) + ' (' + subPct + '% of ' + seg.label + ')';
             });
           }
           return text;
@@ -7313,7 +7353,7 @@
           dt.style.borderLeftWidth = '3px';
           dt.style.borderLeftStyle = 'solid';
           dt.style.paddingLeft = '0.4rem';
-          dt.textContent = seg.label + ': ' + seg.value + ' (' + pct + '%)';
+          dt.textContent = seg.label + ': ' + fmtDmg(seg.value) + ' (' + pct + '%)';
           if (seg.breakdown && seg.breakdown.length > 0) dt.title = segmentTooltipText(seg);
           legend.appendChild(dt);
           if (seg.breakdown && seg.breakdown.length > 0) {
@@ -7321,7 +7361,7 @@
               const subPct = seg.value > 0 ? ((b.value / seg.value) * 100).toFixed(1) : '0';
               const dd = document.createElement('dd');
               dd.className = 'sub';
-              dd.textContent = b.label + ': ' + b.value + ' (' + subPct + '%)';
+              dd.textContent = b.label + ': ' + fmtDmg(b.value) + ' (' + subPct + '%)';
               legend.appendChild(dd);
             });
           }
@@ -7746,7 +7786,7 @@
         const baseOptions = {
           hastePercent: getMeleeTotalHastePercent(), // spell-haste input already reflects buff haste
           offenseSkill,
-          wornAttack: (parseInt($('worn-attack').value, 10) || 0) + (rankBuffFx ? rankBuffFx.wornAtk || 0 : 0),
+          wornAttack: Math.min(250, (parseInt($('worn-attack').value, 10) || 0) + (rankBuffFx ? rankBuffFx.wornAtk || 0 : 0)),
           spellAttack: (parseInt($('spell-attack').value, 10) || 0) + (rankBuffFx ? rankBuffFx.atk || 0 : 0),
           toHitBonus,
           ambidexterity: rankAaOpts.ambidexterity,
@@ -7767,6 +7807,9 @@
           })(),
           targetBodyType: ($('target-undead-mob') && $('target-undead-mob').checked) ? 3 : null,
           targetMR, targetFR, targetCR, targetPR, targetDR,
+          mobClass: (function() { var npc = window.selectedTargetNpc; return (npc && npc.class != null) ? (parseInt(npc.class, 10) || null) : null; })(),
+          mobCanBlock: getMobCanBlockForSim(''),
+          mobUseWarriorSkills: getTargetUseWarriorSkills(),
           fightDurationSec: durationSec,
           dex,
           str,
@@ -8940,16 +8983,18 @@
           targetPR: parseResist('ranged-target-pr'),
           targetDR: parseResist('ranged-target-dr'),
           mobClass: (function() { var npc = window.selectedTargetNpc; return (npc && npc.class != null) ? (parseInt(npc.class, 10) || null) : null; })(),
+          mobCanBlock: getMobCanBlockForSim('ranged-'),
+          fromBehind: (document.querySelector('input[name="ranged-from-behind"]:checked') || {}).value !== '0',
           fightDurationSec: durationSec,
           offenseSkill: 252,
           archerySkill: Math.min(252, Math.max(0, (function(){ var _sv = parseInt($('ranged-archery-skill').value, 10); return isNaN(_sv) ? 252 : _sv; })())),
           archerySkillFixed: _rangedArcherySkillUserSet,
-          wornAttack: (parseInt($('worn-attack').value, 10) || 0) + (rangedRankBuffFx ? rangedRankBuffFx.wornAtk || 0 : 0),
+          wornAttack: Math.min(250, (parseInt($('worn-attack').value, 10) || 0) + (rangedRankBuffFx ? rangedRankBuffFx.wornAtk || 0 : 0)),
           spellAttack: (parseInt($('spell-attack').value, 10) || 0) + (rangedRankBuffFx ? rangedRankBuffFx.atk || 0 : 0),
           str: 255,
           maxDex: getStatCapForLevel(level, aaConfig.planarPower || 0),
           dex: Math.min(getStatCapForLevel(level, aaConfig.planarPower || 0), (parseInt(($('dex') && $('dex').value) || '255', 10) || 255) + (rangedRankBuffFx ? rangedRankBuffFx.dex || 0 : 0)),
-          critChanceMult: (aaConfig.combatFury || 0) * 2,
+          critChanceMult: window.EQCombat.aaCritChanceMult(aaConfig.combatFury, aaConfig.furyOfTheAges),
           archeryMastery: aaConfig.archeryMastery || 1,
           archeryAccuracy: (document.querySelector('input[name="archery-accuracy"]:checked') || {}).value || 'none',
           mobStationary: !!($('mob-stationary') && $('mob-stationary').checked),
@@ -9582,6 +9627,68 @@
         var isRanger = classId === 'ranger' || classId === '';
         warn.style.display = isRanger ? 'none' : 'flex';
       }
+      // ---- Ranged tab: switch to Ranger and set aside gear a Ranger can't use ----
+      // The Ranged simulation is always a Ranger's (it hard-codes classId 'ranger'), so opening the tab (and pressing
+      // Simulate) moves the Character class to Ranger. Equipped inventory items whose class mask excludes Rangers are
+      // taken off for the simulation: their stats are removed from every gear total (worn ATK, haste, mod2, skill mods...)
+      // and they are remembered, so they are put back automatically if the class is switched to one that can use them.
+      var RANGER_CLASS_BIT = 8;
+      var _gearSetAsideForRanged = {};   // slotKey -> { id, name, item }
+      function _itemUsableByClassMask(item, bit) {
+        if (!item) return true;                       // unknown item: leave it alone
+        var mask = parseInt(item.classes, 10);
+        return isNaN(mask) || (mask & bit) !== 0;
+      }
+      var CLASS_MASK_BIT = {
+        warrior: 1, cleric: 2, paladin: 4, ranger: 8, shadowknight: 16, druid: 32, monk: 64, bard: 128, rogue: 256,
+        shaman: 512, necromancer: 1024, wizard: 2048, magician: 4096, enchanter: 8192, beastlord: 16384
+      };
+      function setAsideGearRangerCannotUse() {
+        var state = window.__invManagerState;
+        if (!state || typeof window.__invManagerSetSlot !== 'function') return [];
+        var names = [];
+        Object.keys(state).forEach(function (slotKey) {
+          var entry = state[slotKey];
+          if (!entry || _itemUsableByClassMask(entry.item, RANGER_CLASS_BIT)) return;
+          _gearSetAsideForRanged[slotKey] = { id: entry.id, name: entry.name, item: entry.item };
+          names.push(entry.name);
+          window.__invManagerSetSlot(slotKey, null);
+        });
+        if (names.length && typeof window.applyInventoryFromState === 'function') window.applyInventoryFromState();
+        return names;
+      }
+      function restoreSetAsideGearForClass(classId) {
+        var bit = CLASS_MASK_BIT[String(classId || '').toLowerCase()];
+        var keys = Object.keys(_gearSetAsideForRanged);
+        if (!bit || !keys.length || typeof window.__invManagerSetSlot !== 'function') return;
+        var restored = false;
+        keys.forEach(function (slotKey) {
+          var e = _gearSetAsideForRanged[slotKey];
+          if (!_itemUsableByClassMask(e.item, bit)) return;
+          var state = window.__invManagerState || {};
+          if (!state[slotKey]) { window.__invManagerSetSlot(slotKey, { id: e.id, name: e.name }); restored = true; }
+          delete _gearSetAsideForRanged[slotKey];
+        });
+        if (restored && typeof window.applyInventoryFromState === 'function') window.applyInventoryFromState();
+      }
+      function shiftToRangerForRanged() {
+        var classEl = $('class');
+        if (classEl && classEl.value !== 'ranger') {
+          classEl.value = 'ranger';
+          classEl.dispatchEvent(new Event('change'));
+          if (typeof syncEasyClassSelection === 'function') syncEasyClassSelection();
+        }
+        var removed = setAsideGearRangerCannotUse();
+        var note = $('ranged-gear-setaside-note');
+        if (note) {
+          if (removed.length) {
+            note.textContent = 'Unequipped for this simulation (a Ranger cannot use): ' + removed.join(', ') + '. They are put back if you switch to a class that can use them.';
+            note.style.display = '';
+          } else if (!Object.keys(_gearSetAsideForRanged).length) {
+            note.style.display = 'none';
+          }
+        }
+      }
       function showTab(tabId) {
         _activeTab = tabId;
         var tabs = ['melee', 'ranged', 'tanking', 'rotation'];
@@ -9594,7 +9701,7 @@
             btnEl.setAttribute('aria-selected', t === tabId ? 'true' : 'false');
           }
         });
-        if (tabId === 'ranged') updateRangedNonRangerWarning();
+        if (tabId === 'ranged') { shiftToRangerForRanged(); updateRangedNonRangerWarning(); }
         if (tabId === 'rotation' && typeof refreshRotationSpellPool === 'function') refreshRotationSpellPool();
         if (typeof buildAAConfiguratorUI === 'function') buildAAConfiguratorUI();
         if (typeof placePetPanelForActiveTab === 'function') placePetPanelForActiveTab();
@@ -10134,6 +10241,7 @@
       }
 
       function runRanged() {
+        shiftToRangerForRanged();
         if (typeof EQCombat === 'undefined' || typeof EQCombat.runRangedFight !== 'function') {
           $('report').textContent = 'Combat simulator not loaded. Ensure combat.js loads correctly.';
           return;
@@ -10252,6 +10360,8 @@
           targetPR: parseResist('ranged-target-pr'),
           targetDR: parseResist('ranged-target-dr'),
           mobClass: (function() { var npc = window.selectedTargetNpc; return (npc && npc.class != null) ? (parseInt(npc.class, 10) || null) : null; })(),
+          mobCanBlock: getMobCanBlockForSim('ranged-'),
+          fromBehind: (document.querySelector('input[name="ranged-from-behind"]:checked') || {}).value !== '0',
           fightDurationSec: parseInt($('ranged-duration').value, 10) || 6000,
           offenseSkill: 252,
           archerySkill: Math.min(252, Math.max(0, (function(){ var _sv = parseInt($('ranged-archery-skill').value, 10); return isNaN(_sv) ? 252 : _sv; })())),
@@ -10261,7 +10371,7 @@
           maxDex: getStatCapForLevel(parseInt($('level').value, 10) || 60, aaConfig.planarPower || 0),
           dex: Math.min(getStatCapForLevel(parseInt($('level').value, 10) || 60, aaConfig.planarPower || 0), (parseInt(($('dex') && $('dex').value) || '255', 10) || 255) + (rangedRunBuffFx ? rangedRunBuffFx.dex || 0 : 0)),
           classId: 'ranger',
-          critChanceMult: (aaConfig.combatFury || 0) * 2,
+          critChanceMult: window.EQCombat.aaCritChanceMult(aaConfig.combatFury, aaConfig.furyOfTheAges),
           archeryMastery: aaConfig.archeryMastery || 1,
           archeryAccuracy: (document.querySelector('input[name="archery-accuracy"]:checked') || {}).value || 'none',
           mobStationary: !!($('mob-stationary') && $('mob-stationary').checked),
@@ -10345,6 +10455,7 @@
             })(),
             wallPenaltyDamageLost: r0.wallPenaltyDamageLost != null ? Math.round(reports.reduce((s, r) => s + (r.wallPenaltyDamageLost || 0), 0) / runs) : undefined,
             calculatedToHit: r0.calculatedToHit,
+            gearAccuracy: r0.gearAccuracy,
             offenseSkill: r0.offenseSkill,
             offenseRating: r0.offenseRating,
             offenseRatingFromDex: r0.offenseRatingFromDex,
@@ -10782,6 +10893,8 @@
       }
       var lastMeleeLevel = parseInt(($('level') && $('level').value) || '60', 10) || 60;
       $('class').addEventListener('change', function () {
+        // Gear set aside for the Ranged tab comes back once the class can use it again.
+        if (typeof restoreSetAsideGearForClass === 'function') restoreSetAsideGearForClass($('class').value);
         onClassOrLevelChange({ clampOnly: false });
         lastMeleeLevel = parseInt(($('level') && $('level').value) || '60', 10) || 60;
         if (typeof buildAAConfiguratorUI === 'function') buildAAConfiguratorUI();
@@ -12000,9 +12113,11 @@
       function getGenericTargetAcFromLevel(level) {
         var lvl = parseInt(level, 10);
         if (isNaN(lvl)) lvl = 60;
-        lvl = Math.max(1, Math.min(60, lvl));
+        lvl = Math.max(1, Math.min(65, lvl));
         if (lvl <= 1) return 5;
-        if (lvl >= 60) return 200;
+        if (lvl >= 65) return 230;
+        // 5 at level 1 -> 200 at level 60 -> 230 at level 65 (a steeper climb for the PoP levels).
+        if (lvl > 60) return Math.round(200 + (lvl - 60) / (65 - 60) * (230 - 200));
         var t = (lvl - 1) / (60 - 1);
         return Math.round(5 + t * (200 - 5));
       }
@@ -12127,6 +12242,56 @@
         var noteElRanged = $('ranged-target-npc-defense-note');
         if (noteEl) { noteEl.innerHTML = defenseNote; noteEl.style.display = defenseNote ? '' : 'none'; }
         if (noteElRanged) { noteElRanged.innerHTML = defenseNote; noteElRanged.style.display = defenseNote ? '' : 'none'; }
+        syncMobCanBlockUi();
+      }
+
+      // "Mob can block" toggle (Melee + Ranged Target & Fight cards share one value). It only matters for a manual
+      // target: a selected NPC has a class, and the server gives the Block skill by class (Monk, Beastlord), so for
+      // those the box is derived from the NPC and locked. The user's own choice is remembered and restored when the
+      // NPC is cleared.
+      var manualMobCanBlock = false;
+      function syncMobCanBlockUi() {
+        var npc = window.selectedTargetNpc;
+        var cls = (npc && npc.class != null) ? (parseInt(npc.class, 10) || null) : null;
+        var lvl = parseInt(($('mob-level') && $('mob-level').value) || '60', 10) || 60;
+        ['', 'ranged-'].forEach(function (prefix) {
+          var cb = $(prefix + 'mob-can-block');
+          var hint = $(prefix + 'mob-can-block-hint');
+          if (!cb) return;
+          if (cls != null && window.EQCombat && EQCombat.getNpcBlockSkill) {
+            var skill = EQCombat.getNpcBlockSkill(lvl, cls, false);
+            cb.checked = skill > 0;
+            cb.disabled = true;
+            if (hint) hint.textContent = 'Set by the selected NPC\'s class (' + (skill > 0 ? 'has Block skill ' + skill : 'no Block skill') + '). Only Monk and Beastlord NPCs can block.';
+          } else {
+            cb.checked = manualMobCanBlock;
+            cb.disabled = false;
+            if (hint) hint.textContent = 'Manual target only. Only Monk and Beastlord NPCs have the Block skill in game; a selected NPC uses its own class.';
+          }
+        });
+      }
+      ['mob-can-block', 'ranged-mob-can-block'].forEach(function (id) {
+        var cb = $(id);
+        if (cb) cb.addEventListener('change', function () {
+          if (cb.disabled) return;
+          manualMobCanBlock = cb.checked;
+          syncMobCanBlockUi();
+        });
+      });
+      ['mob-level', 'ranged-mob-level'].forEach(function (id) {
+        var el = $(id);
+        if (el) el.addEventListener('input', syncMobCanBlockUi);
+      });
+      // True when the selected target NPC has the UseWarriorSkills special ability (parry + riposte for any class).
+      function getTargetUseWarriorSkills() {
+        var npc = window.selectedTargetNpc;
+        var NC = window.NpcCombat;
+        if (!npc || !NC) return false;
+        return NC.hasAbility(NC.parseSpecialAbilities(npc.special_abilities || ''), NC.SpecialAbility.UseWarriorSkills);
+      }
+      function getMobCanBlockForSim(prefix) {
+        var cb = $((prefix || '') + 'mob-can-block');
+        return !!(cb && cb.checked);
       }
       function clearTargetNpc() {
         window.selectedTargetNpc = null;
@@ -12181,6 +12346,8 @@
         set('tank-mob-spells-id', npc.npc_spells_id || 0);
         set('tank-mob-hp', npc.hp || 0);
         set('tank-mob-slow-mitigation', npc.slow_mitigation || 0);
+        // npc_types.avoidance is a bonus added to the NPC's own avoidance (NPC::GetAvoidance); it feeds the riposte counter's hit chance.
+        window.__tankMobAvoidance = npc.avoidance > 0 ? Number(npc.avoidance) : 0;
         // Rotation tab: bodytype for target-restricted spells (level/MR/FR/
         // CR/PR/DR already covered by setTargetMobStatsEverywhere above).
         set('rotation-mob-bodytype', npc.bodytype != null ? npc.bodytype : '');
@@ -12210,7 +12377,7 @@
         }
         if ((npc['class'] === 1 || npc['class'] === 7) && lvl >= 60) bits.push('Triple attack');
 
-        var ca = NC.getNpcClassAttack(npc['class'] || 1, lvl);
+        var ca = NC.getNpcClassAttack(npc['class'] || 1, lvl, NC.hasAbility(parsed, NC.SpecialAbility.UseWarriorSkills));
         if (ca) bits.push('Class attack: ' + (ca.altSkill ? ca.skill + '/' + ca.altSkill : ca.skill));
 
         if (npc.npc_spells_id > 0) {
@@ -12821,6 +12988,9 @@
        *   exists); null/undefined to omit it (Rotation tab).
        */
       function formatPetReportBlock(petResult, playerDps, includedInNetDps) {
+        return EQCombat.commifyReportText(formatPetReportBlockRaw(petResult, playerDps, includedInNetDps));
+      }
+      function formatPetReportBlockRaw(petResult, playerDps, includedInNetDps) {
         var combined = playerDps + petResult.dps;
         var dur = petResult.durationSec;
         var lines = [];
@@ -13303,7 +13473,33 @@
     return { slots: slots, charInfo: charInfo, aaRanks: aaRanks, unrecognizedAA: unrecognizedAA };
   }
 
+  // Importing an inventory changes class/level, which re-applies the generic target (AC, mob level, resists)
+  // on every tab. The Target & Fight settings are not part of an inventory, so snapshot them first and put
+  // the user's values back once the import has finished.
+  var TARGET_FIGHT_FIELD_IDS = [
+    'target-ac', 'mob-level', 'duration', 'runs',
+    'target-mr', 'target-fr', 'target-cr', 'target-pr', 'target-dr',
+    'ranged-target-ac', 'ranged-mob-level', 'ranged-duration', 'ranged-runs',
+    'ranged-target-mr', 'ranged-target-fr', 'ranged-target-cr', 'ranged-target-pr', 'ranged-target-dr',
+    'rotation-mob-level', 'rotation-mob-mr', 'rotation-mob-fr', 'rotation-mob-cr', 'rotation-mob-pr', 'rotation-mob-dr'
+  ];
   function _applyInventoryFromEquippedSlots(equippedSlots, charInfo, aaRanks, unrecognizedAA) {
+    var saved = {};
+    TARGET_FIGHT_FIELD_IDS.forEach(function (id) {
+      var el = document.getElementById(id);
+      if (el) saved[id] = el.value;
+    });
+    try {
+      return _applyInventoryFromEquippedSlotsImpl(equippedSlots, charInfo, aaRanks, unrecognizedAA);
+    } finally {
+      Object.keys(saved).forEach(function (id) {
+        var el = document.getElementById(id);
+        if (el) el.value = saved[id];
+      });
+    }
+  }
+
+  function _applyInventoryFromEquippedSlotsImpl(equippedSlots, charInfo, aaRanks, unrecognizedAA) {
     // ---- Aggregate stats across all equipped items ----
     // Prefer the about-to-be-applied import level (charInfo.level) over the
     // sim's current level field: during import, the Class/Level DOM update
@@ -13743,7 +13939,7 @@
       var _easyHasteReadout = document.getElementById('easy-worn-haste-value');
       if (_easyHasteReadout) _easyHasteReadout.textContent = totalHaste + '%';
     }
-    if (totals.atk) setEl('worn-attack', totals.atk);
+    if (totals.atk) setEl('worn-attack', Math.min(250, totals.atk));
     setEl('tank-damage-shield', totals.damageShield || 0);
     updateTankHP();
 
@@ -13841,7 +14037,7 @@
         atkItems.sort(function(a, b) { return b.atk - a.atk; });
         summLines.push('<div style="margin-top:0.4rem;font-size:0.8rem;color:var(--muted);">');
         summLines.push('<strong style="color:#d4af37;">Worn ATK:</strong> ');
-        summLines.push('<span style="color:#7eb8c9;">' + totals.atk + ' total</span> &mdash; ');
+        summLines.push('<span style="color:#7eb8c9;">' + Math.min(250, totals.atk) + ' total' + (totals.atk > 250 ? ' (' + totals.atk + ' from gear, capped at 250)' : '') + '</span> &mdash; ');
         summLines.push(atkItems.map(function(it) {
           return '<span>' + it.name + ' <em style="color:#7eb8c9;">(+' + it.atk + ' via ' + it.spellName + ')</em></span>';
         }).join(', '));
@@ -14225,7 +14421,9 @@
       mobSpecialAbilities: str('tank-mob-special-abilities', ''),
       mobSpellsId:     v('tank-mob-spells-id', 0),
       mobSlowMitigation: v('tank-mob-slow-mitigation', 0),
+      mobAvoidance:    window.__tankMobAvoidance || 0,
       mobHastePct:     v('tank-mob-haste', 0),
+      mobOtherHaters:  v('tank-other-haters', 0),
       enableMobSpells: chk('tank-enable-mob-spells'),
       mobDisableDualWield: chk('tank-disable-dual-wield'),
       groupDps:        v('tank-group-dps', 0),
@@ -14260,6 +14458,7 @@
       playerStunResistPct:      gearMod2.stunresist || 0,
       playerDamageShieldBonus:  gearMod2.damageshield || 0,
       playerHPTotal:        v('tank-player-hp', 5000),  // buff HP already baked in by updateTankHP
+      playerBuffHP:         (buffFx && buffFx.hp) ? buffFx.hp : 0,  // ...so the engine can apply ND/PD to base+item HP only
       playerHPRegen:        v('tank-player-hp-regen', 0),
       healerHPS:            v('tank-healer-hps', 0),
 
@@ -14695,18 +14894,72 @@
     renderList();
   }
 
-  var CLASS_DEFAULT_SPELL_NAMES = {
-    wizard: [
-      "Garrison's Superior Sundering",
-      "Elnerick's Electrical Rending",
-      'Ice Spear of Solist',
-      'Ancient: Destruction of Ice',
-      'Draught of Ice',
-      'Tears of Prexus',
-      'Tears of Solusek',
-      'Tears of Druzzil'
-    ]
-  };
+  /**
+   * The best spells this class would actually memorize at its current level, for the current resist settings and
+   * priority mode. basePool only ever holds spells the character can already cast (RotationSpells filters by level), so the
+   * pick moves up with the character instead of staying on a fixed list. The pool is ranked with the same score the
+   * simulator uses, then filled in two passes: first the best spell of each kind (resist type + nuke / rain / DoT) so the
+   * book isn't eight ranks of the same line, then the highest remaining scores. Returns { ids } or null if the engine is not
+   * available.
+   */
+  function computeRecommendedRotationIds(basePool) {
+    if (!window.RotationEngine || !basePool || !basePool.length) return null;
+    function v(id, fallback) {
+      var el = document.getElementById(id);
+      if (!el) return fallback;
+      var n = parseFloat(el.value);
+      return isNaN(n) ? fallback : n;
+    }
+    function radioVal(name, fallback) {
+      var els = document.getElementsByName(name);
+      for (var i = 0; i < els.length; i++) if (els[i].checked) return els[i].value;
+      return fallback;
+    }
+    var resistMode = radioVal('rotation-resist-mode', 'statBased');
+    var resistConfig = resistMode === 'flat'
+      ? {
+          mode: 'flat',
+          fullResistPct: v('rotation-full-resist-pct', 5),
+          partialResistPct: v('rotation-partial-resist-pct', 12)
+        }
+      : {
+          mode: 'statBased',
+          casterLevel: v('level', 60),
+          casterClass: ((document.getElementById('class') || {}).value || '').toLowerCase(),
+          mobLevel: v('rotation-mob-level', 60),
+          mobResists: {
+            mr: v('rotation-mob-mr', 35), fr: v('rotation-mob-fr', 35),
+            cr: v('rotation-mob-cr', 35), pr: v('rotation-mob-pr', 35), dr: v('rotation-mob-dr', 35)
+          }
+        };
+    var priorityMode = radioVal('rotation-priority-mode', 'dps');
+    var gearAA = getRotationGearAndAA();
+    var maxMemorized = RotationEngine.MAX_MEMORIZED_SPELLS || 8;
+    var ranked = RotationEngine.rankSpellPool(basePool, resistConfig, priorityMode, gearAA.focusEffects, gearAA.spellCritRank,
+      gearAA.caster, gearAA.spellCritMasteryRank, gearAA.quickDamageRank, gearAA.specialization);
+    ranked = ranked.slice();
+    var ids = {};
+    var count = 0;
+    var seenKind = {};
+    // Skip leftovers that score far below the best spell (e.g. a level 1 nuke that happens to be the only spell of its kind).
+    var topScore = ranked.length ? ranked[0].score : 0;
+    var floor = topScore > 0 ? topScore * 0.25 : -Infinity;
+    ranked = ranked.filter(function (r) { return r.score >= floor; });
+    ranked.forEach(function (r) {
+      if (count >= maxMemorized) return;
+      var s = r.spell;
+      var kind = (s.resistTypeId || 0) + '|' + (s.type || '');
+      if (seenKind[kind]) return;
+      seenKind[kind] = true;
+      ids[s.id] = true; count++;
+    });
+    ranked.forEach(function (r) {
+      if (count >= maxMemorized) return;
+      if (ids[r.spell.id]) return;
+      ids[r.spell.id] = true; count++;
+    });
+    return { ids: ids };
+  }
 
   window.refreshRotationSpellPool = function refreshRotationSpellPool() {
     renderRotationGearSummary();
@@ -14762,15 +15015,10 @@
     // highest level, so rank separately for that.
     var byDamage = pool.slice().sort(function (a, b) { return b.damage - a.damage; });
     var defaultCheckedIds = {};
-    var classDefaultNames = CLASS_DEFAULT_SPELL_NAMES[classId];
-    if (classDefaultNames) {
-      var byName = {};
-      pool.forEach(function (s) { byName[String(s.name).toLowerCase()] = s; });
-      classDefaultNames.forEach(function (n) {
-        var s = byName[n.toLowerCase()];
-        if (s) defaultCheckedIds[s.id] = true;
-      });
-    }
+    // The best spells for this class AT THIS LEVEL (the pool only holds spells the character can cast), not a fixed
+    // per-class name list — a level 65 wizard now preselects its level 61-65 spells too.
+    var recommendedDefault = computeRecommendedRotationIds(pool);
+    if (recommendedDefault) defaultCheckedIds = recommendedDefault.ids;
     if (!Object.keys(defaultCheckedIds).length) {
       byDamage.slice(0, maxMemorized).forEach(function (s) { defaultCheckedIds[s.id] = true; });
     }
@@ -14781,27 +15029,27 @@
         (s.isDot ? ' <span class="hint" style="margin:0;" title="Total across ' + s.waves + ' ticks, 6s apart. Recasting early overwrites the current application and loses the remaining ticks.">(DoT ×' + s.waves + ' ticks)</span>' : '');
       var checked = defaultCheckedIds[s.id] ? ' checked' : '';
       return '<tr>' +
-        '<td style="text-align:center;"><input type="checkbox" class="rotation-spell-include" data-spell-id="' + s.id + '"' + checked + '></td>' +
-        '<td>' + name + '</td>' +
-        '<td>' + s.level + '</td>' +
-        '<td>' + Math.round(s.damage) + '</td>' +
-        '<td>' + s.mana + '</td>' +
-        '<td>' + s.castTime.toFixed(2) + '</td>' +
-        '<td>' + s.recastTime.toFixed(2) + '</td>' +
-        '<td>' + s.resistType + '</td>' +
+        '<td class="c"><input type="checkbox" class="rotation-spell-include" data-spell-id="' + s.id + '"' + checked + '></td>' +
+        '<td class="l">' + name + '</td>' +
+        '<td class="r">' + s.level + '</td>' +
+        '<td class="r">' + (function (n) { return n >= 10000 ? n.toLocaleString('en-US') : String(n); })(Math.round(s.damage)) + '</td>' +
+        '<td class="r">' + s.mana + '</td>' +
+        '<td class="r">' + s.castTime.toFixed(2) + '</td>' +
+        '<td class="r">' + s.recastTime.toFixed(2) + '</td>' +
+        '<td class="l">' + s.resistType + '</td>' +
         '</tr>';
     }).join('');
 
     poolEl.innerHTML =
       '<div style="overflow-x:auto;">' +
       '<table class="rotation-pool-table" style="width:100%;border-collapse:collapse;font-size:0.82rem;">' +
-      '<thead><tr><th>Use</th><th style="text-align:left;">Name</th><th>Lvl</th><th>Dmg</th><th>Mana</th><th>Cast</th><th>Recast</th><th style="text-align:left;">Resist</th></tr></thead>' +
+      '<thead><tr><th class="c">Use</th><th class="l">Name</th><th class="r">Lvl</th><th class="r">Dmg</th><th class="r">Mana</th><th class="r">Cast</th><th class="r">Recast</th><th class="l">Resist</th></tr></thead>' +
       '<tbody>' + rows + '</tbody></table></div>' +
       '<p class="hint" style="margin-top:0.4rem;">' + pool.length + ' nuke(s) found for this class/level.' +
       (hiddenCount > 0
         ? ' ' + hiddenCount + ' more hidden — restricted to a target type (undead, giant, dragon, etc.) the current target doesn\'t match.'
         : '') +
-      ' Only ' + maxMemorized + ' spells can be memorized at once — defaults to the top ' + maxMemorized + ' by damage; ' +
+      ' Only ' + maxMemorized + ' spells can be memorized at once — defaults to the best ' + maxMemorized + ' spells this class would use at this level (up to the character\'s level); ' +
       '<span id="rotation-pool-checked-count"></span></p>';
 
     if (selectEl) {
@@ -15021,6 +15269,7 @@
         : {
             mode: 'statBased',
             casterLevel: v('level', 60),
+            casterClass: ((document.getElementById('class') || {}).value || '').toLowerCase(),
             mobLevel: v('rotation-mob-level', 60),
             // 35 fallback matches the Melee tab's generic-target resist
             // default (target-mr etc.) — see setTargetMobStatsEverywhere.
@@ -15029,13 +15278,8 @@
               cr: v('rotation-mob-cr', 35), pr: v('rotation-mob-pr', 35), dr: v('rotation-mob-dr', 35)
             }
           };
-      var priorityMode = radioVal('rotation-priority-mode', 'dps');
-      var gearAA = getRotationGearAndAA();
-
       var maxMemorized = RotationEngine.MAX_MEMORIZED_SPELLS || 8;
-      var ranked = RotationEngine.rankSpellPool(basePool, resistConfig, priorityMode, gearAA.focusEffects, gearAA.spellCritRank, gearAA.caster, gearAA.spellCritMasteryRank, gearAA.quickDamageRank, gearAA.specialization);
-      var topIds = {};
-      ranked.slice(0, maxMemorized).forEach(function (r) { topIds[r.spell.id] = true; });
+      var topIds = (computeRecommendedRotationIds(basePool) || { ids: {} }).ids;
 
       var poolEl = document.getElementById('rotation-spell-pool');
       if (!poolEl) return;
@@ -15109,6 +15353,7 @@
         : {
             mode: 'statBased',
             casterLevel: v('level', 60),
+            casterClass: ((document.getElementById('class') || {}).value || '').toLowerCase(),
             mobLevel: v('rotation-mob-level', 60),
             // 35 fallback matches the Melee tab's generic-target resist
             // default (target-mr etc.) — see setTargetMobStatsEverywhere.

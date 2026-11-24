@@ -8,6 +8,7 @@
     "build-npc-types-js": "node scripts/npc-types-to-js.mjs",
     "build-procrates-js": "node scripts/procrates-to-js.mjs",
     "build-spells-js": "node scripts/spells-en-to-js.mjs",
+    "build-skill-caps-js": "node scripts/skill-caps-to-js.mjs",
     "build-weapon-shortlist-js": "node scripts/weapon-shortlist-to-js.mjs",
     "build-file-bundles": "node scripts/merge-weapons.mjs && node scripts/procrates-to-js.mjs && node scripts/npc-types-to-js.mjs && node scripts/spells-en-to-js.mjs && node scripts/weapon-shortlist-to-js.mjs",
     "postinstall": "npm run build-file-bundles",

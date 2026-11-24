@@ -28,7 +28,9 @@
    * Warrior disciplines, straight from the server.
    *   Defensive (spell 4499): SE_MeleeMitigation -50, SE_DamageModifier -55
    *   Evasive   (spell 4503): SE_AvoidMeleeChance +50, accuracy -33
-   * Both run 180 s on a 900 s reuse (effects.cpp:723-736).
+   * Both run 180 s. The 900 s below is only the BASE reuse; CastDiscipline scales it by character level
+   * (effects.cpp:919-935): reuse = base - (min(level,60) - useLevel) * 54, clamped to 234..4320 s — so at level 60
+   * Defensive is 630 s and Evasive 468 s. See disciplineReuseMs.
    */
   var DISCIPLINES = {
     defensive: {
@@ -475,6 +477,15 @@
     return { damage: remaining, absorbed: absorbed, fullyAbsorbed: remaining <= 0 };
   }
 
+  /** Level-scaled reuse (ms) for a discipline, per Client::CastDiscipline. */
+  function disciplineReuseMs(d, level) {
+    var eff = Math.min(level, 60);   // base reuse < 1620 s, so the level used is capped at 60
+    var sec = d.reuseMs / 1000 - (eff - d.minLevel) * 54;
+    if (sec > 4320) sec = 4320;
+    if (sec < 234) sec = 234;
+    return sec * 1000;
+  }
+
   /** Which disciplines this character can actually use. */
   function availableDisciplines(classId, level) {
     var cls = (classId || '').toLowerCase();
@@ -484,7 +495,7 @@
       var d = DISCIPLINES[key];
       if (d.classes.indexOf(cls) === -1) continue;
       if (level < d.minLevel) continue;
-      out.push(Object.assign({ key: key }, d));
+      out.push(Object.assign({ key: key }, d, { reuseMs: disciplineReuseMs(d, level) }));
     }
     return out;
   }

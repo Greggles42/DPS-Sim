@@ -153,24 +153,44 @@
       specialAbilities: options.mobSpecialAbilities,
       hastePct: options.mobHastePct,
       slowMitigation: options.mobSlowMitigation,
+      npcAvoidance: options.mobAvoidance,
       disableDualWield: options.mobDisableDualWield,
       era: era
     });
 
     // ---- Player ----
     var hpTotal = options.playerHPTotal != null ? options.playerHPTotal : 4000;
+    // Client::CalcMaxHP (client_mods.cpp:205-262): Natural Durability (2/5/10%), Physical Enhancement (+2%, only if
+    // ND >= 1) and Planar Durability (rank capped at level-60; 1.5%/rank WAR, 1.25%/rank PAL/SHD, nothing for other
+    // classes) are ADDITIVE percentages applied once to base + item HP. Buff HP is added afterwards, unmultiplied.
     var ndRank = (options.naturalDurabilityRank | 0) || 0;
+    var peRank = (options.physicalEnhancementRank | 0) || 0;
     var pdRank = (options.planarDurabilityRank | 0) || 0;
-    var ND = [0, 0.02, 0.05, 0.10][Math.min(ndRank, 3)];
-    var PDur = [0, 0.015, 0.030, 0.045][Math.min(pdRank, 3)];
-    if (ND > 0) hpTotal = Math.floor(hpTotal * (1 + ND));
-    if (PDur > 0) hpTotal = Math.floor(hpTotal * (1 + PDur));
+    var buffHP = Math.max(0, options.playerBuffHP || 0);
+    var hpPct = 0;
+    if (ndRank > 0) {
+      hpPct = [0, 2, 5, 10][Math.min(ndRank, 3)];
+      if (peRank > 0) hpPct += 2;
+    }
+    if (pdRank > 0) {
+      var pdEff = Math.min(pdRank, (options.playerLevel != null ? options.playerLevel : 60) - 60);
+      var pdCls = String(options.playerClassId || '').toLowerCase();
+      if (pdEff > 0) {
+        if (pdCls === 'warrior') hpPct += 1.5 * pdEff;
+        else if (pdCls === 'paladin' || pdCls === 'shadowknight') hpPct += 1.25 * pdEff;
+      }
+    }
+    if (hpPct > 0) {
+      var coreHP = Math.max(0, hpTotal - buffHP);
+      hpTotal = coreHP + Math.trunc(coreHP * hpPct / 100) + buffHP;
+    }
 
     var AA_PCT = [0, 2, 5, 10];
     var combatStabilityPct = AA_PCT[Math.min((options.combatStabilityRank | 0) || 0, 3)];
     var combatAgilityPct   = AA_PCT[Math.min((options.combatAgilityRank   | 0) || 0, 3)];
-    var innateDefensePct   = Math.min((options.innateDefenseRank    | 0) || 0, 5) * 2;
-    var lightningReflexPct = Math.min((options.lightningReflexesRank | 0) || 0, 5) * 2;
+    // Live AA values (SE 259 / SE 172): 3/6/9/12/15 over 5 ranks.
+    var innateDefensePct   = Math.min((options.innateDefenseRank    | 0) || 0, 5) * 3;
+    var lightningReflexPct = Math.min((options.lightningReflexesRank | 0) || 0, 5) * 3;
 
     var defense = PD.build({
       level: options.playerLevel != null ? options.playerLevel : 60,
@@ -204,13 +224,14 @@
       runePool: options.runePool,
       damageShield: options.playerDamageShield,
       hpTotal: hpTotal,
-      hasWeapon: options.playerWeaponDamage != null && options.playerWeaponDamage > 0,
+      // Mob::AvoidDamage only forbids a riposte when the PRIMARY slot holds a non-weapon item; empty hands can riposte.
+      hasWeapon: !options.playerPrimaryNonWeapon,
       hasShield: !!options.playerShieldAC,
       mobToHit: mob.toHit
     });
 
     // ---- Mob's own defences, for the riposte counter-attack ----
-    var mobSkills = NC.getNpcDefenseSkills(mob.classId, mob.level);
+    var mobSkills = NC.getNpcDefenseSkills(mob.classId, mob.level, mob.useWarriorSkills);
     var mobRates = PD.getAvoidanceRates({
       blockSkill: mobSkills.block, parrySkill: mobSkills.parry,
       riposteSkill: mobSkills.riposte, dodgeSkill: mobSkills.dodge
@@ -257,7 +278,7 @@
     var doubleRiposteChance =
       [0, 0.15, 0.35, 0.50][Math.min((options.doubleRiposteRank | 0) || 0, 3)] +
       [0, 0.10, 0.20, 0.30][Math.min((options.flashOfSteelRank | 0) || 0, 3)];
-    var returnKickChance = [0, 0.25, 0.35, 0.50][Math.min((options.returnKickRank | 0) || 0, 3)];
+    var returnKickChance = [0, 0.20, 0.40, 0.60][Math.min((options.returnKickRank | 0) || 0, 3)];
 
     var hp = hpTotal;
     var survivalMs = null;
@@ -271,6 +292,9 @@
     var trackMobHP = groupDps > 0 && mobHP > 0;
     var enrageUsedUntilMs = -1;
     var enrageCooldownUntilMs = 0;
+    // Other players on the mob's hate list besides the tank. Decides who a rampage lands on: Rampage never
+    // hits the main target, and Area Rampage hits it only when it is the sole entry on the hate list.
+    var otherHaters = Math.max(0, options.mobOtherHaters | 0);
 
     // Active DoTs on the player: { damagePerTick, ticksLeft, nextTickMs, name }
     var activeDots = [];
@@ -283,10 +307,11 @@
       var enabled = options.enabledDisciplines || avail.map(function (d) { return d.key; });
       avail.forEach(function (d) {
         if (enabled.indexOf(d.key) === -1) return;
-        discs.push({ key: d.key, def: d, activeUntilMs: -1, readyAtMs: 0, uptimeMs: 0 });
+        discs.push({ key: d.key, def: d, activeUntilMs: -1, uses: 0, uptimeMs: 0 });
       });
     }
     var activeDiscKeys = [];
+    var discSharedReadyAtMs = 0;
 
     function refreshDiscEffects() {
       var keys = discs
@@ -306,8 +331,9 @@
       if (amount <= 0) return;
 
       // Runes absorb before HP is touched (Mob::ReduceDamage inside CommonDamage).
+      // DoT ticks bypass runes: AffectMagicalDamage only applies rune absorption to direct damage.
       var after = amount;
-      if (defense.runeRemaining > 0) {
+      if (defense.runeRemaining > 0 && source !== 'dot') {
         var r = PD.applyRune(defense, amount);
         after = r.damage;
         report.runeAbsorbed += r.absorbed;
@@ -350,11 +376,10 @@
     function emitSwing(opts) {
       opts = opts || {};
 
-      // TryProcs rolls on the round regardless of whether the swing connects.
-      if (opts.proc) {
-        tryWeaponProc();
-        return;
-      }
+      // The npc_spells attack_proc is NPC::TryInnateProc: rolled only after a landed Attack()
+      // (damage > 0), and never while the target has a melee rune (attack.cpp:2098, 4196) — so the
+      // per-round 'proc' marker emitted by npcCombat is ignored here and it is rolled below instead.
+      if (opts.proc) return;
 
       var source = opts.source || 'mainhand';
       report.swingAttempts++;
@@ -383,8 +408,10 @@
       report.landedSwings++;
       takeDamage(res.damage, source);
       applyDamageShield();
+      if (!(defense.runeRemaining > 0)) tryWeaponProc();
 
-      if (res.stun) {
+      // A Client that is already stunned ignores new stuns (spells.cpp:4536).
+      if (res.stun && !(now < ctx.stunnedUntilMs)) {
         report.stuns++;
         report.stunMsApplied += NC.STUN_DURATION_MS;
         ctx.stunnedUntilMs = now + NC.STUN_DURATION_MS;
@@ -392,6 +419,8 @@
     }
 
     function doRiposteCounter() {
+      // Mob::DoRiposte: no counterattack if the MOB has RiposteImmunity, or the defender is stunned.
+      if (mob.riposteImmune || now < ctx.stunnedUntilMs) return;
       if (!defense.hasWeapon) return;
 
       var r = rollRiposteHit(ctx, rng, false);
@@ -461,16 +490,17 @@
       if (info.dotPerTick > 0 && info.durationTicks > 0) {
         activeDots.push({
           name: info.name,
-          damagePerTick: Math.max(1, Math.floor(info.dotPerTick * pct / 100)),
+          // Partial resist never scales DoT ticks (it only scales the instant HP component).
+          damagePerTick: Math.max(1, Math.floor(info.dotPerTick)),
           ticksLeft: info.durationTicks,
           nextTickMs: now + NS.TICK_MS
         });
       }
 
-      if (info.stunMs > 0 && !defense.stunImmune) {
+      if (info.stunMs > 0 && !defense.stunImmune && !(now < ctx.stunnedUntilMs)) {
         report.stuns++;
         report.stunMsApplied += info.stunMs;
-        ctx.stunnedUntilMs = Math.max(ctx.stunnedUntilMs, now + info.stunMs);
+        ctx.stunnedUntilMs = now + info.stunMs;
       }
 
       if (info.fearMs > 0) {
@@ -516,18 +546,27 @@
       now = nextT;
 
       // Discipline management: fire Defensive/Evasive as soon as they are up.
+      // Disciplines share ONE reuse timer (Combat:UseDiscTimerGroups=false) and one ability timer: while any is
+      // active nothing else can be used, and using one starts the shared reuse at THAT discipline's reuse time
+      // (client_packet.cpp:4485, effects.cpp:470-503). With several enabled they are used in rotation.
       var discChanged = false;
+      var discActive = false;
       for (var di = 0; di < discs.length; di++) {
         var d = discs[di];
-        if (d.activeUntilMs > now) continue;
-        if (d.activeUntilMs > 0 && d.activeUntilMs <= now) discChanged = true;
-        if (now >= d.readyAtMs) {
-          d.activeUntilMs = now + d.def.durationMs;
-          d.readyAtMs = now + d.def.reuseMs;
-          d.uptimeMs += d.def.durationMs;
-          report.disciplineUses[d.key] = (report.disciplineUses[d.key] || 0) + 1;
-          discChanged = true;
+        if (d.activeUntilMs > now) { discActive = true; continue; }
+        if (d.activeUntilMs > 0) { d.activeUntilMs = -1; discChanged = true; }
+      }
+      if (!discActive && now >= discSharedReadyAtMs && discs.length) {
+        var pick = null;
+        for (var dj = 0; dj < discs.length; dj++) {
+          if (!pick || discs[dj].uses < pick.uses) pick = discs[dj];
         }
+        pick.activeUntilMs = now + pick.def.durationMs;
+        pick.uses++;
+        discSharedReadyAtMs = now + pick.def.reuseMs;
+        pick.uptimeMs += pick.def.durationMs;
+        report.disciplineUses[pick.key] = (report.disciplineUses[pick.key] || 0) + 1;
+        discChanged = true;
       }
       if (discChanged) refreshDiscEffects();
 
@@ -536,10 +575,11 @@
         mobHP -= groupDps * ((now - (report._lastDpsMs || 0)) / 1000);
         report._lastDpsMs = now;
         var hpPct = mob.hp > 0 ? (mobHP / mob.hp) * 100 : 100;
-        if (mob.canEnrage && hpPct <= NC.ENRAGE_HP_PCT &&
+        if (mob.canEnrage && hpPct <= mob.enrageHpPct &&
             now >= enrageCooldownUntilMs && enrageUsedUntilMs < now) {
-          enrageUsedUntilMs = now + NC.ENRAGE_DURATION_MS;
-          enrageCooldownUntilMs = now + NC.ENRAGE_COOLDOWN_MS;
+          enrageUsedUntilMs = now + mob.enrageDurationMs;
+          // ProcessEnrage starts the cooldown timer when the enrage ENDS, not when it starts.
+          enrageCooldownUntilMs = enrageUsedUntilMs + mob.enrageCooldownMs;
           report.enrageWindows++;
         }
         ctx.mobEnraged = now < enrageUsedUntilMs;
@@ -547,6 +587,8 @@
 
       switch (nextKey) {
         case 'attack': {
+          // DisableMelee (mob_ai.cpp:1535): the whole melee block — rounds, flurry, rampage, class attacks — is skipped.
+          if (mob.meleeDisabled) { timers.attack = now + mob.attackDelayMs; break; }
           report.rounds++;
           var specialed = false;
 
@@ -558,13 +600,20 @@
             specialed = true;
           }
           if (!specialed && mob.rampageChance > 0 && rng() < mob.rampageChance) {
+            // Mob::Rampage skips the mob's current target, so it never lands on the tank. It still triggers
+            // the class-attack timer, so the kick/bash/backstab fires on the tank right away.
             report.rampages++;
-            NC.doRampage(mob, rng, emitSwing, mob.rampageDamagePct);
+            triggerClassAttack();
             specialed = true;
           }
           if (!specialed && mob.areaRampageChance > 0 && rng() < mob.areaRampageChance) {
             report.rampages++;
-            NC.doRampage(mob, rng, emitSwing, mob.areaRampageDamagePct);
+            // HateList::AreaRampage hits the main target only if it is the only entry on the hate list.
+            if (otherHaters === 0) {
+              report.rampagesOnTank++;
+              NC.doRampage(mob, rng, emitSwing, mob.areaRampageDamagePct);
+            }
+            triggerClassAttack();
           }
 
           timers.attack = now + mob.attackDelayMs;
@@ -572,15 +621,15 @@
         }
 
         case 'attackDW':
-          // CheckDualWield rolls per tick — having the ability doesn't mean
-          // the off hand swings every time the timer fires.
-          if (rng() < mob.dualWieldChance) {
-            NC.doOffHandRound(mob, rng, emitSwing, 100);
-          }
+          if (mob.meleeDisabled) { timers.attackDW = now + mob.attackDelayMs; break; }
+          // NPCs never roll CheckDualWield: mob_ai.cpp swings the off hand every time the
+          // attack_dw timer fires for any NPC with the DualWield ability (DoOffHandRound has no check).
+          NC.doOffHandRound(mob, rng, emitSwing, 100);
           timers.attackDW = now + mob.attackDelayMs;
           break;
 
         case 'classAttack':
+          if (mob.meleeDisabled) { timers.classAttack = now + 1000; break; }
           doClassAttack(false);
           break;
 
@@ -617,7 +666,7 @@
       }
     }
 
-    function doClassAttack(fromFlurry) {
+    function doClassAttack() {
       var pick = NC.pickClassAttack(mob, rng);
       if (!pick) { timers.classAttack = Infinity; return; }
 
@@ -628,10 +677,15 @@
         skill: pick.skill
       });
 
-      if (!fromFlurry) {
-        classAttackReadyMs = now + pick.reuseMs;
-        timers.classAttack = classAttackReadyMs;
-      }
+      // DoClassAttacks always restarts the class-attack timer with the reuse, including the two class
+      // attacks a flurry forces.
+      classAttackReadyMs = now + pick.reuseMs;
+      timers.classAttack = classAttackReadyMs;
+    }
+
+    /** NPC::TriggerClassAtkTimer — the timer is due immediately, so the class attack fires this round. */
+    function triggerClassAttack() {
+      if (mob.classAttack) doClassAttack();
     }
 
     // ---- Summary -----------------------------------------------------------
@@ -698,11 +752,18 @@
       mobDualWieldChance: mob.dualWieldChance,
       mobFlurryChance: mob.flurryChance,
       mobRampageChance: mob.rampageChance,
+      mobAreaRampageChance: mob.areaRampageChance,
+      mobOtherHaters: Math.max(0, options.mobOtherHaters | 0),
+      mobUseWarriorSkills: mob.useWarriorSkills,
+      mobEnrage: mob.canEnrage ? { hpPct: mob.enrageHpPct, durationMs: mob.enrageDurationMs, cooldownMs: mob.enrageCooldownMs } : null,
+      mobSlowIgnored: mob.slowIgnored,
+      mobSlowReversed: mob.slowReversed,
+      mobHasteIgnored: mob.hasteIgnored,
       mobToHit: mob.toHit,
       mobOffenseRating: mob.offense,
       mobAC: mob.ac,
       mobSpecialAbilityNames: mob.specialAbilityNames,
-      mobClassAttack: mob.classAttack ? mob.classAttack.skill : null,
+      mobClassAttack: mob.classAttack ? (mob.classAttack.altSkill ? mob.classAttack.skill + ' / ' + mob.classAttack.altSkill : mob.classAttack.skill) : null,
       mobHastePct: mob.hastePctTotal - 100,
 
       playerLevel: defense.level,
@@ -740,6 +801,7 @@
       fears: 0,
       flurries: 0,
       rampages: 0,
+      rampagesOnTank: 0,
       classAttacks: 0,
       spellCasts: 0,
       spellCastsByName: {},
@@ -825,7 +887,7 @@
   var SUM_KEYS = [
     'rounds', 'swingAttempts', 'missedSwings', 'dodgedSwings', 'parriedSwings',
     'ripostedSwings', 'blockedSwings', 'landedSwings', 'runedSwings', 'stuns', 'stunMsApplied', 'fears',
-    'flurries', 'rampages', 'classAttacks', 'spellCasts', 'procCasts',
+    'flurries', 'rampages', 'rampagesOnTank', 'classAttacks', 'spellCasts', 'procCasts',
     'spellsResisted', 'spellsPartial', 'enrageWindows', 'totalDamageTaken',
     'runeAbsorbed', 'riposteAttempts', 'riposteHits', 'riposteDamageTotal',
     'doubleRiposteHits', 'returnKickHits', 'returnKickDamage',
@@ -928,7 +990,18 @@
         fmt(report.mobDualWieldChance * 100, 1) + '% chance per tick'));
     }
     if (report.mobFlurryChance > 0) lines.push(pad('  Flurry chance:', pct(report.mobFlurryChance, 0) + '  (full extra round)'));
-    if (report.mobRampageChance > 0) lines.push(pad('  Rampage chance:', pct(report.mobRampageChance, 0)));
+    if (report.mobRampageChance > 0) lines.push(pad('  Rampage chance:', pct(report.mobRampageChance, 0) +
+      '  (never hits its main target; only triggers a class attack on the tank)'));
+    if (report.mobAreaRampageChance > 0) lines.push(pad('  Area rampage chance:', pct(report.mobAreaRampageChance, 0) +
+      (report.mobOtherHaters > 0
+        ? '  (hits the others on its hate list, not the tank)'
+        : '  (tank is the only hater, so it lands on the tank)')));
+    if (report.mobEnrage) lines.push(pad('  Enrage:', 'below ' + report.mobEnrage.hpPct + '% HP for ' +
+      fmt(report.mobEnrage.durationMs / 1000, 0) + 's, ' + fmt(report.mobEnrage.cooldownMs / 1000, 0) + 's cooldown after it ends'));
+    if (report.mobUseWarriorSkills) lines.push(pad('  Warrior skills:', 'yes — bash, kick, parry and riposte'));
+    if (report.mobSlowIgnored) lines.push(pad('  Slow:', 'ignored — this mob is slow immune'));
+    if (report.mobSlowReversed) lines.push(pad('  Slow:', 'REVERSED — a slow on this mob hastes it instead'));
+    if (report.mobHasteIgnored) lines.push(pad('  Haste:', 'ignored — this mob is haste immune'));
     if (report.mobClassAttack) lines.push(pad('  Class attack:', report.mobClassAttack));
     if (report.spellListName) lines.push(pad('  Spell list:', report.spellListName));
     if (report.mobSpecialAbilityNames && report.mobSpecialAbilityNames.length) {
@@ -1348,7 +1421,7 @@
   global.TankingEngine = {
     runTankingFight: runTankingFight,
     runTankingAnalysis: runTankingAnalysis,
-    formatTankingReport: formatTankingReport,
+    formatTankingReport: function (r, n) { var t = formatTankingReport(r, n); return (global.EQCombat && global.EQCombat.commifyReportText) ? global.EQCombat.commifyReportText(t) : t; },
     buildDtpsOverTimeHtml: buildDtpsOverTimeHtml,
 
     // Kept so existing callers keep working; the maths now lives in the

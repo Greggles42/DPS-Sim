@@ -19,7 +19,10 @@
 (function (global) {
   'use strict';
 
-  var GCD = 2.25;
+  // Spells:SpellRecoveryTimer is 2500ms on live Quarm (rule_values dump 2026-10-25); nearly every
+  // player damage spell's own recovery_time column is 2500 too. A few spells carry 2250 — the pool
+  // entry's recoverySec is used for the actual post-cast gap, this is the default/score value.
+  var GCD = 2.5;
   var ITERATION_CEILING = 250000;
   var DOT_TICK_SEC = 6;   // fallback if a DoT pool entry somehow lacks waveIntervalSec
   // A character can only have this many spells memorized at once — the
@@ -66,7 +69,7 @@
     var pWiz = spell._innateCritChance || 0;
     var pNoScf = 1 - pScf;
     return pScf * (1 + bScf) +
-      pNoScf * pWiz * (1 + WIZARD_INNATE_CRIT_AVG_BONUS) +
+      pNoScf * pWiz * (1 + WIZARD_INNATE_CRIT_AVG_BONUS * (spell._focusScale != null ? spell._focusScale : 1)) +
       pNoScf * (1 - pWiz);
   }
 
@@ -259,7 +262,9 @@
       var applied = [];
       effects.forEach(function (f) {
         if (!IF.appliesToSpell(f, spell)) return;
-        if (f.improvedDamagePct > dmgPct) dmgPct = f.improvedDamagePct;
+        // A damage focus only reaches a DoT tick if the focus spell carries SE_LimitMinDur (a "Burning Affliction"
+        // style focus) — spell_effects.cpp:4285-4306; the limit-free DD foci are ignored for DoT ticks.
+        if (f.improvedDamagePct > dmgPct && (!spell.isDot || f.minDurTicks > 0)) dmgPct = f.improvedDamagePct;
         if (f.reduceManaPct > manaPct) manaPct = f.reduceManaPct;
         if (f.spellHastePct > hastePct) hastePct = f.spellHastePct;
         // DoT-duration-extending foci ("Extended Affliction"-type — Timeburn/
@@ -272,6 +277,10 @@
           (spell.isDot && f.increaseDurationPct > 0)) applied.push(f.name);
       });
 
+      // Spells:LiveLikeFocusEffects is true on live Quarm: Improved Damage / Reduce Mana Cost foci roll Int(1, base)
+      // per cast (the single best item is chosen first, then rolled), so the expected effect is (1+base)/2, not base.
+      var dmgEffPct = dmgPct > 0 ? (1 + dmgPct) / 2 : 0;
+      var manaEffPct = manaPct > 0 ? (1 + manaPct) / 2 : 0;
       var clone = Object.assign({}, spell);
       // Listed/base spell damage before gear focus, resist, or crit — see
       // the castThreat comment in simulateRotation for why this (not the
@@ -290,23 +299,29 @@
         durationMult = newWaves / spell.waves;
         clone.waves = newWaves;
       }
-      clone.damage = spell.damage * (1 + dmgPct / 100) * durationMult;
-      var gearReducedMana = spell.mana * (1 - Math.min(100, manaPct) / 100);
+      clone.damage = spell.damage * (1 + dmgEffPct / 100) * durationMult;
+      var gearReducedMana = spell.mana * (1 - Math.min(100, manaEffPct) / 100);
       var specPct = specializeManaReductionPct(spell, specialization);
       clone.mana = Math.max(0, gearReducedMana * (1 - specPct / 100));
       clone._specManaPct = specPct;
-      var castTime = Math.max(0.25, spell.castTime * (1 - Math.min(90, hastePct) / 100));
-      // Quick Damage only touches detrimental direct-damage casts (not DoTs,
-      // which the server excludes via buffduration == 0) that are still over
-      // 4s after other haste is applied — see QUICK_DAMAGE_CAST_MOD above.
-      var quickDamageApplies = quickDamageMod < 1 && !spell.isDot && castTime > QUICK_DAMAGE_MIN_CAST_TIME;
-      if (quickDamageApplies) castTime = Math.max(0.25, castTime * quickDamageMod);
+      // Client::GetActSpellCasttime (effects.cpp:340-362): the AA (Quick Damage) and item/buff spell-haste mods are
+      // ADDITIVE reductions off the BASE cast time, floored at half the base. Quick Damage only applies to
+      // detrimental direct-damage casts (not DoTs) whose BASE cast time is 4s or more (casttime > 3999ms).
+      var quickDamageApplies = quickDamageMod < 1 && !spell.isDot && spell.castTime >= QUICK_DAMAGE_MIN_CAST_TIME;
+      var totalCastReductionPct = Math.min(90, hastePct) + (quickDamageApplies ? (1 - quickDamageMod) * 100 : 0);
+      var castTime = Math.max(spell.castTime / 2, spell.castTime * (1 - totalCastReductionPct / 100));
       clone.castTime = castTime;
-      clone._critChance = crit.chance + masteryChance;
-      clone._critBonus = crit.bonus;
-      clone._innateCritChance = innateCritChance;
-      clone._gearDmgPct = dmgPct;
-      clone._gearManaPct = manaPct;
+      // Spell crits (Spell Casting Fury, the wizard's innate crit) only exist on DIRECT damage; DoT ticks use the
+      // separate CriticalDoTChance (none here). The crit bonus multiplies the UNFOCUSED damage — focus damage is
+      // added on top and is not multiplied by the crit (effects.cpp: "dmg += dmg*mult/100 + focusDmg"). Since
+      // clone.damage already includes the focus, the bonus is rescaled so damage*(1+bonus') == base*(1+mult)+focus.
+      var focusScale = 1 / (1 + dmgEffPct / 100) / (durationMult || 1);
+      clone._focusScale = spell.isDot ? 0 : focusScale;
+      clone._critChance = spell.isDot ? 0 : crit.chance + masteryChance;
+      clone._critBonus = crit.bonus * focusScale;
+      clone._innateCritChance = spell.isDot ? 0 : innateCritChance;
+      clone._gearDmgPct = dmgEffPct;
+      clone._gearManaPct = manaEffPct;
       clone._gearHastePct = hastePct;
       clone._gearDurationPct = durPct;
       clone._quickDamageApplied = quickDamageApplies;
@@ -320,7 +335,7 @@
       // multiplicatively on top — the fraction stays correct however a
       // specific cast's damage actually lands; mana is a flat per-cast
       // amount since mana isn't resist/crit-rolled.
-      var totalDamageMult = (1 + dmgPct / 100) * durationMult;
+      var totalDamageMult = (1 + dmgEffPct / 100) * durationMult;
       clone._focusDamageGainFraction = totalDamageMult > 1 ? (1 - 1 / totalDamageMult) : 0;
       clone._focusManaSaved = spell.mana - clone.mana;
       return clone;
@@ -350,7 +365,7 @@
       pool.forEach(function (spell) {
         factors[spell.id] = RR.expectedLandFraction(
           spell, resistConfig.mobResists || {},
-          resistConfig.casterLevel, resistConfig.mobLevel);
+          resistConfig.casterLevel, resistConfig.mobLevel, resistConfig.casterClass);
       });
     } else {
       var flat = RR
@@ -493,7 +508,7 @@
 
     // "GCD clicky": a global-cooldown-reset item clicked right after a cast
     // finishes, then a new spell started immediately rather than waiting
-    // out the normal 2.25s GCD. The click itself still takes a moment
+    // out the normal 2.5s GCD (Spells:SpellRecoveryTimer = 2500 ms live; a few spells carry their own 2250). The click itself still takes a moment
     // (gcdClickyDelaySec, default 200ms) — modeled as the earliest the next
     // GCD spell can start after a clicked cast, instead of castEnd + GCD.
     // Only works for a next spell whose own cast time is at least the GCD —
@@ -633,7 +648,7 @@
 
       var m = manaAt(t);
       // A normal (non-off-global) spell is GCD-ready either the usual way
-      // (gcdFree, the full 2.25s since the last GCD cast) or, with the GCD
+      // (gcdFree, the spell's recovery time since the last GCD cast — 2.5s for nearly every spell) or, with the GCD
       // clicky on, right after the click's delay — but only for a spell
       // whose own cast time is at least the GCD, per the "fails to cast"
       // caveat on faster spells.
@@ -731,6 +746,8 @@
           (1 - (best._critChance || 0)) * (best._innateCritChance || 0);
         var critSource = scfCrit ? 'scf' : (innateCrit ? 'innate' : null);
         var bonus = scfCrit ? (best._critBonus || 0) : innateBonus;
+        // innateBonus is a fraction of the UNFOCUSED damage; _focusScale converts it to a fraction of baseDmg.
+        if (!scfCrit && innateCrit) bonus = bonus * (best._focusScale || 0);
         var castDamage = isCrit ? baseDmg * (1 + bonus) : baseDmg;
         if (best._quickDamageApplied) quickDamageCastCount += 1;
 
@@ -803,7 +820,7 @@
           availAt[best.id] = castEnd + best.recastTime;
         }
         busyUntil = castEnd;
-        if (!offGlobalBest) { gcdFree = castEnd + GCD; lastGcdClickAt = castEnd; }
+        if (!offGlobalBest) { gcdFree = castEnd + (best.recoverySec > 0 ? best.recoverySec : GCD); lastGcdClickAt = castEnd; }
         t = castEnd;
         continue;
       }
@@ -1638,7 +1655,7 @@
     MAX_MEMORIZED_SPELLS: MAX_MEMORIZED_SPELLS,
     simulateRotation: simulateRotation,
     rankSpellPool: rankSpellPool,
-    formatRotationReport: formatRotationReport,
+    formatRotationReport: function (r) { var t = formatRotationReport(r); return (global.EQCombat && global.EQCombat.commifyReportText) ? global.EQCombat.commifyReportText(t) : t; },
     buildRotationTimelineHtml: buildRotationTimelineHtml,
     buildRotationDpsOverTimeHtml: buildRotationDpsOverTimeHtml,
     summarizeRotationCycle: summarizeRotationCycle,

@@ -646,10 +646,11 @@
       if (req > level) return;
       if (ec) {
         var selectedEraOrder = ec.getEra(selectedEraId) ? ec.getEra(selectedEraId).order : 99;
+        // Every shipped item carries min_expansion (the live DB tag, or the stored era classification where the DB says
+        // -1 = "always available"). Item IDs do not follow expansion order, so there is no ID-based fallback: an item
+        // without a tag is treated as available in every era.
         if (item.min_expansion !== undefined && item.min_expansion !== null) {
           if (parseInt(item.min_expansion) > selectedEraOrder) return;
-        } else {
-          if (!ec.isItemIdAvailableInEra(id, selectedEraId)) return;
         }
       }
 

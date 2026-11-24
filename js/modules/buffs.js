@@ -23,6 +23,11 @@
  *   - SPA 119 (bard haste v3): global max; stacks with v1
  *   - All other SPAs: group by SAI, take max within each SAI group, then sum across groups
  *
+ * UPDATE: whenever the spell data (spells_en) is loaded, buffs that have a spellId are now stacked with the server's own
+ * effect-slot comparison (serverStackResult / applyServerStacking below) in the order they were turned on, and the survivors'
+ * effects simply add. The "sai" grouping described next is only the fallback for buffs without a spell record (worn effects,
+ * procs) or when the spell data is not loaded.
+ *
  * CAVEAT — "sai" here is an approximation, not the real mechanic:
  *   EQ's actual buff-stacking check (Mob::FindAffectSlot in the server's
  *   buffstacking.cpp) does NOT use SpellAffectIndex at all — that field is
@@ -70,7 +75,7 @@
   // so the top stop is higher than Luclin and earlier.
   const INSTRUMENT_TYPES = ['singing', 'stringed', 'brass', 'percussion', 'wind'];
   const INSTRUMENT_STOPS = [1.0, 1.8, 2.4, 3.0, 3.6];        // Luclin and earlier
-  const INSTRUMENT_STOPS_POP = [1.0, 1.8, 2.5, 3.3, 4.0];    // Planes of Power
+  const INSTRUMENT_STOPS_POP = [1.0, 1.8, 2.5, 3.3, 3.9];    // Planes of Power (soft cap 3.6 + 0.3 from Ayonae's Tutelage = 3.9; the server clamps anything higher)
 
   function getInstrumentStops(eraId) {
     return eraId === 'pop' ? INSTRUMENT_STOPS_POP : INSTRUMENT_STOPS;
@@ -335,6 +340,36 @@
       ],
     },
     {
+      // Ferocity (BST 65): ATK in slot 7, STA in slot 5. Same slots as Savagery, so the two never stack (the larger wins).
+      // Distinct sai from Savagery/Avatar only matters for the no-spell-data fallback.
+      id: 'ferocity',
+      name: 'Ferocity',
+      category: 'offensive',
+      source: 'BST',
+      spellId: 3463,
+      sai: -4,
+      effects: [
+        { spa: SPA.ATK, value: 150 },
+        { spa: SPA.STA, value: 40 },
+      ],
+    },
+    {
+      // Sha's Ferocity (BST 59): haste/STR scale with level (formula 102 = base + level, capped by the spell's limit),
+      // so at level 60+ the haste is the capped 185 (+85%) and STR is the capped +100. Values below are for level 60+.
+      id: 'shas_ferocity',
+      name: "Sha's Ferocity",
+      category: 'haste',
+      source: 'BST',
+      spellId: 2628,
+      sai: -5,
+      effects: [
+        { spa: SPA.HASTE_V1, value: 85 },
+        { spa: SPA.STR,      value: 100 },
+        { spa: SPA.AC,       value: 200 },
+        { spa: SPA.ATK,      value: 60 },
+      ],
+    },
+    {
       id: 'celestial_tranquility',
       name: 'Celestial Tranquility',
       category: 'offensive',
@@ -368,7 +403,7 @@
       effects: [
         { spa: SPA.STR,      value: 67 },
         { spa: SPA.DEX,      value: 60 },
-        { spa: SPA.TOTAL_HP, value: 250 },
+        { spa: SPA.TOTAL_HP, value: 430 },   // base 250, formula 104 (+3/level): 250 + 3*60 at level 60
       ],
     },
     {
@@ -803,8 +838,8 @@
       spellId: 1442,
       sai: 2,
       effects: [
-        { spa: SPA.AC,          value: 25 },
-        { spa: SPA.TOTAL_HP,    value: 290 },
+        { spa: SPA.AC,          value: 80 },   // base 25, formula 102 (+1/level) = 85, capped by the spell's max of 80
+        { spa: SPA.TOTAL_HP,    value: 470 },  // base 290, formula 104: 290 + 3*60
         { spa: SPA.MANA_REGEN,  value: 6 },
       ],
     },
@@ -816,8 +851,8 @@
       spellId: 2188,
       sai: 2,
       effects: [
-        { spa: SPA.AC,          value: 25 },
-        { spa: SPA.TOTAL_HP,    value: 290 },
+        { spa: SPA.AC,          value: 80 },   // base 25, formula 102 (+1/level) = 85, capped by the spell's max of 80
+        { spa: SPA.TOTAL_HP,    value: 470 },  // base 290, formula 104: 290 + 3*60
         { spa: SPA.MANA_REGEN,  value: 6 },
       ],
     },
@@ -873,6 +908,7 @@
       effects: [
         { spa: SPA.AC,       value: 109 },
         { spa: SPA.TOTAL_HP, value: 618 },
+        { spa: SPA.MANA_REGEN, value: 8 },
       ],
     },
     {
@@ -995,6 +1031,7 @@
     var active = BUFFS.filter(function (b) {
       return activeBuffIds.indexOf(b.id) !== -1;
     });
+    active = applyServerStacking(active, activeBuffIds, level).active;
 
     // For bard songs, replace the static (empty) effects with level-computed ones
     active = active.map(function (b) {
@@ -1101,6 +1138,8 @@
     var active = BUFFS.filter(function (b) {
       return activeBuffIds.indexOf(b.id) !== -1;
     });
+    var _srvStack = applyServerStacking(active, activeBuffIds, level);
+    active = _srvStack.active;
     // Expand bard song effects for dominance checking
     active = active.map(function (b) {
       if (!b.bardSong || !b.rawSlots) return b;
@@ -1112,6 +1151,7 @@
     active = active.map(function (b) { return scaleTimedBuffEffects(b, uptimeScales); });
     var totals = resolveBuffEffects(activeBuffIds, level, instrumentMods, uptimeScales);
     var dominated = new Set();
+    Object.keys(_srvStack.dropped).forEach(function (id) { dominated.add(id); });
 
     // wornType buffs are fully dominated if any spell (non-worn) buff occupies the same SAI group
     var nonWornSAIDom = {};
@@ -1184,6 +1224,105 @@
     }
 
     return { totals: totals, dominated: dominated };
+  }
+
+  // ---------------------------------------------------------------------------
+  // Server buff stacking (zone/buffstacking.cpp, Mob::FindAffectSlot)
+  // ---------------------------------------------------------------------------
+  // When the spell data (spells_en) is loaded, buffs that have a spellId are stacked by the server's own rule instead of
+  // by the hand-entered "sai" group: the NEW spell is compared against each OLD buff effect-slot by effect-slot. A blank
+  // slot in either spell ends the comparison (they coexist); a slot where both have the same effect id decides the whole
+  // outcome unless that effect is in the "ignored by stacking" list (focus/limit effects, see invisible, ...). At the deciding
+  // slot the larger level-scaled value wins: new >= old overwrites the old buff, otherwise the new buff is blocked.
+  // Not ported: the SE_StackingCommand_Block/Overwrite spell commands, diseased-cloud/resurrection special spell ids, and the
+  // alternate "patch V1" client stacking routine (the live server's choice of routine is not recorded in the DB).
+  var SE_IGNORED_BY_STACKING = {};
+  [13, 24, 35, 36, 57, 65, 66, 79, 116, 124, 125, 126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138,
+    139, 140, 141, 142, 143, 144, 148, 149, 254].forEach(function (id) { SE_IGNORED_BY_STACKING[id] = true; });
+  var SE_BLANK = 254, SE_CURRENT_HP = 0, SE_ARMOR_CLASS = 1, SE_CHA = 10, SE_LYCANTHROPY = 44, SE_VAMPIRISM = 45;
+
+  function stackSpellEffectValue(sp, slot, level) {
+    var NS = (typeof window !== 'undefined') ? window.NpcSpells : null;
+    var base = Number(sp['effect_base_value' + (slot + 1)]) || 0;
+    var max = Number(sp['effect_limit_value' + (slot + 1)]) || 0;
+    var formula = Number(sp['formula' + (slot + 1)]) || 0;
+    if (NS && NS.calcEffectValue) return NS.calcEffectValue(formula, base, level, max, 0);
+    return base;
+  }
+
+  /**
+   * Result of casting spell newId onto a target that already carries oldId:
+   * 'coexist' (both stay), 'overwrite' (the old buff is replaced), or 'blocked' (the new buff does not land).
+   */
+  function serverStackResult(newSp, oldSp, level) {
+    if (!newSp || !oldSp) return 'coexist';
+    if (newSp === oldSp) return 'overwrite';
+    var newIsSong = Number(newSp.classes8) !== 255;
+    var oldIsSong = Number(oldSp.classes8) !== 255;
+    // "generally, bard songs stack with anything that's not a bard song"
+    if (newIsSong && !oldIsSong) return 'coexist';
+
+    var slot;
+    for (slot = 0; slot < 12; slot++) {
+      var oe = Number(oldSp['effectid' + (slot + 1)]);
+      if (oe === SE_BLANK) return 'coexist';
+      var ne = Number(newSp['effectid' + (slot + 1)]);
+      if (ne === SE_BLANK) return 'coexist';
+      if (ne === SE_LYCANTHROPY || ne === SE_VAMPIRISM) return 'blocked';
+      if (oe !== ne || SE_IGNORED_BY_STACKING[ne]) continue;
+      if (ne === SE_CURRENT_HP || ne === SE_ARMOR_CLASS) {
+        if (Number(newSp['effect_base_value' + (slot + 1)]) >= 0) break;
+        continue;   // a DoT / AC debuff in this slot is ignored for stacking
+      }
+      if (ne === SE_CHA) {
+        if (Number(newSp['effect_base_value' + (slot + 1)]) === 0 || Number(oldSp['effect_base_value' + (slot + 1)]) === 0) continue;
+      }
+      break;
+    }
+    if (slot >= 12) return 'coexist';
+
+    // A beneficial spell never overwrites a detrimental one (and vice versa is treated the same way here).
+    if (Number(newSp.goodEffect) !== 0 && Number(oldSp.goodEffect) === 0) return 'blocked';
+
+    var oldVal = stackSpellEffectValue(oldSp, slot, level);
+    var newVal = stackSpellEffectValue(newSp, slot, level);
+    if (oldVal >= 0) {
+      if (newVal < 0) return 'overwrite';       // a decrease replaces an increase
+      return newVal >= oldVal ? 'overwrite' : 'blocked';
+    }
+    return newVal <= oldVal ? 'overwrite' : 'blocked';
+  }
+
+  /**
+   * Run the active (spell) buffs, in the order the user turned them on, through the server's stacking rule.
+   * Returns { active, dropped }: buffs that survive (given a unique group so their effects simply add) and the ids
+   * the server would have blocked or overwritten. Buffs with no spell record (worn effects, procs, AAs) pass through
+   * unchanged and keep the old hand-entered grouping.
+   */
+  function applyServerStacking(active, activeBuffIds, level) {
+    var spells = (typeof window !== 'undefined') ? window.__DPS_SPELLS_EN__ : null;
+    if (!spells) return { active: active, dropped: {} };
+    var ordered = active.slice().sort(function (a, b) { return activeBuffIds.indexOf(a.id) - activeBuffIds.indexOf(b.id); });
+    var survivors = [];
+    var dropped = {};
+    ordered.forEach(function (b) {
+      var sp = (!b.wornType && b.spellId) ? spells[b.spellId] : null;
+      if (!sp) { survivors.push(b); return; }
+      var blocked = false, remove = [];
+      for (var i = 0; i < survivors.length; i++) {
+        var s = survivors[i];
+        var osp = (!s.wornType && s.spellId) ? spells[s.spellId] : null;
+        if (!osp) continue;
+        var r = serverStackResult(sp, osp, level);
+        if (r === 'blocked') { blocked = true; break; }
+        if (r === 'overwrite') remove.push(s);
+      }
+      if (blocked) { dropped[b.id] = true; return; }
+      remove.forEach(function (s) { dropped[s.id] = true; });
+      survivors = survivors.filter(function (s) { return remove.indexOf(s) === -1; });
+      survivors.push(Object.assign({}, b, { sai: 'srv:' + b.id }));
+    });
+    return { active: survivors, dropped: dropped };
   }
 
   var SPA_LABEL = {

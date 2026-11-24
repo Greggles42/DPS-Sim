@@ -265,15 +265,15 @@
           <div class="formula">wornHasteUsed = (level &lt;= 25) ? min(wornHasteInput, 10) : wornHasteInput</div>
         </li>
         <li>
-          <strong>Raw haste passed into combat:</strong>
-          <div class="formula">rawHaste = wornHasteUsed + spellHasteInput</div>
+          <strong>Spell haste and worn haste are added, then capped by level; over-haste (v3) is added afterwards:</strong>
+          <div class="formula">preCap = spellHaste(v1) + wornHasteUsed</div>
         </li>
         <li>
           <strong>Positive haste cap by level (combat logic):</strong>
-          <div class="formula">capTotal = 100 + (level &gt; 59 ? 100 : (level &gt; 50 ? 85 : level + 25))</div>
+          <div class="formula">levelCap = (level &gt; 59 ? 100 : (level &gt; 50 ? 85 : level + 25))</div>
           <div class="formula">v3Cap = (level &gt; 50 ? 25 : 10)</div>
-          <div class="formula">maxBonus = (capTotal - 100) + v3Cap</div>
-          <div class="formula">effectiveHastePercent = (rawHaste &lt; 0) ? rawHaste : min(rawHaste, maxBonus)</div>
+          <div class="formula">effectiveHastePercent = min(preCap, levelCap) + min(overHaste(v3), v3Cap)</div>
+          <p class="muted">A slow (negative haste) replaces all of this: you simply get 100 + the slow. So 130% of spell + worn haste with no over-haste is capped at 100% at level 60 (not 125%); the over-haste cap is added on top of the level cap, never shared with it.</p>
         </li>
         <li>
           <strong>Delay conversion with minimum delay floor:</strong>
@@ -343,6 +343,24 @@
     </div>
 
     <div class="card">
+      <h2>4.1) Player Skill Caps <span class="badge badge-game">In-Game Mechanic</span></h2>
+      <p>
+        When you pick a class and level, the simulator fills in your weapon skills, Offense, Dual Wield, Double Attack,
+        Defense, Dodge, Parry, Riposte and Block with the <strong>exact value the game's skill table gives that class at
+        that level</strong> — the same table the Quarm server loads. There is no formula behind these numbers: skills do
+        not all rise by the same amount each level, they can pause for stretches, and they stop at different maximums
+        per class (for example a Warrior's 1H Blunt sits at 200 around level 40 and keeps climbing later, a Beastlord
+        gets no Block until level 25, and a Monk gets Block at level 12).
+      </p>
+      <ul>
+        <li>A skill the class has not reached yet (or never gets) is <strong>0</strong> and is left blank.</li>
+        <li>Above the last row of the table the cap stays at that last value. The table runs to level 65, which is the
+        Planes of Power level cap.</li>
+        <li>You can still type a lower value to model an untrained character; values above the cap are trimmed back down.</li>
+      </ul>
+    </div>
+
+    <div class="card">
       <h2>5) Hit Chance (Avoidance) vs Damage (Mitigation) <span class="badge badge-game">In-Game Mechanic</span></h2>
       <p>
         AC is not a single value in this sim. It is split into two defense concepts:
@@ -356,8 +374,7 @@
       <div class="formula">if a×1.21 &gt; b: hitChance = 1 − b / (a×1.21×2); else hitChance = (a×1.21) / (b×2)</div>
       <p class="muted">There is no cap on toHit — Eagle Eye, high weapon skill, and accuracy AAs can push it above 550 and do so freely.</p>
       <p>
-        <strong>Tactical Mastery AA</strong> (Warrior, PoP): reduces the NPC's effective avoidance by 10/20/30 at rank 1/2/3 before the hit-chance formula runs.
-        A lower avoidance value shifts the hit-chance formula in the attacker's favour, increasing landed-hit rate.
+        <strong>Tactical Mastery AA</strong> (Warrior, PoP): rank 1/2/3 gives a 15%/30%/45% chance that a dodge, parry, riposte or block is converted into a hit (strike-through; it adds to item Strikethrough). It does not change the NPC's avoidance number, and — like item Strikethrough — it is only applied to normal melee swings, not to kick, bash or backstab.
       </p>
       <p>
         <strong>Hand-tuned NPC avoidance:</strong> a small number of raid bosses carry a flat additive bonus to avoidance in the server's <code>npc_types</code> data (<code>npc.cpp: bonusAvoidance = npc_type_data-&gt;avoidance</code>), added on top of the level-based formula in <code>Mob::GetAvoidance()</code>. Examples: Bertoxxulous +100, The Seventh Hammer +50, Carprin Deatharn +35, Rumblecrush/Doomshade +25. When you select one of these NPCs as your target (Melee, Ranged, or Ranking tabs), the simulator automatically adds this bonus to the formula avoidance for the hit-chance calculation — you don't need to enter anything manually. The Melee and Ranged tabs' Target NPC search also surfaces this as a note directly under the search bar the moment you select such a target, so the modifier isn't silent.
@@ -418,11 +435,23 @@
         Choosing <strong>Behind</strong> does <em>not</em> force all swings to land. Misses still happen from to-hit vs avoidance.
       </p>
       <ul>
-        <li><strong>Behind</strong>: skips block/parry/riposte/dodge; only the to-hit roll applies.</li>
+        <li><strong>Behind</strong>: parry, riposte and dodge are skipped, but <strong>block is not</strong> — in the game, block has no "must be facing you" check, so a mob that has the Block skill can still block a swing from behind. Mobs without Block are only subject to the to-hit roll.</li>
         <li><strong>Front</strong>: after a successful hit roll, the NPC attempts sequential block → parry → riposte → dodge checks before the hit registers.</li>
       </ul>
       <p>
-        Each check uses the NPC's class and level to derive a skill value (<code>min(level × 5, class_cap)</code>), then converts it to a chance with EQMacEmu's divisor formula:
+        <strong>Who can block:</strong> only <strong>Monk</strong> NPCs (above level 11) and <strong>Beastlord</strong> NPCs have the Block skill. Monks get 250 at levels above 50 (otherwise level × 5, up to 225); Beastlords follow the class cap table (nothing below level 25, 150 at levels 30–50, 200 at level 60). Every other class has no Block skill, so they never block, from the front or the back. When you pick a target NPC, the simulator uses its class automatically and the <strong>Mob can block</strong> box shows the result (locked). For a manual target with no NPC selected, tick <strong>Mob can block</strong> to model a mob with the Monk block skill; it is off by default.
+      </p>
+      <p>
+        <strong>NPC defense skills</strong> are not the player class caps. The server hard-codes them by class and level:
+      </p>
+      <ul>
+        <li><strong>Dodge</strong> — every NPC above level 10: <code>min(level × 5, 190)</code> (Monks: 230).</li>
+        <li><strong>Parry</strong> — Warrior, Paladin, Shadow Knight, Ranger, Rogue and Bard above level 6: <code>min(level × 5, 230)</code>.</li>
+        <li><strong>Riposte</strong> — those same classes plus Monk, above level 11: <code>min(level × 5, 225)</code>.</li>
+        <li><strong>Block</strong> — see above (Monk, Beastlord only).</li>
+      </ul>
+      <p>
+        When no NPC is selected the target is modelled as a Warrior (parry, riposte, dodge) with Block controlled by the <strong>Mob can block</strong> toggle. An NPC with the <strong>Warrior skills</strong> special ability also gets parry and riposte, whatever its class: a level 60 Wizard-class mob with it avoids about 16% of front swings instead of 6%. Each check then converts skill to a chance with EQMacEmu's divisor formula:
       </p>
       <div class="formula">
         block chance = floor((blockSkill + 100) / 25) / 100<br>
@@ -435,7 +464,10 @@
       </p>
       <div class="formula">frontAvoid = 1 − (1−block) × (1−parry) × (1−riposte) × (1−dodge)</div>
       <p>
-        Warrior-type mobs (all four skills) have significantly higher front avoidance than casters (dodge only). A Level 60 Warrior avoids roughly 28% of front-facing swings that pass the to-hit check; a Level 60 Wizard avoids roughly 7%. Skill caps vary by class — for example, Warriors cap at 200/230/200/260 while Wizards cap at 0/50/0/175.
+        Melee-type mobs (parry, riposte and dodge) have noticeably higher front avoidance than casters. A Level 60 Warrior (no Block) avoids roughly 16% of front-facing swings that pass the to-hit check, a Level 60 Wizard or Cleric (dodge only) about 6%, a Level 60 Monk about 24% (14% of swings from behind, because it can block), and a Level 60 Beastlord about 17% (12% from behind).
+      </p>
+      <p>
+        <strong>Ranged attacks (archery):</strong> block applies from any angle, dodge only from the front, and parry and riposte never apply to ranged attacks. The Ranged tab now uses the Front/Behind choice and the same <strong>Mob can block</strong> setting. Strikethrough only applies on the Melee tab.
       </p>
       <p class="muted">
         Use Front for a conservative estimate that accounts for NPC defensive skills; use Behind for DPS-from-rear or when the mob is mezzed/snared and facing away.
@@ -466,15 +498,14 @@
         trained, their critical hit chance is 0%.
       </p>
       <p>
-        <strong>Combat Fury AA</strong> (War/Pal/Rng/SHD/Monk/Brd/Rog/Bst, Luclin): rank 1/2/3 adds a flat
-        +2%/+4%/+6% crit chance. On non-Warriors, training any rank also unlocks a small DEX-scaled base
-        crit chance (<code>0.275% + DEX/150%</code>) on top of the flat bonus — this is what lets other
-        classes "catch up" toward the Warrior's innate crit, though Warriors remain ahead.
+        <strong>Combat Fury AA</strong> (War/Pal/Rng/SHD/Monk/Brd/Rog/Bst, Luclin): rank 1/2/3 multiplies your base crit chance by 1.15 / 1.40 / 1.75. It is a percentage OF your crit chance, not extra points. On non-Warriors, training any rank also unlocks a small DEX-scaled base
+        crit chance (<code>0.275% + DEX/150%</code>) for the multiplier to work on — this is what lets other
+        classes "catch up" toward the Warrior's innate crit, though Warriors remain ahead. <strong>Fury of the Ages</strong> (PoP) is the same kind of multiplier (x2.00 / x2.25 / x2.50) and replaces Combat Fury rather than stacking with it — the larger one applies.
       </p>
-      <div class="formula">critChance = innateBase(class, DEX) + combatFuryBonus</div>
+      <div class="formula">critChance = innateBase(class, DEX) × (1 + max(combatFury, furyOfTheAges) / 100)</div>
       <p class="muted">
-        This flat total is what the sim exposes as <code>critChanceMult</code>. It does not affect crit
-        damage — only the roll chance; crit damage size is a fixed multiplier applied separately.
+        The multiplier percent is what the sim exposes as <code>critChanceMult</code>. It does not affect crit
+        damage — only the roll chance; crit damage size is a fixed multiplier applied separately. A crit's damage is also floored at the crit formula applied to the weapon's base damage (the server's minimum-crit rule).
         Note: <strong>Ingenuity</strong> (War/Monk/Rog) sounds like it belongs here but doesn't — it's a
         weapon-proc crit chance AA, not a melee swing crit chance AA. See Section 9.1.
       </p>
@@ -487,17 +518,17 @@
       <p>
         The simulator computes:
       </p>
-      <div class="formula">doubleAttackEffective = getDoubleAttackEffective(level, doubleAttackSkill) + ferocityDaBonus</div>
+      <div class="formula">doubleAttackEffective = (doubleAttackSkill + level) + 5 × GiveDoubleAttack, then × (1 + ferocity/knightsAdvantage%)</div>
       <div class="formula">doubleAttack succeeds if doubleAttackEffective &gt; randomInt(0, 499)</div>
       <p>
         Approximate chance:
       </p>
       <div class="formula">P(doubleAttack) ~= doubleAttackEffective / 500</div>
       <p>
-        <strong>Ferocity AA</strong> (War/Rng/Monk/Rog, PoP): adds +10 to <code>doubleAttackEffective</code> per rank (+2% DA chance per rank, up to rank 3 = +6%).
+        <strong>Ferocity AA</strong> (War/Rng/Monk/Rog, PoP): raises <code>doubleAttackEffective</code> by 3% / 6% / 9% of itself (multiplicative) at rank 1/2/3.
       </p>
       <p>
-        <strong>Knight's Advantage AA</strong> (Pal/SHD, PoP): adds +10/+20/+30 to <code>doubleAttackEffective</code> per rank (+2%/+4%/+6% DA chance). Stacks with Ferocity.
+        <strong>Knight's Advantage AA</strong> (Pal/SHD, PoP): raises <code>doubleAttackEffective</code> by 3% / 6% / 9% of itself (multiplicative) at rank 1/2/3.
       </p>
       <p>
         <strong>Speed of the Knight AA</strong> (Pal/SHD, PoP): after a double attack, there is a 2%/4%/8% chance at rank 1/2/3 to perform an extra primary-hand 2H attack. Requires a 2H weapon equipped.
@@ -509,8 +540,8 @@
         <strong>Bard and Beastlord</strong> are excluded from the normal double-attack skill check. Instead they use a flat AA-driven chance:
       </p>
       <ul>
-        <li><strong>Harmonious Attack</strong> (Bard, PoP): +2% flat DA chance per rank (up to rank 5 = +10%).</li>
-        <li><strong>Bestial Frenzy</strong> (Beastlord, PoP): +2% flat DA chance per rank (up to rank 5 = +10%).</li>
+        <li><strong>Harmonious Attack</strong> (Bard, PoP): grants Double Attack — 3/6/9/12/15 points at ranks 1-5, each worth +5 effective double attack skill. It also unlocks the off-hand double attack.</li>
+        <li><strong>Bestial Frenzy</strong> (Beastlord, PoP): grants Double Attack — 3/6/9/12/15 points at ranks 1-5, each worth +5 effective double attack skill. It also unlocks the off-hand double attack.</li>
       </ul>
       <p class="muted">
         These flat chances are rolled independently after the normal DA check fails for those classes.
@@ -524,7 +555,7 @@
       <div class="formula">P(triple | double) = 13.5%</div>
       <div class="formula">P(triple on round) ~= P(doubleAttack) * 0.135</div>
       <p>
-        <strong>Raging Flurry AA</strong> (Warrior, PoP): on rounds where triple attack succeeds, there is a 10%/20%/30% chance (rank 1/2/3) of an additional primary-hand flurry swing. Requires level 60+.
+        <strong>Flurry and Raging Flurry AA</strong> (Warrior): on rounds where triple attack succeeds, one roll is made against the combined chance (Flurry 20/24/30% plus Raging Flurry 2/4/7%) for an extra primary-hand swing, and a successful flurry has a further 10% chance of a second extra swing. Requires level 60+.
       </p>
 
       <h3>Dual wield (offhand round chance)</h3>
@@ -558,6 +589,13 @@
         The Melee tab's <strong>Special attack</strong> dropdown lets each class fire its class-specific special on cooldown, alongside normal weapon swings: <strong>Kick</strong> (Warrior/Ranger/Beastlord), <strong>Bash/Slam</strong> (Warrior/Paladin/Shadow Knight/Cleric), and the Monk's <strong>Flying Kick</strong>, <strong>Dragon Punch</strong>, <strong>Eagle Strike</strong>, <strong>Tiger Claw</strong>, and <strong>Round Kick</strong> (Monk chooses one at a time to simulate). Unlike a normal weapon swing, none of these use your weapon's damage or weapon-type skill — each is driven entirely by its own dedicated skill, exactly as <code>EQMacEmu special_attacks.cpp</code> and <code>attack.cpp</code> compute it server-side:
       </p>
       <div class="formula">baseDamage = skillBase + 1 for each threshold the skill has reached at 25 / 75 / 125 / 175</div>
+      <ul>
+        <li><strong>Reuse timer:</strong> whole seconds, <code>floor(base &times; 100 / haste) - 1</code> (an unhasted 8 second kick is a 7 second timer).</li>
+        <li><strong>Avoidance:</strong> kick, bash, backstab and the monk specials roll the target's block/parry/riposte/dodge <em>without</em> strike-through; only normal melee swings get Strikethrough / Tactical Mastery.</li>
+        <li><strong>Order of operations:</strong> damage is rolled (including the client damage multiplier), raised to the attack's own minimum (backstab: level &times; 2 at 60+, level &times; 3/2 at 51-59; flying kick: level &times; 4 / 5), and only then can it crit. Backstab to-hit includes gear Accuracy.</li>
+        <li><strong>Hate:</strong> a special attack's hate is its own base damage (backstab = (skill &times; 0.02 + 2) &times; weapon damage, with no damage bonus), not your weapon damage plus damage bonus.</li>
+        <li><strong>Duelist / Innerflame:</strong> the minimum hit (4&times; weapon damage) is applied before the damage multiplier. Rangers add <code>level &times; 4 - 216</code> to the offense of every melee attack at level 55+.</li>
+      </ul>
       <div class="formula">offenseRating = specialSkill + STR_bonus + wornATK + spellATK</div>
       <div class="formula">toHit = 7 + offenseSkill + specialSkill + toHitBonus</div>
       <p>
@@ -586,10 +624,10 @@
     <div class="card">
       <h2>7.6) Technique of Master Wu (Monk, PoP) <span class="badge badge-game">In-Game Mechanic</span></h2>
       <p>
-        After each Flying Kick attempt (hit or miss), if <strong>Technique of Master Wu</strong> is trained, two independent rolls determine whether bonus strikes fire.
+        After each monk special attack (Flying Kick, Eagle Strike, Tiger Claw, Round Kick or Dragon Punch), if <strong>Technique of Master Wu</strong> is trained, two rolls determine whether bonus strikes fire. The extra strikes use their own skill for to-hit and damage, and never trigger more.
         Source: <code>EQMacEmu special_attacks.cpp</code>.
       </p>
-      <div class="formula">wuChance = masterWuRank × 10  (integer percent: 10/20/30/40/50 at ranks 1–5)</div>
+      <div class="formula">wuChance = masterWuRank × 20  (integer percent: 20/40/60/80/100 at ranks 1–5)</div>
       <p>
         The two rolls are <strong>independent</strong> (not a chain):
       </p>
@@ -804,7 +842,7 @@
         This is why two weapons with similar listed proc damage can perform differently against different target resist profiles.
       </p>
       <p>
-        <strong>Soul Abrasion AA</strong> (Shadow Knight, Luclin, ranks 1–3): multiplies the base proc spell damage by 1.10 / 1.20 / 1.30 before the resist roll and damage calculation. Applied to both primary and offhand proc weapons.
+        <strong>Soul Abrasion AA</strong> (Shadow Knight, Luclin, ranks 1–3): multiplies the base proc spell damage by 1.50 / 2.00 / 3.00 before the resist roll and damage calculation. Applied to both primary and offhand proc weapons.
       </p>
 
       <h3>9.1) Proc spell crit chance — Spell Casting Fury / Ingenuity <span class="badge badge-game">In-Game Mechanic</span></h3>
@@ -855,9 +893,9 @@
           Rank 0 = +0%, Rank 1 = +30%, Rank 2 = +60%, Rank 3 = +100%.
         </li>
         <li>
-          <strong>Trueshot discipline</strong> (<code>spellbonuses.ArcheryDamageModifier = 105</code>):
-          <div class="formula">physicalBase += floor(physicalBase × 105 / 100)</div>
-          Effectively doubles the base (2.05×). Only active during the Trueshot window.
+          <strong>Trueshot discipline</strong> (<code>spellbonuses.ArcheryDamageModifier = 102</code>, plus a +33% to-hit modifier):
+          <div class="formula">physicalBase += floor(physicalBase × 102 / 100)</div>
+          Effectively doubles the base (2.02×). Only active during the Trueshot window. Elemental damage from the bow and arrow is part of the base before mastery, Trueshot and the halving, and the Ranger's stationary 2× is applied after the client damage multiplier.
         </li>
         <li>
           <strong>Archery halving</strong> — <code>CalcMeleeDamage</code> (attack.cpp) explicitly halves the base for <code>SkillArchery</code> before the D20 roll:
@@ -1199,20 +1237,58 @@
         own double/triple attacks were just being counted separately instead of folded together.
       </p>
 
-      <h3>Flurry, rampage and enrage</h3>
+      <h3>How a mob's swings behave</h3>
+      <ul>
+        <li>A mob with dual wield swings its off hand every round — there is no dual-wield roll for mobs.</li>
+        <li>A mob's own attack proc (from its spell list) only fires on a swing that lands, and never while you have a melee rune up.</li>
+        <li>A mob with Disable Melee never melees or uses class attacks. A riposte-immune mob still has its swing negated by your riposte — it just doesn't take the counterattack.</li>
+        <li>Enrage starts at 9% HP on this server.</li>
+      </ul>
+
+      <h3>Special abilities: flurry, rampage, enrage and the rest</h3>
       <p>
         These come from the mob's <code>special_abilities</code> database field, shown on the Target Mob card once
-        you pick an NPC. A mob may only perform <strong>one</strong> special per round, checked in this order:
+        you pick an NPC. Each ability can carry its own numbers (a flurry chance, an enrage threshold and so on);
+        where the database leaves a number out, the server's default is used. A mob may only perform
+        <strong>one</strong> special per round, checked in this order:
       </p>
       <ul>
         <li><strong>Flurry</strong> — a complete extra round: another main-hand round, another off-hand round if it
-          dual wields, and its class attack fired twice. Default 20% chance, though many mobs override it.</li>
-        <li><strong>Rampage / Area Rampage</strong> — another full round against everyone in range. With only the
-          tank present it simply lands on the tank. Default 20%.</li>
-        <li><strong>Enrage</strong> — below 10% health the mob <em>cannot be riposted</em> for 10 seconds. This is
-          only modelled if you enter a Group DPS figure, since otherwise the sim has no way to know when the mob
-          would reach that health.</li>
+          dual wields, and its class attack fired twice. Default 20% chance when the database gives none.</li>
+        <li><strong>Rampage</strong> — the mob's rampage goes at <em>other</em> players on its hate list, never at its
+          current target. So a rampage does not hit the tank. It does make the mob's class attack
+          (kick, bash, backstab or monk special) fire on the tank straight away, which is its only effect on you.
+          Default 20% chance.</li>
+        <li><strong>Area Rampage</strong> — a full round against everyone in melee range <em>except</em> the current
+          target; the one exception is when the tank is the only player on the hate list, in which case it lands on the
+          tank. The <strong>Other players on hate list</strong> box (Tanking tab, Fight Context) controls this: leave it
+          at 0 to model the tank alone, or enter how many other players are on the mob's hate list to see the rampage
+          go to them instead. It also fires the class attack right away. Default 20% chance.</li>
+        <li><strong>Enrage</strong> — below the ability's health threshold (10% by default) the mob <em>cannot be
+          riposted</em> for the ability's duration (10 seconds by default), and then cannot enrage again until its
+          cooldown (6 minutes by default) has run, counted from when the enrage <em>ends</em>. Mobs of level 53–55 never
+          enrage. Only modelled if you enter a Group DPS figure, since otherwise the sim has no way to know when the
+          mob would reach that health.</li>
       </ul>
+      <p>
+        Other abilities that change the fight:
+      </p>
+      <ul>
+        <li><strong>Warrior skills</strong> — the mob gets bash, kick, parry and riposte as if it were a Warrior,
+          whatever its class. So a caster-class mob with this ability still kicks and bashes you, and (on the Melee and
+          Ranged tabs) it parries and ripostes your swings like a Warrior does.</li>
+        <li><strong>Dual wield</strong> — see above.</li>
+        <li><strong>Slow immune / Haste immune</strong> — a slow (or a haste) you enter on the mob is ignored; the
+          report says so.</li>
+        <li><strong>Reverse slow</strong> — a slow does the opposite: a 60% slow makes the mob 40% <em>faster</em>.
+          Slow mitigation does not reduce it.</li>
+        <li><strong>Stun immune, no melee, riposte immune</strong> — as their names say.</li>
+      </ul>
+      <p>
+        Which class attack a mob uses depends on the skills it actually has: Rogues backstab, Monks use their highest
+        special, Warriors (and mobs with warrior skills) kick and bash, Rangers and Beastlords kick, Paladins,
+        Shadow Knights and Clerics bash. A mob that has both kick and bash bashes two thirds of the time.
+      </p>
       <p>
         A <strong>Disable dual wield</strong> checkbox next to the spell-casting toggle lets you turn off a mob's
         off-hand round even when its database entry grants the DualWield ability — useful for testing what the fight
@@ -1220,6 +1296,12 @@
       </p>
 
       <h3>Spell casting</h3>
+      <p>
+        Mobs try their spells lowest priority number first (priority 0 before everything else), and the number that shifts their cast chances counts every spell on their list that is in range of the mob's level — heals, buffs and pets too, not only attack spells. Spell lists load one level of parent list; if the mob's list has no attack proc it uses its parent's.
+      </p>
+      <p>
+        Spell damage uses the server's full level-scaling table and the spell's own maximum (a spell with base 800 growing 10 per level is capped at its 850 maximum). Your resist check against a mob's spell has no minimum resist chance and no cap, and a partial resist lands <code>100 - 150 &times; (chance - roll) / chance</code> percent — but only spells whose first effect is damage can partially resist; every other failed roll is a full resist. DoT ticks are never reduced by a partial.
+      </p>
       <p>
         A casting mob rechecks whether to cast every 0.75–2 seconds. Each check first rolls a flat
         <strong>detrimental chance</strong> — 25% for most classes, only 3% for hybrids (Paladin, Ranger,
@@ -1266,7 +1348,7 @@
         full flat damage bonus, so they are not trivial. Bash, kick and dragon punch also roll a stun:
       </p>
       <div class="formula">stun chance = (mob level &gt; 60 ? 40 : 45) ± (level difference)² / 2, minimum 2%</div>
-      <p>A stun lasts exactly 2 seconds, during which <strong>you avoid nothing</strong> — no dodge, parry, riposte or block.</p>
+      <p>A stun lasts exactly 2 seconds. The server has no "stunned means no avoidance" rule — you can still dodge, parry, riposte and block while stunned (only the riposte <em>counterattack</em> is suppressed while stunned). Only the <em>defender's</em> stun immunity matters: a Stun Immune mob can still stun you, and a Client that is already stunned ignores further stuns. A kick only stuns when the attacker is a Warrior-class NPC of level 55 or higher; an NPC dragon punch never stuns.</p>
 
       <h3>Haste and slow</h3>
       <p>
@@ -1359,7 +1441,7 @@
       <div class="formula">softcap = base × (1 + CombatStability% + InnateDefense%) + shield AC</div>
       <ul>
         <li><strong>Combat Stability</strong> and <strong>Innate Defense</strong> raise the softcap by 2/5/10% and
-          2% per rank respectively. If your AC is already <em>below</em> the cap these AAs do nothing at all —
+          3% per rank respectively. If your AC is already <em>below</em> the cap these AAs do nothing at all —
           worth knowing before spending points on them.</li>
         <li><strong>Shield AC</strong> is added to the softcap uncapped from Luclin onward, and still counts inside
           worn AC as well. This is why a shield is worth considerably more to a tank than its AC number suggests.</li>
@@ -1374,8 +1456,9 @@
 
       <h3>Damage reduction, runes and damage shields</h3>
       <ul>
-        <li><strong>Warrior Defensive Discipline</strong> applies −50% melee mitigation for 180 seconds on a 15
-          minute reuse, from level 55. It scales the damage band <em>before</em> the damage roll, so it never
+        <li><strong>Warrior Defensive Discipline</strong> applies −50% melee mitigation for 180 seconds, from level 55. All disciplines share one reuse timer, and
+          using one starts that timer at the used discipline's own level-scaled reuse (Defensive 630 s and Evasive 468 s at level 60 — the 15
+          minute figure is only the base value at the level you first get it); only one discipline can be active at a time. It scales the damage band <em>before</em> the damage roll, so it never
           touches the mob's flat damage bonus — meaning it is worth somewhat less than a flat 50% against
           high-damage-bonus mobs.</li>
         <li><strong>Runes</strong> absorb damage 1:1 from a flat pool before your HP is touched. A swing entirely
@@ -1397,7 +1480,7 @@
         <tr><td><strong>Strikethrough</strong></td><td>35%</td><td>When the mob would dodge, parry, riposte or block your swing, this is the chance to override it so the swing lands. Used on the Melee tab: the mob's total front-avoid chance is multiplied by (1 − Strikethrough%).</td></tr>
         <tr><td><strong>Stun Resist</strong></td><td>35%</td><td>Chance to shrug off a bash/kick stun in the Tanking sim.</td></tr>
         <tr><td><strong>Combat Effects</strong></td><td>100</td><td>Raises weapon proc chance. The number is in tenths of a percent: 15 means procs fire 1.5% more often (chance × 1.015). Applies to melee and ranged procs.</td></tr>
-        <tr><td><strong>Accuracy</strong></td><td>150</td><td>Flat to-hit added on top of skill-based to-hit (melee and ranged).</td></tr>
+        <tr><td><strong>Accuracy</strong></td><td>150</td><td>Flat to-hit added on top of skill-based to-hit (melee and ranged). It also raises the ATK number the game displays (about +1.34 displayed ATK per point), though it does not add to your damage roll. The report's Offense &amp; To-Hit section lists your Accuracy and its share of displayed ATK under the calculated to-hit.</td></tr>
         <tr><td><strong>Avoidance</strong></td><td>100</td><td>Flat addition to your avoidance value, so mobs hit you less often (Tanking tab).</td></tr>
         <tr><td><strong>Spell Shield</strong></td><td>35%</td><td>Reduces <em>direct-damage</em> spells from the mob by this percent. DoTs are not reduced.</td></tr>
         <tr><td><strong>Shielding</strong></td><td>35%</td><td>Reduces only the mob's <em>flat damage bonus</em> on each melee hit, not the rolled part of the damage — so it matters most against mobs with a large damage bonus.</td></tr>
@@ -1426,8 +1509,8 @@
       <p class="muted">Base stats such as STR or AGI past their caps are deliberately not reported.</p>
 
       <h3>Natural and Planar Durability</h3>
-      <div class="formula">maxHP = maxHP × (1 + NaturalDurability%) × (1 + PlanarDurability%)</div>
-      <p class="muted">Natural Durability gives 2/5/10%; Planar Durability adds 1.5/3/4.5% on top (Warrior, Paladin, Shadow Knight).</p>
+      <div class="formula">maxHP = (baseHP + itemHP) × (1 + (NaturalDurability% + PhysicalEnhancement% + PlanarDurability%) / 100) + buffHP</div>
+      <p class="muted">Natural Durability gives 2/5/10%; Physical Enhancement adds 2% (only with Natural Durability). Planar Durability adds 1.5% per rank for Warriors and 1.25% per rank for Paladins and Shadow Knights (nothing for other classes), limited to your level minus 60 ranks. These percentages are added together and applied once to base + item HP — buff HP is added afterwards and is not multiplied.</p>
     </div>
 
     <div class="card">
@@ -1443,7 +1526,7 @@
       <div class="formula">P(second counter-attack) = DoubleRiposte(15/35/50%) + FlashOfSteel(10/20/30%)</div>
 
       <h3>Return Kick (Monk)</h3>
-      <div class="formula">P(bonus flying kick after a riposte) = 25% / 35% / 50%</div>
+      <div class="formula">P(bonus flying kick after a riposte) = 20% / 40% / 60%</div>
       <p class="muted">
         While Defensive Discipline is running your own damage output is cut by 55%, which applies to these
         counter-attacks too.
@@ -1866,9 +1949,16 @@
         the spell pool here is detrimental-only and they have nothing to contribute to a DPS rotation.
       </p>
 
+      <h3>Focus effects and cast time</h3>
+      <ul>
+        <li>Damage and mana focus items roll a random value from 1 to their listed percent on every cast (the best item is chosen first), so on average they give about half of the listed number.</li>
+        <li>A spell crit multiplies only the unfocused damage; the focus bonus is added on top. DoT ticks do not spell-crit, and only "Burning Affliction"-style foci reach DoT ticks.</li>
+        <li>Quick Damage and spell-haste foci are added together off the spell's <em>base</em> cast time (never below half of it), and Quick Damage only applies to spells whose base cast time is 4 seconds or more.</li>
+      </ul>
+
       <h3>The global cooldown and the off-global spell</h3>
       <p>
-        After a normal spell finishes casting, there is a <strong>2.25 second lockout</strong> (the GCD) before the
+        After a normal spell finishes casting, there is a <strong>2.5 second lockout</strong> (the server's spell recovery timer; a few spells carry their own 2.25s recovery) before the
         next normal spell can begin. This is on top of that spell's own recast timer, not instead of it. You may
         designate <strong>one</strong> spell in the pool as an "off-global filler" — it still takes its full cast
         time on the bar (only one spell can be mid-cast at any moment), but starting it is never blocked by the GCD
@@ -1879,10 +1969,10 @@
       <p>
         The <strong>GCD clicky after each spell</strong> checkbox (Spell Pool card) models a different trick: a
         global-cooldown-reset item that, when clicked right after a cast finishes, lets a new normal spell begin
-        immediately instead of waiting out the 2.25s lockout. The click itself still takes a moment — the
+        immediately instead of waiting out the 2.5s lockout. The click itself still takes a moment — the
         <strong>Click delay (ms)</strong> field below the checkbox (default 200ms) — so the sim starts the next spell
-        that many milliseconds after the previous one ends, rather than 2.25s later. This only works for a next spell
-        whose own <strong>cast time is at least 2.25s</strong>; a faster spell fails to cast this way in practice, so
+        that many milliseconds after the previous one ends, rather than 2.5s later. This only works for a next spell
+        whose own <strong>cast time is at least 2.5s</strong>; a faster spell fails to cast this way in practice, so
         the sim doesn't offer it the shortcut and it simply waits out the normal GCD, same as with the checkbox off.
         It's independent of, and stacks with, the off-global filler above — that spell already ignores the GCD
         entirely and is unaffected either way. When on, the report adds a <strong>GCD-clicky casts</strong> line
@@ -1966,6 +2056,9 @@
       </p>
 
       <h3>Resist checks</h3>
+      <p class="muted">
+        Quarm runs with the "classic resists" rule <strong>off</strong>: there is no minimum resist chance and no 198 cap, the level difference to an NPC is not capped at 15 (it is capped by the resist falloff at level 67), casters under level 50 get a large resist bonus once the NPC is far enough above them, and casters 50+ get <code>5 &times; level</code> when the NPC is 13 or more levels higher (16+ from level 64). A partial resist lands <code>100 - 150 &times; (chance - roll) / chance</code> percent plus small NPC adjustments, and only spells whose first effect is damage can partially resist — every other failed roll is a full resist. A DoT is all-or-nothing (a partial still applies the full DoT; tick damage is never reduced), and non-wizard casters lose 20% of rain spells to an automatic resist.
+      </p>
       <p>
         Two modes decide how much of a nuke's listed damage actually lands:
       </p>
@@ -2040,6 +2133,11 @@
         they're separate spells with identical stats). Pick the one you'd actually memorize.
       </p>
 
+      <h3>Pet skills and procs</h3>
+      <p>
+        Summoned pets use their own skill values instead of the NPC curve: weapon and offense skill is about level &times; 5 (+10 at level 60), double attack is level &times; 5 (max 200) above level 9, and pet offense is that skill plus ATK plus 2/3 of buffed STR. A pet whose template carries the Dual Wield ability dual wields. A Beastlord's proc buff is rolled once per round on the primary hand only.
+      </p>
+
       <h3>How the pet fights</h3>
       <p>
         A summoned pet is coded server-side as an NPC, not a player — it rolls flat min/max melee damage the same
@@ -2106,7 +2204,7 @@
       </p>
     </div>
 
-    <div class="section">
+    <div class="card">
       <h2>21) Rotation Planner — Session History <span class="badge badge-sim">Sim Feature</span></h2>
       <p>
         Every run of the Rotation Planner (Spells tab) now logs a row into the same shared
@@ -2120,7 +2218,7 @@
       </p>
     </div>
 
-    <div class="section">
+    <div class="card">
       <h2>22) Recommended-Level Items <span class="badge badge-game">In-Game Mechanic</span></h2>
       <p>
         Some items list a <strong>recommended level</strong> rather than a hard required level. A required-level
@@ -2144,7 +2242,7 @@
       </p>
     </div>
 
-    <div class="section">
+    <div class="card">
       <h2>23) Ranged Simulation — Spell Casting Between Shots <span class="badge badge-sim">Sim Feature</span></h2>
       <p>
         The Ranged tab's <strong>Spell Casting (between shots)</strong> card lets a Ranger weave nukes in
@@ -2194,7 +2292,7 @@
       </p>
     </div>
 
-    <div class="section">
+    <div class="card">
       <h2>24) Buffs Panel — Search, Quick Menu, and Active Buffs <span class="badge badge-sim">Sim Feature</span></h2>
       <p>
         The Buffs card (used by the Melee, Ranged, Tanking, and Spells tabs alike — it's one shared panel) is built
@@ -2223,7 +2321,7 @@
       </p>
     </div>
 
-    <div class="section">
+    <div class="card">
       <h2>25) Buffs Panel — Bard Song Instrument Modifiers <span class="badge badge-game">In-Game Mechanic</span></h2>
       <p>
         Bard songs scale up based on the bard's skill with the instrument used to play them, and separately
@@ -2238,7 +2336,7 @@
         instrument type. Each slider has five stops: <strong>1.0×</strong> (no instrument bonus), <strong>1.8×</strong>
         (an epic-tier instrument — the default for all five, matching what a well-equipped raid bard usually carries),
         and two more stops for progressively better instruments/AA combinations, topping out at <strong>3.6×</strong>
-        on Luclin and earlier or <strong>4.0×</strong> once the era is set to Planes of Power (which raised the
+        on Luclin and earlier or <strong>3.9×</strong> once the era is set to Planes of Power (which raised the
         achievable instrument mastery ceiling). Moving a slider only affects bard songs that use that instrument
         type — for example, raising the Brass slider changes songs like Warsong of Zek but has no effect on a
         Singing-type song like Rizlona's Call of Flame.
@@ -2268,10 +2366,18 @@
     <div class="card">
       <h2>26) Buffs Panel — How Buffs Combine (Stacking) <span class="badge badge-game">In-Game Mechanic</span></h2>
       <p>
-        When you add multiple buffs at once (say, several ATK-boosting buffs), the sim mirrors EverQuest's rule
-        that some buffs of "the same kind" don't fully add together — one wins and the other is wasted, just like
-        in-game. Buffs are grouped, and within a group only the strongest one counts toward your stats; buffs in
-        <em>different</em> groups always add on top of each other normally.
+        When you add multiple buffs at once (say, several ATK-boosting buffs), the sim applies the server's own
+        stacking check (<code>Mob::FindAffectSlot</code>), in the order you turned the buffs on. The check compares the new
+        spell with each buff already up, effect slot by effect slot: if either spell has a blank slot first, they
+        coexist; the first slot where both carry the same kind of effect (ignoring focus, see-invisible and similar
+        effects) decides everything — if the new spell's value there is equal or higher, it replaces the old buff
+        entirely (all of its effects go with it), otherwise the new buff is blocked and does nothing. Bard songs
+        coexist with non-song buffs. The buffs that survive simply add together. Worn effects and other entries
+        without a spell record keep the older hand-entered grouping (strongest in a group wins; different groups add).
+      </p>
+      <p class="muted">
+        Not modeled: the server's special stacking-command effects, a few hard-coded special spells (resurrection
+        effects, diseased cloud), and any difference between the two stacking routines the server can use.
       </p>
       <p class="muted">
         Two exceptions: worn/spell haste (the most common haste buffs) always uses the single best value active,
@@ -2287,6 +2393,16 @@
         line's, so in real EQ they never compete — both fully apply. The sim now reflects that: Dance of the Blade
         stacks with any of the Avatar-line buffs instead of being suppressed by them. (Also fixed: its third bonus
         was mislabeled as +30 AC when it's actually +30 STR.)
+      </p>
+      <p class="muted">
+        <strong>Beastlord buffs — Ferocity and Sha's Ferocity.</strong> Both are searchable in the Buffs panel.
+        <strong>Ferocity</strong> (level 65) gives +150 ATK and +40 STA (it also gives resist-all, which isn't tracked
+        here). It uses the same slots as Savagery, so the two never stack — the stronger Ferocity wins whichever you
+        turn on first — and it also replaces weaker ATK buffs such as Torrent of Hate Recourse. It does stack with the
+        Avatar line. <strong>Sha's Ferocity</strong> (level 59) gives +85% haste, +100 STR, +200 AC and +60 ATK at
+        level 60 and above (its haste and STR grow with level up to those caps). Its haste replaces the weaker
+        spell-haste buffs (Visions of Grandeur, Speed of the Shissar, Captain Nalot's Quickening, etc.) just like any
+        other haste would, but it stacks with the Avatar line and with Ferocity.
       </p>
       <p class="muted">
         <strong>Iceflame of E`ci.</strong> This buff is listed for tracking purposes, but it doesn't change your

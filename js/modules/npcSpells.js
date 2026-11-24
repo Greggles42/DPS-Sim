@@ -27,6 +27,7 @@
 
   // SPA ids we care about on an incoming spell
   var SPA_CURRENT_HP = 0;
+  var SPA_CURRENT_HP_ONCE = 79;   // instant damage component of a buff/DoT (partial applies, crits don't)
   var SPA_STUN = 21;
   var SPA_FEAR = 23;
 
@@ -35,8 +36,15 @@
     Dispel: 512, Mez: 2048, Charm: 4096, Slow: 8192, Debuff: 16384
   };
 
-  // Hybrid classes cast far less often (3% versus 25%).
-  var HYBRID_CLASSES = { 3: 1, 4: 1, 5: 1, 8: 1, 15: 1 };  // pal, rng, sk, bard, bst
+  // Hybrid classes cast far less often (3% versus 25%). Mob::GetArchetype: warrior/monk/rogue are MELEE, the pure
+  // casters are CASTER, and EVERYTHING ELSE — including class ids it does not know — is HYBRID. The GM variants
+  // (class + 19) behave like their base class.
+  var NON_HYBRID_CLASSES = { 1: 1, 7: 1, 9: 1, 2: 1, 6: 1, 10: 1, 11: 1, 12: 1, 13: 1, 14: 1 };
+  function isHybridClass(classId) {
+    var c = Number(classId);
+    if (c >= 20 && c <= 34) c -= 19;
+    return !NON_HYBRID_CLASSES[c];
+  }
   var HEALER_CLASSES = { 2: 1, 6: 1, 10: 1 };              // cleric, druid, shaman
 
   function spellData() {
@@ -48,28 +56,71 @@
 
   // ---- Spell interpretation --------------------------------------------------
 
-  /** CalcSpellEffectValue_formula — the level-scaling table. */
-  function calcEffectValue(formula, base, casterLevel) {
-    var mag = Math.abs(base);
-    var sign = base < 0 ? -1 : 1;
+  /**
+   * Mob::CalcSpellEffectValue_formula (spell_effects.cpp:2511-2810) — the
+   * level-scaling table, including the spell's "max" cap (the spells table's
+   * effect_limit_value column) and the sign handling. `ticdif` is how many
+   * ticks into the buff we are, for the decaying formulas 107/108/120/122.
+   * Formula 123 (random between base and |max|) returns its expected value.
+   */
+  function calcEffectValue(formula, base, casterLevel, max, ticdif) {
     var f = Number(formula) || 0;
-    var result;
+    max = Number(max) || 0;
+    ticdif = ticdif > 0 ? ticdif : 0;
+    var L = casterLevel;
+    var ubase = Math.abs(base);
+    var updown = (max < base && max !== 0) ? -1 : 1;
+    var result = 0;
+    var t = function (x) { return x < 0 ? Math.ceil(x) : Math.floor(x); };   // C++ int division
 
-    if (f === 0 || f === 100) result = mag;
-    else if (f >= 1 && f <= 99) result = mag + casterLevel * f;
-    else if (f === 101) result = mag + Math.floor(casterLevel / 2);
-    else if (f === 102) result = mag + casterLevel;
-    else if (f === 103) result = mag + casterLevel * 2;
-    else if (f === 104) result = mag + casterLevel * 3;
-    else if (f === 105) result = mag + casterLevel * 4;
-    else if (f === 106) result = mag + casterLevel * 5;
-    else if (f === 107) result = mag + Math.floor(casterLevel / 2);
-    else if (f === 108) result = mag + Math.floor(casterLevel / 3);
-    else if (f === 109) result = mag + Math.floor(casterLevel / 4);
-    else if (f === 110) result = mag + Math.floor(casterLevel / 5);
-    else result = mag;
+    switch (f) {
+      case 0: case 100: result = ubase; break;
+      case 101: result = updown * (ubase + t(L / 2)); break;
+      case 102: result = updown * (ubase + L); break;
+      case 103: result = updown * (ubase + L * 2); break;
+      case 104: result = updown * (ubase + L * 3); break;
+      case 105: result = updown * (ubase + L * 4); break;
+      case 107: result = updown * (ubase - ticdif); break;
+      case 108: result = updown * (ubase - 2 * ticdif); break;
+      case 109: result = updown * (ubase + t(L / 4)); break;
+      case 110: result = updown * (ubase + t(L / 6)); break;
+      case 111: result = updown * (ubase + 6 * (L - 16)); break;
+      case 112: result = updown * (ubase + 8 * (L - 24)); break;
+      case 113: result = updown * (ubase + 10 * (L - 34)); break;
+      case 114: result = updown * (ubase + 15 * (L - 44)); break;
+      case 115: result = ubase + (L > 15 ? 7 * (L - 15) : 0); break;
+      case 116: result = ubase + (L > 24 ? 10 * (L - 24) : 0); break;
+      case 117: result = ubase + (L > 34 ? 13 * (L - 34) : 0); break;
+      case 118: result = ubase + (L > 44 ? 20 * (L - 44) : 0); break;
+      case 119: result = ubase + t(L / 8); break;
+      case 120: result = updown * (ubase - 5 * ticdif); break;
+      case 121: result = ubase + t(L / 3); break;
+      case 122: result = updown * (ubase - 12 * ticdif); break;
+      case 123: result = Math.floor((ubase + Math.abs(max)) / 2); break;
+      case 124: result = ubase + (L > 50 ? updown * (L - 50) : 0); break;
+      case 125: result = ubase + (L > 50 ? updown * 2 * (L - 50) : 0); break;
+      case 126: result = ubase + (L > 50 ? updown * 3 * (L - 50) : 0); break;
+      case 127: result = ubase + (L > 50 ? updown * 4 * (L - 50) : 0); break;
+      case 128: result = ubase + (L > 50 ? updown * 5 * (L - 50) : 0); break;
+      case 129: result = ubase + (L > 50 ? updown * 10 * (L - 50) : 0); break;
+      case 130: result = ubase + (L > 50 ? updown * 15 * (L - 50) : 0); break;
+      case 131: result = ubase + (L > 50 ? updown * 20 * (L - 50) : 0); break;
+      case 144: result = ubase + (L > 43 ? updown * 10 * (L - 43) : 0); break;
+      case 150: result = L > 50 ? 10 : L > 45 ? 5 + L - 45 : L > 40 ? 5 : L > 34 ? 4 : 3; break;
+      case 201: case 202: case 203: case 204: case 205: result = max; break;
+      default:
+        // formula < 100 (formulas 106 and other unknown >=100 values fall to "Unknown ... formula" => 0)
+        result = f < 100 ? ubase + L * f : 0;
+    }
 
-    return sign * result;
+    // Clamp against the allowed maximum.
+    if (max !== 0) {
+      if (updown === 1) { if (result > max) result = max; }
+      else if (result < max) result = max;
+    }
+    // A negative base always yields a negative result.
+    if (base < 0 && result > 0) result *= -1;
+    return result;
   }
 
   /** CalcBuffDuration_formula — duration in 6-second ticks. */
@@ -111,6 +162,9 @@
     var dotPerTick = 0;
     var stunMs = 0;
     var isFear = false;
+    // IsPartialCapableSpell: the first non-blank effect must be HP / HP-once damage (base < 0)
+    // and the spell's no_partial_resist flag must be clear; otherwise a failed resist roll is a full resist.
+    var firstEffectDamage = null;
 
     var durationTicks = calcBuffDuration(
       casterLevel, sp.buffdurationformula, Number(sp.buffduration) || 0);
@@ -121,15 +175,28 @@
       if (!isFinite(spa) || spa === 254) continue;
       var base = Number(sp['effect_base_value' + i]) || 0;
       var formula = sp['formula' + i];
+      var max = Number(sp['effect_limit_value' + i]) || 0;
+      if (firstEffectDamage === null && spa !== 254) {
+        firstEffectDamage = ((spa === SPA_CURRENT_HP || spa === SPA_CURRENT_HP_ONCE) && base < 0);
+      }
 
       if (spa === SPA_CURRENT_HP) {
-        var val = calcEffectValue(formula, base, casterLevel);
-        if (val < 0) {
-          if (isBuffed) dotPerTick += -val;
-          else directDamage += -val;
+        if (isBuffed) {
+          // Per-tick value; the decaying formulas (107/108/120/122) lose value every tick, so average
+          // the real per-tick values over the buff's duration.
+          var sum = 0, n = Math.max(1, durationTicks);
+          for (var td = 0; td < n; td++) sum += calcEffectValue(formula, base, casterLevel, max, td);
+          var avg = sum / n;
+          if (avg < 0) dotPerTick += -avg;
+        } else {
+          var val = calcEffectValue(formula, base, casterLevel, max, 0);
+          if (val < 0) directDamage += -val;
         }
+      } else if (spa === SPA_CURRENT_HP_ONCE) {
+        var once = calcEffectValue(formula, base, casterLevel, max, 0);
+        if (once < 0) directDamage += -once;
       } else if (spa === SPA_STUN) {
-        stunMs = Math.max(stunMs, Math.abs(base));
+        stunMs = Math.max(stunMs, Math.abs(calcEffectValue(formula, base, casterLevel, max, 0)));
       } else if (spa === SPA_FEAR) {
         isFear = true;
       }
@@ -155,7 +222,8 @@
       castTimeMs: Number(sp.cast_time) || 0,
       recastMs: Number(sp.recast_time) || 0,
       recoveryMs: Number(sp.recovery_time) || 0,
-      isDirectDamage: directDamage > 0
+      isDirectDamage: directDamage > 0,
+      partialCapable: !(Number(sp.no_partial_resist) > 0) && firstEffectDamage === true
     };
   }
 
@@ -171,9 +239,11 @@
     if (!list) return null;
 
     var spells = [];
+    var levelEntryCount = 0;
     for (var i = 0; i < list.spells.length; i++) {
       var e = list.spells[i];
       if (mobLevel < e.minlevel || mobLevel > e.maxlevel) continue;
+      levelEntryCount++;   // mob_ai.cpp roll_mod counts EVERY in-level entry (buffs, heals, pets...), not only damage
       var info = describeSpell(e.spellid, mobLevel);
       if (!info) continue;
       spells.push({
@@ -181,7 +251,7 @@
         type: e.type,
         priority: e.priority || 0,
         // Per-entry resist_adjust overrides the spell's own ResistDiff.
-        resistAdjust: e.resist_adjust != null ? e.resist_adjust : info.resistDiff,
+        resistAdjust: e.resist_adjust ? e.resist_adjust : info.resistDiff,   // a 0 / null entry value means "use the spell's ResistDiff"
         recast: getRecast(e.recast_delay, info.recastMs),
         info: info
       });
@@ -191,13 +261,22 @@
 
     var dChance = list.engaged_d_chance;
     if (!dChance) {
-      dChance = HYBRID_CLASSES[mobClassId] ? DEFAULT_DETRIMENTAL_CHANCE_HYBRID
+      dChance = isHybridClass(mobClassId) ? DEFAULT_DETRIMENTAL_CHANCE_HYBRID
               : DEFAULT_DETRIMENTAL_CHANCE;
+    }
+
+    // The extractor records every in-level entry's band (level_bands) so the roll modifier counts heals/buffs too.
+    if (list.level_bands) {
+      levelEntryCount = 0;
+      for (var li = 0; li < list.level_bands.length; li++) {
+        if (mobLevel >= list.level_bands[li][0] && mobLevel <= list.level_bands[li][1]) levelEntryCount++;
+      }
     }
 
     return {
       name: list.name,
       spells: spells,
+      levelEntryCount: levelEntryCount,
       detrimentalChance: dChance / 100,
       recastMinMs: list.recast_min || DEFAULT_RECAST_MIN_MS,
       recastMaxMs: list.recast_max || DEFAULT_RECAST_MAX_MS,
@@ -256,23 +335,23 @@
     var levelDiff = playerLevel - mobLevel;
     var tempDiff = levelDiff;
     if (playerLevel >= 21 && tempDiff > 15) tempDiff = 15;
-    var levelMod = Math.floor(tempDiff * tempDiff / 2);
+    var levelMod = Math.trunc(tempDiff * tempDiff / 2);
     if (tempDiff < 0) levelMod = -levelMod;
 
+    // Quarm:UseClassicResists is FALSE on live Quarm (rule_values 2026-10-25): no 4/198 floor and
+    // ceiling, no x3/2, and the 150-scale partial formula (not the classic 100-scale one).
     var resistChance = targetResist + levelMod + resistModifier;
-
-    // Classic resist floors/ceiling for player targets.
-    if (resistChance < 4 && resistModifier === 0) resistChance = 4;
-    else if (resistChance > 198) resistChance = 198;
 
     var roll = Math.floor(rng() * 201);   // Int(0, 200)
     if (roll > resistChance) return 100;
 
-    if (resistChance === 0) return 0;
+    // Failed roll: a spell that is not partial-capable (first effect not HP damage, or
+    // no_partial_resist set) is a full resist.
+    if (info.partialCapable === false || resistChance === 0) return 0;
 
-    // Partial. Classic client uses the simpler linear form.
-    var partial = Math.floor((resistChance * 100 - roll * 100) / resistChance);
-    if (levelDiff >= 20) partial += Math.floor(levelDiff * 1.5);
+    var partial = Math.trunc(150 * (resistChance - roll) / resistChance);
+    // caster (the mob) is an NPC: extra term for much lower-level targets
+    if (levelDiff >= 20) partial += Math.trunc(levelDiff * 1.5);
 
     if (partial <= 0) return 100;
     if (partial >= 100) return 0;
@@ -345,7 +424,7 @@
       if (zs.priority === 0 && (recastState[zs.spellId] || 0) <= nowMs) zeroPriorityReady.push(zs);
     }
     if (zeroPriorityReady.length) {
-      var zChosen = zeroPriorityReady[Math.floor(rng() * zeroPriorityReady.length)];
+      var zChosen = zeroPriorityReady[0];   // priority 0 sorts to the end of the array, which is tried first
       return finishCast(zChosen, rng, recastState, nowMs, nextCheckMs);
     }
 
@@ -365,8 +444,10 @@
     // strongest (highest priority) first instead of the server's incidental
     // array order — within one level band there's rarely more than one
     // ready candidate of a given type anyway, so the order seldom matters.
-    candidates.sort(function (a, b) { return b.priority - a.priority; });
-    var mod = typeRollMod(list.spells.length);
+    // AIspells is sorted descending by priority NUMBER and walked from the END (mob_ai.cpp:94, 3302), so the
+    // lowest priority number is tried first.
+    candidates.sort(function (a, b) { return a.priority - b.priority; });
+    var mod = typeRollMod(list.levelEntryCount != null ? list.levelEntryCount : list.spells.length);
 
     for (var ci = 0; ci < candidates.length; ci++) {
       var cand = candidates[ci];
@@ -392,7 +473,7 @@
     calcEffectValue: calcEffectValue,
     calcBuffDuration: calcBuffDuration,
 
-    isHybrid: function (classId) { return !!HYBRID_CLASSES[classId]; },
+    isHybrid: isHybridClass,
     isHealer: function (classId) { return !!HEALER_CLASSES[classId]; }
   };
 

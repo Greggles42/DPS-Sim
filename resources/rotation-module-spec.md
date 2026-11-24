@@ -15,7 +15,7 @@ reference implementation, not gospel.
 
 ## Core mechanics to model
 
-**Global cooldown (GCD):** After a normal spell finishes casting, there is a 2.25s
+**Global cooldown (GCD):** After a normal spell finishes casting, there is a 2.5s (the server's Spells:SpellRecoveryTimer; a few spells carry their own 2.25s recovery)
 lockout before the *next normal spell* can begin casting. This is separate from and
 additive with that spell's own recast timer.
 
@@ -105,7 +105,7 @@ interface RotationResult {
 
 ## Algorithm
 
-Constant: `GCD = 2.25` seconds.
+Constant: `GCD = 2.5` seconds (a spell's own `recovery_time`, usually 2.5, replaces it when present).
 
 ```
 effectiveDamage(spell, factor) = spell.damage * factor
@@ -118,7 +118,7 @@ resistFactor(fullPct, partialPct):
 
 score(spell, mode, isOffGlobal, factor, maxDpsScore, maxManaScore):
   edmg = effectiveDamage(spell, factor)
-  # off-global spell doesn't tax the timeline with a trailing 2.25s lock,
+  # off-global spell doesn't tax the timeline with a trailing 2.5s lock,
   # so its throughput denominator excludes GCD
   dpsScore  = edmg / (spell.castTime + (isOffGlobal ? 0 : GCD))
   manaScore = edmg / spell.mana
@@ -214,7 +214,7 @@ length, but it protects against a scheduling edge case producing a zero-length l
 
 - **`dps`** — greedy pick maximizes `damage / (castTime + GCD-if-applicable)`. This is
   the right heuristic for filler decisions because a spell's real cost isn't just its
-  cast time — for normal spells it's cast time *plus* the trailing 2.25s lock it
+  cast time — for normal spells it's cast time *plus* the trailing 2.5s lock it
   imposes on the next cast.
 - **`sustain`** — greedy pick maximizes `damage / mana`, ignoring time entirely.
 - **`balanced`** — normalizes both scores against the pool's best-in-slot for each

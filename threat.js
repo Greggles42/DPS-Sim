@@ -64,8 +64,11 @@
     const rv = runeValue != null ? runeValue | 0 : 0;
     if (rv <= 0) return 0;
     const mod = (hateModPercent != null && !isNaN(hateModPercent)) ? hateModPercent : 0;
-    let hate = Math.floor(rv * 2 * (100 + mod) / 100);
+    // Mob::CheckAggroAmount order (aggro.cpp:1839-1855): the "clickables hate capped at 400" clamp is applied FIRST,
+    // THEN the hate modifier ((100 + focus/AA/item hate mod) / 100) — so a positive hate mod can exceed the cap.
+    let hate = rv * 2;
     if (cap != null && cap > 0 && hate > cap) hate = cap;
+    hate = Math.floor(hate * (100 + mod) / 100);
     return hate;
   }
 

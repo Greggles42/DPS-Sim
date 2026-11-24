@@ -34,6 +34,8 @@ const SPELL_TYPE = {
   Snare: 128, DOT: 256, Dispel: 512, InCombatBuff: 1024, Mez: 2048,
   Charm: 4096, Slow: 8192, Debuff: 16384, Cure: 32768, Resurrect: 65536
 };
+const INNATE = SPELL_TYPE.Nuke | SPELL_TYPE.Lifetap | SPELL_TYPE.DOT | SPELL_TYPE.Dispel | SPELL_TYPE.Mez |
+  SPELL_TYPE.Slow | SPELL_TYPE.Debuff | SPELL_TYPE.Charm | SPELL_TYPE.Root;   // spdat.h SpellTypes_Innate
 const DETRIMENTAL =
   SPELL_TYPE.Nuke | SPELL_TYPE.Root | SPELL_TYPE.Lifetap | SPELL_TYPE.Snare |
   SPELL_TYPE.DOT | SPELL_TYPE.Dispel | SPELL_TYPE.Mez | SPELL_TYPE.Charm |
@@ -252,21 +254,30 @@ async function main() {
     console.log('  referenced by a mob:     ' + referenced.size);
   }
 
-  // Flatten parent_list inheritance so the client never has to walk the chain.
-  // A child list's own entry for a spell wins over an inherited one.
-  function resolveEntries(id, seen) {
-    seen = seen || new Set();
-    if (seen.has(id)) return [];
-    seen.add(id);
+  // Content filtering (ContentFilterCriteria / WorldContentService::DoesPassContentFiltering): the live server runs
+  // with World:CurrentExpansion = 4.0 (Planes of Power). Entries whose min_expansion is above that, or whose
+  // max_expansion is below it, are never loaded. (content_flags are all null in the dump.)
+  const CURRENT_EXPANSION = 4.0;
+  function passesContent(e) {
+    if (e.min_expansion > -1 && CURRENT_EXPANSION < e.min_expansion) return false;
+    if (e.max_expansion > -1 && CURRENT_EXPANSION > e.max_expansion) return false;
+    return true;
+  }
 
+  // AI_AddNPCSpells (mob_ai.cpp:3195-3290): inheritance is ONE level deep, not a chain. The parent's entries are
+  // added first (skipping any spell the child itself lists), then the child's own entries.
+  function resolveEntries(id) {
     const list = lists.get(id);
-    const inherited = list && list.parent_list > 0 ? resolveEntries(list.parent_list, seen) : [];
-    const own = entries.get(id) || [];
-
-    const bySpell = new Map();
-    for (const e of inherited) bySpell.set(e.spellid, e);
-    for (const e of own) bySpell.set(e.spellid, e);
-    return Array.from(bySpell.values());
+    const parent = list && list.parent_list > 0 ? lists.get(list.parent_list) : null;
+    const own = (entries.get(id) || []).filter(passesContent);
+    const out = [];
+    if (parent) {
+      const ownIds = new Set((entries.get(id) || []).map((e) => e.spellid));
+      for (const e of (entries.get(parent.id) || []).filter(passesContent)) {
+        if (!ownIds.has(e.spellid)) out.push(e);
+      }
+    }
+    return out.concat(own);
   }
 
   const out = {};
@@ -275,9 +286,12 @@ async function main() {
   for (const [id, list] of lists) {
     if (referenced && !referenced.has(id)) continue;
 
-    const resolved = resolveEntries(id)
+    const allEntries = resolveEntries(id);
+    const resolved = allEntries
       // The sim only cares about what a mob throws at the tank.
       .filter((e) => (e.type & DETRIMENTAL) !== 0)
+      // "some spell types don't make much sense to be priority 0": non-innate types are bumped to 1 (mob_ai.cpp:3620).
+      .map((e) => (e.priority === 0 && !(e.type & INNATE) ? Object.assign({}, e, { priority: 1 }) : e))
       .sort((a, b) => (b.priority || 0) - (a.priority || 0))
       .map((e) => ({
         spellid: e.spellid,
@@ -289,19 +303,34 @@ async function main() {
         resist_adjust: e.resist_adjust
       }));
 
-    const hasProc = list.attack_proc > 0;
+    // Every in-level entry of ANY type (heals, buffs, pets...) counts toward the server's roll_mod
+    // (mob_ai.cpp:81-88), so keep their level bands even though the sim never casts them.
+    const levelBands = allEntries.filter((e) => e.spellid > 0).map((e) => [e.minlevel, e.maxlevel]);
+
+    // Inherited casting variables: the parent's apply unless the child sets any of its own (mob_ai.cpp:3262-3290);
+    // attack_proc / proc_chance come from the child when attack_proc >= 0, else from the parent.
+    const parent = list.parent_list > 0 ? lists.get(list.parent_list) : null;
+    const ownCasting = list.fail_recast || list.engaged_no_sp_recast_min || list.engaged_no_sp_recast_max ||
+      list.engaged_b_self_chance || list.engaged_b_other_chance || list.engaged_d_chance;
+    const castSrc = (!ownCasting && parent) ? parent : list;
+    let attackProc = parent ? parent.attack_proc : -1;
+    let procChance = parent ? parent.proc_chance : 3;
+    if (list.attack_proc >= 0) { attackProc = list.attack_proc; procChance = list.proc_chance; }
+
+    const hasProc = attackProc > 0;
     if (!resolved.length && !hasProc) continue;
 
     out[id] = {
       name: list.name,
-      attack_proc: list.attack_proc > 0 ? list.attack_proc : 0,
-      proc_chance: list.proc_chance,
+      attack_proc: attackProc > 0 ? attackProc : 0,
+      proc_chance: procChance,
       // AI_EngagedCastCheck inputs. 0 means "use the server rule default".
-      engaged_d_chance: list.engaged_d_chance,
-      engaged_b_self_chance: list.engaged_b_self_chance,
-      recast_min: list.engaged_no_sp_recast_min,
-      recast_max: list.engaged_no_sp_recast_max,
-      fail_recast: list.fail_recast,
+      engaged_d_chance: castSrc.engaged_d_chance,
+      engaged_b_self_chance: castSrc.engaged_b_self_chance,
+      recast_min: castSrc.engaged_no_sp_recast_min,
+      recast_max: castSrc.engaged_no_sp_recast_max,
+      fail_recast: castSrc.fail_recast,
+      level_bands: levelBands,
       spells: resolved
     };
     keptLists++;
