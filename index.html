@@ -2483,6 +2483,11 @@
       <span>Equipped Items</span>
       <div id="shared-inventory-pills"></div>
       <div style="display:inline-flex;align-items:center;gap:0.4rem;margin-left:auto;">
+        <button type="button" id="preset-char-open"
+          style="font:inherit;margin:0;cursor:pointer;display:inline-flex;align-items:center;gap:0.4rem;font-size:0.78rem;font-weight:600;color:var(--muted);padding:0.3rem 0.75rem;border:1px solid var(--border);border-radius:4px;background:rgba(255,255,255,0.04);white-space:nowrap;"
+          title="Load a level 65 character in Planes of Power near BIS gear with every AA maxed, to see your class's performance ceiling">
+          &#9876; Load Preset Character
+        </button>
         <label style="font:inherit;margin:0;cursor:pointer;display:inline-flex;align-items:center;gap:0.4rem;font-size:0.78rem;font-weight:600;color:var(--muted);padding:0.3rem 0.75rem;border:1px solid var(--border);border-radius:4px;background:rgba(255,255,255,0.04);white-space:nowrap;text-transform:none;letter-spacing:normal;" title="Import your zeal inventory or quarmy outputfile to load your equipment/AAs">
           &#8599; Import Inventory
           <input type="file" id="shared-inventory-file" accept=".txt" style="display:none;">
@@ -3685,6 +3690,7 @@
     <details id="version-log-details">
     <summary style="cursor:pointer; font-size:1.17em; font-weight:bold; margin:0; list-style:revert;">Version log</summary>
     <ul style="font-size: 0.9rem; color: var(--muted); margin: 0.5rem 0 0; padding-left: 1.25rem;">
+            <li><strong>2.15</strong> — New <strong>Load Preset Character</strong> button in the Equipped Items bar (left of Import Inventory): pick a class and get a level 65 character in near-BIS Planes of Power gear with every AA the class can take maxed, to see roughly where that class's performance ceiling sits.</li>
             <li><strong>2.14</strong> — Server-accuracy audit: the sims now follow the live Quarm server code and database rules (October 2026 dump).
         <ul>
           <li><strong>Target &amp; Fight.</strong> The generic target's AC now scales from 5 at level 1 to 200 at level 60 and on to 230 at level 65. The <em>Behind</em> option no longer lists block as skipped (Monk and Beastlord mobs can block from any angle); only dodge, parry and riposte are skipped.</li>
@@ -3911,6 +3917,26 @@
     </div>
   </div>
 
+  <!-- Preset Character Modal -->
+  <div id="preset-char-overlay" class="bis-overlay" aria-hidden="true">
+    <div class="bis-modal" role="dialog" aria-labelledby="preset-char-title" style="width:min(460px,96vw);">
+      <div class="bis-modal-header">
+        <h2 id="preset-char-title">&#9876; Load Preset Character</h2>
+        <button class="inv-manager-close-btn" id="preset-char-close" aria-label="Close">&#10005;</button>
+      </div>
+      <div style="padding:0.9rem 1rem 1rem;">
+        <p class="hint" style="margin:0 0 0.7rem;">Loads a level 65 character in Planes of Power near BIS gear with every Alternate Advancement ability maxed, so you can see roughly where your class's performance ceiling sits. This replaces your current gear, level and AA ranks.</p>
+        <label for="preset-char-class" class="small-label">Class</label>
+        <select id="preset-char-class" style="width:100%;margin:0.2rem 0 0.8rem;"></select>
+        <div id="preset-char-msg" class="hint" style="margin:0 0 0.7rem;min-height:1em;"></div>
+        <div style="display:flex;justify-content:flex-end;gap:0.5rem;">
+          <button type="button" id="preset-char-cancel" style="font:inherit;cursor:pointer;font-size:0.82rem;font-weight:600;color:var(--muted);padding:0.35rem 0.9rem;border:1px solid var(--border);border-radius:4px;background:rgba(255,255,255,0.04);">Cancel</button>
+          <button type="button" id="preset-char-load" style="font:inherit;cursor:pointer;font-size:0.82rem;font-weight:700;color:#d4af37;padding:0.35rem 0.9rem;border:1px solid rgba(212,175,55,0.5);border-radius:4px;background:rgba(212,175,55,0.1);">Load</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- BIS Advisor Modal -->
   <div id="bis-overlay" class="bis-overlay" aria-hidden="true">
     <div id="bis-modal" class="bis-modal" role="dialog" aria-labelledby="bis-title">
@@ -3973,6 +3999,7 @@
   <script src="resources/npc_spells-data.js"></script>
   <script src="resources/spells-data.js"></script>
   <script src="resources/weapon_shortlist-data.js"></script>
+  <script src="resources/bis-presets-data.js"></script>
   <script src="resources/altadv-names-data.js"></script>
   <!-- Load itemSearchConfig.js only locally (file is gitignored; on Vercel we use /api/item-search with env key) -->
   <script>
@@ -4347,7 +4374,7 @@
       }
 
       // When releasing: 1) Bump VERSION below. 2) Add a new <li> at the top of the Version log section above.
-      const VERSION = '2.14';
+      const VERSION = '2.15';
       const versionEl = $('app-version');
       if (versionEl) versionEl.textContent = 'v' + VERSION;
 
@@ -14256,6 +14283,119 @@
       fileInput.value = ''; // allow re-loading same file
     });
   }
+
+  // ---- Preset Character ("what's my class's ceiling?") ----
+  // Level 65, Planes of Power era, every AA the class can take at max rank, and the curated BiS list from
+  // resources/bis-presets-data.js (generated from the BiS CSV by scripts/bis-presets-to-js.mjs).
+  var PRESET_LEVEL = 65;
+  var PRESET_ERA = 'pop';
+  var PRESET_CLASS_LABELS = {
+    warrior: 'Warrior', cleric: 'Cleric', paladin: 'Paladin', ranger: 'Ranger', shadowknight: 'Shadow Knight',
+    druid: 'Druid', monk: 'Monk', bard: 'Bard', rogue: 'Rogue', shaman: 'Shaman', necromancer: 'Necromancer',
+    wizard: 'Wizard', magician: 'Magician', enchanter: 'Enchanter', beastlord: 'Beastlord'
+  };
+
+  function loadPresetCharacter(classId) {
+    var preset = (window.__DPS_BIS_PRESETS__ || {})[classId];
+    if (!preset) return { ok: false, message: 'No preset gear list for that class.' };
+
+    // Gear: Item IDs are authoritative. Anything missing from the item DB is skipped and reported.
+    var equippedSlots = {};
+    var missing = [];
+    MANAGER_SLOT_KEYS.forEach(function (k) {
+      var e = preset[k];
+      if (!e) return;
+      if (!lookupItem(e.id)) { missing.push(e.name || ('#' + e.id)); return; }
+      equippedSlots[k] = { id: e.id, name: e.name };
+    });
+
+    // Era first so the AA panel and era-gated gear logic see Planes of Power.
+    var eraEl = document.getElementById('era-select');
+    if (eraEl && eraEl.value !== PRESET_ERA) {
+      eraEl.value = PRESET_ERA;
+      eraEl.dispatchEvent(new Event('change'));
+    }
+
+    // AAs: max rank for everything this class can take in the era; zero everything else.
+    var aaRanks = {};
+    var AR = window.AbilityRegistry;
+    if (AR && window.aaConfig) {
+      var allowed = {};
+      AR.getAvailableAAs(PRESET_ERA, classId).forEach(function (aa) { allowed[aa.id] = aa.ranks; });
+      AR.AA_DEFINITIONS.forEach(function (aa) {
+        if (allowed[aa.id]) aaRanks[aa.id] = allowed[aa.id];
+        else window.aaConfig[aa.id] = 0;
+      });
+    }
+
+    window.inventoryLoaded = true;
+    MANAGER_SLOT_KEYS.forEach(function (k) {
+      var entry = equippedSlots[k];
+      inventoryManagerState[k] = entry ? { id: entry.id, name: entry.name, item: lookupItem(entry.id) } : null;
+    });
+    _applyInventoryFromEquippedSlots(
+      equippedSlots,
+      { name: 'Preset ' + PRESET_CLASS_LABELS[classId], level: PRESET_LEVEL, classStr: classId },
+      aaRanks,
+      []
+    );
+
+    // Quiver is a container, not an equippable item, so it is carried as a weight-reduction %.
+    var quiverEl = document.getElementById('ranged-quiver-weight-reduction');
+    if (quiverEl) {
+      quiverEl.value = preset._quiverWR || 0;
+      quiverEl.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+
+    var inv = document.getElementById('shared-inventory-display');
+    if (inv) inv.open = true;
+    return { ok: true, missing: missing };
+  }
+
+  (function initPresetCharacterUI() {
+    var openBtn = document.getElementById('preset-char-open');
+    var overlay = document.getElementById('preset-char-overlay');
+    var select  = document.getElementById('preset-char-class');
+    var msgEl   = document.getElementById('preset-char-msg');
+    if (!openBtn || !overlay || !select) return;
+
+    function open() {
+      var presets = window.__DPS_BIS_PRESETS__ || {};
+      var current = (document.getElementById('class') || {}).value;
+      select.innerHTML = '';
+      Object.keys(PRESET_CLASS_LABELS).forEach(function (id) {
+        if (!presets[id]) return;
+        var opt = document.createElement('option');
+        opt.value = id;
+        opt.textContent = PRESET_CLASS_LABELS[id];
+        select.appendChild(opt);
+      });
+      if (current && presets[current]) select.value = current;
+      msgEl.textContent = select.options.length ? '' : 'No preset gear lists are available.';
+      overlay.classList.add('is-open');
+      overlay.setAttribute('aria-hidden', 'false');
+      select.focus();
+    }
+    function close() {
+      overlay.classList.remove('is-open');
+      overlay.setAttribute('aria-hidden', 'true');
+    }
+
+    openBtn.addEventListener('click', function (e) { e.preventDefault(); e.stopPropagation(); open(); });
+    document.getElementById('preset-char-close').addEventListener('click', close);
+    document.getElementById('preset-char-cancel').addEventListener('click', close);
+    overlay.addEventListener('click', function (e) { if (e.target === overlay) close(); });
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && overlay.classList.contains('is-open')) close();
+    });
+    document.getElementById('preset-char-load').addEventListener('click', function () {
+      if (!select.value) return;
+      var res = loadPresetCharacter(select.value);
+      if (!res.ok) { msgEl.textContent = res.message; return; }
+      close();
+      if (res.missing.length) console.warn('Preset character: items not found in item DB, skipped:', res.missing);
+    });
+  })();
 
   // ---- Tank HP auto-calculation ----
   // HP = class_factor*level + STA_contribution (EQEmu bracket formula) + worn_hp

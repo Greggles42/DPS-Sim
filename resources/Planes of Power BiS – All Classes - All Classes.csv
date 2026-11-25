@@ -1,0 +1,304 @@
+﻿Class,Slot,Item,Item ID,Notes,Drop Location
+Warrior,Primary,Darkblade of the Warlord,22999,,PoTime: Rallos Zek
+Warrior,Secondary,Bloodfrenzy,28855,BiS for aggro,Ssraeshza Temple: Vyzh`dra the Cursed
+Warrior,Two-Hander,Blade of War,25989,Aggro option,PoTactics: Rallos Zek the Warlord
+Warrior,Ears,Silver Hoop of Speed,7123,'+5% Overhaste,PoTime: Quarm
+Warrior,Ears,Earring of Xaoth Kor,5760,'+2 Heroic Dexterity,PoTime: Phase 3 Golems
+Warrior,Neck,Necklace of Eternal Visions,9289,'+2 Heroic Stamina,PoTime: Innoruuk
+Warrior,Face,Mask of Strategic Insight,29174,'+3 Heroic Dexterity,PoTime: Tier 3 Golems
+Warrior,Head,Helm of Flowing Time,28647,40% Haste,PoTime: Vallon Zek
+Warrior,Fingers,Timestone Adorned Ring,10948,'+4 Heroic Agility,PoTime: Cazic Thule
+Warrior,Fingers,Band of Prismatic Focus,26991,'+3 Heroic Dexterity,PoTime: Tallon Zek
+Warrior,Wrists,Earthen Bracer of Fortitude,32100,'+4 Heroic Stamina,PoTime: Quarm
+Warrior,Wrists,Bracer of Precision,28667,'+4 Heroic Stamina,PoTime: Tallon Zek
+Warrior,Arms,Armguards of the Brute,21995,Faerune,PoTime: Terris Thule
+Warrior,Hands,Gloves of Airy Mists,28246,'+7 Heroic Agility,PoTime: Innoruuk
+Warrior,Shoulders,Mantle of Deadly Precision,28658,'+3 Heroic Dexterity,PoTime: Tallon Zek
+Warrior,Chest,Raex's Chestplate of Destruction,32129,,PoTime: Rallos Zek or Quarm (Timeless Breastplate Mold)
+Warrior,Back,Shroud of Eternity,15805,'+4 Heroic Strength/Stamina,PoTime: Quarm
+Warrior,Waist,Cord of Temporal Weavings,16156,45% Haste/+7 Heroic Agility,PoTime: Quarm
+Warrior,Legs,Greaves of Furious Might,28650,'+4 Heroic Stamina,PoTime: Cazic Thule
+Warrior,Feet,Boots of Despair,25995,'+4 Heroic Stamina,PoTime: Bertoxxulous
+Warrior,Ranged,Globe of Mystical Protection,26799,'+3 Heroic Agility,PoTime: Vallon Zek
+Paladin,Primary,Hopebringer,23498,,PoTime: Tallon Zek
+Paladin,Secondary,Shield of Strife,27298,,PoTime: Rallos Zek
+Paladin,Ears,Silver Hoop of Speed,7123,'+5% Overhaste,PoTime: Quarm
+Paladin,Ears,Hoop of the Enlightened,21999,'+3 Mana Regen/Increased Spell Range,PoTime: Phase 2
+Paladin,Neck,Necklace of Eternal Visions,9289,1-20% Beneficial Mana Preservation,PoTime: Innoruuk
+Paladin,Face,Faceguard of Frenzy,26983,,PoTime: Tier 3 Golems
+Paladin,Head,Helm of Flowing Time,28647,40% Haste,PoTime: Vallon Zek
+Paladin,Fingers,Timestone Adorned Ring,10948,,PoTime: Cazic Thule
+Paladin,Fingers,Prismatic Ring of Resistance,26989,,PoTime: Quarm
+Paladin,Wrists,Earthen Bracer of Fortitude,32100,,PoTime: Quarm
+Paladin,Wrists,Bracer of Precision,28667,'+4 Heroic Stamina,PoTime: Tallon Zek
+Paladin,Arms,Armguards of the Brute,21995,,PoTime: Terris Thule
+Paladin,Hands,Gloves of Airy Mists,28246,,PoTime: Innoruuk
+Paladin,Shoulders,Pauldrons of Devastation,28659,,PoTime: Rallos Zek
+Paladin,Chest,Trydan's Chestplate of Nobility,32132,'+1-30% Increased Healing,PoTime: Rallos Zek/Quarm (Timeless Breastplate Mold)
+Paladin,Back,Shroud of Eternity,15805,'+4 Heroic Strength/Stamina,PoTime: Quarm
+Paladin,Waist,Cord of Temporal Weavings,16156,45% Haste/+7 Heroic Agility,PoTime: Quarm
+Paladin,Legs,Greaves of Furious Might,28650,,PoTime: Cazic Thule
+Paladin,Feet,Boots of Despair,25995,'+10% Taunt Mod,PoTime: Bertoxxulous
+Paladin,Ranged,Globe of Mystical Protection,26799,Heroic Agility/+3 Mana Regen,PoTime: Vallon Zek
+Shadow Knight,Primary,Cudgel of Venomous Hatred,22890,,PoTime: Terris Thule
+Shadow Knight,Secondary,Shield of Strife,27298,,PoTime: Rallos Zek
+Shadow Knight,Ears,Silver Hoop of Speed,7123,'+5% Overhaste,PoTime: Quarm
+Shadow Knight,Ears,Hoop of the Enlightened,21999,'+3 Mana Regen/Increased Spell Range,PoTime: Phase 2
+Shadow Knight,Neck,Talisman of the Elements,7769,Mana Preservation,PoTime: Quarm
+Shadow Knight,Face,Faceguard of Frenzy,26983,,PoTime: Tier 3 Golems
+Shadow Knight,Head,Helm of Flowing Time,28647,40% Haste,PoTime: Vallon Zek
+Shadow Knight,Fingers,Timestone Adorned Ring,10948,,PoTime: Cazic Thule
+Shadow Knight,Fingers,Prismatic Ring of Resistance,26989,,PoTime: Quarm
+Shadow Knight,Wrists,Earthen Bracer of Fortitude,32100,,PoTime: Quarm
+Shadow Knight,Wrists,Bracer of Precision,28667,Heroic Stamina,PoTime: Tallon Zek
+Shadow Knight,Arms,Armguards of the Brute,21995,,PoTime: Terris Thule
+Shadow Knight,Hands,Gloves of Airy Mists,28246,,PoTime: Innoruuk
+Shadow Knight,Shoulders,Pauldrons of Devastation,28659,,PoTime: Rallos Zek
+Shadow Knight,Chest,Grimror's Guard of the Plagues,32602,,PoTime: Rallos Zek/Quarm (Timeless Breastplate Mold)
+Shadow Knight,Back,Shroud of Eternity,15805,'+4 Heroic Strength/Stamina,PoTime: Quarm
+Shadow Knight,Waist,Cord of Temporal Weavings,16156,45% Haste/+7 Heroic Agility,PoTime: Quarm
+Shadow Knight,Legs,Greaves of Furious Might,28650,,PoTime: Cazic Thule
+Shadow Knight,Feet,Boots of Despair,25995,,PoTime: Bertoxxulous
+Shadow Knight,Ranged,Globe of Mystical Protection,26799,Heroic Agility/+3 Mana Regen,PoTime: Vallon Zek
+Cleric,Primary,Hammer of Holy Vengeance,20627,,PoTime: Vallon Zek
+Cleric,Secondary,Tactician's Shield,28656,BiS for Mana,PoTime: Tallon Zek
+Cleric,Ears,Earring of Unseen Horrors,26980,'+30% Beneficial Spell Haste/+3 Mana Regen,PoTime: Cazic Thule
+Cleric,Ears,Earring of Influxed Gravity,7130,'+25% Spell Range (also on Face option)/+3 Mana Regen,PoTime: Quarm
+Cleric,Neck,Necklace of Eternal Visions,9289,'+1-20% Beneficial Mana Preservation,PoTime: Innoruuk
+Cleric,Face,Mask of Simplicity,26984,'+3 Mana Regen/+20% Beneficial Spell Mana Preservation,PoTime: Cazic Thule
+Cleric,Head,Helm of Flowing Time,28647,,PoTime: Vallon Zek
+Cleric,Fingers,Pulsing Onyx Ring,26993,'+25% Beneficial Spell Duration/+3 Mana Regen,PoTime: Bertoxxulous
+Cleric,Fingers,Prismatic Ring of Resistance,26989,BiS for Mana,PoTime: Quarm
+Cleric,Wrists,Earthen Bracer of Fortitude,32100,'+23% Spell Haste,PoTime: Quarm
+Cleric,Wrists,Bracer of Precision,28667,Heroic Stamina,PoTime: Tallon Zek
+Cleric,Arms,Armguards of the Brute,21995,Faerune,PoTime: Terris Thule
+Cleric,Hands,Gloves of Airy Mists,28246,,PoTime: Innoruuk
+Cleric,Shoulders,Shawl of Eternal Forces,28661,BiS for Mana,PoTime: Quarm
+Cleric,Chest,Ultor's Chestguard of Faith,32603,'+1-30% Healing,PoTime: Rallos Zek/Quarm (Plate Mold)
+Cleric,Back,Shroud of Eternity,15805,BiS for Mana (contested),PoTime: Quarm
+Cleric,Waist,Belt of Temporal Bindings,15927,,PoTime: Bertoxxulous
+Cleric,Legs,Greaves of Furious Might,28650,,PoTime: Cazic Thule
+Cleric,Feet,Boots of Despair,25995,,PoTime: Bertoxxulous
+Cleric,Ranged,Spool of Woven Time,20496,'+5 Mana Regen/+1-30% All Direct Damage,PoTime: Quarm
+Druid,Primary,Hammer of Hours,21886,1-20% Increased Detrimental Duration,PoTime: Terris Thule
+Druid,Secondary,Whorl of Unnatural Forces,27280,'+1-30% Healing/+5 Mana Regen,PoTime: Quarm
+Druid,Ears,Earring of Unseen Horrors,26980,'+30% Beneficial Spell Haste/+3 Mana Regen,PoTime: Cazic Thule
+Druid,Ears,Earring of Influxed Gravity,7130,'+25% Spell Range/+3 Mana Regen,PoTime: Quarm
+Druid,Neck,Talisman of the Elements,7769,'+1-20% Mana Preservation,PoTime: Quarm
+Druid,Face,Veil of the Inferno,9435,,PoTime: Bertoxxulous
+Druid,Head,Cap of Flowing Time,28648,,PoTime: Saryrn
+Druid,Fingers,Prismatic Ring of Resistance,26989,,PoTime: Quarm
+Druid,Fingers,Pulsing Onyx Ring,26993,'+25% Beneficial Spell Duration/+3 Mana Regen,PoTime: Bertoxxulous
+Druid,Wrists,Wristband of Icy Vengeance,32110,'+23% Spell Haste,PoTime: Quarm
+Druid,Wrists,Bracer of Precision,28667,1-35% Ice DD,PoTime: Tallon Zek
+Druid,Arms,Protective Sleeves,21994,,PoTime: Tier 3 Golems
+Druid,Hands,Padded Tigerskin Gloves,27000,,PoTime: Cazic Thule
+Druid,Shoulders,Shawl of Eternal Forces,28661,,PoTime: Quarm
+Druid,Chest,Kerasha's Sylvan Tunic,32139,'+1-35% Ice DD,PoTime: Bertoxxulous/Quarm (Leather Pattern)
+Druid,Back,Cape of Endless Torment,21998,'+1-35% Fire DD/+6 Mana Regen,PoTime: Terris Thule
+Druid,Waist,Belt of Temporal Bindings,15927,,PoTime: Bertoxxulous
+Druid,Legs,Pants of Furious Might,28652,,PoTime: Rallos Zek
+Druid,Feet,Shoes of Fleeting Fury,26986,Faerune,PoTime: Vallon Zek
+Druid,Ranged,Symbol of the Planemasters,20898,'+1-30% DoT Damage,PoTime: Saryrn
+Shaman,Primary,Hammer of Hours,21886,1-20% Increased Detrimental Duration + DD Proc (the PoTime BP has a better focus),PoTime: Terris Thule
+Shaman,Secondary,Whorl of Unnatural Forces,27280,'+1-30% Healing/+5 Mana Regen,PoTime: Quarm
+Shaman,Ears,Earring of Unseen Horrors,26980,'+30% Beneficial Spell Haste (also on Arms)/+3 Mana Regen,PoTime: Cazic Thule
+Shaman,Ears,Earring of Temporal Solstice,5594,'+1-30% DoT Mana Preservation,PoTime: Vallon Zek
+Shaman,Neck,Talisman of the Elements,7769,'+1-20% Mana Preservation,PoTime: Quarm
+Shaman,Face,Visor of the Berserker,26982,High AC + 25% Spell Range,PoTime: Rallos Zek
+Shaman,Head,Coif of Flowing Time,28605,,PoTime: Terris Thule
+Shaman,Fingers,Pulsing Onyx Ring,26993,'+25% Beneficial Spell Duration/+3 Mana Regen,PoTime: Bertoxxulous
+Shaman,Fingers,Prismatic Ring of Resistance,26989,High Mana,PoTime: Quarm
+Shaman,Wrists,Bracer of the Inferno,21993,'+23% Spell Haste,PoTime: Quarm
+Shaman,Wrists,Bracer of Precision,28667,1-35% Ice DD,PoTime: Tallon Zek
+Shaman,Arms,Temporal Chainmail Sleeves,32608,'+30% Beneficial Spell Haste (also on Ear),PoTime: Vallon Zek
+Shaman,Hands,Gloves of Airy Mists,28246,,PoTime: Innoruuk
+Shaman,Shoulders,Shawl of Eternal Forces,28661,,PoTime: Quarm
+Shaman,Chest,Rosrak's Hauberk of the Primal,32138,1-25% Increased Detrimental Duration,PoTime: Innoruuk/Quarm (Chain Pattern)
+Shaman,Back,Cape of Endless Torment,21998,'+6 Mana Regen,PoTime: Terris Thule
+Shaman,Waist,Belt of Temporal Bindings,15927,Mana/+8 HP Regen,PoTime: Bertoxxulous
+Shaman,Legs,Leggings of Furious Might,28651,,PoTime: Bertoxxulous
+Shaman,Feet,Winged Storm Boots,26988,Faerune,PoTime: Tallon Zek
+Shaman,Ranged,Symbol of the Planemasters,20898,'+1-30% DoT Damage,PoTime: Saryrn
+Ranger,Primary,Hammer of the Timeweaver,22894,,PoTime: Quarm
+Ranger,Secondary,"Timespinner, Blade of the Hunter",24573,'+2 Heroic Dexterity,PoTime: Bertoxxulous
+Ranger,Quiver,Fleeting Quiver,17327,60% Weight Reduction,Tailoring Combine
+Ranger,Ears,Silver Hoop of Speed,7123,5% Overhaste/+4 Heroic Dexterity,PoTime: Quarm
+Ranger,Ears,Earring of Xaoth Kor,5760,'+2 Heroic Dexterity,PoTime: Phase 3 Golems
+Ranger,Neck,Talisman of the Elements,7769,20% Mana Preservation/+50 Attack,PoTime: Quarm
+Ranger,Face,Mask of Strategic Insight,29174,'+3 Heroic Dexterity,PoTime: Tier 3 Golems
+Ranger,Head,Glowing Chains,28653,'+3 Mana Regen (BiS if over the 250 Attack cap),PoTime: Phase 2
+Ranger,Fingers,Band of Prismatic Focus,26991,'+3 Heroic Dexterity/+15 Attack,PoTime: Tallon Zek
+Ranger,Fingers,Timestone Adorned Ring,10948,'+4 Heroic Agility,PoTime: Cazic Thule
+Ranger,Wrists,Bracer of the Inferno,21993,'+3 Heroic Dexterity/23% Spell Haste,PoTime: Quarm
+Ranger,Wrists,Bracer of Precision,28667,'+4 Heroic Stamina/+20 Attack/+35% Ice DD,PoTime: Tallon Zek
+Ranger,Arms,Temporal Chainmail Sleeves,32608,'+25 Attack/+30% Beneficial Spell Haste,PoTime: Vallon Zek
+Ranger,Hands,Gloves of Airy Mists,28246,'+30 Attack,PoTime: Innoruuk
+Ranger,Shoulders,Mantle of Deadly Precision,28658,BiS for DPS: +3 Heroic Dexterity/+20 Attack,PoTime: Tallon Zek
+Ranger,Chest,Askr's Thunderous Chainmail,32604,'+3 Heroic Dexterity/+35% Fire DD,PoTime: Innoruuk/Quarm (Chain Pattern)
+Ranger,Back,Shroud of Eternity,15805,'+4 Heroic Strength/+5 Attack,PoTime: Quarm
+Ranger,Waist,Cord of Temporal Weavings,16156,'+7 Heroic Agility/+35 Attack/45% Haste,PoTime: Quarm
+Ranger,Legs,Leggings of Furious Might,28651,'+20 Attack,PoTime: Bertoxxulous
+Ranger,Feet,Winged Storm Boots,26988,Faerune,PoTime: Tallon Zek
+Ranger,Ranged,Bow of the Tempest,27818,,PoTime: Vallon Zek
+Rogue,Primary,Jagged Timeforged Blade,24692,'+2 Heroic Dexterity,PoTime: Innoruuk
+Rogue,Secondary,Hammer of the Timeweaver,22894,,PoTime: Quarm
+Rogue,Ears,Silver Hoop of Speed,7123,5% Overhaste/+4 Heroic Dexterity,PoTime: Quarm
+Rogue,Ears,Earring of Xaoth Kor,5760,'+2 Heroic Dexterity,PoTime: Phase 3 Golems
+Rogue,Neck,Talisman of Vah Kerrath,8364,'+6 Heroic Strength,Vex Thal: Aten Ha Ra Quest
+Rogue,Face,Mask of Strategic Insight,29174,'+3 Heroic Dexterity,PoTime: Tier 3 Golems
+Rogue,Head,Coif of Flowing Time,28605,'+20 Attack,PoTime: Terris Thule
+Rogue,Fingers,Band of Prismatic Focus,26991,'+3 Heroic Dexterity/+15 Attack,PoTime: Tallon Zek
+Rogue,Fingers,Ring of Force,26992,'+15 Attack,PoTime: Tier 1
+Rogue,Wrists,Bracer of the Inferno,21993,'+3 Heroic Dexterity,PoTime: Quarm
+Rogue,Wrists,Bracer of Precision,28667,'+20 Attack,PoTime: Tallon Zek
+Rogue,Arms,Temporal Chainmail Sleeves,32608,'+25 Attack,PoTime: Vallon Zek
+Rogue,Hands,Gloves of Airy Mists,28246,'+30 Attack,PoTime: Innoruuk
+Rogue,Shoulders,Mantle of Deadly Precision,28658,'+3 Heroic Dexterity/+20 Attack,PoTime: Tallon Zek
+Rogue,Chest,Bidilis' Hauberk of the Elusive,32130,'+3 Heroic Dexterity/+20 Backstab,PoTime: Innoruuk/Quarm (Chain Pattern)
+Rogue,Back,Shroud of Eternity,15805,'+4 Heroic Strength,PoTime: Quarm
+Rogue,Waist,Cord of Temporal Weavings,16156,'+35 Attack,PoTime: Quarm
+Rogue,Legs,Leggings of Furious Might,28651,'+20 Attack,PoTime: Bertoxxulous
+Rogue,Feet,Winged Storm Boots,26988,Faerune,PoTime: Tallon Zek
+Rogue,Ranged,Shuriken of Eternity,14733,"BiS overall; 250 range;' +25 Attack; drops as Ton Po's Mystical Pouch",PoTime: Rallos Zek
+Monk,Primary,Shinai of the Ancients,26740,,PoTime: Vallon Zek
+Monk,Secondary,Hammer of the Timeweaver,22894,,PoTime: Quarm
+Monk,Ears,Silver Hoop of Speed,7123,'+4 Heroic Dexterity,PoTime: Quarm
+Monk,Ears,Earring of Xaoth Kor,5760,'+2 Heroic Dexterity/+15 Attack,PoTime: Tier 3 Golems
+Monk,Neck,Talisman of Vah Kerrath,8364,'+6 Heroic Strength/+20 Attack,Vex Thal: Aten Ha Ra Quest
+Monk,Face,Mask of Strategic Insight,29174,'+3 Heroic Dexterity/+35 Attack,PoTime: Tier 3 Golems
+Monk,Head,Cap of Flowing Time,28648,'+20 Attack,PoTime: Saryrn
+Monk,Fingers,Band of Prismatic Focus,26991,'+3 Heroic Dexterity/+15 Attack,PoTime: Tallon Zek
+Monk,Fingers,Timestone Adorned Ring,10948,'+4 Heroic Agility,PoTime: Cazic Thule
+Monk,Wrists,Wristband of Icy Vengeance,32110,'+4 Heroic Agility/+3 Heroic Dexterity,PoTime: Quarm
+Monk,Wrists,Bracer of Precision,28667,'+4 Heroic Stamina/+20 Attack,PoTime: Tallon Zek
+Monk,Arms,Protective Sleeves,21994,'+4 Heroic Stamina/+25 Attack,PoTime: Tier 3 Golems
+Monk,Hands,Dark Hand Wraps,28949,'+5% Hand to Hand Skill/+15 Attack,Vex Thal: Vi Xi Aten Ha Ra
+Monk,Shoulders,Mantle of Deadly Precision,28658,'+3 Heroic Dexterity/+20 Attack,PoTime: Tallon Zek
+Monk,Chest,Ton Po's Chestwraps of Composure,32131,'+4 Heroic Agility/+15 Flying Kick,PoTime: Bertoxxulous/Quarm (Leather Pattern)
+Monk,Back,Shroud of Eternity,15805,'+4 Heroic Strength/Stamina,PoTime: Quarm
+Monk,Waist,Cord of Temporal Weavings,16156,'+7 Heroic Agility/+35 Attack/45% Haste,PoTime: Quarm
+Monk,Legs,Pants of Furious Might,28652,'+6 Heroic Agility/+20 Attack,PoTime: Rallos Zek
+Monk,Feet,Shoes of Fleeting Fury,26986,Faerune,PoTime: Vallon Zek
+Monk,Ranged,Shuriken of Eternity,14733,Throwing weapon (Ton Po's Mystical Pouch)/+25 Attack,PoTime: Rallos Zek
+Bard,Primary,Songblade of the Eternal,24570,Singing 15,PoTime: Innoruuk
+Bard,Secondary,Edge of Eternity,22986,Percussion 15,PoTime: Saryrn
+Bard,Instruments,Lute of the Flowing Waters,27994,String 24,PoWater: Grioihin the Wise
+Bard,Ears,Silver Hoop of Speed,7123,'+5% Overhaste,PoTime: Quarm
+Bard,Ears,Earring of Xaoth Kor,5760,'+3 Heroic Dexterity/+15 Attack,PoTime: Phase 3 Golems
+Bard,Neck,Necklace of Eternal Visions,9289,'+2 Heroic Stamina,PoTime: Innoruuk
+Bard,Face,Mask of Strategic Insight,29174,'+3 Heroic Dexterity/+25 Attack,PoTime: Tier 3 Golems
+Bard,Head,Helm of Flowing Time,28647,40% Haste/+20 Attack,PoTime: Vallon Zek
+Bard,Fingers,Timestone Adorned Ring,10948,'+4 Heroic Agility,PoTime: Cazic Thule
+Bard,Fingers,Band of Prismatic Focus,26991,'+3 Heroic Dexterity/+15 Attack,PoTime: Tallon Zek
+Bard,Wrists,Earthen Bracer of Fortitude,32100,String 14/+4 Heroic Stamina,PoTime: Quarm
+Bard,Wrists,Bracer of Precision,28667,'+4 Heroic Stamina/+20 Attack,PoTime: Tallon Zek
+Bard,Arms,Armguards of the Brute,21995,Faerune,PoTime: Terris Thule
+Bard,Hands,Gloves of Airy Mists,28246,'+7 Heroic Agility/+30 Attack,PoTime: Innoruuk
+Bard,Shoulders,Shroud of Provocation,13673,Wind 12/+20 Attack,PoTime: Saryrn
+Bard,Chest,Rizlona's Fiery Chestplate,32134,Brass 16/+5 Heroic Stamina,PoTime: Rallos Zek/Quarm (Timeless Breastplate Mold)
+Bard,Back,Shroud of Eternity,15805,'+4 Heroic Strength/Stamina,PoTime: Quarm
+Bard,Waist,Cord of Temporal Weavings,16156,45% Haste/+7 Heroic Agility/+35 Attack,PoTime: Quarm
+Bard,Legs,Greaves of Furious Might,28650,'+4 Heroic Stamina/+20 Attack,PoTime: Cazic Thule
+Bard,Feet,Boots of Despair,25995,'+4 Heroic Stamina/+25 Attack,PoTime: Bertoxxulous
+Bard,Ranged,Globe of Mystical Protection,26799,'+3 Heroic Agility/+3 Mana Regen,PoTime: Vallon Zek
+Beastlord,Primary,Shinai of the Ancients,26740,'+2 Heroic Agility,PoTime: Vallon Zek
+Beastlord,Secondary,Ethereal Destroyer,22998,,PoTime: Tier 3 Golems
+Beastlord,Ears,Silver Hoop of Speed,7123,'+4 Heroic Dexterity,PoTime: Quarm
+Beastlord,Ears,Earring of Xaoth Kor,5760,'+2 Heroic Dexterity/+15 Attack,PoTime: Tier 3 Golems
+Beastlord,Neck,Talisman of the Elements,7769,'+1-20% Mana Preservation/+50 Attack,PoTime: Quarm
+Beastlord,Face,Mask of Strategic Insight,29174,'+2 Heroic Dexterity/+25 Attack,PoTime: Tier 3 Golems
+Beastlord,Head,Cap of Flowing Time,28648,,PoTime: Saryrn
+Beastlord,Fingers,Band of Prismatic Focus,26991,'+3 Heroic Dexterity/+15 Attack,PoTime: Tallon Zek
+Beastlord,Fingers,Timestone Adorned Ring,10948,'+7 Heroic Agility,PoTime: Cazic Thule
+Beastlord,Wrists,Wristband of Icy Vengeance,32110,'+23% Spell Haste/+3 Heroic Dexterity/+4 Heroic Agility,PoTime: Quarm
+Beastlord,Wrists,Bracer of Precision,28667,1-35% Ice DD (also on BiS Chest)/+4 Heroic Stamina,PoTime: Tallon Zek
+Beastlord,Arms,Protective Sleeves,21994,'+4 Heroic Stamina,PoTime: Tier 3 Golems
+Beastlord,Hands,Padded Tigerskin Gloves,27000,'+7 Heroic Agility,PoTime: Cazic Thule
+Beastlord,Shoulders,Mantle of Deadly Precision,28658,'+3 Heroic Dexterity/+20 Attack,PoTime: Tallon Zek
+Beastlord,Chest,Dumul's Chestwraps of the Brute,32136,'+1-35% Ice DD (also on BiS Wrist),PoTime: Bertoxxulous/Quarm (Leather Pattern)
+Beastlord,Back,Cape of Endless Torment,21998,'+6 Mana Regen,PoTime: Terris Thule
+Beastlord,Waist,Cord of Temporal Weavings,16156,'+7 Heroic Agility/+35 Attack,PoTime: Quarm
+Beastlord,Legs,Pants of Furious Might,28652,'+6 Heroic Agility/+20 Attack,PoTime: Rallos Zek
+Beastlord,Feet,Shoes of Fleeting Fury,26986,Faerune,PoTime: Vallon Zek
+Beastlord,Ranged,Symbol of the Planemasters,20898,'+1-30% DoT Damage/+4 Heroic Stamina,PoTime: Saryrn
+Necromancer,Primary,Wand of Temporal Power,21876,1-20% Increased Detrimental Duration,PoTime: Vallon Zek
+Necromancer,Secondary,Tactician's Shield,28656,,PoTime: Tallon Zek
+Necromancer,Ears,Earring of Unseen Horrors,26980,'+30% Beneficial Spell Haste/+3 Mana Regen,PoTime: Cazic Thule
+Necromancer,Ears,Earring of Temporal Solstice,5594,1-30% Mana Preservation (Long Term Detrimental),PoTime: Tallon Zek
+Necromancer,Neck,Talisman of the Elements,7769,'+1-20% Mana Preservation (All Spells),PoTime: Quarm
+Necromancer,Face,Veil of the Inferno,9435,,PoTime: Bertoxxulous
+Necromancer,Head,Circlet of Flowing Time,32607,'+1-35% Magic DD,PoTime: Tallon Zek
+Necromancer,Fingers,Ring of Thunderous Forces,14818,'+1-35% Magic DD/+3 Mana Regen,PoTime: Rallos Zek
+Necromancer,Fingers,Ring of Evasion,26994,'+3 Mana Regen,PoTime: Saryrn
+Necromancer,Wrists,Zealot's Spiked Bracer,28665,'+25% Spell Range,PoTime: Cazic Thule
+Necromancer,Wrists,Bracer of Timeless Rage,32609,'+23% Detrimental Spell Haste,PoTime: Innoruuk
+Necromancer,Arms,Protective Sleeves,21994,,PoTime: Tier 3 Golems
+Necromancer,Hands,Gloves of the Unseen,26996,'+1-20% Mana Preservation (All Spells),PoTime: Saryrn
+Necromancer,Shoulders,Shawl of Eternal Forces,28661,,PoTime: Quarm
+Necromancer,Chest,Miragul's Shroud of Risen Souls,32142,'+1-30% DoT Damage,PoTime: Cazic Thule/Quarm (Silk Pattern)
+Necromancer,Back,Shroud of Eternity,15805,,PoTime: Quarm
+Necromancer,Waist,Belt of Temporal Bindings,15927,,PoTime: Bertoxxulous
+Necromancer,Legs,Ethereal Silk Leggings,28649,'+23% Spell Haste (All Spells),PoTime: Quarm
+Necromancer,Feet,Sandals of Empowerment,32610,Faerune,PoTime: Rallos Zek
+Necromancer,Ranged,Spool of Woven Time,20496,"'+1-30% DD (All Spells), good for Poison DDs;' +5 Mana Regen",PoTime: Quarm
+Wizard,Primary,Wand of Impenetrable Force,15867,,PoTime: Cazic Thule
+Wizard,Secondary,Tactician's Shield,28656,BiS once you get the LDoN Ice Aug,PoTime: Tallon Zek
+Wizard,Ears,Earring of Unseen Horrors,26980,'+30% Beneficial Spell Haste/+3 Mana Regen,PoTime: Cazic Thule
+Wizard,Ears,Earring of Influxed Gravity,7130,'+25% Spell Range/+3 Mana Regen,PoTime: Quarm
+Wizard,Neck,Talisman of the Elements,7769,1-20% Mana Preservation,PoTime: Quarm
+Wizard,Face,Veil of the Inferno,9435,,PoTime: Bertoxxulous
+Wizard,Head,Circlet of Flowing Time,32607,'+1-35% Magic DD,PoTime: Tallon Zek
+Wizard,Fingers,Ring of Thunderous Forces,14818,BiS for Mana/+1-35% Magic DD/+3 Mana Regen,PoTime: Rallos Zek
+Wizard,Fingers,Ring of Evasion,26994,'+3 Heroic Agility/+3 Mana Regen,PoTime: Saryrn
+Wizard,Wrists,Zealot's Spiked Bracer,28665,'+25% Spell Range/+3 Mana Regen,PoTime: Cazic Thule
+Wizard,Wrists,Bracer of Timeless Rage,32609,'+23% Detrimental Spell Haste,PoTime: Innoruuk
+Wizard,Arms,Protective Sleeves,21994,,PoTime: Tier 3 Golems
+Wizard,Hands,Gloves of the Unseen,26996,'+1-20% Mana Preservation (All Spells),PoTime: Saryrn
+Wizard,Shoulders,Shawl of Eternal Forces,28661,,PoTime: Quarm
+Wizard,Chest,Maelin's Robe of Lore,32143,'+1-35% Fire DD,PoTime: Cazic Thule/Quarm (Timeless Silk Robe Pattern)
+Wizard,Back,Shroud of Eternity,15805,Contested,PoTime: Quarm
+Wizard,Waist,Belt of Temporal Bindings,15927,,PoTime: Bertoxxulous
+Wizard,Legs,Ethereal Silk Leggings,28649,'+23% Spell Haste (All Spells),PoTime: Quarm
+Wizard,Feet,Sandals of Empowerment,32610,Faerune,PoTime: Rallos Zek
+Wizard,Ranged,Spool of Woven Time,20496,BiS for Mana,PoTime: Quarm
+Magician,Primary,Wand of Temporal Power,21876,,PoTime: Vallon Zek
+Magician,Secondary,Tactician's Shield,28656,,PoTime: Tallon Zek
+Magician,Ears,Earring of Unseen Horrors,26980,'+30% Beneficial Spell Haste/+3 Mana Regen,PoTime: Cazic Thule
+Magician,Ears,Earring of Influxed Gravity,7130,'+25% Spell Range/+3 Mana Regen,PoTime: Quarm
+Magician,Neck,Talisman of the Elements,7769,1-20% Mana Preservation,PoTime: Quarm
+Magician,Face,Veil of Lost Hopes,26981,Clicky + Magician only,PoTime: Saryrn
+Magician,Head,Circlet of Flowing Time,32607,'+1-35% Magic DD,PoTime: Tallon Zek
+Magician,Fingers,Ring of Thunderous Forces,14818,BiS for Mana/+1-35% Magic DD/+3 Mana Regen,PoTime: Rallos Zek
+Magician,Fingers,Pulsing Onyx Ring,26993,'+25% Beneficial Duration/+3 Mana Regen (healer contested),PoTime: Bertoxxulous
+Magician,Wrists,Zealot's Spiked Bracer,28665,'+25% Spell Range/+3 Mana Regen,PoTime: Cazic Thule
+Magician,Wrists,Bracer of Timeless Rage,32609,'+23% Detrimental Spell Haste,PoTime: Innoruuk
+Magician,Arms,Protective Sleeves,21994,,PoTime: Tier 3 Golems
+Magician,Hands,Gloves of the Unseen,26996,'+1-20% Mana Preservation (All Spells),PoTime: Saryrn
+Magician,Shoulders,Shawl of Eternal Forces,28661,,PoTime: Quarm
+Magician,Chest,Magi'Kot's Robe of Convergence,32141,'+1-35% Fire DD,PoTime: Cazic Thule/Quarm (Timeless Silk Robe Pattern)
+Magician,Back,Shroud of Eternity,15805,Contested,PoTime: Quarm
+Magician,Waist,Belt of Temporal Bindings,15927,,PoTime: Bertoxxulous
+Magician,Legs,Ethereal Silk Leggings,28649,'+23% Spell Haste (All Spells),PoTime: Quarm
+Magician,Feet,Sandals of Empowerment,32610,Faerune,PoTime: Rallos Zek
+Magician,Ranged,Symbol of Ancient Summoning,20508,Pet Focus,PoTime: Bertoxxulous
+Enchanter,Primary,Serpent of Vindication,22959,,PoTime: Tallon Zek
+Enchanter,Secondary,Tactician's Shield,28656,,PoTime: Tallon Zek
+Enchanter,Ears,Earring of Unseen Horrors,26980,'+30% Beneficial Spell Haste/+3 Mana Regen,PoTime: Cazic Thule
+Enchanter,Ears,Earring of Influxed Gravity,7130,'+25% Spell Range/+3 Mana Regen,PoTime: Quarm
+Enchanter,Neck,Talisman of the Elements,7769,1-20% Mana Preservation,PoTime: Quarm
+Enchanter,Face,Veil of the Inferno,9435,,PoTime: Bertoxxulous
+Enchanter,Head,Circlet of Flowing Time,32607,'+1-35% Magic DD,PoTime: Tallon Zek
+Enchanter,Fingers,Pulsing Onyx Ring,26993,'+25% Beneficial Duration/+3 Mana Regen,PoTime: Bertoxxulous
+Enchanter,Fingers,Ring of Evasion,26994,'+3 Heroic Agility/+3 Mana Regen,PoTime: Saryrn
+Enchanter,Wrists,Zealot's Spiked Bracer,28665,'+25% Spell Range/+3 Mana Regen,PoTime: Cazic Thule
+Enchanter,Wrists,Bracer of Timeless Rage,32609,'+23% Detrimental Spell Haste,PoTime: Innoruuk
+Enchanter,Arms,Protective Sleeves,21994,,PoTime: Tier 3 Golems
+Enchanter,Hands,Gloves of the Unseen,26996,'+1-20% Mana Preservation (All Spells),PoTime: Saryrn
+Enchanter,Shoulders,Shawl of Eternal Forces,28661,,PoTime: Quarm
+Enchanter,Chest,Romar's Robe of Visions,32140,'+25% Duration of Detrimental Spells,PoTime: Cazic Thule/Quarm (Timeless Silk Robe Pattern)
+Enchanter,Back,Shroud of Eternity,15805,Contested,PoTime: Quarm
+Enchanter,Waist,Belt of Temporal Bindings,15927,,PoTime: Bertoxxulous
+Enchanter,Legs,Ethereal Silk Leggings,28649,'+23% Spell Haste (All Spells),PoTime: Quarm
+Enchanter,Feet,Sandals of Empowerment,32610,Faerune,PoTime: Rallos Zek
+Enchanter,Ranged,Symbol of the Planemasters,20898,'+1-30% Duration Spell Damage,PoTime: Saryrn
